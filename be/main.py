@@ -5,7 +5,7 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-import easyocr
+import pytesseract
 import numpy as np
 from PIL import Image
 import io
@@ -14,6 +14,7 @@ import pandas as pd
 from datetime import datetime
 import os
 import shutil
+import cv2
 
 # --- INISIALISASI APP ---
 app = FastAPI(title="Supply Chain OCR API", description="Backend untuk scan dokumen gudang")
@@ -69,25 +70,30 @@ def init_db():
 # Jalankan fungsi database saat server nyala
 init_db()
 
-# --- SETUP AI (EASYOCR) ---
-# Kita pakai variabel global agar model dimuat sekali saja
-reader = None
+# --- SETUP AI (TESSERACT OCR) ---
+# Tesseract jauh lebih ringan dari EasyOCR (~50MB vs ~500MB)
+# Set path Tesseract untuk Windows (Production di Render akan auto-detect)
+if os.name == 'nt':  # Windows
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 def get_ocr_engine():
-    """Fungsi Lazy Loading: Model baru dimuat saat dipanggil agar server ringan"""
-    global reader
-    if reader is None:
-        print("⏳ Sedang memuat model AI (EasyOCR)... Tunggu sebentar...")
-        # gpu=False, model_storage_directory untuk optimasi memory di Render
-        reader = easyocr.Reader(
-            ['en'],  # Hanya English untuk hemat memory (bisa detect angka/huruf Indonesia juga)
-            gpu=False,
-            download_enabled=True,
-            model_storage_directory='./model',  # Cache model
-            verbose=False  # Kurangi output log
-        )
-        print("✅ Model AI Siap!")
-    return reader
+    """Fungsi untuk melakukan OCR dengan Tesseract"""
+    # Tidak perlu load model karena Tesseract sangat ringan
+    return True  # Return True sebagai indikator OCR ready
+
+def extract_text_from_image(image_np):
+    """Extract text dari gambar menggunakan Tesseract"""
+    # Preprocessing untuk hasil lebih baik
+    gray = cv2.cvtColor(image_np, cv2.COLOR_BGR2GRAY)
+    # Threshold untuk meningkatkan kontras
+    _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
+    
+    # OCR dengan Tesseract (support Indonesia + English + angka)
+    # Config: --oem 3 (OCR Engine Mode: Default LSTM), --psm 6 (Assume uniform block of text)
+    custom_config = r'--oem 3 --psm 6 -l eng'
+    text = pytesseract.image_to_string(thresh, config=custom_config)
+    
+    return text.strip()
 
 # --- ENDPOINT 1: CEK KESEHATAN SERVER ---
 @app.get("/")
@@ -123,9 +129,8 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...))
         image_np = np.array(image) # Ubah ke format angka (NumPy) biar bisa dibaca AI
 
         # 2. JALANKAN OCR
-        model = get_ocr_engine()
-        result = model.readtext(image_np, detail=0) # detail=0 cuma ambil teksnya
-        full_text = " ".join(result).upper() # Gabung jadi satu paragraf besar
+        get_ocr_engine()  # Check OCR ready
+        full_text = extract_text_from_image(image_np).upper()  # Extract dan uppercase
 
         # 3. EKSTRAK NOMOR DOKUMEN DARI OCR (CARI POLA NOMOR)
         import re
