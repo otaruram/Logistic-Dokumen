@@ -114,6 +114,10 @@ const Index = () => {
     navigate('/login');
   };
 
+  const handleGaskeun = () => {
+    navigate('/gaskeun');
+  };
+
   // Auto-detect environment: development = localhost, production = Render
   const API_URL = import.meta.env.MODE === "development"
     ? "http://localhost:8000"  // Local development
@@ -252,11 +256,11 @@ const Index = () => {
           id: result.data.id,
           time: uploadDate.toLocaleTimeString("id-ID"),
           date: formattedDate,
-          docType: result.data.kategori, // Gunakan kategori dari backend
-          docNumber: result.data.nomor_dokumen, // Nomor dari OCR
-          receiver: result.data.receiver, // Nama penerima
-          imageUrl: result.data.imageUrl, // URL foto
-          summary: result.data.summary,
+          docType: result.data.kategori || "DOKUMEN",
+          docNumber: result.data.nomorDokumen || result.data.nomor_dokumen || "TIDAK TERDETEKSI",
+          receiver: result.data.receiver || "TIDAK ADA",
+          imageUrl: result.data.imagePath || result.data.imageUrl || "",
+          summary: result.data.summary || "",
           status: "SUCCESS" as const,
         };
 
@@ -264,7 +268,7 @@ const Index = () => {
         
         toast({
           title: "PROSES SELESAI",
-          description: `Terdeteksi: ${result.data.kategori}`,
+          description: `Terdeteksi: ${result.data.kategori || "Dokumen"}`,
         });
       } else {
         throw new Error(result.message || "Gagal memproses dokumen");
@@ -341,7 +345,7 @@ const Index = () => {
         </div>
       ) : (
         <>
-      <Header user={user} onLogout={handleLogout} />
+      <Header user={user} onLogout={handleLogout} onGaskeun={handleGaskeun} />
 
       <main className="container mx-auto px-3 md:px-4 py-4 md:py-6 flex-1">
         {/* Section 1: ZONA INPUT */}

@@ -1,5 +1,13 @@
-import { Circle, LogOut, User } from "lucide-react";
+import { Circle, LogOut, User, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface HeaderProps {
   user?: {
@@ -8,9 +16,10 @@ interface HeaderProps {
     picture: string;
   };
   onLogout?: () => void;
+  onGaskeun?: () => void;
 }
 
-const Header = ({ user, onLogout }: HeaderProps) => {
+const Header = ({ user, onLogout, onGaskeun }: HeaderProps) => {
   return (
     <header className="brutal-border-thin border-t-0 border-l-0 border-r-0 bg-background">
       <div className="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
@@ -28,33 +37,54 @@ const Header = ({ user, onLogout }: HeaderProps) => {
           </div>
           
           {user && (
-            <div className="flex items-center gap-2">
-              <div className="brutal-border-thin px-3 py-1.5 bg-background flex items-center gap-2 max-w-[200px]">
-                {user.picture ? (
-                  <img 
-                    src={user.picture} 
-                    alt={user.name}
-                    className="w-6 h-6 rounded-full brutal-border-thin flex-shrink-0"
-                  />
-                ) : (
-                  <User className="w-4 h-4 flex-shrink-0" />
-                )}
-                <span className="text-[10px] md:text-xs font-bold uppercase hidden md:inline truncate">
-                  {user.name}
-                </span>
-              </div>
-              
-              {onLogout && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
-                  onClick={onLogout}
                   variant="outline"
-                  size="sm"
-                  className="brutal-border-thin px-3 py-1.5 h-auto"
+                  className="brutal-border-thin px-3 py-1.5 bg-background flex items-center gap-2 max-w-[200px] h-auto"
                 >
-                  <LogOut className="w-4 h-4" />
+                  {user.picture ? (
+                    <img 
+                      src={user.picture} 
+                      alt={user.name}
+                      className="w-6 h-6 rounded-full brutal-border-thin flex-shrink-0"
+                    />
+                  ) : (
+                    <User className="w-4 h-4 flex-shrink-0" />
+                  )}
+                  <span className="text-[10px] md:text-xs font-bold uppercase hidden md:inline truncate">
+                    {user.name}
+                  </span>
                 </Button>
-              )}
-            </div>
+              </DropdownMenuTrigger>
+              
+              <DropdownMenuContent align="end" className="brutal-border bg-background min-w-[200px]">
+                <DropdownMenuLabel className="font-bold uppercase text-xs">
+                  {user.email}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-foreground/20" />
+                
+                {onGaskeun && (
+                  <DropdownMenuItem 
+                    onClick={onGaskeun}
+                    className="cursor-pointer font-bold uppercase text-xs hover:bg-primary hover:text-primary-foreground"
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    GASKEUN - OKi AI
+                  </DropdownMenuItem>
+                )}
+                
+                {onLogout && (
+                  <DropdownMenuItem 
+                    onClick={onLogout}
+                    className="cursor-pointer font-bold uppercase text-xs text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    KELUAR
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
