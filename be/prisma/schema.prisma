@@ -12,7 +12,7 @@ datasource db {
 
 model Logs {
   id           Int      @id @default(autoincrement())
-  userId       String   @map("user_id")
+  userId       String   @default("anonymous@system.local") @map("user_id")
   timestamp    DateTime @default(now())
   filename     String
   kategori     String
