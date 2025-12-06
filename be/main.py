@@ -5,7 +5,8 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-import pytesseract
+import requests
+import base64
 import numpy as np
 from PIL import Image
 import io
@@ -14,7 +15,6 @@ import pandas as pd
 from datetime import datetime
 import os
 import shutil
-import cv2
 
 # --- INISIALISASI APP ---
 app = FastAPI(title="Supply Chain OCR API", description="Backend untuk scan dokumen gudang")
@@ -70,41 +70,53 @@ def init_db():
 # Jalankan fungsi database saat server nyala
 init_db()
 
-# --- SETUP AI (TESSERACT OCR) ---
-# Tesseract jauh lebih ringan dari EasyOCR (~50MB vs ~500MB)
-# Set path Tesseract untuk Windows (Production di Render akan auto-detect)
-import platform
-if platform.system() == 'Windows':
-    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-else:
-    # Linux/Render - Tesseract dari Aptfile
-    try:
-        import subprocess
-        result = subprocess.run(['which', 'tesseract'], capture_output=True, text=True)
-        if result.returncode == 0:
-            pytesseract.pytesseract.tesseract_cmd = result.stdout.strip()
-            print(f"✅ Tesseract found at: {pytesseract.pytesseract.tesseract_cmd}")
-    except Exception as e:
-        print(f"⚠️ Tesseract auto-detection failed: {e}")
+# --- SETUP OCR.SPACE API (FREE, TANPA INSTALL) ---
+OCR_API_KEY = "K87899142388957"  # Free API key
+OCR_API_URL = "https://api.ocr.space/parse/image"
 
 def get_ocr_engine():
-    """Fungsi untuk melakukan OCR dengan Tesseract"""
-    # Tidak perlu load model karena Tesseract sangat ringan
-    return True  # Return True sebagai indikator OCR ready
+    """OCR.space API ready - no installation needed!"""
+    print("✅ OCR.space API ready!")
+    return True
 
 def extract_text_from_image(image_np):
-    """Extract text dari gambar menggunakan Tesseract"""
-    # Preprocessing untuk hasil lebih baik
-    gray = cv2.cvtColor(image_np, cv2.COLOR_BGR2GRAY)
-    # Threshold untuk meningkatkan kontras
-    _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
-    
-    # OCR dengan Tesseract (support Indonesia + English + angka)
-    # Config: --oem 3 (OCR Engine Mode: Default LSTM), --psm 6 (Assume uniform block of text)
-    custom_config = r'--oem 3 --psm 6 -l eng'
-    text = pytesseract.image_to_string(thresh, config=custom_config)
-    
-    return text.strip()
+    """Extract text menggunakan OCR.space API (gratis, no install)"""
+    try:
+        # Convert numpy array to PIL Image
+        image = Image.fromarray(image_np)
+        
+        # Convert to bytes
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format='PNG')
+        img_byte_arr = img_byte_arr.getvalue()
+        
+        # Encode to base64
+        base64_image = base64.b64encode(img_byte_arr).decode('utf-8')
+        
+        # Call OCR.space API
+        payload = {
+            'apikey': OCR_API_KEY,
+            'base64Image': f'data:image/png;base64,{base64_image}',
+            'language': 'eng',
+            'isOverlayRequired': False,
+            'detectOrientation': True,
+            'scale': True,
+            'OCREngine': 2  # Engine 2 lebih akurat
+        }
+        
+        response = requests.post(OCR_API_URL, data=payload, timeout=30)
+        result = response.json()
+        
+        if result.get('IsErroredOnProcessing'):
+            raise Exception(f"OCR Error: {result.get('ErrorMessage', 'Unknown error')}")
+        
+        # Extract text dari response
+        parsed_text = result.get('ParsedResults', [{}])[0].get('ParsedText', '')
+        return parsed_text.strip()
+        
+    except Exception as e:
+        print(f"❌ OCR Error: {e}")
+        return "ERROR: Gagal membaca teks dari gambar"
 
 # --- ENDPOINT 1: CEK KESEHATAN SERVER ---
 @app.get("/")
