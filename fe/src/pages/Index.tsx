@@ -15,6 +15,7 @@ const mockLogs = [
   {
     id: 1,
     time: "08:32:15",
+    date: "6/12/25",
     docType: "MANIFEST",
     docNumber: "MNF-2024-001",
     receiver: "JOHN DOE",
@@ -24,6 +25,7 @@ const mockLogs = [
   {
     id: 2,
     time: "09:15:42",
+    date: "6/12/25",
     docType: "INVOICE",
     docNumber: "INV-2024-042",
     receiver: "JANE SMITH",
@@ -33,6 +35,7 @@ const mockLogs = [
   {
     id: 3,
     time: "10:03:08",
+    date: "6/12/25",
     docType: "SURAT JALAN",
     docNumber: "SJ-2024-118",
     receiver: "BUDI SANTOSO",
@@ -42,6 +45,7 @@ const mockLogs = [
   {
     id: 4,
     time: "11:27:33",
+    date: "6/12/25",
     docType: "MANIFEST",
     docNumber: "MNF-2024-002",
     receiver: "AHMAD YANI",
@@ -51,6 +55,7 @@ const mockLogs = [
   {
     id: 5,
     time: "13:45:19",
+    date: "6/12/25",
     docType: "DELIVERY NOTE",
     docNumber: "DN-2024-055",
     receiver: "SITI RAHMA",
@@ -60,6 +65,7 @@ const mockLogs = [
   {
     id: 6,
     time: "14:22:08",
+    date: "6/12/25",
     docType: "INVOICE",
     docNumber: "INV-2024-043",
     receiver: "DEWI KUSUMA",
@@ -69,6 +75,7 @@ const mockLogs = [
   {
     id: 7,
     time: "15:10:33",
+    date: "6/12/25",
     docType: "MANIFEST",
     docNumber: "MNF-2024-003",
     receiver: "RUDI HARTONO",
@@ -78,6 +85,7 @@ const mockLogs = [
   {
     id: 8,
     time: "16:05:47",
+    date: "6/12/25",
     docType: "SURAT JALAN",
     docNumber: "SJ-2024-119",
     receiver: "WATI SURYANI",
