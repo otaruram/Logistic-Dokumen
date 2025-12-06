@@ -55,7 +55,7 @@ Klik **Add Environment Variable**, lalu isi:
 | Key | Value | Keterangan |
 |-----|-------|------------|
 | `PYTHON_VERSION` | `3.11.0` | Versi Python yang digunakan |
-| `BASE_URL` | `https://supply-chain-backend.onrender.com` | **GANTI** dengan URL yang Render berikan nanti |
+| `BASE_URL` | `https://logistic-dokumen.onrender.com` | URL backend Render Anda |
 | `FRONTEND_URL` | `https://ocrai.vercel.app` | URL frontend Vercel Anda |
 
 **Catatan untuk BASE_URL:** 
