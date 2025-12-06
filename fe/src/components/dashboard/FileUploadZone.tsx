@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Upload, Camera, X, Check } from "lucide-react";
+import { Upload, Camera, X, Check, Zap, ZapOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface FileUploadZoneProps {
@@ -10,6 +10,8 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
   const [mode, setMode] = useState<"upload" | "camera" | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [flashEnabled, setFlashEnabled] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -21,33 +23,40 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
           facingMode: "environment",
           width: { ideal: 1920 },
           height: { ideal: 1080 },
-          aspectRatio: { ideal: 16/9 },
         },
       });
       
-      // Try to enable torch/flash if available
+      // Check if torch/flash is supported
       const track = mediaStream.getVideoTracks()[0];
       const capabilities = track.getCapabilities() as any;
-      if (capabilities.torch) {
-        try {
-          await track.applyConstraints({
-            advanced: [{ torch: true } as any]
-          });
-        } catch (e) {
-          console.log("Torch not supported on this device");
-        }
-      }
+      setTorchSupported(!!capabilities.torch);
       
       setStream(mediaStream);
       setMode("camera");
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        // Add brightness and contrast via CSS
-        videoRef.current.style.filter = "brightness(1.3) contrast(1.1)";
       }
     } catch (error) {
-      alert("Gagal mengakses kamera");
+      alert("Gagal mengakses kamera. Pastikan izin kamera sudah diberikan.");
       console.error(error);
+    }
+  };
+
+  const toggleFlash = async () => {
+    if (!stream || !torchSupported) return;
+    
+    try {
+      const track = stream.getVideoTracks()[0];
+      const newFlashState = !flashEnabled;
+      
+      await track.applyConstraints({
+        advanced: [{ torch: newFlashState } as any]
+      });
+      
+      setFlashEnabled(newFlashState);
+    } catch (error) {
+      console.error("Failed to toggle flash:", error);
+      alert("Gagal mengaktifkan flash");
     }
   };
 
@@ -114,12 +123,31 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
 
         {!capturedImage ? (
           <>
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              className="w-full brutal-border bg-black"
-            />
+            <div className="relative">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full brutal-border bg-black"
+                style={{ minHeight: "300px" }}
+              />
+              {torchSupported && (
+                <Button
+                  onClick={toggleFlash}
+                  variant="outline"
+                  size="sm"
+                  className={`absolute top-2 right-2 brutal-btn ${
+                    flashEnabled ? "bg-yellow-400 text-black" : ""
+                  }`}
+                >
+                  {flashEnabled ? (
+                    <Zap className="w-4 h-4" />
+                  ) : (
+                    <ZapOff className="w-4 h-4" />
+                  )}
+                </Button>
+              )}
+            </div>
             <Button
               onClick={capturePhoto}
               className="w-full brutal-btn brutal-press"
