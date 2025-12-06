@@ -143,11 +143,11 @@ const Index = () => {
             id: log.id,
             time: logDate.toLocaleTimeString('id-ID'),
             date: formattedDate,
-            docType: "",
-            docNumber: "",
-            receiver: log.receiver,
-            imageUrl: log.image_path,
-            summary: log.summary,
+            docType: log.kategori || "DOKUMEN LAIN",
+            docNumber: log.nomorDokumen || log.nomor_dokumen || "TIDAK TERDETEKSI",
+            receiver: log.receiver || "TIDAK ADA",
+            imageUrl: log.imagePath || log.image_path || "",
+            summary: log.summary || "",
             status: "SUCCESS" as const
           };
         });
