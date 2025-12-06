@@ -33,6 +33,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173", 
         "http://localhost:8080",
+        "https://ocrai.vercel.app",
         FRONTEND_URL,
         "*"
     ],
