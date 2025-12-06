@@ -15,6 +15,7 @@ import * as XLSX from "xlsx";
 export interface LogEntry {
   id: number;
   time: string;
+  date: string;
   docType: string;
   docNumber: string;
   receiver: string;
@@ -93,7 +94,7 @@ const DataTable = ({ logs }: DataTableProps) => {
   const handleExportExcel = () => {
     const exportData = logs.map((log, index) => ({
       NO: index + 1,
-      WAKTU: log.time,
+      TANGGAL: log.date,
       PENERIMA: log.receiver,
       RINGKASAN: log.summary,
       STATUS: log.status,
@@ -118,10 +119,10 @@ const DataTable = ({ logs }: DataTableProps) => {
   };
 
   const handleExportCSV = () => {
-    const headers = ["NO", "WAKTU", "PENERIMA", "RINGKASAN", "STATUS"];
+    const headers = ["NO", "TANGGAL", "PENERIMA", "RINGKASAN", "STATUS"];
     const csvData = logs.map((log, index) => [
       index + 1,
-      log.time,
+      log.date,
       log.receiver,
       log.summary,
       log.status,
@@ -210,7 +211,7 @@ const DataTable = ({ logs }: DataTableProps) => {
                 NO
               </th>
               <th className="brutal-border-thin border-t-0 border-l-0 px-2 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-bold uppercase">
-                WAKTU
+                TANGGAL
               </th>
               <th className="brutal-border-thin border-t-0 border-l-0 px-2 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-bold uppercase">
                 PENERIMA
@@ -250,7 +251,7 @@ const DataTable = ({ logs }: DataTableProps) => {
                     {startIndex + index + 1}
                   </td>
                   <td className="brutal-border-thin border-l-0 px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm font-mono">
-                    {log.time}
+                    {log.date}
                   </td>
                   <td className="brutal-border-thin border-l-0 px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm font-bold uppercase">
                     {log.receiver}
