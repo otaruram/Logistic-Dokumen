@@ -18,27 +18,45 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
 
   const startCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: "environment",
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+      // Request camera with better constraints
+      const constraints = {
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 }
         },
-      });
+        audio: false
+      };
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       
+      if (!mediaStream || mediaStream.getVideoTracks().length === 0) {
+        throw new Error("No video track available");
+      }
+
       // Check if torch/flash is supported
       const track = mediaStream.getVideoTracks()[0];
       const capabilities = track.getCapabilities() as any;
       setTorchSupported(!!capabilities.torch);
       
+      // Set stream first
       setStream(mediaStream);
       setMode("camera");
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
-    } catch (error) {
-      alert("Gagal mengakses kamera. Pastikan izin kamera sudah diberikan.");
-      console.error(error);
+      
+      // Wait for next frame before setting video source
+      setTimeout(() => {
+        if (videoRef.current && mediaStream) {
+          videoRef.current.srcObject = mediaStream;
+          videoRef.current.play().catch((err) => {
+            console.error("Error playing video:", err);
+          });
+        }
+      }, 100);
+      
+    } catch (error: any) {
+      console.error("Camera error:", error);
+      alert(`Gagal mengakses kamera: ${error.message || "Unknown error"}`);
+      setMode(null);
     }
   };
 
@@ -123,13 +141,19 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
 
         {!capturedImage ? (
           <>
-            <div className="relative">
+            <div className="relative bg-black brutal-border">
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
-                className="w-full brutal-border bg-black"
-                style={{ minHeight: "300px" }}
+                muted
+                className="w-full h-auto"
+                style={{ 
+                  minHeight: "400px",
+                  maxHeight: "600px",
+                  objectFit: "cover",
+                  display: "block"
+                }}
               />
               {torchSupported && (
                 <Button
