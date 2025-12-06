@@ -104,19 +104,39 @@ def extract_text_from_image(image_np):
             'OCREngine': 2  # Engine 2 lebih akurat
         }
         
-        response = requests.post(OCR_API_URL, data=payload, timeout=30)
+        print(f"🔍 Calling OCR.space API with key: {OCR_API_KEY[:10]}...")
+        response = requests.post(OCR_API_URL, data=payload, timeout=60)
         result = response.json()
         
+        print(f"📥 OCR Response: {result}")
+        
         if result.get('IsErroredOnProcessing'):
-            raise Exception(f"OCR Error: {result.get('ErrorMessage', 'Unknown error')}")
+            error_msg = result.get('ErrorMessage', ['Unknown error'])
+            print(f"❌ OCR Error: {error_msg}")
+            raise Exception(f"OCR Error: {error_msg}")
         
         # Extract text dari response
-        parsed_text = result.get('ParsedResults', [{}])[0].get('ParsedText', '')
+        parsed_results = result.get('ParsedResults', [])
+        if not parsed_results:
+            raise Exception("No text found in image")
+            
+        parsed_text = parsed_results[0].get('ParsedText', '')
+        
+        if not parsed_text or len(parsed_text.strip()) == 0:
+            raise Exception("Empty text result from OCR")
+        
+        print(f"✅ OCR Success: {len(parsed_text)} characters extracted")
         return parsed_text.strip()
         
+    except requests.exceptions.Timeout:
+        print("❌ OCR Timeout - API took too long")
+        return "ERROR: API Timeout - Coba lagi"
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Network Error: {e}")
+        return "ERROR: Koneksi ke OCR API gagal"
     except Exception as e:
         print(f"❌ OCR Error: {e}")
-        return "ERROR: Gagal membaca teks dari gambar"
+        return f"ERROR: Gagal membaca teks - {str(e)}"
 
 # --- ENDPOINT 1: CEK KESEHATAN SERVER ---
 @app.get("/")
