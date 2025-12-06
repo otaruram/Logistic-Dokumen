@@ -155,22 +155,13 @@ Aplikasi menggunakan **Light Brutalism Design** dengan karakteristik:
 - **Session Management** - Persistent login state
 - **Profile Display** - Show user info di header
 
-### 6. 🎯 Document Type Detection
-Sistem otomatis mengenali jenis dokumen:
-- **PB** → Permintaan Pembayaran
-- **PU** → Pengadaan Umum  
-- **PP** → Permintaan Pembelian
-- **LN** → Surat Luar Negeri
-- **NF** → Nota Dinas
-- **PDLN** → Perjalanan Dinas Luar Negeri
-- **DISPOSISI** → Lembar Disposisi
 
 ---
 
 ## 🚀 DEPLOYMENT
 
 ### Production URLs
-- **Frontend:** https://supply-chain-plum-rho.vercel.app/
+- **Frontend:** https://ocrai.vercel.app/
 - **Backend API:** https://logistic-dokumen.onrender.com
 
 ### Environment Variables Required
