@@ -1,13 +1,14 @@
-import { Upload, FileImage, X } from "lucide-react";
+import { Upload, FileImage, X, Camera } from "lucide-react";
 import { useCallback, useState } from "react";
 
 interface FileDropZoneProps {
   onFileSelect: (file: File) => void;
   selectedFile: File | null;
   onClear: () => void;
+  onCameraClick: () => void;
 }
 
-const FileDropZone = ({ onFileSelect, selectedFile, onClear }: FileDropZoneProps) => {
+const FileDropZone = ({ onFileSelect, selectedFile, onClear, onCameraClick }: FileDropZoneProps) => {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -40,28 +41,43 @@ const FileDropZone = ({ onFileSelect, selectedFile, onClear }: FileDropZoneProps
 
   return (
     <div className="space-y-4">
-      <label
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`dashed-drop-zone flex flex-col items-center justify-center p-6 md:p-8 cursor-pointer transition-colors min-h-[160px] md:min-h-[200px] ${
-          isDragging ? "bg-secondary" : "bg-background hover:bg-secondary/50"
-        }`}
-      >
-        <input
-          type="file"
-          accept="image/*,.pdf"
-          onChange={handleFileInput}
-          className="hidden"
-        />
-        <Upload className="w-10 h-10 md:w-12 md:h-12 mb-3 md:mb-4" strokeWidth={2} />
-        <span className="font-bold uppercase text-xs md:text-sm tracking-wide text-center">
-          LETAKKAN MANIFEST DISINI
-        </span>
-        <span className="text-[10px] md:text-xs text-muted-foreground mt-2 uppercase">
-          ATAU KLIK UNTUK BROWSE
-        </span>
-      </label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <label
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`dashed-drop-zone flex flex-col items-center justify-center p-4 md:p-6 cursor-pointer transition-colors min-h-[140px] md:min-h-[160px] ${
+            isDragging ? "bg-secondary" : "bg-background hover:bg-secondary/50"
+          }`}
+        >
+          <input
+            type="file"
+            accept="image/*,.pdf"
+            onChange={handleFileInput}
+            className="hidden"
+          />
+          <Upload className="w-8 h-8 md:w-10 md:h-10 mb-2 md:mb-3" strokeWidth={2} />
+          <span className="font-bold uppercase text-[10px] md:text-xs tracking-wide text-center">
+            UPLOAD FILE
+          </span>
+          <span className="text-[9px] md:text-[10px] text-muted-foreground mt-1 uppercase">
+            ATAU DRAG & DROP
+          </span>
+        </label>
+
+        <button
+          onClick={onCameraClick}
+          className="dashed-drop-zone flex flex-col items-center justify-center p-4 md:p-6 cursor-pointer transition-colors min-h-[140px] md:min-h-[160px] bg-background hover:bg-secondary/50"
+        >
+          <Camera className="w-8 h-8 md:w-10 md:h-10 mb-2 md:mb-3" strokeWidth={2} />
+          <span className="font-bold uppercase text-[10px] md:text-xs tracking-wide text-center">
+            AMBIL FOTO
+          </span>
+          <span className="text-[9px] md:text-[10px] text-muted-foreground mt-1 uppercase">
+            GUNAKAN KAMERA
+          </span>
+        </button>
+      </div>
 
       {selectedFile && (
         <div className="brutal-border-thin p-3 md:p-4 bg-secondary">

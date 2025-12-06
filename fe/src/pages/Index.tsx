@@ -6,6 +6,7 @@ import ImagePreview from "@/components/dashboard/ImagePreview";
 import SignaturePad from "@/components/dashboard/SignaturePad";
 import DataTable from "@/components/dashboard/DataTable";
 import BrutalSpinner from "@/components/dashboard/BrutalSpinner";
+import CameraCapture from "@/components/dashboard/CameraCapture";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
@@ -93,6 +94,7 @@ const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [logs, setLogs] = useState(mockLogs);
   const [isLoading, setIsLoading] = useState(true);
+  const [showCamera, setShowCamera] = useState(false);
   const { toast } = useToast();
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -146,6 +148,19 @@ const Index = () => {
     setSelectedFile(null);
     setImagePreview(null);
   }, []);
+
+  const handleCameraCapture = useCallback((file: File) => {
+    setSelectedFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+    toast({
+      title: "FOTO BERHASIL DIAMBIL",
+      description: "Foto siap untuk diproses",
+    });
+  }, [toast]);
 
   const handleSignatureChange = useCallback((signatureData: string | null) => {
     setSignature(signatureData);
@@ -245,6 +260,13 @@ const Index = () => {
         </div>
       ) : (
         <>
+      {showCamera && (
+        <CameraCapture
+          onCapture={handleCameraCapture}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
+      
       <Header />
 
       <main className="container mx-auto px-3 md:px-4 py-4 md:py-6 flex-1">
@@ -260,6 +282,7 @@ const Index = () => {
               onFileSelect={handleFileSelect}
               selectedFile={selectedFile}
               onClear={handleClearImage}
+              onCameraClick={() => setShowCamera(true)}
             />
           </div>
 
