@@ -78,8 +78,14 @@ def get_ocr_engine():
     global reader
     if reader is None:
         print("⏳ Sedang memuat model AI (EasyOCR)... Tunggu sebentar...")
-        # gpu=False karena kita pakai laptop biasa (CPU)
-        reader = easyocr.Reader(['id', 'en'], gpu=False)
+        # gpu=False, model_storage_directory untuk optimasi memory di Render
+        reader = easyocr.Reader(
+            ['en'],  # Hanya English untuk hemat memory (bisa detect angka/huruf Indonesia juga)
+            gpu=False,
+            download_enabled=True,
+            model_storage_directory='./model',  # Cache model
+            verbose=False  # Kurangi output log
+        )
         print("✅ Model AI Siap!")
     return reader
 
