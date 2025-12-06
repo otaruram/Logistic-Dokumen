@@ -1,0 +1,157 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+
+@layer base {
+  :root {
+    /* BRUTALIST WAREHOUSE PALETTE */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+
+    /* Safety Orange - Warehouse Accent */
+    --primary: 22 100% 56%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Light Gray - Secondary surfaces */
+    --secondary: 220 13% 91%;
+    --secondary-foreground: 0 0% 0%;
+
+    --muted: 220 13% 91%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 22 100% 56%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 0%;
+    --input: 0 0% 0%;
+    --ring: 22 100% 56%;
+
+    /* NO ROUNDED CORNERS - BRUTALISM */
+    --radius: 0px;
+
+    /* Hard Shadow */
+    --shadow-brutal: 4px 4px 0px hsl(0 0% 0%);
+    --shadow-brutal-sm: 2px 2px 0px hsl(0 0% 0%);
+    --shadow-brutal-hover: 2px 2px 0px hsl(0 0% 0%);
+
+    /* System status colors */
+    --success: 142 76% 36%;
+    --warning: 38 92% 50%;
+  }
+
+  .dark {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 22 100% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 22 100% 56%;
+    --accent-foreground: 0 0% 100%;
+    --border: 0 0% 100%;
+    --input: 0 0% 100%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-mono;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply uppercase font-bold tracking-tight;
+  }
+}
+
+@layer components {
+  .brutal-border {
+    @apply border-[3px] border-foreground;
+  }
+
+  .brutal-border-thin {
+    @apply border-2 border-foreground;
+  }
+
+  .brutal-shadow {
+    box-shadow: var(--shadow-brutal);
+  }
+
+  .brutal-shadow-sm {
+    box-shadow: var(--shadow-brutal-sm);
+  }
+
+  .brutal-button {
+    @apply brutal-border brutal-shadow transition-all duration-100;
+  }
+
+  .brutal-button:hover {
+    transform: translate(2px, 2px);
+    box-shadow: var(--shadow-brutal-hover);
+  }
+
+  .brutal-button:active {
+    transform: translate(4px, 4px);
+    box-shadow: none;
+  }
+
+  .brutal-input {
+    @apply brutal-border-thin bg-background px-4 py-3 font-mono uppercase text-sm focus:outline-none focus:ring-2 focus:ring-primary;
+  }
+
+  .brutal-card {
+    @apply brutal-border brutal-shadow bg-card p-4;
+  }
+
+  .dashed-drop-zone {
+    @apply border-[3px] border-dashed border-foreground;
+  }
+}
+
+@layer utilities {
+  .text-brutal {
+    @apply font-mono uppercase tracking-wide;
+  }
+
+  /* Brutalist Spinner */
+  @keyframes brutal-spin {
+    0% { transform: rotate(0deg); }
+    25% { transform: rotate(90deg); }
+    50% { transform: rotate(180deg); }
+    75% { transform: rotate(270deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .brutal-spinner {
+    animation: brutal-spin 0.6s steps(4) infinite;
+  }
+
+  /* Grid pattern for signature pad */
+  .grid-pattern {
+    background-image: 
+      linear-gradient(hsl(var(--muted)) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--muted)) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+}
