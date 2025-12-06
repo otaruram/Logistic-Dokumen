@@ -73,8 +73,19 @@ init_db()
 # --- SETUP AI (TESSERACT OCR) ---
 # Tesseract jauh lebih ringan dari EasyOCR (~50MB vs ~500MB)
 # Set path Tesseract untuk Windows (Production di Render akan auto-detect)
-if os.name == 'nt':  # Windows
+import platform
+if platform.system() == 'Windows':
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+else:
+    # Linux/Render - Tesseract dari Aptfile
+    try:
+        import subprocess
+        result = subprocess.run(['which', 'tesseract'], capture_output=True, text=True)
+        if result.returncode == 0:
+            pytesseract.pytesseract.tesseract_cmd = result.stdout.strip()
+            print(f"✅ Tesseract found at: {pytesseract.pytesseract.tesseract_cmd}")
+    except Exception as e:
+        print(f"⚠️ Tesseract auto-detection failed: {e}")
 
 def get_ocr_engine():
     """Fungsi untuk melakukan OCR dengan Tesseract"""
