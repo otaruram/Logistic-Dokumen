@@ -5,6 +5,8 @@ from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from typing import List
 import requests
 import base64
 import numpy as np
@@ -19,9 +21,15 @@ from prisma import Prisma
 from dotenv import load_dotenv
 import re
 import traceback
+import PyPDF2
+from oki_chatbot import OKiChatbot
 
 # Load environment variables
 load_dotenv()
+
+# --- SUMOPOD CHATBOT CONFIGURATION ---
+# Using SumoPoD API via OKiChatbot class (reads from .env)
+oki_bot = OKiChatbot()
 
 # --- INISIALISASI APP ---
 app = FastAPI(title="Supply Chain OCR API", description="Backend untuk scan dokumen gudang")
@@ -56,13 +64,7 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:8080")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173", 
-        "http://localhost:8080",
-        "https://ocrai.vercel.app",
-        FRONTEND_URL,
-        "*"
-    ],
+    allow_origins=["*"],  # Allow all origins for development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -220,10 +222,15 @@ async def scan_document(
             "status": "success",
             "data": {
                 "id": log.id,
+                "timestamp": log.timestamp.isoformat(),
                 "kategori": log.kategori,
-                "nomor": log.nomorDokumen,
+                "nomorDokumen": log.nomorDokumen,
+                "nomor_dokumen": log.nomorDokumen,  # Backward compatibility
+                "receiver": log.receiver,
+                "imagePath": log.imagePath,
+                "imageUrl": log.imagePath,  # Backward compatibility
                 "summary": log.summary,
-                "image": log.imagePath
+                "fullText": log.fullText
             }
         }
 
@@ -298,6 +305,93 @@ async def export_excel(authorization: str = Header(None)):
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+# --- PYDANTIC MODELS FOR CHAT ---
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+    pdfText: str = ""
+
+# --- ENDPOINT: CHAT WITH OKI AI ---
+@app.post("/api/chat")
+async def chat_with_oki(
+    request: ChatRequest,
+    authorization: str = Header(None)
+):
+    """Chat endpoint untuk Gaskeun - OKi AI Assistant"""
+    try:
+        # Verify user authentication
+        user_email = get_user_email_from_token(authorization)
+        
+        # Convert messages to dict format
+        messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+        
+        # Call OKi chatbot (using SumoPoD API)
+        assistant_message = oki_bot.chat(messages=messages, pdf_text=request.pdfText)
+        
+        return {
+            "status": "success",
+            "message": assistant_message
+        }
+        
+    except Exception as e:
+        print(f"❌ Chat error: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+    except Exception as e:
+        print(f"❌ Chat error: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+
+# --- ENDPOINT: EXTRACT PDF TEXT ---
+@app.post("/api/extract-pdf")
+async def extract_pdf_text(
+    file: UploadFile = File(...),
+    authorization: str = Header(None)
+):
+    """Extract text from PDF file"""
+    try:
+        # Verify user authentication
+        user_email = get_user_email_from_token(authorization)
+        
+        # Read PDF file
+        pdf_bytes = await file.read()
+        pdf_file = io.BytesIO(pdf_bytes)
+        
+        # Extract text using PyPDF2 (use PdfFileReader for older versions)
+        try:
+            # Try newer API first (PyPDF2 >= 3.0)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+        except AttributeError:
+            # Fall back to older API (PyPDF2 < 3.0)
+            pdf_reader = PyPDF2.PdfFileReader(pdf_file)
+        
+        text = ""
+        
+        # Handle both old and new PyPDF2 APIs
+        num_pages = len(pdf_reader.pages) if hasattr(pdf_reader, 'pages') else pdf_reader.numPages
+        
+        for page_num in range(num_pages):
+            page = pdf_reader.pages[page_num] if hasattr(pdf_reader, 'pages') else pdf_reader.getPage(page_num)
+            # Try new API first, then fall back to old API
+            try:
+                text += page.extract_text() + "\n\n"
+            except AttributeError:
+                text += page.extractText() + "\n\n"
+        
+        return {
+            "status": "success",
+            "text": text.strip(),
+            "pages": num_pages
+        }
+        
+    except Exception as e:
+        print(f"❌ PDF extraction error: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"PDF extraction error: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
