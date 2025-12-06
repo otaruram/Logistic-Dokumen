@@ -29,34 +29,33 @@ const Header = ({ user, onLogout, onGaskeun }: HeaderProps) => {
         </h1>
         
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 brutal-border-thin px-3 py-1.5 md:px-4 md:py-2 bg-background">
-            <Circle className="w-2.5 h-2.5 md:w-3 md:h-3 fill-success text-success led-blink" />
-            <span className="text-[10px] md:text-xs font-bold uppercase tracking-wide">
-              SYSTEM ONLINE
-            </span>
-          </div>
-          
           {user && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="brutal-border-thin px-3 py-1.5 bg-background flex items-center gap-2 max-w-[200px] h-auto"
-                >
-                  {user.picture ? (
-                    <img 
-                      src={user.picture} 
-                      alt={user.name}
-                      className="w-6 h-6 rounded-full brutal-border-thin flex-shrink-0"
-                    />
-                  ) : (
-                    <User className="w-4 h-4 flex-shrink-0" />
-                  )}
-                  <span className="text-[10px] md:text-xs font-bold uppercase hidden md:inline truncate">
-                    {user.name}
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
+            <>
+              <div className="relative">
+                <div className="w-2.5 h-2.5 md:w-3 md:h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <div className="absolute inset-0 w-2.5 h-2.5 md:w-3 md:h-3 bg-green-500 rounded-full animate-ping"></div>
+              </div>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="brutal-border-thin px-3 py-1.5 bg-background flex items-center gap-2 max-w-[200px] h-auto"
+                  >
+                    {user.picture ? (
+                      <img 
+                        src={user.picture} 
+                        alt={user.name}
+                        className="w-6 h-6 rounded-full brutal-border-thin flex-shrink-0"
+                      />
+                    ) : (
+                      <User className="w-4 h-4 flex-shrink-0" />
+                    )}
+                    <span className="text-[10px] md:text-xs font-bold uppercase hidden md:inline truncate">
+                      {user.name}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
               
               <DropdownMenuContent align="end" className="brutal-border bg-background min-w-[200px]">
                 <DropdownMenuLabel className="font-bold uppercase text-xs">
@@ -85,6 +84,7 @@ const Header = ({ user, onLogout, onGaskeun }: HeaderProps) => {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+            </>
           )}
         </div>
       </div>

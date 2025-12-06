@@ -83,17 +83,11 @@ export default function Login() {
             
             {/* Card Header */}
             <div className="text-center mb-8">
-              <div className="flex items-center justify-center gap-3 mb-6">
-                <div className="relative">
-                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                  <div className="absolute inset-0 w-3 h-3 bg-green-500 rounded-full animate-ping"></div>
-                </div>
-                <img 
-                  src="/1.png" 
-                  alt="OCR.AI"
-                  className="w-24 h-24 object-contain"
-                />
-              </div>
+              <img 
+                src="/1.png" 
+                alt="OCR.AI"
+                className="w-24 h-24 mx-auto mb-6 object-contain"
+              />
               
               <h2 className="text-3xl font-serif font-bold mb-2">
                 Masuk ke Akun Anda
