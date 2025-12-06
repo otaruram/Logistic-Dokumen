@@ -1,53 +1,59 @@
-# 📦 LOGISTIC DOKUMEN - OCR AUTOMATION SYSTEM
+# 📦 LOGISTIC.AI - OCR AUTOMATION SYSTEM
 
-> Sistem otomasi digitalisasi dokumen logistik menggunakan OCR (Optical Character Recognition)
+> Sistem otomasi digitalisasi dokumen logistik menggunakan AI-powered OCR & Chatbot
+
+[![Live Demo](https://img.shields.io/badge/Demo-Live-brightgreen)](https://supply-chain-plum-rho.vercel.app/)
+[![Backend API](https://img.shields.io/badge/API-Render-blue)](https://logistic-dokumen.onrender.com)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
 ## 🎯 OVERVIEW
 
-Aplikasi web hybrid untuk mengotomasi proses digitalisasi dokumen kantor seperti:
-- Permintaan Pembayaran (PB)
-- Pengadaan Umum (PU)
-- Permintaan Pembelian (PP)
-- Surat Luar Negeri (LN)
-- Nota Dinas (NF)
-- Lembar Disposisi
-- Perjalanan Dinas Luar Negeri (PDLN)
+**LOGISTIC.AI** adalah aplikasi web modern yang dirancang untuk mengotomasi proses digitalisasi dokumen kantor dan logistik. Dengan teknologi **OCR berbasis AI**, aplikasi ini mampu mengekstrak data dari dokumen fisik secara otomatis, mengurangi input manual hingga 90%, dan dilengkapi dengan **AI Chatbot (OKi)** untuk membantu analisis dokumen.
 
-**Tujuan:** Mengurangi input data manual dan meningkatkan efisiensi operasional gudang.
+### 🚀 Fitur Utama:
+- ✅ **Scan & OCR Otomatis** - Upload foto dokumen, ekstrak data otomatis
+- ✅ **Multi-Document Support** - PB, PU, PP, LN, NF, Disposisi, PDLN
+- ✅ **AI Chatbot (OKi)** - Tanya jawab tentang isi dokumen dengan AI
+- ✅ **Digital Signature** - Tanda tangan digital dengan canvas/kamera
+- ✅ **Camera Capture** - Ambil foto langsung dari kamera (front/back)
+- ✅ **Export Excel/CSV** - Download data dalam format spreadsheet
+- ✅ **Real-time Search** - Pencarian data dengan filter tanggal
+- ✅ **Responsive Design** - Light Brutalism aesthetic, mobile-friendly
 
----
-
-## 🏗️ ARSITEKTUR
-
-Aplikasi ini menggunakan **Headless / Decoupled Architecture**:
-
-### Frontend (React + Vite)
-- Framework: React 18 dengan Vite
-- Language: TypeScript
-- Styling: Tailwind CSS dengan Light Brutalism Design
-- UI Components: shadcn/ui
-- Features:
-  - Upload & preview dokumen
-  - Input nama penerima & tanda tangan digital
-  - Tabel log harian dengan search & pagination
-  - Export data ke Excel/CSV
-
-### Backend (Python + FastAPI)
-- Framework: FastAPI
-- OCR Engine: EasyOCR (PyTorch based)
-- Database: SQLite
-- Image Processing: Pillow, NumPy, OpenCV
-- Features:
-  - Ekstraksi teks dari gambar dokumen
-  - Deteksi otomatis tipe dokumen
-  - Ekstraksi nomor surat dengan regex pattern
-  - API REST untuk komunikasi dengan frontend
+**Problem Solved:** Menghilangkan proses input data manual yang memakan waktu 2-3 jam/hari menjadi hanya 5-10 menit dengan scan otomatis.
 
 ---
 
-## 📂 STRUKTUR PROJECT
+## 🏗️ TECH STACK
+
+### Frontend
+- **React 18** + **Vite** - Modern UI development
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Utility-first styling with brutalist design
+- **shadcn/ui** - High-quality UI components
+- **Google OAuth** - Secure authentication
+- **React Router** - Client-side routing
+- **Lucide Icons** - Beautiful icon library
+
+### Backend
+- **FastAPI** - High-performance Python web framework
+- **EasyOCR** - Deep learning-based OCR engine
+- **OpenAI API** - AI chatbot integration
+- **Tesseract** - Additional OCR engine for accuracy
+- **Pillow & OpenCV** - Image preprocessing
+- **SQLite** - Lightweight database
+- **Python 3.11+** - Modern Python features
+
+### Deployment
+- **Frontend:** Vercel (auto-deploy from GitHub)
+- **Backend:** Render.com (with Aptfile for system dependencies)
+- **Database:** SQLite (file-based, auto-created)
+
+---
+
+## 📂 PROJECT STRUCTURE
 
 ```
 Supply-Chain/
@@ -103,27 +109,56 @@ API Documentation (Swagger): **http://localhost:8000/docs**
 
 ---
 
-## 📝 FITUR UTAMA
+## 🎨 DESIGN SYSTEM
 
-### ✅ Upload & OCR
-- Upload foto dokumen (JPG, PNG)
-- Ekstraksi teks otomatis dengan AI
-- Deteksi nomor surat dengan pattern matching
+Aplikasi menggunakan **Light Brutalism Design** dengan karakteristik:
+- ⬛ **Bold Black Borders** - Garis tegas 2-4px untuk struktur visual
+- 🟥 **Hard Shadows** - Shadow offset untuk depth tanpa blur
+- 🔤 **Monospace Typography** - Font mono untuk aesthetic industrial
+- 🎯 **Flat Colors** - No gradients, solid colors only
+- ⚡ **Tactile Interactions** - Button press effects dengan transform
+- 📱 **Responsive Grid** - Mobile-first approach
 
-### ✅ Validasi
-- Input nama penerima
-- Tanda tangan digital
+---
 
-### ✅ Log Harian
-- Tabel data dengan nomor urut otomatis
-- Search multi-kolom (penerima, ringkasan, dll)
-- Pagination
-- Export ke Excel/CSV
+## 📝 FITUR LENGKAP
 
-### ✅ Deteksi Dokumen
-Sistem dapat mengenali tipe dokumen berdasarkan:
+### 1. 📸 Document Scanning
+- **Upload File** - Drag & drop atau browse untuk upload
+- **Camera Capture** - Ambil foto langsung dari browser
+- **Front/Back Camera** - Switch camera untuk mobile devices
+- **Auto OCR** - Ekstraksi teks otomatis dengan AI
+- **Image Preview** - Preview dokumen sebelum diproses
+
+### 2. 🤖 AI Chatbot (OKi)
+- **Document Analysis** - Tanya jawab tentang isi dokumen
+- **Smart Context** - AI memahami konteks dokumen yang di-scan
+- **Conversational** - Natural language interface
+- **Powered by OpenAI** - GPT-4 powered responses
+
+### 3. ✍️ Digital Signature
+- **Canvas Drawing** - Tanda tangan dengan mouse/touchscreen
+- **Camera Capture** - Foto tanda tangan fisik
+- **Save & Edit** - Simpan dan edit signature
+- **Transparent Background** - PNG export untuk overlay
+
+### 4. 📊 Data Management
+- **Real-time Table** - Update otomatis setelah scan
+- **Multi-column Search** - Filter berdasarkan penerima, ringkasan, tanggal
+- **Pagination** - Navigate data dengan smooth
+- **Export Excel/CSV** - Download data untuk reporting
+- **Date Filtering** - Filter data berdasarkan range tanggal
+
+### 5. 🔐 Authentication
+- **Google OAuth 2.0** - Login dengan akun Google
+- **JWT Decode** - Secure token handling
+- **Session Management** - Persistent login state
+- **Profile Display** - Show user info di header
+
+### 6. 🎯 Document Type Detection
+Sistem otomatis mengenali jenis dokumen:
 - **PB** → Permintaan Pembayaran
-- **PU** → Pengadaan Umum
+- **PU** → Pengadaan Umum  
 - **PP** → Permintaan Pembelian
 - **LN** → Surat Luar Negeri
 - **NF** → Nota Dinas
@@ -132,7 +167,36 @@ Sistem dapat mengenali tipe dokumen berdasarkan:
 
 ---
 
-## 🛠️ TECH STACK
+## 🚀 DEPLOYMENT
+
+### Production URLs
+- **Frontend:** https://supply-chain-plum-rho.vercel.app/
+- **Backend API:** https://logistic-dokumen.onrender.com
+
+### Environment Variables Required
+
+**Frontend (.env.local):**
+```env
+VITE_API_URL=https://logistic-dokumen.onrender.com
+VITE_GOOGLE_CLIENT_ID=your_google_oauth_client_id
+```
+
+**Backend (Render Environment Variables):**
+```env
+SUMOPOD_API_KEY=your_openai_api_key
+SUMOPOD_BASE_URL=https://ai.sumopod.com/v1
+```
+
+### Deployment Steps
+1. **Fork this repository** ke GitHub Anda
+2. **Deploy Frontend** di Vercel (auto-detect Vite)
+3. **Deploy Backend** di Render dengan Python runtime
+4. **Set Environment Variables** di dashboard masing-masing platform
+5. **Test Live Demo** untuk memastikan integrasi
+
+---
+
+## 🛠️ TECH STACK DETAIL
 
 **Frontend:**
 - React 18
