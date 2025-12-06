@@ -71,7 +71,7 @@ def init_db():
 init_db()
 
 # --- SETUP OCR.SPACE API (FREE, TANPA INSTALL) ---
-OCR_API_KEY = "K87256153888957"  # Your API key
+OCR_API_KEY = os.getenv("OCR_API_KEY", "helloworld")  # Default to free key if not set
 OCR_API_URL = "https://api.ocr.space/parse/image"
 
 def get_ocr_engine():
