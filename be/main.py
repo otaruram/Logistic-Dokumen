@@ -238,14 +238,28 @@ def get_history():
         ''')
         conn.commit()
         
-        # Gunakan Pandas agar mudah convert ke Dictionary (JSON)
-        df = pd.read_sql_query("SELECT id, timestamp, receiver, image_path, summary FROM logs ORDER BY id DESC", conn)
+        # Ambil data menggunakan cursor langsung
+        c.execute("SELECT id, timestamp, receiver, image_path, summary FROM logs ORDER BY id DESC")
+        rows = c.fetchall()
         conn.close()
         
-        # Ubah format agar bisa dibaca React
-        return df.to_dict(orient="records")
+        # Convert ke list of dictionaries
+        result = []
+        for row in rows:
+            result.append({
+                "id": row[0],
+                "timestamp": row[1],
+                "receiver": row[2],
+                "image_path": row[3],
+                "summary": row[4]
+            })
+        
+        return result
     except Exception as e:
-        print(f"Error in /history: {e}")
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"❌ Error in /history endpoint:")
+        print(error_detail)
         return []
 
 # --- ENDPOINT 4: DOWNLOAD EXCEL (REKAP DATA) ---
