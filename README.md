@@ -38,8 +38,8 @@
 - **Lucide Icons** - Beautiful icon library
 
 ### Backend
-- **FastAPI** - High-performance Python web framework
-- **EasyOCR** - Deep learning-based OCR engine
+- **OCR API** - API for scan
+- **Prisma** - ORM
 - **OpenAI API** - AI chatbot integration
 - **Tesseract** - Additional OCR engine for accuracy
 - **Pillow & OpenCV** - Image preprocessing
