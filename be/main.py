@@ -27,9 +27,15 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # --- KONFIGURASI CORS (PENTING!) ---
 # Ini agar Frontend (React) di port 5173 boleh ngobrol sama Backend di port 8000
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:8080")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:8080", "*"], # Boleh diakses dari mana saja (aman buat lokal)
+    allow_origins=[
+        "http://localhost:5173", 
+        "http://localhost:8080",
+        FRONTEND_URL,
+        "*"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -153,7 +159,9 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...))
         with open(file_path, "wb") as buffer:
             buffer.write(contents)
         
-        image_url = f"http://localhost:8000/uploads/{saved_filename}"
+        # Get base URL from environment or use localhost
+        BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+        image_url = f"{BASE_URL}/uploads/{saved_filename}"
 
         # 6. SIMPAN KE DATABASE (PERSISTENT)
         conn = sqlite3.connect(DB_NAME)

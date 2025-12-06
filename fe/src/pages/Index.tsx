@@ -95,11 +95,13 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
   // Initial loading + fetch history
   useEffect(() => {
     const loadData = async () => {
       try {
-        const response = await fetch("http://localhost:8000/history");
+        const response = await fetch(`${API_URL}/history`);
         const data = await response.json();
         
         const formattedLogs = data.map((log: any) => {
@@ -182,7 +184,7 @@ const Index = () => {
       formData.append("file", selectedFile!);
       formData.append("receiver", receiver); // Kirim nama penerima
 
-      const response = await fetch("http://localhost:8000/scan", {
+      const response = await fetch(`${API_URL}/scan`, {
         method: "POST",
         body: formData,
       });
