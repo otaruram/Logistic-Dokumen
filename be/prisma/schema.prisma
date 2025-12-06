@@ -11,17 +11,17 @@ datasource db {
 }
 
 model Logs {
-  id             Int      @id @default(autoincrement())
-  userId         String   // Email dari Google OAuth
-  timestamp      DateTime @default(now())
-  filename       String
-  kategori       String
-  nomorDokumen   String   @map("nomor_dokumen")
-  receiver       String
-  imagePath      String   @map("image_path")
-  summary        String   @db.Text
-  fullText       String   @map("full_text") @db.Text
+  id           Int      @id @default(autoincrement())
+  userId       String   @map("user_id")
+  timestamp    DateTime @default(now())
+  filename     String
+  kategori     String
+  nomorDokumen String   @map("nomor_dokumen")
+  receiver     String
+  imagePath    String   @map("image_path")
+  summary      String   @db.Text
+  fullText     String   @map("full_text") @db.Text
 
-  @@index([userId]) // Index untuk query cepat by user
+  @@index([userId])
   @@map("logs")
 }
