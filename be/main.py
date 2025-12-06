@@ -92,6 +92,25 @@ def home():
 @app.post("/scan")
 async def scan_document(file: UploadFile = File(...), receiver: str = Form(...)):
     try:
+        # Pastikan tabel logs ada sebelum insert
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                filename TEXT,
+                kategori TEXT,
+                nomor_dokumen TEXT,
+                receiver TEXT,
+                image_path TEXT,
+                summary TEXT,
+                full_text TEXT
+            )
+        ''')
+        conn.commit()
+        conn.close()
+        
         # 1. BACA GAMBAR DARI UPLOAD
         contents = await file.read()
         image = Image.open(io.BytesIO(contents))
@@ -196,13 +215,35 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...))
 @app.get("/history")
 def get_history():
     """Mengambil semua data lama dari database"""
-    conn = sqlite3.connect(DB_NAME)
-    # Gunakan Pandas agar mudah convert ke Dictionary (JSON)
-    df = pd.read_sql_query("SELECT id, timestamp, receiver, image_path, summary FROM logs ORDER BY id DESC", conn)
-    conn.close()
-    
-    # Ubah format agar bisa dibaca React
-    return df.to_dict(orient="records")
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        
+        # Pastikan tabel logs ada
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                filename TEXT,
+                kategori TEXT,
+                nomor_dokumen TEXT,
+                receiver TEXT,
+                image_path TEXT,
+                summary TEXT,
+                full_text TEXT
+            )
+        ''')
+        conn.commit()
+        
+        # Gunakan Pandas agar mudah convert ke Dictionary (JSON)
+        df = pd.read_sql_query("SELECT id, timestamp, receiver, image_path, summary FROM logs ORDER BY id DESC", conn)
+        conn.close()
+        
+        # Ubah format agar bisa dibaca React
+        return df.to_dict(orient="records")
+    except Exception as e:
+        print(f"Error in /history: {e}")
+        return []
 
 # --- ENDPOINT 4: DOWNLOAD EXCEL (REKAP DATA) ---
 @app.get("/export")
