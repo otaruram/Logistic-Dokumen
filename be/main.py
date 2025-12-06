@@ -1,7 +1,7 @@
 # backend/main.py
 
 # --- IMPORT LIBRARY ---
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -10,14 +10,37 @@ import base64
 import numpy as np
 from PIL import Image
 import io
-import sqlite3
 import pandas as pd
 from datetime import datetime
 import os
 import shutil
+import jwt
+from prisma import Prisma
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Load environment variables
+load_dotenv()
 
 # --- INISIALISASI APP ---
 app = FastAPI(title="Supply Chain OCR API", description="Backend untuk scan dokumen gudang")
+
+# Initialize Prisma Client
+prisma = Prisma()
+
+@app.on_event("startup")
+async def startup():
+    """Connect to Supabase PostgreSQL on startup"""
+    await prisma.connect()
+    print("✅ Connected to Supabase PostgreSQL!")
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Disconnect from database on shutdown"""
+    await prisma.disconnect()
+    print("👋 Disconnected from database")
 
 # --- SETUP FOLDER UPLOADS ---
 UPLOAD_DIR = "uploads"
@@ -44,31 +67,29 @@ app.add_middleware(
 )
 
 # --- SETUP DATABASE SQLITE (GUDANG DATA) ---
-DB_NAME = "supply_chain.db"
+# Removed: Now using Supabase PostgreSQL with Prisma
 
-def init_db():
-    """Membuat tabel database jika belum ada (Hanya jalan sekali di awal)"""
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    # Kita buat tabel 'logs' untuk menyimpan riwayat scan
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            filename TEXT,
-            kategori TEXT,
-            nomor_dokumen TEXT,
-            receiver TEXT,
-            image_path TEXT,
-            summary TEXT,
-            full_text TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-# Jalankan fungsi database saat server nyala
-init_db()
+# --- HELPER FUNCTION: DECODE JWT TOKEN ---
+def get_user_email_from_token(authorization: str = Header(None)) -> str:
+    """Extract user email from Google OAuth JWT token"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="No authorization token provided")
+    
+    try:
+        # Remove "Bearer " prefix if present
+        token = authorization.replace("Bearer ", "")
+        
+        # Decode JWT without verification (Google already verified it)
+        decoded = jwt.decode(token, options={"verify_signature": False})
+        
+        # Extract email
+        email = decoded.get("email")
+        if not email:
+            raise HTTPException(status_code=401, detail="Email not found in token")
+        
+        return email
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
 
 # --- SETUP OCR.SPACE API (FREE, TANPA INSTALL) ---
 OCR_API_KEY = os.getenv("OCR_API_KEY", "helloworld")  # Default to free key if not set
@@ -81,62 +102,91 @@ def get_ocr_engine():
 
 def extract_text_from_image(image_np):
     """Extract text menggunakan OCR.space API (gratis, no install)"""
-    try:
-        # Convert numpy array to PIL Image
-        image = Image.fromarray(image_np)
-        
-        # Convert to bytes
-        img_byte_arr = io.BytesIO()
-        image.save(img_byte_arr, format='PNG')
-        img_byte_arr = img_byte_arr.getvalue()
-        
-        # Encode to base64
-        base64_image = base64.b64encode(img_byte_arr).decode('utf-8')
-        
-        # Call OCR.space API
-        payload = {
-            'apikey': OCR_API_KEY,
-            'base64Image': f'data:image/png;base64,{base64_image}',
-            'language': 'eng',
-            'isOverlayRequired': False,
-            'detectOrientation': True,
-            'scale': True,
-            'OCREngine': 2  # Engine 2 lebih akurat
-        }
-        
-        print(f"🔍 Calling OCR.space API with key: {OCR_API_KEY[:10]}...")
-        response = requests.post(OCR_API_URL, data=payload, timeout=60)
-        result = response.json()
-        
-        print(f"📥 OCR Response: {result}")
-        
-        if result.get('IsErroredOnProcessing'):
-            error_msg = result.get('ErrorMessage', ['Unknown error'])
-            print(f"❌ OCR Error: {error_msg}")
-            raise Exception(f"OCR Error: {error_msg}")
-        
-        # Extract text dari response
-        parsed_results = result.get('ParsedResults', [])
-        if not parsed_results:
-            raise Exception("No text found in image")
+    max_retries = 2
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            # Convert numpy array to PIL Image
+            image = Image.fromarray(image_np)
             
-        parsed_text = parsed_results[0].get('ParsedText', '')
-        
-        if not parsed_text or len(parsed_text.strip()) == 0:
-            raise Exception("Empty text result from OCR")
-        
-        print(f"✅ OCR Success: {len(parsed_text)} characters extracted")
-        return parsed_text.strip()
-        
-    except requests.exceptions.Timeout:
-        print("❌ OCR Timeout - API took too long")
-        return "ERROR: API Timeout - Coba lagi"
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Network Error: {e}")
-        return "ERROR: Koneksi ke OCR API gagal"
-    except Exception as e:
-        print(f"❌ OCR Error: {e}")
-        return f"ERROR: Gagal membaca teks - {str(e)}"
+            # Compress image if too large (max 1024px width untuk OCR speed)
+            max_width = 1024
+            if image.width > max_width:
+                ratio = max_width / image.width
+                new_height = int(image.height * ratio)
+                image = image.resize((max_width, new_height), Image.Resampling.LANCZOS)
+                print(f"📐 Resized image to {max_width}x{new_height}")
+            
+            # Convert to bytes dengan kompresi JPEG (lebih cepat upload)
+            img_byte_arr = io.BytesIO()
+            image.save(img_byte_arr, format='JPEG', quality=85, optimize=True)
+            img_byte_arr = img_byte_arr.getvalue()
+            
+            # Check file size
+            size_kb = len(img_byte_arr) / 1024
+            print(f"📦 Image size: {size_kb:.1f} KB")
+            
+            # Encode to base64
+            base64_image = base64.b64encode(img_byte_arr).decode('utf-8')
+            
+            # Call OCR.space API
+            payload = {
+                'apikey': OCR_API_KEY,
+                'base64Image': f'data:image/jpeg;base64,{base64_image}',
+                'language': 'eng',
+                'isOverlayRequired': False,
+                'detectOrientation': True,
+                'scale': True,
+                'OCREngine': 1  # Engine 1 lebih cepat (Engine 2 sering timeout)
+            }
+            
+            print(f"🔍 Calling OCR.space API (attempt {retry_count + 1}/{max_retries})...")
+            response = requests.post(OCR_API_URL, data=payload, timeout=45)  # Timeout 45s
+            result = response.json()
+            
+            print(f"📥 OCR Response: {result}")
+            
+            if result.get('IsErroredOnProcessing'):
+                error_msg = result.get('ErrorMessage', ['Unknown error'])
+                print(f"❌ OCR Error: {error_msg}")
+                retry_count += 1
+                if retry_count >= max_retries:
+                    raise Exception(f"OCR Error: {error_msg}")
+                continue
+            
+            # Extract text dari response
+            parsed_results = result.get('ParsedResults', [])
+            if not parsed_results:
+                retry_count += 1
+                if retry_count >= max_retries:
+                    raise Exception("No text found in image")
+                continue
+                
+            parsed_text = parsed_results[0].get('ParsedText', '')
+            
+            if not parsed_text or len(parsed_text.strip()) == 0:
+                retry_count += 1
+                if retry_count >= max_retries:
+                    raise Exception("Empty text result from OCR")
+                continue
+            
+            print(f"✅ OCR Success: {len(parsed_text)} characters extracted")
+            return parsed_text.strip()
+            
+        except requests.exceptions.Timeout:
+            retry_count += 1
+            print(f"⏱ OCR Timeout (attempt {retry_count}/{max_retries})")
+            if retry_count >= max_retries:
+                return "ERROR: API Timeout - Gambar terlalu besar atau koneksi lambat"
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Network Error: {e}")
+            return "ERROR: Koneksi ke OCR API gagal"
+        except Exception as e:
+            print(f"❌ OCR Error: {e}")
+            return f"ERROR: Gagal membaca teks - {str(e)}"
+    
+    return "ERROR: OCR gagal setelah beberapa percobaan"
 
 # --- ENDPOINT 1: CEK KESEHATAN SERVER ---
 @app.get("/")
@@ -145,26 +195,14 @@ def home():
 
 # --- ENDPOINT 2: PROSES SCAN GAMBAR (INTI SISTEM) ---
 @app.post("/scan")
-async def scan_document(file: UploadFile = File(...), receiver: str = Form(...)):
+async def scan_document(
+    file: UploadFile = File(...), 
+    receiver: str = Form(...),
+    authorization: str = Header(None)
+):
     try:
-        # Pastikan tabel logs ada sebelum insert
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT,
-                filename TEXT,
-                kategori TEXT,
-                nomor_dokumen TEXT,
-                receiver TEXT,
-                image_path TEXT,
-                summary TEXT,
-                full_text TEXT
-            )
-        ''')
-        conn.commit()
-        conn.close()
+        # Get user email from JWT token
+        user_email = get_user_email_from_token(authorization)
         
         # 1. BACA GAMBAR DARI UPLOAD
         contents = await file.read()
@@ -223,7 +261,7 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...))
 
         # Ambil 150 karakter pertama sebagai ringkasan
         summary = full_text[:150].replace("\n", " ")
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.now()
 
         # 5. SIMPAN FILE KE FOLDER UPLOADS
         file_extension = os.path.splitext(file.filename)[1]
@@ -237,27 +275,33 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...))
         BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
         image_url = f"{BASE_URL}/uploads/{saved_filename}"
 
-        # 6. SIMPAN KE DATABASE (PERSISTENT)
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
-        c.execute("INSERT INTO logs (timestamp, filename, kategori, nomor_dokumen, receiver, image_path, summary, full_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                  (timestamp, file.filename, kategori, nomor_dokumen, receiver.upper(), image_url, summary, full_text))
-        conn.commit()
-        last_id = c.lastrowid # Ambil ID data yang baru masuk
-        conn.close()
+        # 6. SIMPAN KE SUPABASE (PRISMA) - PER USER
+        log = await prisma.logs.create(
+            data={
+                "userId": user_email,
+                "timestamp": timestamp,
+                "filename": file.filename,
+                "kategori": kategori,
+                "nomorDokumen": nomor_dokumen,
+                "receiver": receiver.upper(),
+                "imagePath": image_url,
+                "summary": summary,
+                "fullText": full_text
+            }
+        )
 
         # 7. KIRIM HASIL KE FRONTEND
         return {
             "status": "success",
             "data": {
-                "id": last_id,
-                "timestamp": timestamp,
-                "kategori": kategori,
-                "nomor_dokumen": nomor_dokumen,
-                "receiver": receiver.upper(),
-                "imageUrl": image_url,
-                "summary": summary,
-                "full_text": full_text
+                "id": log.id,
+                "timestamp": log.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                "kategori": log.kategori,
+                "nomor_dokumen": log.nomorDokumen,
+                "receiver": log.receiver,
+                "imageUrl": log.imagePath,
+                "summary": log.summary,
+                "full_text": log.fullText
             }
         }
 
@@ -270,42 +314,27 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...))
 
 # --- ENDPOINT 3: AMBIL HISTORY (BUAT TABEL) ---
 @app.get("/history")
-def get_history():
-    """Mengambil semua data lama dari database"""
+async def get_history(authorization: str = Header(None)):
+    """Mengambil data history per user dari Supabase"""
     try:
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
+        # Get user email from JWT token
+        user_email = get_user_email_from_token(authorization)
         
-        # Pastikan tabel logs ada
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT,
-                filename TEXT,
-                kategori TEXT,
-                nomor_dokumen TEXT,
-                receiver TEXT,
-                image_path TEXT,
-                summary TEXT,
-                full_text TEXT
-            )
-        ''')
-        conn.commit()
+        # Query hanya data milik user ini
+        logs = await prisma.logs.find_many(
+            where={"userId": user_email},
+            order={"id": "desc"}
+        )
         
-        # Ambil data menggunakan cursor langsung
-        c.execute("SELECT id, timestamp, receiver, image_path, summary FROM logs ORDER BY id DESC")
-        rows = c.fetchall()
-        conn.close()
-        
-        # Convert ke list of dictionaries
+        # Convert ke format yang diharapkan frontend
         result = []
-        for row in rows:
+        for log in logs:
             result.append({
-                "id": row[0],
-                "timestamp": row[1],
-                "receiver": row[2],
-                "image_path": row[3],
-                "summary": row[4]
+                "id": log.id,
+                "timestamp": log.timestamp.strftime("%d/%m/%y %H:%M"),
+                "receiver": log.receiver,
+                "image_path": log.imagePath,
+                "summary": log.summary
             })
         
         return result
@@ -316,22 +345,123 @@ def get_history():
         print(error_detail)
         return []
 
-# --- ENDPOINT 4: DOWNLOAD EXCEL (REKAP DATA) ---
+# --- ENDPOINT 4: HAPUS LOG ---
+@app.delete("/logs/{log_id}")
+async def delete_log(log_id: int, authorization: str = Header(None)):
+    """Hapus log berdasarkan ID dan user"""
+    try:
+        # Get user email from JWT token
+        user_email = get_user_email_from_token(authorization)
+        
+        # Cek apakah log milik user ini
+        log = await prisma.logs.find_first(
+            where={"id": log_id, "userId": user_email}
+        )
+        
+        if not log:
+            raise HTTPException(status_code=404, detail="Log tidak ditemukan atau bukan milik Anda")
+        
+        # Hapus file gambar jika ada
+        if log.imagePath:
+            filename = log.imagePath.split("/")[-1]
+            file_path = os.path.join(UPLOAD_DIR, filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                print(f"🗑️ Deleted file: {file_path}")
+        
+        # Hapus dari database
+        await prisma.logs.delete(where={"id": log_id})
+        print(f"✅ Deleted log ID: {log_id} for user: {user_email}")
+        
+        return {"status": "success", "message": "Log berhasil dihapus"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in /logs/{log_id} delete: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- ENDPOINT 5: DOWNLOAD EXCEL (REKAP DATA) ---
 @app.get("/export")
-def export_excel():
-    """Membuat file Excel dari seluruh database"""
-    conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("SELECT * FROM logs", conn)
-    conn.close()
+async def export_excel(authorization: str = Header(None)):
+    """Membuat file Excel dari data user"""
+    try:
+        # Get user email from JWT token
+        user_email = get_user_email_from_token(authorization)
+        
+        # Query data user
+        logs = await prisma.logs.find_many(
+            where={"userId": user_email},
+            order={"timestamp": "desc"}
+        )
+        
+        # Convert ke DataFrame
+        data = []
+        for log in logs:
+            data.append({
+                "ID": log.id,
+                "Tanggal": log.timestamp.strftime("%d/%m/%Y %H:%M:%S"),
+                "Nama File": log.filename,
+                "Kategori": log.kategori,
+                "Nomor Dokumen": log.nomorDokumen,
+                "Receiver": log.receiver,
+                "Ringkasan": log.summary,
+                "Teks Lengkap": log.fullText
+            })
+        
+        df = pd.DataFrame(data)
+        
+        # Pastikan folder logs ada
+        if not os.path.exists("logs"):
+            os.makedirs("logs")
 
-    # Pastikan folder logs ada
-    if not os.path.exists("logs"):
-        os.makedirs("logs")
+        filename = f"logs/Laporan_{user_email.split('@')[0]}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        df.to_excel(filename, index=False)
 
-    filename = f"logs/Laporan_Gudang_{datetime.now().strftime('%Y%m%d')}.xlsx"
-    df.to_excel(filename, index=False)
+        return FileResponse(filename, filename=f"Laporan_{user_email.split('@')[0]}.xlsx")
+    except Exception as e:
+        print(f"❌ Error in /export: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-    return FileResponse(filename, filename="Laporan_Stok.xlsx")
+# --- ENDPOINT 5: DELETE LOG ---
+@app.delete("/logs/{log_id}")
+async def delete_log(log_id: int, authorization: str = Header(None)):
+    """Hapus log berdasarkan ID (hanya milik user sendiri)"""
+    try:
+        # Get user email from JWT token
+        user_email = get_user_email_from_token(authorization)
+        
+        # Cari log berdasarkan ID dan userId
+        log = await prisma.logs.find_first(
+            where={
+                "id": log_id,
+                "userId": user_email
+            }
+        )
+        
+        if not log:
+            raise HTTPException(status_code=404, detail="Log tidak ditemukan atau bukan milik Anda")
+        
+        # Hapus file gambar jika ada
+        if log.imagePath:
+            try:
+                # Extract filename dari URL
+                filename = log.imagePath.split("/uploads/")[-1]
+                file_path = os.path.join(UPLOAD_DIR, filename)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    print(f"🗑 Deleted file: {filename}")
+            except Exception as e:
+                print(f"⚠ Failed to delete file: {e}")
+        
+        # Hapus dari database
+        await prisma.logs.delete(where={"id": log_id})
+        
+        return {"status": "success", "message": "Log berhasil dihapus"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in /logs/{log_id} DELETE: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # --- MAIN BLOCK ---
 if __name__ == "__main__":

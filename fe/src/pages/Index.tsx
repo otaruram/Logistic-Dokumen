@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect } from "react";
 import { Send, Package, ClipboardCheck } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import Header from "@/components/dashboard/Header";
-import FileDropZone from "@/components/dashboard/FileDropZone";
+import FileUploadZone from "@/components/dashboard/FileUploadZone";
 import ImagePreview from "@/components/dashboard/ImagePreview";
 import SignaturePad from "@/components/dashboard/SignaturePad";
 import DataTable from "@/components/dashboard/DataTable";
 import BrutalSpinner from "@/components/dashboard/BrutalSpinner";
-import CameraCapture from "@/components/dashboard/CameraCapture";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
@@ -102,8 +102,17 @@ const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [logs, setLogs] = useState(mockLogs);
   const [isLoading, setIsLoading] = useState(true);
-  const [showCamera, setShowCamera] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Get user info from localStorage
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('isAuthenticated');
+    navigate('/login');
+  };
 
   // Auto-detect environment: development = localhost, production = Render
   const API_URL = import.meta.env.MODE === "development"
@@ -114,7 +123,16 @@ const Index = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const response = await fetch(`${API_URL}/history`);
+        // Get user credential token
+        const userStr = localStorage.getItem("user");
+        const user = userStr ? JSON.parse(userStr) : null;
+        const token = user?.credential || "";
+
+        const response = await fetch(`${API_URL}/history`, {
+          headers: {
+            "Authorization": `Bearer ${token}`, // Kirim JWT token
+          },
+        });
         const data = await response.json();
         
         const formattedLogs = data.map((log: any) => {
@@ -205,6 +223,11 @@ const Index = () => {
     setIsProcessing(true);
 
     try {
+      // Get user credential token
+      const userStr = localStorage.getItem("user");
+      const user = userStr ? JSON.parse(userStr) : null;
+      const token = user?.credential || "";
+
       // Kirim file ke backend API
       const formData = new FormData();
       formData.append("file", selectedFile!);
@@ -212,6 +235,9 @@ const Index = () => {
 
       const response = await fetch(`${API_URL}/scan`, {
         method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`, // Kirim JWT token
+        },
         body: formData,
       });
 
@@ -257,6 +283,50 @@ const Index = () => {
     }
   }, [imagePreview, selectedFile, receiver, toast, handleClearImage]);
 
+  // Handle delete log
+  const handleDeleteLog = async (logId: number) => {
+    // Beautiful confirmation dialog
+    const confirmed = window.confirm(
+      "⚠️ HAPUS LOG INI?\n\n" +
+      "Data akan dihapus permanen dari database.\n" +
+      "Tindakan ini tidak dapat dibatalkan.\n\n" +
+      "Yakin ingin melanjutkan?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const userStr = localStorage.getItem("user");
+      const user = userStr ? JSON.parse(userStr) : null;
+      const token = user?.credential || "";
+
+      const response = await fetch(`${API_URL}/logs/${logId}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      const result = await response.json();
+
+      if (result.status === "success") {
+        setLogs((prev) => prev.filter((log) => log.id !== logId));
+        toast({
+          title: "✅ BERHASIL DIHAPUS",
+          description: "Log telah dihapus dari database",
+        });
+      } else {
+        throw new Error(result.message || "Gagal menghapus log");
+      }
+    } catch (error) {
+      toast({
+        title: "❌ ERROR",
+        description: error instanceof Error ? error.message : "Gagal menghapus log",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {isLoading ? (
@@ -271,14 +341,7 @@ const Index = () => {
         </div>
       ) : (
         <>
-      {showCamera && (
-        <CameraCapture
-          onCapture={handleCameraCapture}
-          onClose={() => setShowCamera(false)}
-        />
-      )}
-      
-      <Header />
+      <Header user={user} onLogout={handleLogout} />
 
       <main className="container mx-auto px-3 md:px-4 py-4 md:py-6 flex-1">
         {/* Section 1: ZONA INPUT */}
@@ -289,73 +352,70 @@ const Index = () => {
               <h2 className="text-xs md:text-sm font-bold uppercase">ZONA INPUT</h2>
             </div>
 
-            <FileDropZone
-              onFileSelect={handleFileSelect}
-              selectedFile={selectedFile}
-              onClear={handleClearImage}
-              onCameraClick={() => setShowCamera(true)}
-            />
+            {!selectedFile ? (
+              <FileUploadZone onFileSelect={handleFileSelect} />
+            ) : (
+              <ImagePreview
+                imageUrl={imagePreview!}
+                onClear={handleClearImage}
+              />
+            )}
           </div>
 
-          {/* Image Preview */}
-          {imagePreview && (
-            <ImagePreview imageUrl={imagePreview} onClear={handleClearImage} />
-          )}
-        </div>
+          {/* Receiver Input - Only show when file is selected */}
+          {selectedFile && (
+            <div className="brutal-card">
+              <div className="flex items-center gap-2 mb-4">
+                <ClipboardCheck className="w-4 h-4 md:w-5 md:h-5" />
+                <h2 className="text-xs md:text-sm font-bold uppercase">
+                  ZONA VALIDASI
+                </h2>
+              </div>
 
-        {/* Section 2: ZONA VALIDASI */}
-        <div className="space-y-4 md:space-y-6 mb-4 md:mb-6">
-          <div className="brutal-card">
-            <div className="flex items-center gap-2 mb-4">
-              <ClipboardCheck className="w-4 h-4 md:w-5 md:h-5" />
-              <h2 className="text-xs md:text-sm font-bold uppercase">
-                ZONA VALIDASI
-              </h2>
-            </div>
-
-            {/* Receiver Input */}
-            <div className="space-y-3 mb-6">
-              <label className="block text-xs md:text-sm font-bold uppercase tracking-wide">
-                NAMA PENERIMA
-              </label>
-              <input
-                type="text"
-                value={receiver}
-                onChange={(e) => setReceiver(e.target.value)}
-                placeholder="MASUKKAN NAMA PENERIMA..."
-                className="brutal-input brutal-input-focus w-full text-xs md:text-sm"
-              />
-            </div>
+              {/* Receiver Input */}
+              <div className="space-y-3 mb-6">
+                <label className="block text-xs md:text-sm font-bold uppercase tracking-wide">
+                  NAMA PENERIMA
+                </label>
+                <input
+                  type="text"
+                  value={receiver}
+                  onChange={(e) => setReceiver(e.target.value)}
+                  placeholder="MASUKKAN NAMA PENERIMA..."
+                  className="brutal-input brutal-input-focus w-full text-xs md:text-sm"
+                />
+              </div>
 
             {/* Signature Pad */}
             <SignaturePad onSignatureChange={handleSignatureChange} />
-          </div>
 
-          {/* Process Button */}
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={handleProcess}
-            disabled={isProcessing}
-            className="brutal-button w-full h-14 md:h-16 text-sm md:text-base relative overflow-hidden"
-          >
-            {isProcessing ? (
-              <>
-                {/* Scanner Bar */}
-                <span className="scanner-bar"></span>
-                <span className="relative z-20">[ MEMPROSES DATA... ]</span>
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4 md:w-5 md:h-5" />
-                <span className="ml-2">PROSES DATA</span>
-              </>
-            )}
-          </Button>
+            {/* Process Button */}
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={handleProcess}
+              disabled={isProcessing}
+              className="brutal-button w-full h-14 md:h-16 text-sm md:text-base relative overflow-hidden"
+            >
+              {isProcessing ? (
+                <>
+                  {/* Scanner Bar */}
+                  <span className="scanner-bar"></span>
+                  <span className="relative z-20">[ MEMPROSES DATA... ]</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="ml-2">PROSES DOKUMEN</span>
+                </>
+              )}
+            </Button>
+          </div>
+          )}
         </div>
 
         {/* Section 3: LOG HARIAN */}
-        <DataTable logs={logs} />
+        <DataTable logs={logs} onDeleteLog={handleDeleteLog} />
       </main>
 
       {/* Footer */}

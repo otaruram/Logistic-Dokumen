@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Download, FileSpreadsheet, Search } from "lucide-react";
+import { Download, FileSpreadsheet, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Pagination,
@@ -26,11 +26,12 @@ export interface LogEntry {
 
 interface DataTableProps {
   logs: LogEntry[];
+  onDeleteLog?: (logId: number) => void;
 }
 
 const ITEMS_PER_PAGE = 5;
 
-const DataTable = ({ logs }: DataTableProps) => {
+const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [newLogIds, setNewLogIds] = useState<Set<number>>(new Set());
@@ -222,8 +223,11 @@ const DataTable = ({ logs }: DataTableProps) => {
               <th className="brutal-border-thin border-t-0 border-l-0 px-2 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-bold uppercase">
                 RINGKASAN
               </th>
-              <th className="brutal-border-thin border-t-0 border-l-0 border-r-0 px-2 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-bold uppercase">
+              <th className="brutal-border-thin border-t-0 border-l-0 px-2 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-bold uppercase">
                 STATUS
+              </th>
+              <th className="brutal-border-thin border-t-0 border-l-0 border-r-0 px-2 md:px-4 py-2 md:py-3 text-center text-[10px] md:text-xs font-bold uppercase">
+                AKSI
               </th>
             </tr>
           </thead>
@@ -280,6 +284,19 @@ const DataTable = ({ logs }: DataTableProps) => {
                     >
                       {log.status}
                     </span>
+                  </td>
+                  <td className="brutal-border-thin border-l-0 border-r-0 px-2 md:px-4 py-2 md:py-3 text-center">
+                    {onDeleteLog && (
+                      <Button
+                        onClick={() => onDeleteLog(log.id)}
+                        variant="outline"
+                        size="sm"
+                        className="brutal-btn brutal-press h-7 px-2 hover:bg-red-500 hover:text-white hover:border-red-600 transition-colors"
+                        title="Hapus log ini"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))

@@ -1,0 +1,27 @@
+// Prisma schema untuk Supply Chain OCR Multi-User System
+generator client {
+  provider             = "prisma-client-py"
+  recursive_type_depth = 5
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Logs {
+  id             Int      @id @default(autoincrement())
+  userId         String   // Email dari Google OAuth
+  timestamp      DateTime @default(now())
+  filename       String
+  kategori       String
+  nomorDokumen   String   @map("nomor_dokumen")
+  receiver       String
+  imagePath      String   @map("image_path")
+  summary        String   @db.Text
+  fullText       String   @map("full_text") @db.Text
+
+  @@index([userId]) // Index untuk query cepat by user
+  @@map("logs")
+}
