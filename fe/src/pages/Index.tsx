@@ -97,7 +97,10 @@ const Index = () => {
   const [showCamera, setShowCamera] = useState(false);
   const { toast } = useToast();
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  // Auto-detect environment: development = localhost, production = Render
+  const API_URL = import.meta.env.MODE === "development"
+    ? "http://localhost:8000"  // Local development
+    : "https://logistic-dokumen.onrender.com";  // Production on Vercel
 
   // Initial loading + fetch history
   useEffect(() => {
