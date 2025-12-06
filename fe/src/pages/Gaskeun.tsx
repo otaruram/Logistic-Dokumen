@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Upload, FileText, Send, Bot, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Upload, FileText, Send, Bot, User as UserIcon, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -209,7 +209,7 @@ const Gaskeun = () => {
               size="sm"
               className="brutal-btn"
             >
-              GANTI PDF
+              <RefreshCw className="w-4 h-4" />
             </Button>
           </div>
         )}
