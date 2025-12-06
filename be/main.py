@@ -208,8 +208,11 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...))
         }
 
     except Exception as e:
-        print(f"Error: {e}")
-        return {"status": "error", "message": str(e)}
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"❌ Error in /scan endpoint:")
+        print(error_detail)
+        return {"status": "error", "message": f"Gagal memproses dokumen: {str(e)}"}
 
 # --- ENDPOINT 3: AMBIL HISTORY (BUAT TABEL) ---
 @app.get("/history")
