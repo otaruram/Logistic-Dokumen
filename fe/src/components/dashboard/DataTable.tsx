@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Download, FileSpreadsheet, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,27 @@ const ITEMS_PER_PAGE = 5;
 const DataTable = ({ logs }: DataTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [newLogIds, setNewLogIds] = useState<Set<number>>(new Set());
+  const prevLogsLength = useRef(logs.length);
+
+  // Detect new log entries
+  useEffect(() => {
+    if (logs.length > prevLogsLength.current) {
+      const newId = logs[0]?.id;
+      if (newId) {
+        setNewLogIds(prev => new Set(prev).add(newId));
+        // Remove glitch class after animation
+        setTimeout(() => {
+          setNewLogIds(prev => {
+            const updated = new Set(prev);
+            updated.delete(newId);
+            return updated;
+          });
+        }, 300);
+      }
+    }
+    prevLogsLength.current = logs.length;
+  }, [logs]);
 
   const getStatusStyle = (status: LogEntry["status"]) => {
     switch (status) {
@@ -214,7 +235,8 @@ const DataTable = ({ logs }: DataTableProps) => {
                   key={log.id}
                   className={cn(
                     "hover:bg-secondary transition-colors",
-                    index % 2 === 0 ? "bg-background" : "bg-secondary/30"
+                    index % 2 === 0 ? "bg-background" : "bg-secondary/30",
+                    newLogIds.has(log.id) && "glitch-reveal"
                   )}
                 >
                   <td className="brutal-border-thin border-l-0 px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm font-bold">

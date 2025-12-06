@@ -154,4 +154,123 @@
       linear-gradient(90deg, hsl(var(--muted)) 1px, transparent 1px);
     background-size: 20px 20px;
   }
+
+  /* === BRUTALIST MECHANICAL ANIMATIONS === */
+
+  /* 1. Terminal Typing Effect */
+  @keyframes terminal-typing {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+
+  @keyframes cursor-blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  .terminal-text {
+    overflow: hidden;
+    white-space: nowrap;
+    animation: terminal-typing 1.5s steps(20) forwards;
+  }
+
+  .terminal-cursor {
+    display: inline-block;
+    width: 0.6em;
+    height: 1em;
+    background: currentColor;
+    margin-left: 0.1em;
+    animation: cursor-blink 0.8s steps(1) infinite;
+  }
+
+  /* 2. LED Blink */
+  @keyframes led-blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  .led-blink {
+    animation: led-blink 1.5s steps(1) infinite;
+  }
+
+  /* 3. Scanner Bar Loading */
+  @keyframes scanner-bar {
+    0%, 100% { left: -2px; }
+    50% { left: calc(100% - 2px); }
+  }
+
+  .scanner-bar {
+    position: absolute;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    background: #000;
+    animation: scanner-bar 1.2s steps(10) infinite;
+    z-index: 10;
+  }
+
+  /* 4. Glitch Reveal for Table Rows */
+  @keyframes glitch-reveal {
+    0% { 
+      background: #000;
+      color: #fff;
+    }
+    33% { 
+      background: #fff;
+      color: #000;
+    }
+    66% { 
+      background: #000;
+      color: #fff;
+    }
+    100% { 
+      background: transparent;
+      color: inherit;
+    }
+  }
+
+  .glitch-reveal {
+    animation: glitch-reveal 0.3s steps(3) forwards;
+  }
+
+  /* 5. Hard Press Button */
+  .brutal-button {
+    box-shadow: 4px 4px 0px 0px #000000;
+    transition: all 75ms linear;
+  }
+
+  .brutal-button:hover:not(:disabled),
+  .brutal-button:active:not(:disabled) {
+    transform: translate(4px, 4px);
+    box-shadow: none;
+  }
+
+  .brutal-button:disabled {
+    opacity: 0.8;
+    cursor: not-allowed;
+  }
+
+  /* 6. Hard Focus Input */
+  .brutal-input-focus {
+    caret-color: #FF5F1F;
+    transition: border-color 0ms;
+  }
+
+  .brutal-input-focus:focus {
+    outline: none;
+    border-color: #FF5F1F !important;
+    border-width: 3px;
+  }
+
+  /* Marquee Loading Text */
+  @keyframes marquee {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+  }
+
+  .marquee-text {
+    display: inline-block;
+    animation: marquee 3s linear infinite;
+    white-space: nowrap;
+  }
 }

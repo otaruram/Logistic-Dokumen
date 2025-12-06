@@ -233,7 +233,7 @@ const Index = () => {
                 value={receiver}
                 onChange={(e) => setReceiver(e.target.value)}
                 placeholder="MASUKKAN NAMA PENERIMA..."
-                className="brutal-input w-full text-xs md:text-sm"
+                className="brutal-input brutal-input-focus w-full text-xs md:text-sm"
               />
             </div>
 
@@ -247,12 +247,13 @@ const Index = () => {
             size="lg"
             onClick={handleProcess}
             disabled={isProcessing}
-            className="w-full h-14 md:h-16 text-sm md:text-base"
+            className="brutal-button w-full h-14 md:h-16 text-sm md:text-base relative overflow-hidden"
           >
             {isProcessing ? (
               <>
-                <BrutalSpinner />
-                <span className="ml-2">MEMPROSES...</span>
+                {/* Scanner Bar */}
+                <span className="scanner-bar"></span>
+                <span className="relative z-20">[ MEMPROSES DATA... ]</span>
               </>
             ) : (
               <>
