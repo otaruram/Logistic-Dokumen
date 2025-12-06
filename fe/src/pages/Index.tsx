@@ -314,7 +314,8 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="brutal-border-thin border-b-0 border-l-0 border-r-0 mt-auto">
-        <div className="container mx-auto px-4 py-3 md:py-4 text-center">
+        <div className="container mx-auto px-4 py-3 md:py-4 flex items-center justify-center gap-2">
+          <img src="/1.png" alt="Logo" className="w-4 h-4 md:w-5 md:h-5 object-contain" />
           <p className="text-[10px] md:text-xs text-muted-foreground uppercase">
             MADE BY SOMEONE
           </p>
