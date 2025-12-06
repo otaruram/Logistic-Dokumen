@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Send, Package, ClipboardCheck } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import FileDropZone from "@/components/dashboard/FileDropZone";
@@ -92,7 +92,38 @@ const Index = () => {
   const [signature, setSignature] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [logs, setLogs] = useState(mockLogs);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+
+  // Initial loading + fetch history
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/history");
+        const data = await response.json();
+        
+        const formattedLogs = data.map((log: any) => ({
+          id: log.id,
+          time: new Date(log.timestamp).toLocaleTimeString('id-ID'),
+          docType: "",
+          docNumber: "",
+          receiver: log.receiver,
+          imageUrl: log.image_path,
+          summary: log.summary,
+          status: "SUCCESS" as const
+        }));
+        
+        setLogs(formattedLogs);
+      } catch (error) {
+        console.error("Error loading history:", error);
+      } finally {
+        // Loading screen duration: 1200ms (not too fast, not too slow)
+        setTimeout(() => setIsLoading(false), 1200);
+      }
+    };
+    
+    loadData();
+  }, []);
 
   const handleFileSelect = useCallback((file: File) => {
     setSelectedFile(file);
@@ -156,10 +187,11 @@ const Index = () => {
         // Gunakan data dari backend
         const newLog = {
           id: result.data.id,
-          time: new Date(result.data.timestamp).toLocaleTimeString("en-GB"),
+          time: new Date(result.data.timestamp).toLocaleTimeString("id-ID"),
           docType: result.data.kategori, // Gunakan kategori dari backend
           docNumber: result.data.nomor_dokumen, // Nomor dari OCR
           receiver: result.data.receiver, // Nama penerima
+          imageUrl: result.data.imageUrl, // URL foto
           summary: result.data.summary,
           status: "SUCCESS" as const,
         };
@@ -189,6 +221,18 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {isLoading ? (
+        // Loading Screen
+        <div className="fixed inset-0 bg-background flex items-center justify-center z-50">
+          <div className="text-center space-y-4">
+            <BrutalSpinner size="lg" />
+            <div className="terminal-text font-mono text-lg md:text-xl font-bold uppercase">
+              LOADING SYSTEM<span className="terminal-cursor">_</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
       <Header />
 
       <main className="container mx-auto px-3 md:px-4 py-4 md:py-6 flex-1">
@@ -276,6 +320,8 @@ const Index = () => {
           </p>
         </div>
       </footer>
+      </>
+      )}
     </div>
   );
 };

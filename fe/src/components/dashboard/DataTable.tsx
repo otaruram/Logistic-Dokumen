@@ -18,6 +18,7 @@ export interface LogEntry {
   docType: string;
   docNumber: string;
   receiver: string;
+  imageUrl?: string;
   summary: string;
   status: "SUCCESS" | "PENDING" | "ERROR";
 }
@@ -32,6 +33,7 @@ const DataTable = ({ logs }: DataTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [newLogIds, setNewLogIds] = useState<Set<number>>(new Set());
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const prevLogsLength = useRef(logs.length);
 
   // Detect new log entries
@@ -105,6 +107,7 @@ const DataTable = ({ logs }: DataTableProps) => {
       { wch: 5 },
       { wch: 12 },
       { wch: 20 },
+      { wch: 10 },
       { wch: 50 },
       { wch: 10 },
     ];
@@ -157,6 +160,7 @@ const DataTable = ({ logs }: DataTableProps) => {
   };
 
   return (
+    <>
     <div className="brutal-border overflow-hidden">
       <div className="bg-foreground text-background px-3 md:px-4 py-3 flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -212,6 +216,9 @@ const DataTable = ({ logs }: DataTableProps) => {
                 PENERIMA
               </th>
               <th className="brutal-border-thin border-t-0 border-l-0 px-2 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-bold uppercase">
+                FOTO
+              </th>
+              <th className="brutal-border-thin border-t-0 border-l-0 px-2 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-bold uppercase">
                 RINGKASAN
               </th>
               <th className="brutal-border-thin border-t-0 border-l-0 border-r-0 px-2 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-bold uppercase">
@@ -247,6 +254,18 @@ const DataTable = ({ logs }: DataTableProps) => {
                   </td>
                   <td className="brutal-border-thin border-l-0 px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm font-bold uppercase">
                     {log.receiver}
+                  </td>
+                  <td className="brutal-border-thin border-l-0 px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm">
+                    {log.imageUrl ? (
+                      <button
+                        onClick={() => setZoomedImage(log.imageUrl!)}
+                        className="brutal-button px-2 py-1 text-[10px] font-bold"
+                      >
+                        LIHAT
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground text-[10px]">-</span>
+                    )}
                   </td>
                   <td className="brutal-border-thin border-l-0 px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm">
                     {log.summary}
@@ -313,6 +332,30 @@ const DataTable = ({ logs }: DataTableProps) => {
         </div>
       )}
     </div>
+
+    {/* Image Zoom Modal */}
+    {zoomedImage && (
+      <div 
+        className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+        onClick={() => setZoomedImage(null)}
+      >
+        <div className="relative max-w-[90vw] max-h-[90vh]">
+          <button
+            onClick={() => setZoomedImage(null)}
+            className="absolute -top-12 right-0 brutal-button px-4 py-2 text-sm"
+          >
+            TUTUP
+          </button>
+          <img 
+            src={zoomedImage} 
+            alt="Dokumen" 
+            className="max-w-full max-h-[85vh] object-contain brutal-border"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

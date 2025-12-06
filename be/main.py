@@ -4,6 +4,7 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 import easyocr
 import numpy as np
 from PIL import Image
@@ -12,9 +13,17 @@ import sqlite3
 import pandas as pd
 from datetime import datetime
 import os
+import shutil
 
 # --- INISIALISASI APP ---
 app = FastAPI(title="Supply Chain OCR API", description="Backend untuk scan dokumen gudang")
+
+# --- SETUP FOLDER UPLOADS ---
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Mount static files untuk serve gambar
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # --- KONFIGURASI CORS (PENTING!) ---
 # Ini agar Frontend (React) di port 5173 boleh ngobrol sama Backend di port 8000
@@ -42,6 +51,7 @@ def init_db():
             kategori TEXT,
             nomor_dokumen TEXT,
             receiver TEXT,
+            image_path TEXT,
             summary TEXT,
             full_text TEXT
         )
@@ -135,16 +145,26 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...))
         summary = full_text[:150].replace("\n", " ")
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # 5. SIMPAN KE DATABASE (PERSISTENT)
+        # 5. SIMPAN FILE KE FOLDER UPLOADS
+        file_extension = os.path.splitext(file.filename)[1]
+        saved_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+        file_path = os.path.join(UPLOAD_DIR, saved_filename)
+        
+        with open(file_path, "wb") as buffer:
+            buffer.write(contents)
+        
+        image_url = f"http://localhost:8000/uploads/{saved_filename}"
+
+        # 6. SIMPAN KE DATABASE (PERSISTENT)
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
-        c.execute("INSERT INTO logs (timestamp, filename, kategori, nomor_dokumen, receiver, summary, full_text) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                  (timestamp, file.filename, kategori, nomor_dokumen, receiver.upper(), summary, full_text))
+        c.execute("INSERT INTO logs (timestamp, filename, kategori, nomor_dokumen, receiver, image_path, summary, full_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                  (timestamp, file.filename, kategori, nomor_dokumen, receiver.upper(), image_url, summary, full_text))
         conn.commit()
         last_id = c.lastrowid # Ambil ID data yang baru masuk
         conn.close()
 
-        # 6. KIRIM HASIL KE FRONTEND
+        # 7. KIRIM HASIL KE FRONTEND
         return {
             "status": "success",
             "data": {
@@ -153,6 +173,7 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...))
                 "kategori": kategori,
                 "nomor_dokumen": nomor_dokumen,
                 "receiver": receiver.upper(),
+                "imageUrl": image_url,
                 "summary": summary,
                 "full_text": full_text
             }
@@ -168,7 +189,7 @@ def get_history():
     """Mengambil semua data lama dari database"""
     conn = sqlite3.connect(DB_NAME)
     # Gunakan Pandas agar mudah convert ke Dictionary (JSON)
-    df = pd.read_sql_query("SELECT * FROM logs ORDER BY id DESC", conn)
+    df = pd.read_sql_query("SELECT id, timestamp, receiver, image_path, summary FROM logs ORDER BY id DESC", conn)
     conn.close()
     
     # Ubah format agar bisa dibaca React
