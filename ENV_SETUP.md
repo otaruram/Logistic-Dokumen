@@ -1,53 +1,48 @@
-# 🔧 Environment Variables Setup
+# 🔐 Environment Variables & API Keys Setup Guide
 
 ## 📁 File Structure
 
 ```
 Supply-Chain/
-├── be/               # Backend - TIDAK PERLU .env file
-│   └── main.py       # Pakai os.getenv() dengan default values
-├── fe/               # Frontend - PERLU .env
-│   ├── .env          # Production (push ke GitHub)
-│   └── .env.local    # Local development (jangan push)
+├── be/
+│   ├── .env          # Backend secrets (JANGAN PUSH KE GITHUB!)
+│   └── main.py
+├── fe/
+│   ├── .env.local    # Frontend local (JANGAN PUSH KE GITHUB!)
+│   └── .env          # Frontend production (push ke GitHub)
 ```
 
 ---
 
-## Backend (be/) - Tidak Perlu File .env
+## 🔑 API Keys Yang Dibutuhkan
 
-Backend **otomatis pakai default values** kalau tidak ada environment variable.
-
-### Default Values (Local Development):
-```python
-BASE_URL = "http://localhost:8000"
-FRONTEND_URL = "http://localhost:8080"
-```
-
-### Production (Set di Render Dashboard):
-| Key | Value |
-|-----|-------|
-| `BASE_URL` | `https://logistic-dokumen.onrender.com` |
-| `FRONTEND_URL` | `https://ocrai.vercel.app` |
-| `PYTHON_VERSION` | `3.11.0` |
-
-**Cara set di Render:**
-1. Dashboard Render → Service **logistic-dokumen**
-2. Klik **Environment** (sidebar)
-3. Add/Edit variables
-4. Save → Auto redeploy
+### 1️⃣ Supabase PostgreSQL (Database)
+### 2️⃣ OCR.space API Key (OCR Service)  
+### 3️⃣ Google OAuth Client ID (Login System)
 
 ---
 
-## Frontend (fe/) - PERLU File .env
+## Backend Environment (be/.env)
 
-### 1. `.env` (Production - Push ke GitHub)
+**PENTING:** File ini **JANGAN PUSH** ke GitHub!
 
-**File:** `fe/.env`
+Buat file `be/.env`:
+
 ```env
-VITE_API_URL=https://logistic-dokumen.onrender.com
-```
+# 1. SUPABASE DATABASE
+DATABASE_URL="postgresql://postgres.[PROJECT_ID]:[PASSWORD]@aws-x-region.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres.[PROJECT_ID]:[PASSWORD]@aws-x-region.pooler.supabase.com:5432/postgres"
 
-**Kapan dipakai:**
+# 2. OCR API KEY
+OCR_API_KEY="K87256153888957"
+
+# 3. SERVER URLs
+BASE_URL="http://localhost:8000"
+FRONTEND_URL="http://localhost:5173"
+
+# 4. PRISMA (optional untuk development)
+PRISMA_PY_DEBUG_GENERATOR="1"
+```
 - Deploy ke Vercel
 - Build production (`npm run build`)
 - Push ke GitHub
