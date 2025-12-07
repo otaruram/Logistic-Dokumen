@@ -33,8 +33,16 @@ export default function Profile() {
       setUser(userData);
     }
 
-    // Fetch user statistics
+    // Fetch user statistics initially
     fetchUserStats();
+
+    // Auto-refresh stats every 5 seconds for real-time updates
+    const interval = setInterval(() => {
+      fetchUserStats();
+    }, 5000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
   }, []);
 
   const fetchUserStats = async () => {
@@ -42,6 +50,11 @@ export default function Profile() {
       const userStr = localStorage.getItem('user');
       const userData = userStr ? JSON.parse(userStr) : null;
       const token = userData?.credential || userData?.driveToken || '';
+
+      if (!token) {
+        console.log('No token available');
+        return;
+      }
 
       const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
@@ -52,11 +65,28 @@ export default function Profile() {
         },
       });
 
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Token expired, redirect to login
+          console.log('Token expired, please login again');
+          toast.error('Sesi berakhir, silakan login ulang');
+          localStorage.removeItem('user');
+          localStorage.removeItem('isAuthenticated');
+          setTimeout(() => navigate('/login'), 2000);
+          return;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       if (response.ok) {
         const logs = await response.json();
         
         // Calculate stats
         const totalScans = logs.length;
+        
+        // Logs are ordered DESC (newest first), so:
+        // - First item (logs[0]) = newest/latest scan
+        // - Last item (logs[logs.length - 1]) = oldest/first scan
         const joinDate = logs.length > 0 
           ? new Date(logs[logs.length - 1].timestamp).toLocaleDateString('id-ID', {
               day: 'numeric',
@@ -173,15 +203,15 @@ export default function Profile() {
                 <p className="text-lg font-bold">{stats.joinDate}</p>
               </div>
 
-              {/* Total Scans */}
+              {/* Total Usage */}
               <div className="brutal-border-thin bg-background p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Activity className="w-5 h-5 text-green-500" />
                   <span className="text-xs font-bold uppercase text-muted-foreground">
-                    Total Scan
+                    Total Penggunaan
                   </span>
                 </div>
-                <p className="text-lg font-bold">{stats.totalScans} dokumen</p>
+                <p className="text-lg font-bold">{stats.totalScans} kali</p>
               </div>
 
               {/* Last Activity */}

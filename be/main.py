@@ -562,6 +562,40 @@ async def delete_account(authorization: str = Header(None)):
     except Exception as e:
         print(f"❌ Delete account error: {str(e)}")
         traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"PDF extraction error: {str(e)}")
+
+@app.delete("/delete-account")
+async def delete_account(authorization: str = Header(None)):
+    """Delete user account and all associated data"""
+    try:
+        user_email = get_user_email_from_token(authorization)
+        
+        # Get all logs for this user to delete associated images
+        logs = await prisma.logs.find_many(where={"userId": user_email})
+        
+        # Delete all image files from uploads folder
+        for log in logs:
+            if log.imagePath:
+                filename = log.imagePath.split("/")[-1]
+                file_path = os.path.join(UPLOAD_DIR, filename)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    print(f"🗑️ Deleted image: {filename}")
+        
+        # Delete all logs from database
+        deleted_logs = await prisma.logs.delete_many(where={"userId": user_email})
+        print(f"🗑️ Deleted {deleted_logs} logs for user: {user_email}")
+        
+        return {
+            "status": "success",
+            "message": "Account deleted successfully",
+            "deleted_logs": deleted_logs
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"❌ Delete account error: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to delete account: {str(e)}")
 
 if __name__ == "__main__":
