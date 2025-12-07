@@ -597,18 +597,22 @@ async def chat_with_oki(
             # Try to get from database
             user_api_key = await get_user_api_key_internal(user_email)
         
+        # Determine which API key to use
+        using_byok = bool(user_api_key)
+        
         # Use user's API key if available (BYOK), otherwise use default
-        if user_api_key:
-            print(f"🔑 Using user's BYOK API key for {user_email}")
+        if using_byok:
+            print(f"🔑 BYOK ENABLED - Using user's API key for {user_email}")
             custom_bot = OKiChatbot(api_key=user_api_key)
             assistant_message = custom_bot.chat(messages=messages, pdf_text=request.pdfText)
         else:
-            print(f"🤖 Using default API key for {user_email}")
+            print(f"🤖 DEFAULT API KEY - Using system API key for {user_email}")
             assistant_message = oki_bot.chat(messages=messages, pdf_text=request.pdfText)
         
         return {
             "status": "success",
-            "message": assistant_message
+            "message": assistant_message,
+            "usingBYOK": using_byok
         }
         
     except Exception as e:

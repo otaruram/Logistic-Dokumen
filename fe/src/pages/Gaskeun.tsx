@@ -18,6 +18,7 @@ const Gaskeun = () => {
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [usingBYOK, setUsingBYOK] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -130,6 +131,7 @@ const Gaskeun = () => {
       const data = await response.json();
 
       if (data.status === 'success') {
+        setUsingBYOK(data.usingBYOK || false);
         const aiResponse: Message = {
           role: "assistant",
           content: data.message
@@ -169,6 +171,11 @@ const Gaskeun = () => {
                 <h1 className="text-xl font-bold uppercase">GASKEUN - OKi AI</h1>
                 <p className="text-xs text-muted-foreground">PDF Analyzer & Chatbot</p>
               </div>
+              {usingBYOK && (
+                <div className="brutal-border-thin bg-green-500 text-white px-2 py-1 text-xs font-bold">
+                  🔑 BYOK ACTIVE
+                </div>
+              )}
             </div>
             <Bot className="w-8 h-8 text-primary" />
           </div>
