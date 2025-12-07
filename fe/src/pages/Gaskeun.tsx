@@ -39,6 +39,30 @@ const Gaskeun = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Check BYOK status on mount
+  useEffect(() => {
+    const checkBYOKStatus = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = user.credential;
+        if (!token) return;
+
+        const response = await fetch(`${API_URL}/api/user/apikey`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUsingBYOK(data.hasApiKey);
+        }
+      } catch (error) {
+        console.error('Error checking BYOK status:', error);
+      }
+    };
+
+    checkBYOKStatus();
+  }, []);
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -110,17 +134,12 @@ const Gaskeun = () => {
     setIsProcessing(true);
 
     try {
-      // Get user's own API key if enabled
-      const useOwnKey = localStorage.getItem('useOwnKey') === 'true';
-      const userApiKey = localStorage.getItem('openaiApiKey') || '';
-
-      // Call backend chat API
+      // Call backend chat API (backend will auto-fetch user's BYOK from database)
       const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`,
-          ...(useOwnKey && userApiKey && { 'X-User-API-Key': userApiKey })
+          'Authorization': `Bearer ${getAuthToken()}`
         },
         body: JSON.stringify({
           messages: [...messages, userMessage],

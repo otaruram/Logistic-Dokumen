@@ -131,6 +131,7 @@ export default function Settings() {
         const data = await response.json();
         toast.success(data.message);
         setHasApiKey(true);
+        setUseOwnKey(true); // Auto-enable BYOK after save
         setIsEditing(false);
         setApiKey('');
         await fetchApiKey(); // Refresh to get masked key
@@ -181,11 +182,18 @@ export default function Settings() {
   };
 
   const handleToggleOwnKey = (checked: boolean) => {
-    if (!checked && hasApiKey) {
-      toast.info('API Key masih tersimpan. Gunakan tombol hapus untuk menghapus API Key.');
+    if (!hasApiKey && checked) {
+      toast.info('Simpan API Key terlebih dahulu untuk mengaktifkan BYOK');
       return;
     }
+    
     setUseOwnKey(checked);
+    
+    if (checked) {
+      toast.success('🔑 BYOK Aktif - Menggunakan API Key pribadi');
+    } else {
+      toast.success('🤖 BYOK Nonaktif - Menggunakan API Key default');
+    }
   };
 
   const handleEdit = () => {
@@ -226,14 +234,13 @@ export default function Settings() {
               <div className="space-y-1">
                 <Label className="text-base font-bold">Gunakan API Key Pribadi</Label>
                 <p className="text-sm text-muted-foreground">
-                  Bring Your Own Key (BYOK) untuk Chatbot OKi (OpenAI)
+                  {useOwnKey && hasApiKey ? '🔑 BYOK Aktif - Chatbot menggunakan API key Anda' : '🤖 Default - Chatbot menggunakan API key sistem'}
                 </p>
               </div>
               <Switch
-                checked={useOwnKey || hasApiKey}
+                checked={useOwnKey}
                 onCheckedChange={handleToggleOwnKey}
                 className="data-[state=checked]:bg-black"
-                disabled={hasApiKey}
               />
             </div>
 
