@@ -8,13 +8,14 @@ from typing import List, Dict
 class OKiChatbot:
     """OKi AI Assistant for PDF document analysis"""
     
-    def __init__(self):
-        self.api_key = os.getenv("SUMOPOD_API_KEY")
+    def __init__(self, api_key: str = None):
+        # Support BYOK (Bring Your Own Key)
+        self.api_key = api_key or os.getenv("SUMOPOD_API_KEY")
         self.base_url = os.getenv("SUMOPOD_BASE_URL", "https://ai.sumopod.com/v1")
         self.model = "gpt-4o-mini"  # SumoPoD model
         
         if not self.api_key:
-            raise ValueError("SUMOPOD_API_KEY not found in environment variables")
+            raise ValueError("API Key not provided. Use BYOK or set SUMOPOD_API_KEY environment variable")
     
     def chat(self, messages: List[Dict[str, str]], pdf_text: str = "") -> str:
         """

@@ -25,6 +25,16 @@ export default function Profile() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Apply theme on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  }, []);
+
   useEffect(() => {
     // Get user from localStorage
     const userStr = localStorage.getItem('user');
@@ -152,7 +162,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] p-4">
+    <div className="min-h-screen bg-background p-4">
       {/* Header */}
       <div className="max-w-2xl mx-auto mb-6">
         <Button

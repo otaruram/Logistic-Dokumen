@@ -33,6 +33,16 @@ const Gaskeun = () => {
     return user.credential || '';
   };
 
+  // Apply theme on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  }, []);
+
   // Auto scroll to bottom when new message
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -109,12 +119,17 @@ const Gaskeun = () => {
     setIsProcessing(true);
 
     try {
+      // Get user's own API key if enabled
+      const useOwnKey = localStorage.getItem('useOwnKey') === 'true';
+      const userApiKey = localStorage.getItem('openaiApiKey') || '';
+
       // Call backend chat API
       const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`
+          'Authorization': `Bearer ${getAuthToken()}`,
+          ...(useOwnKey && userApiKey && { 'X-User-API-Key': userApiKey })
         },
         body: JSON.stringify({
           messages: [...messages, userMessage],

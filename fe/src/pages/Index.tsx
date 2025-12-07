@@ -101,7 +101,7 @@ const Index = () => {
   const [signature, setSignature] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [logs, setLogs] = useState(mockLogs);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -122,13 +122,34 @@ const Index = () => {
     navigate('/profile');
   };
 
+  const handleSettings = () => {
+    navigate('/settings');
+  };
+
   // Auto-detect environment: development = localhost, production = Render
   const baseURL = import.meta.env.VITE_API_URL || "http://localhost:8000";
   const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
 
+  // Apply theme on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  }, []);
+
   // Initial loading + fetch history
   useEffect(() => {
     const loadData = async () => {
+      // Show loading only on initial mount (page refresh)
+      const isInitialMount = sessionStorage.getItem('hasLoaded') !== 'true';
+      if (isInitialMount) {
+        setIsLoading(true);
+        sessionStorage.setItem('hasLoaded', 'true');
+      }
+      
       try {
         // Get user credential token
         const userStr = localStorage.getItem("user");
@@ -348,7 +369,7 @@ const Index = () => {
         </div>
       ) : (
         <>
-      <Header user={user} onLogout={handleLogout} onGaskeun={handleGaskeun} onProfile={handleProfile} />
+      <Header user={user} onLogout={handleLogout} onGaskeun={handleGaskeun} onProfile={handleProfile} onSettings={handleSettings} />
 
       <main className="container mx-auto px-3 md:px-4 py-4 md:py-6 flex-1">
         {/* Section 1: ZONA INPUT */}

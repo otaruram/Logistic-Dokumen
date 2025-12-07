@@ -1,24 +1,53 @@
 import { useNavigate } from 'react-router-dom';
-import { FileText, Zap, CheckCircle2, ArrowRight } from 'lucide-react';
-import { useState } from 'react';
+import { FileText, Zap, CheckCircle2, ArrowRight, Moon, Sun } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export default function Landing() {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    setIsDarkMode(savedTheme === 'dark');
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = !isDarkMode;
+    setIsDarkMode(newTheme);
+    localStorage.setItem('theme', newTheme ? 'dark' : 'light');
+  };
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] relative overflow-hidden">
+    <div className={`min-h-screen relative overflow-hidden transition-colors duration-300 ${
+      isDarkMode ? 'bg-[#0a0a0a] text-white' : 'bg-[#FDFDFD] text-black'
+    }`}>
       {/* Subtle Grid Background Pattern */}
       <div 
         className="absolute inset-0 opacity-[0.02]" 
         style={{
-          backgroundImage: `
+          backgroundImage: isDarkMode ? `
+            linear-gradient(#fff 1px, transparent 1px),
+            linear-gradient(90deg, #fff 1px, transparent 1px)
+          ` : `
             linear-gradient(#000 1px, transparent 1px),
             linear-gradient(90deg, #000 1px, transparent 1px)
           `,
           backgroundSize: '40px 40px'
         }}
       />
+
+      {/* Theme Toggle Button */}
+      <button
+        onClick={toggleTheme}
+        className={`fixed top-8 right-8 z-50 border-2 px-4 py-2 font-bold transition-all duration-200 hover:translate-x-[-2px] hover:translate-y-[-2px] ${
+          isDarkMode 
+            ? 'border-white bg-[#0a0a0a] text-white hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]'
+            : 'border-black bg-white text-black hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
+        }`}
+      >
+        {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+      </button>
 
       {/* Main Container */}
       <div className="min-h-screen flex flex-col items-center justify-center p-8 max-w-5xl mx-auto pt-20">
@@ -31,7 +60,9 @@ export default function Landing() {
             </h1>
           </div>
 
-          <p className="text-lg md:text-xl font-mono text-black/70 mb-8 leading-relaxed max-w-3xl mx-auto hero-description">
+          <p className={`text-lg md:text-xl font-mono mb-8 leading-relaxed max-w-3xl mx-auto hero-description ${
+            isDarkMode ? 'text-white/70' : 'text-black/70'
+          }`}>
             Upload foto dokumen, langsung jadi data digital. 
             Cepat, akurat, dan otomatis dengan kecerdasan buatan.
           </p>
@@ -47,7 +78,11 @@ export default function Landing() {
               <div 
                 key={i}
                 style={{ animationDelay: `${2.5 + item.delay}s` }}
-                className="feature-pill border-2 border-black bg-white px-4 py-2 font-mono text-xs font-bold flex items-center gap-2 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
+                className={`feature-pill border-2 px-4 py-2 font-mono text-xs font-bold flex items-center gap-2 hover:translate-x-[-2px] hover:translate-y-[-2px] transition-all duration-200 ${
+                  isDarkMode
+                    ? 'border-white bg-[#0a0a0a] text-white hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]'
+                    : 'border-black bg-white text-black hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
+                }`}
               >
                 <item.icon className="w-4 h-4" />
                 {item.text}
@@ -62,13 +97,19 @@ export default function Landing() {
             className="relative inline-block cta-button"
           >
             <div 
-              className={`absolute inset-0 bg-black transition-all duration-200 ${
+              className={`absolute inset-0 transition-all duration-200 ${
+                isDarkMode ? 'bg-white' : 'bg-black'
+              } ${
                 isHovered ? 'translate-x-[8px] translate-y-[8px]' : 'translate-x-0 translate-y-0'
               }`}
             />
             <button
               onClick={() => navigate('/login')}
-              className={`relative border-4 border-black bg-white hover:bg-gray-50 transition-all duration-200 px-12 py-5 flex items-center gap-3 ${
+              className={`relative border-4 transition-all duration-200 px-12 py-5 flex items-center gap-3 ${
+                isDarkMode
+                  ? 'border-white bg-[#0a0a0a] text-white hover:bg-[#1a1a1a]'
+                  : 'border-black bg-white text-black hover:bg-gray-50'
+              } ${
                 isHovered ? '-translate-x-[4px] -translate-y-[4px]' : ''
               }`}
             >
@@ -80,7 +121,9 @@ export default function Landing() {
 
         {/* Footer */}
         <div className="text-center mt-auto pt-8">
-          <p className="font-mono text-xs text-black/60">
+          <p className={`font-mono text-xs ${
+            isDarkMode ? 'text-white/60' : 'text-black/60'
+          }`}>
             © {new Date().getFullYear()} OCR.WTF - Scan Dokumen Otomatis dengan AI
           </p>
         </div>

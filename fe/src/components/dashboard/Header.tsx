@@ -1,4 +1,4 @@
-import { Circle, LogOut, User, Sparkles } from "lucide-react";
+import { Circle, LogOut, User, Sparkles, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,9 +18,10 @@ interface HeaderProps {
   onLogout?: () => void;
   onGaskeun?: () => void;
   onProfile?: () => void;
+  onSettings?: () => void;
 }
 
-const Header = ({ user, onLogout, onGaskeun, onProfile }: HeaderProps) => {
+const Header = ({ user, onLogout, onGaskeun, onProfile, onSettings }: HeaderProps) => {
   return (
     <header className="brutal-border-thin border-t-0 border-l-0 border-r-0 bg-background">
       <div className="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
@@ -71,6 +72,16 @@ const Header = ({ user, onLogout, onGaskeun, onProfile }: HeaderProps) => {
                   >
                     <User className="w-4 h-4 mr-2" />
                     PROFIL
+                  </DropdownMenuItem>
+                )}
+                
+                {onSettings && (
+                  <DropdownMenuItem 
+                    onClick={onSettings}
+                    className="cursor-pointer font-bold uppercase text-xs hover:bg-primary hover:text-primary-foreground"
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    SETTINGS
                   </DropdownMenuItem>
                 )}
                 

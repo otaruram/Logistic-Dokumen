@@ -551,9 +551,10 @@ class ChatRequest(BaseModel):
 @app.post("/api/chat")
 async def chat_with_oki(
     request: ChatRequest,
-    authorization: str = Header(None)
+    authorization: str = Header(None),
+    x_user_api_key: str = Header(None, alias="X-User-API-Key")
 ):
-    """Chat endpoint untuk Gaskeun - OKi AI Assistant"""
+    """Chat endpoint untuk Gaskeun - OKi AI Assistant with BYOK support"""
     try:
         # Verify user authentication
         user_email = get_user_email_from_token(authorization)
@@ -561,18 +562,20 @@ async def chat_with_oki(
         # Convert messages to dict format
         messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
         
-        # Call OKi chatbot (using SumoPoD API)
-        assistant_message = oki_bot.chat(messages=messages, pdf_text=request.pdfText)
+        # Use user's API key if provided (BYOK), otherwise use default
+        if x_user_api_key:
+            print(f"🔑 Using user's own API key for {user_email}")
+            custom_bot = OKiChatbot(api_key=x_user_api_key)
+            assistant_message = custom_bot.chat(messages=messages, pdf_text=request.pdfText)
+        else:
+            print(f"🤖 Using default API key for {user_email}")
+            assistant_message = oki_bot.chat(messages=messages, pdf_text=request.pdfText)
         
         return {
             "status": "success",
             "message": assistant_message
         }
         
-    except Exception as e:
-        print(f"❌ Chat error: {str(e)}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
     except Exception as e:
         print(f"❌ Chat error: {str(e)}")
         traceback.print_exc()
