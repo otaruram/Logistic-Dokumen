@@ -41,9 +41,9 @@ export default function Settings() {
       document.body.classList.add('dark-mode');
     }
 
-    // Fetch user's API key from backend
+    // Fetch user's API key from backend only on initial mount
     fetchApiKey();
-  }, []);
+  }, []); // Only run once on mount
 
   const fetchApiKey = async () => {
     try {
@@ -64,11 +64,17 @@ export default function Settings() {
       if (response.ok) {
         const data = await response.json();
         console.log('API key fetch response:', data);
-        setHasApiKey(data.hasApiKey);
+        
+        // Only update if we got valid data
         if (data.hasApiKey) {
+          setHasApiKey(true);
           setMaskedApiKey(data.apiKey);
           setProvider(data.provider);
           setUseOwnKey(true);
+        } else {
+          // No API key in database
+          setHasApiKey(false);
+          setUseOwnKey(false);
         }
       } else {
         console.error('Failed to fetch API key:', response.status, await response.text());
