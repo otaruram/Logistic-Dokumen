@@ -234,9 +234,9 @@ async def scan_document(
         # Construct URL gambar - Smart detection for dev/production
         ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
         if ENVIRONMENT == "development":
-            BASE_URL = "http://localhost:8000"
+            BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
         else:
-            BASE_URL = os.getenv("BASE_URL", "https://logistic-dokumen.onrender.com")
+            BASE_URL = os.getenv("PRODUCTION_URL", "https://logistic-dokumen.onrender.com")
         
         image_url = f"{BASE_URL}/uploads/{saved_filename}"
 
