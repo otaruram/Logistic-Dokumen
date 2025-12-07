@@ -1,5 +1,4 @@
-import { GoogleLogin, useGoogleLogin } from '@react-oauth/google';
-import { jwtDecode } from 'jwt-decode';
+import { useGoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
@@ -40,25 +39,6 @@ export default function Login() {
     scope: 'openid email profile https://www.googleapis.com/auth/drive.file',
     flow: 'implicit',
   });
-
-  const handleSuccess = (credentialResponse: any) => {
-    try {
-      const decoded: any = jwtDecode(credentialResponse.credential);
-      const user = {
-        email: decoded.email,
-        name: decoded.name,
-        picture: decoded.picture,
-        credential: credentialResponse.credential,
-      };
-
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('isAuthenticated', 'true');
-      navigate('/');
-    } catch (error) {
-      console.error('Login failed:', error);
-      alert('Login gagal. Coba lagi.');
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] relative overflow-hidden">
@@ -140,29 +120,10 @@ export default function Login() {
               Akses penuh ke semua fitur termasuk Google Drive backup
             </p>
 
-            {/* Fallback: Standard Google Login (No Drive Access) */}
-            <details className="text-xs text-muted-foreground">
-              <summary className="cursor-pointer hover:text-foreground">Opsi login alternatif</summary>
-              <div className="mt-2">
-                <GoogleLogin
-                  onSuccess={handleSuccess}
-                  onError={() => {
-                    console.log('Login Failed');
-                    alert('Login gagal. Periksa koneksi internet.');
-                  }}
-                  useOneTap={false}
-                  theme="outline"
-                  size="medium"
-                  text="signin_with"
-                  shape="rectangular"
-                />
-              </div>
-            </details>
-
             {/* Footer */}
             <div className="text-center border-t-2 border-black pt-6 mt-6">
               <p className="font-mono text-xs text-black/60">
-                © {new Date().getFullYear()} OCR.AI - Digitalisasi Dokumen Pintar
+                © {new Date().getFullYear()} OCR.WTF - Scan Dokumen Tanpa Ribet
               </p>
             </div>
           </div>
