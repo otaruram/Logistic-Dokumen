@@ -63,6 +63,7 @@ export default function Settings() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('API key fetch response:', data);
         setHasApiKey(data.hasApiKey);
         if (data.hasApiKey) {
           setMaskedApiKey(data.apiKey);
@@ -129,12 +130,17 @@ export default function Settings() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Save API key response:', data);
         toast.success(data.message);
+        
+        // Immediately set states without waiting for fetch
         setHasApiKey(true);
-        setUseOwnKey(true); // Auto-enable BYOK after save
+        setUseOwnKey(true);
         setIsEditing(false);
         setApiKey('');
-        await fetchApiKey(); // Refresh to get masked key
+        
+        // Then fetch to get masked key
+        await fetchApiKey();
       } else {
         const error = await response.json();
         toast.error(error.detail || 'Gagal menyimpan API Key');
