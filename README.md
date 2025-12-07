@@ -42,7 +42,6 @@
 - **OCR API** - API for scan
 - **Prisma** - ORM
 - **OpenAI API** - AI chatbot integration
-- **Tesseract** - Additional OCR engine for accuracy
 - **Pillow & OpenCV** - Image preprocessing
 - **SQLite** - Lightweight database
 - **Python 3.11+** - Modern Python features
@@ -210,11 +209,11 @@ FRONTEND_URL=your_frontend_url
 - Python 3.13
 - FastAPI
 - EasyOCR
-- SQLite
 - Pandas
 - Pillow (PIL)
 - NumPy
 - OpenCV
+- Prisma
 
 ---
 
