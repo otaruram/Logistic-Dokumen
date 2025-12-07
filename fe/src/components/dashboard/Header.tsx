@@ -25,7 +25,7 @@ const Header = ({ user, onLogout, onGaskeun, onProfile }: HeaderProps) => {
     <header className="brutal-border-thin border-t-0 border-l-0 border-r-0 bg-background">
       <div className="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
         <h1 className="text-lg md:text-2xl font-bold tracking-tighter">
-          <span className="terminal-text inline-block">LOGISTIC.AI OCR</span>
+          <span className="terminal-text inline-block">OCR.WTF</span>
           <span className="terminal-cursor"></span>
         </h1>
         

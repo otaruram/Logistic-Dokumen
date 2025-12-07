@@ -27,12 +27,12 @@ export default function Landing() {
         <div className="text-center mb-12 mt-16">
           <div className="hero-title-wrapper">
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-bold mb-6 leading-tight hero-title">
-              OCR.AI: DOKUMEN PINTAR DALAM SEKEJAP.
+              OCR.WTF: SCAN DOKUMEN TANPA RIBET.
             </h1>
           </div>
 
           <p className="text-lg md:text-xl font-mono text-black/70 mb-8 leading-relaxed max-w-3xl mx-auto hero-description">
-            Ubah tumpukan dokumen fisik menjadi data digital yang siap diolah. 
+            Upload foto dokumen, langsung jadi data digital. 
             Cepat, akurat, dan otomatis dengan kecerdasan buatan.
           </p>
 
@@ -81,7 +81,7 @@ export default function Landing() {
         {/* Footer */}
         <div className="text-center mt-auto pt-8">
           <p className="font-mono text-xs text-black/60">
-            © {new Date().getFullYear()} OCR.AI - Digitalisasi Dokumen Pintar
+            © {new Date().getFullYear()} OCR.WTF - Scan Dokumen Otomatis dengan AI
           </p>
         </div>
       </div>

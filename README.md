@@ -1,8 +1,8 @@
-# 📦 LOGISTIC.AI - OCR AUTOMATION SYSTEM
+# 🚀 OCR.WTF - AI-POWERED OCR AUTOMATION
 
-> Sistem otomasi digitalisasi dokumen logistik menggunakan AI-powered OCR & Chatbot
+> Scan dokumen otomatis dengan kecerdasan buatan - Cepat, Akurat, Tanpa Ribet!
 
-[![Live Demo](https://img.shields.io/badge/Demo-Live-brightgreen)](https://supply-chain-plum-rho.vercel.app/)
+[![Live Demo](https://img.shields.io/badge/Demo-Live-brightgreen)](https://ocrai.vercel.app/)
 [![Backend API](https://img.shields.io/badge/API-Render-blue)](https://logistic-dokumen.onrender.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -10,7 +10,7 @@
 
 ## 🎯 OVERVIEW
 
-**LOGISTIC.AI** adalah aplikasi web modern yang dirancang untuk mengotomasi proses digitalisasi dokumen kantor dan logistik. Dengan teknologi **OCR berbasis AI**, aplikasi ini mampu mengekstrak data dari dokumen fisik secara otomatis, mengurangi input manual hingga 90%, dan dilengkapi dengan **AI Chatbot (OKi)** untuk membantu analisis dokumen.
+**OCR.WTF** adalah aplikasi web modern yang mengubah cara Anda mengelola dokumen. Dengan teknologi **OCR berbasis AI**, aplikasi ini mampu mengekstrak data dari dokumen fisik secara otomatis, mengurangi input manual hingga 90%, dan dilengkapi dengan **AI Chatbot (OKi)** untuk membantu analisis dokumen.
 
 ### 🚀 Fitur Utama:
 - ✅ **Scan & OCR Otomatis** - Upload foto dokumen, ekstrak data otomatis
