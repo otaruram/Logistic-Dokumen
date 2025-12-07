@@ -2,7 +2,7 @@
 
 > Scan dokumen otomatis dengan kecerdasan buatan - Cepat, Akurat, Tanpa Ribet!
 
-[![Live Demo](https://img.shields.io/badge/Demo-Live-brightgreen)](https://ocr.wtf)
+[![Live Demo](https://img.shields.io/badge/Demo-Live-brightgreen)](https://www.ocr.wtf)
 [![Backend API](https://img.shields.io/badge/API-Render-blue)](https://logistic-dokumen.onrender.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
