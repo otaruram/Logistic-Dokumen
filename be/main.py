@@ -598,6 +598,51 @@ async def delete_account(authorization: str = Header(None)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to delete account: {str(e)}")
 
+# --- ADMIN ENDPOINT: RESET DATABASE ---
+class ResetRequest(BaseModel):
+    admin_password: str
+
+@app.post("/admin/reset-database")
+async def admin_reset_database(request: ResetRequest):
+    """Reset all database data (ADMIN ONLY - requires password)"""
+    try:
+        # Verify admin password from environment
+        ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "supply2024reset")
+        
+        if request.admin_password != ADMIN_PASSWORD:
+            raise HTTPException(status_code=403, detail="Invalid admin password")
+        
+        # Get all logs to delete associated images
+        logs = await prisma.logs.find_many()
+        
+        # Delete all image files from uploads folder
+        deleted_files = 0
+        for log in logs:
+            if log.imagePath:
+                filename = log.imagePath.split("/")[-1]
+                file_path = os.path.join(UPLOAD_DIR, filename)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    deleted_files += 1
+        
+        # Delete all logs from database
+        deleted_logs = await prisma.logs.delete_many()
+        
+        print(f"🔄 DATABASE RESET: {deleted_logs} logs deleted, {deleted_files} files removed")
+        
+        return {
+            "status": "success",
+            "message": "Database reset successfully",
+            "deleted_logs": deleted_logs,
+            "deleted_files": deleted_files
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"❌ Reset database error: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to reset database: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
