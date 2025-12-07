@@ -268,7 +268,7 @@ export default function Settings() {
               />
             </div>
 
-            {(useOwnKey || hasApiKey) && (
+            {useOwnKey && (
               <div className="space-y-2 pt-4 border-t">
                 {hasApiKey && !isEditing ? (
                   <>
