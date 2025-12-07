@@ -94,7 +94,7 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
     setCurrentPage(1);
   };
 
-  // Handler untuk Upload GDrive
+   // Handler untuk Upload GDrive
   const handleUploadGDrive = async () => {
     if (logs.length === 0) {
       toast.error("Tidak ada data untuk di-upload!");
@@ -125,35 +125,47 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
         },
       });
 
-      const result = await response.json();
-
-      if (result.status === "success" && result.drive_url) {
-        toast.success(
-          <div className="flex flex-col gap-2">
-            <span>✅ Berhasil diupload ke Google Drive!</span>
-            <span className="text-xs">Folder: {result.folder_name}</span>
-            <a 
-              href={result.drive_url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-blue-500 hover:underline text-xs"
-            >
-              Buka di Google Drive <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>,
-          { duration: 8000 }
-        );
-
-        // Buka link di tab baru
-        window.open(result.drive_url, "_blank");
-      } else if (result.status === "info") {
-        // Fallback: Drive upload failed, download locally
-        toast.warning(result.message);
-        handleExportExcel();
-      } else {
-        toast.error("Gagal mengupload ke Google Drive");
-        handleExportExcel(); // Fallback to local download
+      // Periksa apakah respons OK dan merupakan JSON
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
       }
+
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        const result = await response.json();
+
+        if (result.status === "success" && result.drive_url) {
+          toast.success(
+            <div className="flex flex-col gap-2">
+              <span>✅ Berhasil diupload ke Google Drive!</span>
+              <span className="text-xs">Folder: {result.folder_name}</span>
+              <a 
+                href={result.drive_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-blue-500 hover:underline text-xs"
+              >
+                Buka di Google Drive <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>,
+            { duration: 8000 }
+          );
+
+          // Buka link di tab baru
+          window.open(result.drive_url, "_blank");
+        } else if (result.status === "info") {
+          // Fallback: Drive upload failed, download locally
+          toast.warning(result.message);
+          handleExportExcel();
+        } else {
+          throw new Error(result.message || "Gagal mengupload ke Google Drive");
+        }
+      } else {
+        // Jika bukan JSON, anggap sebagai file download langsung (fallback)
+        toast.warning("Respons server tidak valid, mencoba download lokal.");
+        handleExportExcel();
+      }
+
     } catch (error) {
       console.error("Error uploading to GDrive:", error);
       toast.error("Gagal upload ke Drive. File akan didownload lokal.");

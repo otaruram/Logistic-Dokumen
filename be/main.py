@@ -45,9 +45,9 @@ async def startup():
         import os
         os.environ['PRISMA_PY_DEBUG_GENERATOR'] = '1'
         await prisma.connect()
-        print("✅ Connected to Supabase PostgreSQL!")
+        print("Connected to Supabase PostgreSQL!")
     except Exception as e:
-        print(f"❌ Failed to connect to DB: {e}")
+        print(f"Failed to connect to DB: {e}")
         print(f"Full error: {traceback.format_exc()}")
         raise RuntimeError(f"Database connection failed: {e}") from e
 
@@ -56,7 +56,7 @@ async def shutdown():
     """Disconnect from database on shutdown"""
     if prisma.is_connected():
         await prisma.disconnect()
-        print("👋 Disconnected from database")
+        print("Disconnected from database")
 
 # --- SETUP FOLDER UPLOADS ---
 UPLOAD_DIR = "uploads"
@@ -140,9 +140,9 @@ async def extract_text_from_image(image_np, user_email: str = None):
             if user_ocr_key:
                 api_key_to_use = user_ocr_key
                 using_byok = True
-                print(f"🔑 BYOK OCR ENABLED - Using user's OCR API key for {user_email}")
+                print(f"BYOK OCR ENABLED - Using user's OCR API key for {user_email}")
             else:
-                print(f"🤖 DEFAULT OCR API KEY - Using system OCR key")
+                print(f"DEFAULT OCR API KEY - Using system OCR key")
         
         # 1. Convert Numpy ke Base64 Image
         image = Image.fromarray(image_np)
@@ -177,7 +177,7 @@ async def extract_text_from_image(image_np, user_email: str = None):
             'OCREngine': 1
         }
         
-        print("🔍 Sending to OCR.space...")
+        print("Sending to OCR.space...")
         response = requests.post(OCR_API_URL, data=payload, timeout=30)
         result = response.json()
 
@@ -192,7 +192,7 @@ async def extract_text_from_image(image_np, user_email: str = None):
         return ""
         
     except Exception as e:
-        print(f"❌ OCR Failed: {e}")
+        print(f"OCR Failed: {e}")
         # Fallback: Kembalikan string kosong atau error biar user tau
         return f"[ERROR BACA TEKS: {str(e)}]"
 
@@ -217,7 +217,8 @@ async def scan_document(
         image_np = np.array(image)
 
         # 2. Proses OCR (Via API) - with BYOK support
-        full_text = await extract_text_from_image(image_np, user_email).upper()
+        ocr_result = await extract_text_from_image(image_np, user_email)
+        full_text = ocr_result.upper()
 
         # 3. Analisa Regex Nomor Dokumen
         nomor_dokumen = "TIDAK TERDETEKSI"
@@ -284,7 +285,7 @@ async def scan_document(
                 }
             )
         except Exception as db_error:
-            print(f"⚠️ Database save failed: {db_error}")
+            print(f"Database save failed: {db_error}")
             # Continue without database save
 
         return {
@@ -317,7 +318,7 @@ async def get_history(authorization: str = Header(None)):
                 order={"id": "desc"}
             )
         except Exception as db_error:
-            print(f"⚠️ Database query failed: {db_error}")
+            print(f"Database query failed: {db_error}")
             return []
         
         # Format response to ensure all fields are properly mapped
@@ -338,7 +339,7 @@ async def get_history(authorization: str = Header(None)):
         
         return formatted_logs
     except Exception as e:
-        print(f"❌ History error: {str(e)}")
+        print(f"History error: {str(e)}")
         traceback.print_exc()
         return []
 
@@ -353,7 +354,7 @@ async def delete_log(log_id: int, authorization: str = Header(None)):
                 where={"id": log_id, "userId": user_email}
             )
         except Exception as db_error:
-            print(f"⚠️ Database query failed: {db_error}")
+            print(f"Database query failed: {db_error}")
             raise HTTPException(status_code=500, detail="Database connection error")
         
         if not log:
@@ -370,7 +371,7 @@ async def delete_log(log_id: int, authorization: str = Header(None)):
         try:
             await prisma.logs.delete(where={"id": log_id})
         except Exception as db_error:
-            print(f"⚠️ Database delete failed: {db_error}")
+            print(f"Database delete failed: {db_error}")
             raise HTTPException(status_code=500, detail="Database connection error")
         
         return {"status": "success"}
@@ -394,7 +395,7 @@ async def export_excel(authorization: str = Header(None), upload_to_drive: bool 
                 order={"id": "desc"}
             )
         except Exception as db_error:
-            print(f"⚠️ Database query failed: {db_error}")
+            print(f"Database query failed: {db_error}")
             raise HTTPException(status_code=500, detail="Database connection error")
         
         # Upload images to Google Drive first if enabled
@@ -410,7 +411,7 @@ async def export_excel(authorization: str = Header(None), upload_to_drive: bool 
                     local_path = os.path.join(UPLOAD_DIR, fname)
                     
                     if os.path.exists(local_path):
-                        print(f"📷 Uploading image: {fname}")
+                        print(f"Uploading image: {fname}")
                         img_result = upload_image_to_drive(token, local_path, images_folder)
                         if img_result:
                             image_links[l.id] = img_result['direct_link']
@@ -526,9 +527,9 @@ async def export_excel(authorization: str = Header(None), upload_to_drive: bool 
                     file_name=filename,
                     convert_to_sheets=True
                 )
-                print(f"✅ Successfully uploaded to Google Drive: {drive_result['web_view_link']}")
+                print(f"File uploaded to Google Drive successfully: {drive_result['web_view_link']}")
             except Exception as drive_error:
-                print(f"⚠️ Google Drive upload failed: {str(drive_error)}")
+                print(f"Error uploading file to Google Drive: {str(drive_error)}")
                 traceback.print_exc()
                 # Continue with local file download even if Drive upload fails
                 # Return info that Drive feature requires OAuth setup
@@ -557,7 +558,7 @@ async def export_excel(authorization: str = Header(None), upload_to_drive: bool 
             return FileResponse(filename, filename=filename)
 
     except Exception as e:
-        print(f"❌ Export error: {str(e)}")
+        print(f"Export error: {str(e)}")
         traceback.print_exc()
         return {"status": "error", "message": str(e)}
 
@@ -612,11 +613,11 @@ async def chat_with_oki(
         
         # Use user's API key if available (BYOK), otherwise use default
         if using_byok:
-            print(f"🔑 BYOK ENABLED - Using user's API key for {user_email}")
+            print(f"BYOK ENABLED - Using user's API key for {user_email}")
             custom_bot = OKiChatbot(api_key=user_api_key)
             assistant_message = custom_bot.chat(messages=messages, pdf_text=request.pdfText)
         else:
-            print(f"🤖 DEFAULT API KEY - Using system API key for {user_email}")
+            print(f"DEFAULT API KEY - Using system API key for {user_email}")
             assistant_message = oki_bot.chat(messages=messages, pdf_text=request.pdfText)
         
         return {
@@ -626,7 +627,7 @@ async def chat_with_oki(
         }
         
     except Exception as e:
-        print(f"❌ Chat error: {str(e)}")
+        print(f"Chat error: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
 
@@ -673,7 +674,7 @@ async def extract_pdf_text(
         }
         
     except Exception as e:
-        print(f"❌ PDF extraction error: {str(e)}")
+        print(f"PDF extraction error: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"PDF extraction error: {str(e)}")
 
@@ -690,10 +691,10 @@ async def delete_account(authorization: str = Header(None)):
                 where={"userId": user_email}
             )
         except Exception as db_error:
-            print(f"⚠️ Database delete failed: {db_error}")
+            print(f"Database delete failed: {db_error}")
             raise HTTPException(status_code=500, detail="Database connection error")
         
-        print(f"🗑️  Deleted {deleted} logs for user {user_email}")
+        print(f"Deleted {deleted} logs for user {user_email}")
         
         return {
             "status": "success",
@@ -703,7 +704,7 @@ async def delete_account(authorization: str = Header(None)):
     except HTTPException as he:
         raise he
     except Exception as e:
-        print(f"❌ Delete account error: {str(e)}")
+        print(f"Delete account error: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Delete account error: {str(e)}")
 
@@ -718,7 +719,7 @@ async def admin_get_logs(password: str):
         try:
             logs = await prisma.logs.find_many()
         except Exception as db_error:
-            print(f"⚠️ Database query failed: {db_error}")
+            print(f"Database query failed: {db_error}")
             return []
         
         return logs
@@ -745,7 +746,7 @@ async def admin_reset_database(request: ResetRequest):
         try:
             logs = await prisma.logs.find_many()
         except Exception as db_error:
-            print(f"⚠️ Database query failed: {db_error}")
+            print(f"Database query failed: {db_error}")
             raise HTTPException(status_code=500, detail="Database connection error")
         
         # Delete all image files from uploads folder
@@ -762,10 +763,10 @@ async def admin_reset_database(request: ResetRequest):
         try:
             deleted_logs = await prisma.logs.delete_many()
         except Exception as db_error:
-            print(f"⚠️ Database delete failed: {db_error}")
+            print(f"Database delete failed: {db_error}")
             raise HTTPException(status_code=500, detail="Database connection error")
         
-        print(f"🔄 DATABASE RESET: {deleted_logs} logs deleted, {deleted_files} files removed")
+        print(f"DATABASE RESET: {deleted_logs} logs deleted, {deleted_files} files removed")
         
         return {
             "status": "success",
@@ -776,7 +777,7 @@ async def admin_reset_database(request: ResetRequest):
     except HTTPException as he:
         raise he
     except Exception as e:
-        print(f"❌ Reset database error: {str(e)}")
+        print(f"Reset database error: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to reset database: {str(e)}")
 
@@ -824,7 +825,7 @@ async def get_user_api_key(provider: str = "openai", authorization: str = Header
     except HTTPException as he:
         raise he
     except Exception as e:
-        print(f"❌ Get API key error: {str(e)}")
+        print(f"Get API key error: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to get API key: {str(e)}")
 
@@ -875,7 +876,7 @@ async def save_user_api_key(request: ApiKeyRequest, authorization: str = Header(
     except HTTPException as he:
         raise he
     except Exception as e:
-        print(f"❌ Save API key error: {str(e)}")
+        print(f"Save API key error: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to save API key: {str(e)}")
 
@@ -907,7 +908,7 @@ async def delete_user_api_key(provider: str = "openai", authorization: str = Hea
     except HTTPException as he:
         raise he
     except Exception as e:
-        print(f"❌ Delete API key error: {str(e)}")
+        print(f" Delete API key error: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to delete API key: {str(e)}")
 
@@ -942,7 +943,7 @@ async def toggle_api_key_status(isActive: bool, provider: str = "openai", author
     except HTTPException as he:
         raise he
     except Exception as e:
-        print(f"❌ Toggle API key error: {str(e)}")
+        print(f"Toggle API key error: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to toggle API key: {str(e)}")
 
@@ -959,7 +960,7 @@ async def get_user_api_key_internal(email: str, provider: str = "openai") -> str
             return api_key_record.apiKey
         return None
     except Exception as e:
-        print(f"⚠️ Error getting user API key: {str(e)}")
+        print(f"Error getting user API key: {str(e)}")
         return None
 
 async def get_user_ocr_api_key_internal(email: str) -> str | None:
