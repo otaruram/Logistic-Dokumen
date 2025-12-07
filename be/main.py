@@ -777,6 +777,7 @@ async def admin_reset_database(request: ResetRequest):
 class ApiKeyRequest(BaseModel):
     apiKey: str
     provider: str = "openai"  # openai for chatbot
+    isActive: bool = True  # Toggle state
 
 @app.get("/api/user/apikey")
 async def get_user_api_key(authorization: str = Header(None)):
@@ -803,6 +804,7 @@ async def get_user_api_key(authorization: str = Header(None)):
             "hasApiKey": True,
             "apiKey": masked_key,
             "provider": api_key_record.provider,
+            "isActive": api_key_record.isActive,
             "createdAt": api_key_record.createdAt.isoformat(),
             "updatedAt": api_key_record.updatedAt.isoformat()
         }
@@ -830,7 +832,8 @@ async def save_user_api_key(request: ApiKeyRequest, authorization: str = Header(
                 where={"id": existing_key.id},
                 data={
                     "apiKey": request.apiKey,
-                    "provider": request.provider
+                    "provider": request.provider,
+                    "isActive": request.isActive
                 }
             )
             return {
@@ -844,7 +847,8 @@ async def save_user_api_key(request: ApiKeyRequest, authorization: str = Header(
                 data={
                     "userId": email,
                     "apiKey": request.apiKey,
-                    "provider": request.provider
+                    "provider": request.provider,
+                    "isActive": request.isActive
                 }
             )
             return {
@@ -888,13 +892,45 @@ async def delete_user_api_key(authorization: str = Header(None)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to delete API key: {str(e)}")
 
+@app.patch("/api/user/apikey/toggle")
+async def toggle_api_key_status(isActive: bool, authorization: str = Header(None)):
+    """Toggle API key active status without modifying the key itself"""
+    try:
+        email = get_user_email_from_token(authorization)
+        
+        # Check if API key exists
+        existing_key = await prisma.apikey.find_first(
+            where={"userId": email}
+        )
+        
+        if not existing_key:
+            raise HTTPException(status_code=404, detail="API key not found")
+        
+        # Update only the isActive field
+        updated_key = await prisma.apikey.update(
+            where={"id": existing_key.id},
+            data={"isActive": isActive}
+        )
+        
+        status_text = "diaktifkan" if isActive else "dinonaktifkan"
+        return {
+            "message": f"BYOK berhasil {status_text}",
+            "isActive": updated_key.isActive
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"❌ Toggle API key error: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to toggle API key: {str(e)}")
+
 async def get_user_api_key_internal(email: str) -> str | None:
-    """Internal helper to get user's API key for OCR operations"""
+    """Internal helper to get user's API key for chatbot operations - only if active"""
     try:
         api_key_record = await prisma.apikey.find_first(
             where={"userId": email}
         )
-        if api_key_record:
+        if api_key_record and api_key_record.isActive:
             return api_key_record.apiKey
         return None
     except Exception as e:

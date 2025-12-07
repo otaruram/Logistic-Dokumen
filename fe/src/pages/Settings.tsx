@@ -70,7 +70,7 @@ export default function Settings() {
           setHasApiKey(true);
           setMaskedApiKey(data.apiKey);
           setProvider(data.provider);
-          setUseOwnKey(true);
+          setUseOwnKey(data.isActive); // Use isActive from backend
         } else {
           // No API key in database
           setHasApiKey(false);
@@ -196,7 +196,7 @@ export default function Settings() {
     }
   };
 
-  const handleToggleOwnKey = (checked: boolean) => {
+  const handleToggleOwnKey = async (checked: boolean) => {
     console.log('Toggle clicked:', { checked, hasApiKey, useOwnKey });
     
     // If user wants to turn ON but hasn't saved API key yet, just enable the form
@@ -206,17 +206,36 @@ export default function Settings() {
       return;
     }
     
-    // If user wants to turn OFF
-    if (!checked) {
-      setUseOwnKey(false);
-      toast.success('🤖 BYOK Nonaktif - Menggunakan API Key default');
-      return;
-    }
-    
-    // If user wants to turn ON and has API key
-    if (checked && hasApiKey) {
-      setUseOwnKey(true);
-      toast.success('🔑 BYOK Aktif - Menggunakan API Key pribadi');
+    // If user has API key, update backend isActive status
+    if (hasApiKey) {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = user.credential;
+        
+        const response = await fetch(`${API_BASE_URL}/api/user/apikey/toggle?isActive=${checked}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUseOwnKey(checked);
+          
+          if (checked) {
+            toast.success('🔑 BYOK Aktif - Menggunakan API Key pribadi');
+          } else {
+            toast.success('🤖 BYOK Nonaktif - Menggunakan API Key default');
+          }
+        } else {
+          const error = await response.json();
+          toast.error(error.detail || 'Gagal mengubah status BYOK');
+        }
+      } catch (error) {
+        console.error('Error toggling BYOK:', error);
+        toast.error('Gagal mengubah status BYOK');
+      }
     }
   };
 

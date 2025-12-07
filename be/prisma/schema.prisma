@@ -31,6 +31,7 @@ model ApiKey {
   userId    String   @unique @map("user_id")
   apiKey    String   @map("api_key")
   provider  String   @default("openai") // openai for chatbot
+  isActive  Boolean  @default(true) @map("is_active") // Toggle state: ON/OFF
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
