@@ -131,16 +131,19 @@ export default function Settings() {
       if (response.ok) {
         const data = await response.json();
         console.log('Save API key response:', data);
-        toast.success(data.message);
         
-        // Immediately set states without waiting for fetch
+        // Mask the saved API key for display
+        const masked = apiKey.substring(0, 8) + "..." + apiKey.substring(apiKey.length - 4);
+        
+        // Update all states immediately
         setHasApiKey(true);
         setUseOwnKey(true);
         setIsEditing(false);
+        setMaskedApiKey(masked);
+        setProvider(provider);
         setApiKey('');
         
-        // Then fetch to get masked key
-        await fetchApiKey();
+        toast.success(data.message || 'API Key berhasil disimpan!');
       } else {
         const error = await response.json();
         toast.error(error.detail || 'Gagal menyimpan API Key');
