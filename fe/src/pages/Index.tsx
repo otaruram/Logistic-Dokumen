@@ -119,9 +119,8 @@ const Index = () => {
   };
 
   // Auto-detect environment: development = localhost, production = Render
-  const API_URL = import.meta.env.MODE === "development"
-    ? "http://localhost:8000"  // Local development
-    : "https://logistic-dokumen.onrender.com";  // Production on Vercel
+  const baseURL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
 
   // Initial loading + fetch history
   useEffect(() => {

@@ -24,9 +24,8 @@ const Gaskeun = () => {
   const { toast } = useToast();
 
   // API URL configuration
-  const API_URL = import.meta.env.MODE === "development"
-    ? "http://localhost:8000"
-    : "https://logistic-dokumen.onrender.com";
+  const baseURL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
 
   // Get JWT token
   const getAuthToken = () => {
