@@ -182,6 +182,8 @@ export default function Settings() {
   };
 
   const handleToggleOwnKey = (checked: boolean) => {
+    console.log('Toggle clicked:', { checked, hasApiKey, useOwnKey });
+    
     if (!hasApiKey && checked) {
       toast.info('Simpan API Key terlebih dahulu untuk mengaktifkan BYOK');
       return;
