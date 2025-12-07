@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { Camera, X, SwitchCamera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -90,10 +90,10 @@ const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
   }, [stopCamera, onClose]);
 
   // Auto start camera on mount
-  useState(() => {
+  useEffect(() => {
     startCamera(facingMode);
     return () => stopCamera();
-  });
+  }, []); // Empty dependency untuk hanya jalan sekali saat mount
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">

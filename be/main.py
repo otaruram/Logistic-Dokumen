@@ -23,6 +23,7 @@ import re
 import traceback
 import PyPDF2
 from oki_chatbot import OKiChatbot
+from drive_service import export_to_google_drive_with_token, upload_image_to_drive
 
 # Load environment variables
 load_dotenv()
@@ -70,18 +71,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- HELPER: DECODE JWT TOKEN ---
+# --- HELPER: DECODE JWT TOKEN OR GET EMAIL FROM GOOGLE API ---
 def get_user_email_from_token(authorization: str = Header(None)) -> str:
     if not authorization:
         raise HTTPException(status_code=401, detail="No authorization token provided")
     try:
         token = authorization.replace("Bearer ", "")
-        # Decode tanpa verify signature (karena validasi dilakukan di frontend via Google)
-        decoded = jwt.decode(token, options={"verify_signature": False})
-        email = decoded.get("email")
-        if not email:
-            raise HTTPException(status_code=401, detail="Email not found in token")
-        return email
+        
+        # Try to decode as JWT first (old login method)
+        try:
+            decoded = jwt.decode(token, options={"verify_signature": False})
+            email = decoded.get("email")
+            if email:
+                return email
+        except:
+            # Not a JWT, might be an access token
+            pass
+        
+        # If not JWT, try to get user info from Google API (new login with Drive scope)
+        try:
+            response = requests.get(
+                'https://www.googleapis.com/oauth2/v3/userinfo',
+                headers={'Authorization': f'Bearer {token}'},
+                timeout=5
+            )
+            if response.status_code == 200:
+                user_info = response.json()
+                email = user_info.get('email')
+                if email:
+                    return email
+        except:
+            pass
+            
+        raise HTTPException(status_code=401, detail="Could not extract email from token")
+    except HTTPException as he:
+        raise he
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
 
@@ -94,6 +118,14 @@ def extract_text_from_image(image_np):
     try:
         # 1. Convert Numpy ke Base64 Image
         image = Image.fromarray(image_np)
+        
+        # Convert RGBA to RGB if needed (fix for PNG with transparency)
+        if image.mode in ('RGBA', 'LA', 'P'):
+            background = Image.new('RGB', image.size, (255, 255, 255))
+            if image.mode == 'P':
+                image = image.convert('RGBA')
+            background.paste(image, mask=image.split()[-1] if image.mode == 'RGBA' else None)
+            image = background
         
         # Resize jika kegedean biar cepet
         max_width = 1024
@@ -199,8 +231,13 @@ async def scan_document(
         with open(file_path, "wb") as buffer:
             buffer.write(contents)
         
-        # Construct URL gambar
-        BASE_URL = os.getenv("BASE_URL", "http://localhost:8000") # Setup di Render Env Vars!
+        # Construct URL gambar - Smart detection for dev/production
+        ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
+        if ENVIRONMENT == "development":
+            BASE_URL = "http://localhost:8000"
+        else:
+            BASE_URL = os.getenv("BASE_URL", "https://logistic-dokumen.onrender.com")
+        
         image_url = f"{BASE_URL}/uploads/{saved_filename}"
 
         # 6. Simpan ke Database
@@ -246,8 +283,27 @@ async def get_history(authorization: str = Header(None)):
             where={"userId": user_email},
             order={"id": "desc"}
         )
-        return logs
+        
+        # Format response to ensure all fields are properly mapped
+        formatted_logs = []
+        for log in logs:
+            formatted_logs.append({
+                "id": log.id,
+                "userId": log.userId,
+                "timestamp": log.timestamp.isoformat(),
+                "filename": log.filename,
+                "kategori": log.kategori,
+                "nomorDokumen": log.nomorDokumen,
+                "receiver": log.receiver,
+                "imagePath": log.imagePath,
+                "summary": log.summary,
+                "fullText": log.fullText
+            })
+        
+        return formatted_logs
     except Exception as e:
+        print(f"❌ History error: {str(e)}")
+        traceback.print_exc()
         return []
 
 @app.delete("/logs/{log_id}")
@@ -279,32 +335,121 @@ async def delete_log(log_id: int, authorization: str = Header(None)):
         return {"status": "error", "message": str(e)}
 
 @app.get("/export")
-async def export_excel(authorization: str = Header(None)):
+async def export_excel(authorization: str = Header(None), upload_to_drive: bool = True):
     try:
         user_email = get_user_email_from_token(authorization)
+        
+        # Extract token for Google Drive
+        token = authorization.replace("Bearer ", "") if authorization else None
+        
         logs = await prisma.logs.find_many(
             where={"userId": user_email},
             order={"id": "desc"}
         )
         
+        # Upload images to Google Drive first if enabled
+        image_links = {}
+        if upload_to_drive and token:
+            folder_name = os.getenv('GOOGLE_DRIVE_FOLDER_NAME', 'LOGISTIC.AI Reports')
+            images_folder = f"{folder_name}/Images"
+            
+            for l in logs:
+                if l.imagePath:
+                    # Extract filename from URL
+                    fname = l.imagePath.split("/")[-1]
+                    local_path = os.path.join(UPLOAD_DIR, fname)
+                    
+                    if os.path.exists(local_path):
+                        print(f"📷 Uploading image: {fname}")
+                        img_result = upload_image_to_drive(token, local_path, images_folder)
+                        if img_result:
+                            image_links[l.id] = img_result['direct_link']
+        
         data = []
         for l in logs:
+            # Convert timezone-aware datetime to timezone-naive for Excel compatibility
+            timestamp_naive = l.timestamp.replace(tzinfo=None) if l.timestamp.tzinfo else l.timestamp
+            
+            # Use Google Drive link if available, otherwise use original
+            foto_link = image_links.get(l.id, l.imagePath if l.imagePath else "")
+            
             data.append({
-                "Tanggal": l.timestamp,
+                "Tanggal": timestamp_naive,
                 "Kategori": l.kategori,
                 "Nomor Dokumen": l.nomorDokumen,
                 "Penerima": l.receiver,
-                "Ringkasan": l.summary
+                "Ringkasan": l.summary,
+                "Link Foto": foto_link
             })
             
         df = pd.DataFrame(data)
-        filename = f"Laporan_{user_email}_{datetime.now().strftime('%Y%m%d')}.xlsx"
-        df.to_excel(filename, index=False)
+        filename = f"Laporan_{user_email.split('@')[0]}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         
-        return FileResponse(filename, filename=filename)
+        # Save to BytesIO for Google Drive upload
+        excel_buffer = io.BytesIO()
+        df.to_excel(excel_buffer, index=False, engine='openpyxl')
+        excel_content = excel_buffer.getvalue()
+        
+        # Upload to Google Drive if enabled
+        drive_result = None
+        if upload_to_drive and token:
+            try:
+                drive_result = export_to_google_drive_with_token(
+                    access_token=token,
+                    file_content=excel_content,
+                    file_name=filename,
+                    convert_to_sheets=True
+                )
+                print(f"✅ Successfully uploaded to Google Drive: {drive_result['web_view_link']}")
+            except Exception as drive_error:
+                print(f"⚠️ Google Drive upload failed: {str(drive_error)}")
+                traceback.print_exc()
+                # Continue with local file download even if Drive upload fails
+                # Return info that Drive feature requires OAuth setup
+                return {
+                    "status": "info",
+                    "message": f"Google Drive upload gagal: {str(drive_error)}",
+                    "download_url": f"/download/{filename}",
+                    "note": "File tetap bisa didownload secara lokal"
+                }
+        
+        # Also save locally for download
+        with open(filename, 'wb') as f:
+            f.write(excel_content)
+        
+        # Return response with Google Drive link if available
+        if drive_result:
+            return {
+                "status": "success",
+                "message": "File exported to Google Drive",
+                "drive_url": drive_result['web_view_link'],
+                "file_name": drive_result['file_name'],
+                "folder_name": drive_result['folder_name'],
+                "download_url": f"/download/{filename}"
+            }
+        else:
+            return FileResponse(filename, filename=filename)
 
     except Exception as e:
+        print(f"❌ Export error: {str(e)}")
+        traceback.print_exc()
         return {"status": "error", "message": str(e)}
+
+@app.get("/download/{filename}")
+async def download_file(filename: str, authorization: str = Header(None)):
+    """Download exported Excel file"""
+    try:
+        user_email = get_user_email_from_token(authorization)
+        file_path = os.path.join(os.getcwd(), filename)
+        
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        return FileResponse(file_path, filename=filename)
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # --- PYDANTIC MODELS FOR CHAT ---
 class ChatMessage(BaseModel):

@@ -111,7 +111,7 @@ const Index = () => {
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('isAuthenticated');
-    navigate('/login');
+    navigate('/landing');
   };
 
   const handleGaskeun = () => {

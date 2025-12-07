@@ -19,6 +19,7 @@
 - ✅ **Digital Signature** - Tanda tangan digital dengan canvas/kamera
 - ✅ **Camera Capture** - Ambil foto langsung dari kamera (front/back)
 - ✅ **Export Excel/CSV** - Download data dalam format spreadsheet
+- ✅ **Google Drive Integration** - Upload otomatis laporan ke Google Drive
 - ✅ **Real-time Search** - Pencarian data dengan filter tanggal
 - ✅ **Responsive Design** - Light Brutalism aesthetic, mobile-friendly
 
@@ -147,6 +148,7 @@ Aplikasi menggunakan **Light Brutalism Design** dengan karakteristik:
 - **Multi-column Search** - Filter berdasarkan penerima, ringkasan, tanggal
 - **Pagination** - Navigate data dengan smooth
 - **Export Excel/CSV** - Download data untuk reporting
+- **Google Drive Upload** - Upload otomatis laporan ke Google Drive dengan konversi ke Google Sheets
 - **Date Filtering** - Filter data berdasarkan range tanggal
 
 ### 5. 🔐 Authentication
@@ -176,6 +178,12 @@ VITE_GOOGLE_CLIENT_ID=your_google_oauth_client_id
 ```env
 SUMOPOD_API_KEY=your_openai_api_key
 SUMOPOD_BASE_URL=https://ai.sumopod.com/v1
+OCR_API_KEY=your_ocr_space_api_key
+DATABASE_URL=your_supabase_postgres_url
+GOOGLE_DRIVE_API_KEY=your_google_drive_api_key
+GOOGLE_DRIVE_FOLDER_NAME=LOGISTIC.AI Reports
+BASE_URL=your_backend_url
+FRONTEND_URL=your_frontend_url
 ```
 
 ### Deployment Steps
@@ -361,6 +369,32 @@ npm install
 npm run dev
 # App will run at: http://localhost:5173
 ```
+
+### 3. Setup Google Drive API (Optional)
+
+Untuk mengaktifkan fitur upload otomatis ke Google Drive:
+
+1. **Buat Project di Google Cloud Console**
+   - Kunjungi https://console.cloud.google.com/
+   - Buat project baru atau gunakan yang sudah ada
+
+2. **Aktifkan Google Drive API**
+   - Di menu APIs & Services, klik "Enable APIs and Services"
+   - Cari "Google Drive API" dan aktifkan
+
+3. **Buat API Key**
+   - Di menu "Credentials", klik "Create Credentials" → "API Key"
+   - Copy API Key yang dihasilkan
+
+4. **Tambahkan ke Environment Variables**
+   ```env
+   GOOGLE_DRIVE_API_KEY=your_api_key_here
+   GOOGLE_DRIVE_FOLDER_NAME=LOGISTIC.AI Reports
+   ```
+
+5. **Test Upload**
+   - Jalankan aplikasi dan klik tombol "GDRIVE" di dashboard
+   - File akan otomatis di-upload dan dikonversi ke Google Sheets
 
 ---
 

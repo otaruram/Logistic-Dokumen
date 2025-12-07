@@ -8,7 +8,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/landing" replace />;
   }
 
   return <>{children}</>;

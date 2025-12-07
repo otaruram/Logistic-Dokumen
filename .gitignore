@@ -12,6 +12,26 @@ dist
 dist-ssr
 *.local
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+be/.env
+be/.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+venv/
+env/
+
+# Uploads
+be/uploads/
+uploads/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

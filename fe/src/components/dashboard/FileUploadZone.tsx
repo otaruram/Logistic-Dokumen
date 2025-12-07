@@ -117,6 +117,18 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
     }
   };
 
+  const retakePhoto = () => {
+    setCapturedImage(null);
+    // Restart camera untuk retake
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      setStream(null);
+    }
+    setTimeout(() => {
+      startCamera();
+    }, 100);
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       onFileSelect(e.target.files[0]);
@@ -189,7 +201,7 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
             />
             <div className="grid grid-cols-2 gap-2">
               <Button
-                onClick={() => setCapturedImage(null)}
+                onClick={retakePhoto}
                 variant="outline"
                 className="brutal-btn"
               >
