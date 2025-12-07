@@ -199,17 +199,24 @@ export default function Settings() {
   const handleToggleOwnKey = (checked: boolean) => {
     console.log('Toggle clicked:', { checked, hasApiKey, useOwnKey });
     
-    if (!hasApiKey && checked) {
-      toast.info('Simpan API Key terlebih dahulu untuk mengaktifkan BYOK');
+    // If user wants to turn ON but hasn't saved API key yet, just enable the form
+    if (checked && !hasApiKey) {
+      setUseOwnKey(true);
+      toast.info('Silakan masukkan dan simpan API Key Anda');
       return;
     }
     
-    setUseOwnKey(checked);
-    
-    if (checked) {
-      toast.success('🔑 BYOK Aktif - Menggunakan API Key pribadi');
-    } else {
+    // If user wants to turn OFF
+    if (!checked) {
+      setUseOwnKey(false);
       toast.success('🤖 BYOK Nonaktif - Menggunakan API Key default');
+      return;
+    }
+    
+    // If user wants to turn ON and has API key
+    if (checked && hasApiKey) {
+      setUseOwnKey(true);
+      toast.success('🔑 BYOK Aktif - Menggunakan API Key pribadi');
     }
   };
 
