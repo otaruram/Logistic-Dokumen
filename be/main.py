@@ -63,9 +63,20 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # --- KONFIGURASI CORS ---
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:8080")
+
+# Allow multiple domains
+allowed_origins = [
+    "http://localhost:8080",
+    "http://localhost:8081",
+    "https://ocrai.vercel.app",
+    "https://ocr.wtf",
+    "https://www.ocr.wtf",
+    "*"  # Fallback for development
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -385,9 +396,85 @@ async def export_excel(authorization: str = Header(None), upload_to_drive: bool 
         df = pd.DataFrame(data)
         filename = f"Laporan_{user_email.split('@')[0]}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         
-        # Save to BytesIO for Google Drive upload
+        # Save to BytesIO with formatting
         excel_buffer = io.BytesIO()
-        df.to_excel(excel_buffer, index=False, engine='openpyxl')
+        
+        # Use ExcelWriter for advanced formatting
+        with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Laporan')
+            
+            # Get workbook and worksheet
+            workbook = writer.book
+            worksheet = writer.sheets['Laporan']
+            
+            # Import openpyxl styles
+            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            from openpyxl.utils import get_column_letter
+            
+            # Style untuk header
+            header_fill = PatternFill(start_color="1F2937", end_color="1F2937", fill_type="solid")
+            header_font = Font(bold=True, color="FFFFFF", size=12)
+            
+            # Border style
+            thin_border = Border(
+                left=Side(style='thin', color='000000'),
+                right=Side(style='thin', color='000000'),
+                top=Side(style='thin', color='000000'),
+                bottom=Side(style='thin', color='000000')
+            )
+            
+            # Format header row
+            for col_num, column_title in enumerate(df.columns, 1):
+                cell = worksheet.cell(row=1, column=col_num)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                cell.border = thin_border
+            
+            # Format data cells
+            for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=1, max_col=worksheet.max_column):
+                for cell in row:
+                    cell.border = thin_border
+                    
+                    # CENTER ALIGN SEMUA KOLOM
+                    cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                    
+                    # Format tanggal
+                    if cell.column == 1 and cell.value:
+                        cell.number_format = 'DD/MM/YYYY HH:MM'
+                    
+                    # Make link clickable dengan text yang lebih pendek
+                    if cell.column == 6 and cell.value and isinstance(cell.value, str) and cell.value.startswith('http'):
+                        cell.hyperlink = cell.value
+                        cell.font = Font(color="0563C1", underline="single")
+                        cell.value = "📷 Lihat Foto"  # Ganti URL panjang dengan text pendek
+            
+            # Auto-adjust column width dengan ukuran lebih baik
+            for col_num, column_title in enumerate(df.columns, 1):
+                column_letter = get_column_letter(col_num)
+                
+                # Set specific widths untuk tampilan optimal
+                if column_title == "Tanggal":
+                    worksheet.column_dimensions[column_letter].width = 22
+                elif column_title == "Kategori":
+                    worksheet.column_dimensions[column_letter].width = 18
+                elif column_title == "Nomor Dokumen":
+                    worksheet.column_dimensions[column_letter].width = 25
+                elif column_title == "Penerima":
+                    worksheet.column_dimensions[column_letter].width = 30
+                elif column_title == "Ringkasan":
+                    worksheet.column_dimensions[column_letter].width = 60
+                elif column_title == "Link Foto":
+                    worksheet.column_dimensions[column_letter].width = 18
+            
+            # Freeze header row
+            worksheet.freeze_panes = 'A2'
+            
+            # Set row height untuk semua baris
+            worksheet.row_dimensions[1].height = 35  # Header lebih tinggi
+            for row_num in range(2, worksheet.max_row + 1):
+                worksheet.row_dimensions[row_num].height = 25  # Data row
+        
         excel_content = excel_buffer.getvalue()
         
         # Upload to Google Drive if enabled
