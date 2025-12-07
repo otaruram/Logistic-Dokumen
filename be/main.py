@@ -128,11 +128,21 @@ def get_user_email_from_token(authorization: str = Header(None)) -> str:
 OCR_API_KEY = os.getenv("OCR_API_KEY", "helloworld") # Ganti di .env biar limitnya gede
 OCR_API_URL = "https://api.ocr.space/parse/image"
 
-def extract_text_from_image(image_np):
-    """Kirim gambar ke OCR.space API"""
+async def extract_text_from_image(image_np, user_email: str = None):
+    """Kirim gambar ke OCR.space API - dengan BYOK support"""
     try:
-        # Always use default OCR API key (not BYOK)
-        api_key_to_use = OCR_API_KEY
+        # Check for user's BYOK OCR API key first
+        api_key_to_use = OCR_API_KEY  # Default
+        using_byok = False
+        
+        if user_email:
+            user_ocr_key = await get_user_ocr_api_key_internal(user_email)
+            if user_ocr_key:
+                api_key_to_use = user_ocr_key
+                using_byok = True
+                print(f"🔑 BYOK OCR ENABLED - Using user's OCR API key for {user_email}")
+            else:
+                print(f"🤖 DEFAULT OCR API KEY - Using system OCR key")
         
         # 1. Convert Numpy ke Base64 Image
         image = Image.fromarray(image_np)
@@ -206,8 +216,8 @@ async def scan_document(
         image = Image.open(io.BytesIO(contents))
         image_np = np.array(image)
 
-        # 2. Proses OCR (Via API)
-        full_text = extract_text_from_image(image_np).upper()
+        # 2. Proses OCR (Via API) - with BYOK support
+        full_text = await extract_text_from_image(image_np, user_email).upper()
 
         # 3. Analisa Regex Nomor Dokumen
         nomor_dokumen = "TIDAK TERDETEKSI"
@@ -780,13 +790,16 @@ class ApiKeyRequest(BaseModel):
     isActive: bool = True  # Toggle state
 
 @app.get("/api/user/apikey")
-async def get_user_api_key(authorization: str = Header(None)):
-    """Get user's API key"""
+async def get_user_api_key(provider: str = "openai", authorization: str = Header(None)):
+    """Get user's API key for specific provider (openai or ocrspace)"""
     try:
         email = get_user_email_from_token(authorization)
         
         api_key_record = await prisma.apikey.find_first(
-            where={"userId": email}
+            where={
+                "userId": email,
+                "provider": provider
+            }
         )
         
         if not api_key_record:
@@ -821,9 +834,12 @@ async def save_user_api_key(request: ApiKeyRequest, authorization: str = Header(
     try:
         email = get_user_email_from_token(authorization)
         
-        # Check if API key already exists
+        # Check if API key already exists for this provider
         existing_key = await prisma.apikey.find_first(
-            where={"userId": email}
+            where={
+                "userId": email,
+                "provider": request.provider
+            }
         )
         
         if existing_key:
@@ -864,14 +880,17 @@ async def save_user_api_key(request: ApiKeyRequest, authorization: str = Header(
         raise HTTPException(status_code=500, detail=f"Failed to save API key: {str(e)}")
 
 @app.delete("/api/user/apikey")
-async def delete_user_api_key(authorization: str = Header(None)):
-    """Delete user's API key"""
+async def delete_user_api_key(provider: str = "openai", authorization: str = Header(None)):
+    """Delete user's API key for specific provider"""
     try:
         email = get_user_email_from_token(authorization)
         
         # Check if API key exists
         existing_key = await prisma.apikey.find_first(
-            where={"userId": email}
+            where={
+                "userId": email,
+                "provider": provider
+            }
         )
         
         if not existing_key:
@@ -893,14 +912,17 @@ async def delete_user_api_key(authorization: str = Header(None)):
         raise HTTPException(status_code=500, detail=f"Failed to delete API key: {str(e)}")
 
 @app.patch("/api/user/apikey/toggle")
-async def toggle_api_key_status(isActive: bool, authorization: str = Header(None)):
+async def toggle_api_key_status(isActive: bool, provider: str = "openai", authorization: str = Header(None)):
     """Toggle API key active status without modifying the key itself"""
     try:
         email = get_user_email_from_token(authorization)
         
         # Check if API key exists
         existing_key = await prisma.apikey.find_first(
-            where={"userId": email}
+            where={
+                "userId": email,
+                "provider": provider
+            }
         )
         
         if not existing_key:
@@ -924,11 +946,14 @@ async def toggle_api_key_status(isActive: bool, authorization: str = Header(None
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to toggle API key: {str(e)}")
 
-async def get_user_api_key_internal(email: str) -> str | None:
-    """Internal helper to get user's API key for chatbot operations - only if active"""
+async def get_user_api_key_internal(email: str, provider: str = "openai") -> str | None:
+    """Internal helper to get user's API key for specific provider - only if active"""
     try:
         api_key_record = await prisma.apikey.find_first(
-            where={"userId": email}
+            where={
+                "userId": email,
+                "provider": provider
+            }
         )
         if api_key_record and api_key_record.isActive:
             return api_key_record.apiKey
@@ -936,6 +961,10 @@ async def get_user_api_key_internal(email: str) -> str | None:
     except Exception as e:
         print(f"⚠️ Error getting user API key: {str(e)}")
         return None
+
+async def get_user_ocr_api_key_internal(email: str) -> str | None:
+    """Internal helper to get user's OCR API key - only if active"""
+    return await get_user_api_key_internal(email, provider="ocrspace")
 
 if __name__ == "__main__":
     import uvicorn

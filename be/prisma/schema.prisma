@@ -28,13 +28,14 @@ model Logs {
 
 model ApiKey {
   id        Int      @id @default(autoincrement())
-  userId    String   @unique @map("user_id")
+  userId    String   @map("user_id")
   apiKey    String   @map("api_key")
-  provider  String   @default("openai") // openai for chatbot
+  provider  String   @default("openai") // "openai" for chatbot, "ocrspace" for OCR
   isActive  Boolean  @default(true) @map("is_active") // Toggle state: ON/OFF
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@unique([userId, provider]) // One API key per provider per user
   @@index([userId])
   @@map("api_keys")
 }

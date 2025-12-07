@@ -22,6 +22,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://logistic-doku
 export default function Settings() {
   const navigate = useNavigate();
   const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // Chatbot BYOK states
   const [useOwnKey, setUseOwnKey] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [maskedApiKey, setMaskedApiKey] = useState('');
@@ -30,6 +32,15 @@ export default function Settings() {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // OCR BYOK states
+  const [useOwnOcrKey, setUseOwnOcrKey] = useState(false);
+  const [ocrApiKey, setOcrApiKey] = useState('');
+  const [maskedOcrApiKey, setMaskedOcrApiKey] = useState('');
+  const [hasOcrApiKey, setHasOcrApiKey] = useState(false);
+  const [isEditingOcr, setIsEditingOcr] = useState(false);
+  const [showDeleteOcrDialog, setShowDeleteOcrDialog] = useState(false);
+  const [loadingOcr, setLoadingOcr] = useState(false);
 
   useEffect(() => {
     // Load theme from localStorage
@@ -43,6 +54,7 @@ export default function Settings() {
 
     // Fetch user's API key from backend only on initial mount
     fetchApiKey();
+    fetchOcrApiKey();
   }, []); // Only run once on mount
 
   const fetchApiKey = async () => {
@@ -81,6 +93,42 @@ export default function Settings() {
       }
     } catch (error) {
       console.error('Error fetching API key:', error);
+    }
+  };
+
+  const fetchOcrApiKey = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const token = user.credential;
+      
+      if (!token) {
+        console.log('No token found, user not logged in');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/user/apikey?provider=ocrspace`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('OCR API key fetch response:', data);
+        
+        if (data.hasApiKey) {
+          setHasOcrApiKey(true);
+          setMaskedOcrApiKey(data.apiKey);
+          setUseOwnOcrKey(data.isActive);
+        } else {
+          setHasOcrApiKey(false);
+          setUseOwnOcrKey(false);
+        }
+      } else {
+        console.error('Failed to fetch OCR API key:', response.status, await response.text());
+      }
+    } catch (error) {
+      console.error('Error fetching OCR API key:', error);
     }
   };
 
@@ -244,6 +292,135 @@ export default function Settings() {
     setApiKey('');
   };
 
+  // OCR BYOK handlers
+  const saveOcrApiKey = async () => {
+    if (!ocrApiKey.trim()) {
+      toast.error('OCR API Key tidak boleh kosong!');
+      return;
+    }
+
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = user.credential;
+    
+    if (!token) {
+      toast.error('Anda harus login terlebih dahulu!');
+      navigate('/login');
+      return;
+    }
+
+    setLoadingOcr(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user/apikey`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          apiKey: ocrApiKey,
+          provider: 'ocrspace',
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const masked = ocrApiKey.substring(0, 8) + "..." + ocrApiKey.substring(ocrApiKey.length - 4);
+        
+        setHasOcrApiKey(true);
+        setUseOwnOcrKey(true);
+        setIsEditingOcr(false);
+        setMaskedOcrApiKey(masked);
+        setOcrApiKey('');
+        
+        toast.success(data.message || 'OCR API Key berhasil disimpan!');
+      } else {
+        const error = await response.json();
+        toast.error(error.detail || 'Gagal menyimpan OCR API Key');
+      }
+    } catch (error) {
+      console.error('Error saving OCR API key:', error);
+      toast.error('Gagal menyimpan OCR API Key');
+    } finally {
+      setLoadingOcr(false);
+    }
+  };
+
+  const deleteOcrApiKey = async () => {
+    setLoadingOcr(true);
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const token = user.credential;
+      
+      const response = await fetch(`${API_BASE_URL}/api/user/apikey?provider=ocrspace`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(data.message);
+        setHasOcrApiKey(false);
+        setMaskedOcrApiKey('');
+        setUseOwnOcrKey(false);
+        setOcrApiKey('');
+      } else {
+        const error = await response.json();
+        toast.error(error.detail || 'Gagal menghapus OCR API Key');
+      }
+    } catch (error) {
+      console.error('Error deleting OCR API key:', error);
+      toast.error('Gagal menghapus OCR API Key');
+    } finally {
+      setLoadingOcr(false);
+      setShowDeleteOcrDialog(false);
+    }
+  };
+
+  const handleToggleOcrKey = async (checked: boolean) => {
+    if (checked && !hasOcrApiKey) {
+      setUseOwnOcrKey(true);
+      toast.info('Silakan masukkan dan simpan OCR API Key Anda');
+      return;
+    }
+    
+    if (hasOcrApiKey) {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = user.credential;
+        
+        const response = await fetch(`${API_BASE_URL}/api/user/apikey/toggle?isActive=${checked}&provider=ocrspace`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          setUseOwnOcrKey(checked);
+          
+          if (checked) {
+            toast.success('🔑 BYOK OCR Aktif - Menggunakan OCR API Key pribadi');
+          } else {
+            toast.success('🤖 BYOK OCR Nonaktif - Menggunakan OCR API Key default');
+          }
+        } else {
+          const error = await response.json();
+          toast.error(error.detail || 'Gagal mengubah status BYOK OCR');
+        }
+      } catch (error) {
+        console.error('Error toggling BYOK OCR:', error);
+        toast.error('Gagal mengubah status BYOK OCR');
+      }
+    }
+  };
+
+  const handleEditOcr = () => {
+    setIsEditingOcr(true);
+    setOcrApiKey('');
+  };
+
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       {/* Header */}
@@ -363,6 +540,104 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* OCR API Key Settings */}
+        <div className="brutal-border-thin bg-background p-6 space-y-4">
+          <div className="flex items-center gap-3 mb-4">
+            <Key className="w-6 h-6" />
+            <h2 className="text-lg font-bold uppercase">OCR API Configuration</h2>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label className="text-base font-bold">Gunakan OCR API Key Pribadi</Label>
+                <p className="text-sm text-muted-foreground">
+                  {useOwnOcrKey && hasOcrApiKey ? '🔑 BYOK Aktif - OCR menggunakan API key Anda' : '🤖 Default - OCR menggunakan API key sistem'}
+                </p>
+              </div>
+              <Switch
+                checked={useOwnOcrKey}
+                onCheckedChange={handleToggleOcrKey}
+                className="data-[state=checked]:bg-black"
+              />
+            </div>
+
+            {useOwnOcrKey && (
+              <div className="space-y-2 pt-4 border-t">
+                {hasOcrApiKey && !isEditingOcr ? (
+                  <>
+                    <Label className="font-bold">OCR API Key Tersimpan</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        value={maskedOcrApiKey}
+                        className="brutal-border-thin font-mono text-sm flex-1"
+                        disabled
+                      />
+                      <Button
+                        onClick={handleEditOcr}
+                        variant="outline"
+                        size="icon"
+                        className="brutal-border-thin"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        onClick={() => setShowDeleteOcrDialog(true)}
+                        variant="destructive"
+                        size="icon"
+                        className="brutal-border-thin"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-success">
+                      ✅ OCR API Key tersimpan. Provider: OCR.SPACE
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Label htmlFor="ocrApiKey" className="font-bold">OCR.space API Key</Label>
+                    <Input
+                      id="ocrApiKey"
+                      type="password"
+                      value={ocrApiKey}
+                      onChange={(e) => setOcrApiKey(e.target.value)}
+                      placeholder="K..."
+                      className="brutal-border-thin font-mono text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      API Key akan disimpan secara aman di database terenkripsi. Dapatkan di <a href="https://ocr.space/ocrapi" target="_blank" rel="noopener noreferrer" className="underline">ocr.space</a>
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={saveOcrApiKey}
+                        className="flex-1 brutal-border-thin"
+                        variant="default"
+                        disabled={loadingOcr}
+                      >
+                        {loadingOcr ? 'Menyimpan...' : isEditingOcr ? 'Update OCR API Key' : 'Simpan OCR API Key'}
+                      </Button>
+                      {isEditingOcr && (
+                        <Button
+                          onClick={() => {
+                            setIsEditingOcr(false);
+                            setOcrApiKey('');
+                          }}
+                          variant="outline"
+                          className="brutal-border-thin"
+                        >
+                          Batal
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* About Section */}
         <div className="brutal-border-thin bg-background p-6 space-y-4">
           <div className="flex items-center gap-3 mb-4">
@@ -442,6 +717,29 @@ export default function Settings() {
               disabled={loading}
             >
               {loading ? 'Menghapus...' : 'Ya, Hapus'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete OCR API Key Confirmation Dialog */}
+      <AlertDialog open={showDeleteOcrDialog} onOpenChange={setShowDeleteOcrDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus OCR API Key?</AlertDialogTitle>
+            <AlertDialogDescription>
+              OCR API Key Anda akan dihapus secara permanen dari database. 
+              Sistem akan menggunakan OCR API Key default setelah penghapusan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteOcrApiKey}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={loadingOcr}
+            >
+              {loadingOcr ? 'Menghapus...' : 'Ya, Hapus'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
