@@ -17,9 +17,10 @@ interface HeaderProps {
   };
   onLogout?: () => void;
   onGaskeun?: () => void;
+  onProfile?: () => void;
 }
 
-const Header = ({ user, onLogout, onGaskeun }: HeaderProps) => {
+const Header = ({ user, onLogout, onGaskeun, onProfile }: HeaderProps) => {
   return (
     <header className="brutal-border-thin border-t-0 border-l-0 border-r-0 bg-background">
       <div className="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
@@ -62,6 +63,16 @@ const Header = ({ user, onLogout, onGaskeun }: HeaderProps) => {
                   {user.email}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-foreground/20" />
+                
+                {onProfile && (
+                  <DropdownMenuItem 
+                    onClick={onProfile}
+                    className="cursor-pointer font-bold uppercase text-xs hover:bg-primary hover:text-primary-foreground"
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    PROFIL
+                  </DropdownMenuItem>
+                )}
                 
                 {onGaskeun && (
                   <DropdownMenuItem 

@@ -538,6 +538,32 @@ async def extract_pdf_text(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"PDF extraction error: {str(e)}")
 
+# --- DELETE ACCOUNT ENDPOINT ---
+@app.delete("/delete-account")
+async def delete_account(authorization: str = Header(None)):
+    """Delete user account and all associated data"""
+    try:
+        user_email = get_user_email_from_token(authorization)
+        
+        # Delete all user logs
+        deleted = await prisma.logs.delete_many(
+            where={"userId": user_email}
+        )
+        
+        print(f"🗑️  Deleted {deleted} logs for user {user_email}")
+        
+        return {
+            "status": "success",
+            "message": f"Account deleted successfully. Removed {deleted} logs.",
+            "email": user_email
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"❌ Delete account error: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to delete account: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

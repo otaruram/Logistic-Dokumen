@@ -118,6 +118,10 @@ const Index = () => {
     navigate('/gaskeun');
   };
 
+  const handleProfile = () => {
+    navigate('/profile');
+  };
+
   // Auto-detect environment: development = localhost, production = Render
   const baseURL = import.meta.env.VITE_API_URL || "http://localhost:8000";
   const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
@@ -344,7 +348,7 @@ const Index = () => {
         </div>
       ) : (
         <>
-      <Header user={user} onLogout={handleLogout} onGaskeun={handleGaskeun} />
+      <Header user={user} onLogout={handleLogout} onGaskeun={handleGaskeun} onProfile={handleProfile} />
 
       <main className="container mx-auto px-3 md:px-4 py-4 md:py-6 flex-1">
         {/* Section 1: ZONA INPUT */}
