@@ -47,7 +47,9 @@ export default function Settings() {
 
   const fetchApiKey = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const token = user.credential;
+      
       if (!token) {
         console.log('No token found, user not logged in');
         return;
@@ -101,7 +103,10 @@ export default function Settings() {
       return;
     }
 
-    const token = localStorage.getItem('token');
+    // Get token from user object
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = user.credential;
+    
     if (!token) {
       toast.error('Anda harus login terlebih dahulu!');
       navigate('/login');
@@ -145,7 +150,9 @@ export default function Settings() {
   const deleteApiKey = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const token = user.credential;
+      
       const response = await fetch(`${API_BASE_URL}/api/user/apikey`, {
         method: 'DELETE',
         headers: {
