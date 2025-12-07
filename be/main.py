@@ -42,10 +42,14 @@ prisma = Prisma()
 async def startup():
     """Connect to Supabase PostgreSQL on startup"""
     try:
+        import os
+        os.environ['PRISMA_PY_DEBUG_GENERATOR'] = '1'
         await prisma.connect()
         print("✅ Connected to Supabase PostgreSQL!")
     except Exception as e:
         print(f"❌ Failed to connect to DB: {e}")
+        print(f"Full error: {traceback.format_exc()}")
+        raise RuntimeError(f"Database connection failed: {e}") from e
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -127,6 +131,9 @@ OCR_API_URL = "https://api.ocr.space/parse/image"
 def extract_text_from_image(image_np):
     """Kirim gambar ke OCR.space API"""
     try:
+        # Always use default OCR API key (not BYOK)
+        api_key_to_use = OCR_API_KEY
+        
         # 1. Convert Numpy ke Base64 Image
         image = Image.fromarray(image_np)
         
@@ -152,7 +159,7 @@ def extract_text_from_image(image_np):
 
         # 2. Request ke API Luar
         payload = {
-            'apikey': OCR_API_KEY,
+            'apikey': api_key_to_use,
             'base64Image': f'data:image/jpeg;base64,{base64_image}',
             'language': 'eng',
             'isOverlayRequired': False,
@@ -252,19 +259,23 @@ async def scan_document(
         image_url = f"{BASE_URL}/uploads/{saved_filename}"
 
         # 6. Simpan ke Database
-        log = await prisma.logs.create(
-            data={
-                "userId": user_email,
-                "timestamp": timestamp,
-                "filename": file.filename,
-                "kategori": kategori,
-                "nomorDokumen": nomor_dokumen,
-                "receiver": receiver.upper(),
-                "imagePath": image_url,
-                "summary": summary,
-                "fullText": full_text
-            }
-        )
+        try:
+            log = await prisma.logs.create(
+                data={
+                    "userId": user_email,
+                    "timestamp": timestamp,
+                    "filename": file.filename,
+                    "kategori": kategori,
+                    "nomorDokumen": nomor_dokumen,
+                    "receiver": receiver.upper(),
+                    "imagePath": image_url,
+                    "summary": summary,
+                    "fullText": full_text
+                }
+            )
+        except Exception as db_error:
+            print(f"⚠️ Database save failed: {db_error}")
+            # Continue without database save
 
         return {
             "status": "success",
@@ -290,10 +301,14 @@ async def scan_document(
 async def get_history(authorization: str = Header(None)):
     try:
         user_email = get_user_email_from_token(authorization)
-        logs = await prisma.logs.find_many(
-            where={"userId": user_email},
-            order={"id": "desc"}
-        )
+        try:
+            logs = await prisma.logs.find_many(
+                where={"userId": user_email},
+                order={"id": "desc"}
+            )
+        except Exception as db_error:
+            print(f"⚠️ Database query failed: {db_error}")
+            return []
         
         # Format response to ensure all fields are properly mapped
         formatted_logs = []
@@ -323,9 +338,14 @@ async def delete_log(log_id: int, authorization: str = Header(None)):
         user_email = get_user_email_from_token(authorization)
         
         # Cek kepemilikan
-        log = await prisma.logs.find_first(
-            where={"id": log_id, "userId": user_email}
-        )
+        try:
+            log = await prisma.logs.find_first(
+                where={"id": log_id, "userId": user_email}
+            )
+        except Exception as db_error:
+            print(f"⚠️ Database query failed: {db_error}")
+            raise HTTPException(status_code=500, detail="Database connection error")
+        
         if not log:
             raise HTTPException(status_code=404, detail="Log not found")
 
@@ -337,7 +357,12 @@ async def delete_log(log_id: int, authorization: str = Header(None)):
                 os.remove(local_path)
         
         # Hapus DB
-        await prisma.logs.delete(where={"id": log_id})
+        try:
+            await prisma.logs.delete(where={"id": log_id})
+        except Exception as db_error:
+            print(f"⚠️ Database delete failed: {db_error}")
+            raise HTTPException(status_code=500, detail="Database connection error")
+        
         return {"status": "success"}
         
     except HTTPException as he:
@@ -353,10 +378,14 @@ async def export_excel(authorization: str = Header(None), upload_to_drive: bool 
         # Extract token for Google Drive
         token = authorization.replace("Bearer ", "") if authorization else None
         
-        logs = await prisma.logs.find_many(
-            where={"userId": user_email},
-            order={"id": "desc"}
-        )
+        try:
+            logs = await prisma.logs.find_many(
+                where={"userId": user_email},
+                order={"id": "desc"}
+            )
+        except Exception as db_error:
+            print(f"⚠️ Database query failed: {db_error}")
+            raise HTTPException(status_code=500, detail="Database connection error")
         
         # Upload images to Google Drive first if enabled
         image_links = {}
@@ -562,10 +591,16 @@ async def chat_with_oki(
         # Convert messages to dict format
         messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
         
-        # Use user's API key if provided (BYOK), otherwise use default
-        if x_user_api_key:
-            print(f"🔑 Using user's own API key for {user_email}")
-            custom_bot = OKiChatbot(api_key=x_user_api_key)
+        # Priority: 1. Header API key, 2. Database BYOK, 3. Default
+        user_api_key = x_user_api_key
+        if not user_api_key:
+            # Try to get from database
+            user_api_key = await get_user_api_key_internal(user_email)
+        
+        # Use user's API key if available (BYOK), otherwise use default
+        if user_api_key:
+            print(f"🔑 Using user's BYOK API key for {user_email}")
+            custom_bot = OKiChatbot(api_key=user_api_key)
             assistant_message = custom_bot.chat(messages=messages, pdf_text=request.pdfText)
         else:
             print(f"🤖 Using default API key for {user_email}")
@@ -636,9 +671,13 @@ async def delete_account(authorization: str = Header(None)):
         user_email = get_user_email_from_token(authorization)
         
         # Delete all user logs
-        deleted = await prisma.logs.delete_many(
-            where={"userId": user_email}
-        )
+        try:
+            deleted = await prisma.logs.delete_many(
+                where={"userId": user_email}
+            )
+        except Exception as db_error:
+            print(f"⚠️ Database delete failed: {db_error}")
+            raise HTTPException(status_code=500, detail="Database connection error")
         
         print(f"🗑️  Deleted {deleted} logs for user {user_email}")
         
@@ -652,41 +691,27 @@ async def delete_account(authorization: str = Header(None)):
     except Exception as e:
         print(f"❌ Delete account error: {str(e)}")
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"PDF extraction error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Delete account error: {str(e)}")
 
-@app.delete("/delete-account")
-async def delete_account(authorization: str = Header(None)):
-    """Delete user account and all associated data"""
+# --- ADMIN ENDPOINTS ---
+@app.get("/admin/logs")
+async def admin_get_logs(password: str):
     try:
-        user_email = get_user_email_from_token(authorization)
+        ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "supply2024reset")
+        if password != ADMIN_PASSWORD:
+            raise HTTPException(status_code=403, detail="Invalid admin password")
         
-        # Get all logs for this user to delete associated images
-        logs = await prisma.logs.find_many(where={"userId": user_email})
+        try:
+            logs = await prisma.logs.find_many()
+        except Exception as db_error:
+            print(f"⚠️ Database query failed: {db_error}")
+            return []
         
-        # Delete all image files from uploads folder
-        for log in logs:
-            if log.imagePath:
-                filename = log.imagePath.split("/")[-1]
-                file_path = os.path.join(UPLOAD_DIR, filename)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                    print(f"🗑️ Deleted image: {filename}")
-        
-        # Delete all logs from database
-        deleted_logs = await prisma.logs.delete_many(where={"userId": user_email})
-        print(f"🗑️ Deleted {deleted_logs} logs for user: {user_email}")
-        
-        return {
-            "status": "success",
-            "message": "Account deleted successfully",
-            "deleted_logs": deleted_logs
-        }
+        return logs
     except HTTPException as he:
         raise he
     except Exception as e:
-        print(f"❌ Delete account error: {str(e)}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to delete account: {str(e)}")
+        return {"status": "error", "message": str(e)}
 
 # --- ADMIN ENDPOINT: RESET DATABASE ---
 class ResetRequest(BaseModel):
@@ -703,7 +728,11 @@ async def admin_reset_database(request: ResetRequest):
             raise HTTPException(status_code=403, detail="Invalid admin password")
         
         # Get all logs to delete associated images
-        logs = await prisma.logs.find_many()
+        try:
+            logs = await prisma.logs.find_many()
+        except Exception as db_error:
+            print(f"⚠️ Database query failed: {db_error}")
+            raise HTTPException(status_code=500, detail="Database connection error")
         
         # Delete all image files from uploads folder
         deleted_files = 0
@@ -716,7 +745,11 @@ async def admin_reset_database(request: ResetRequest):
                     deleted_files += 1
         
         # Delete all logs from database
-        deleted_logs = await prisma.logs.delete_many()
+        try:
+            deleted_logs = await prisma.logs.delete_many()
+        except Exception as db_error:
+            print(f"⚠️ Database delete failed: {db_error}")
+            raise HTTPException(status_code=500, detail="Database connection error")
         
         print(f"🔄 DATABASE RESET: {deleted_logs} logs deleted, {deleted_files} files removed")
         
@@ -733,6 +766,139 @@ async def admin_reset_database(request: ResetRequest):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to reset database: {str(e)}")
 
+# ==============================
+# API KEY MANAGEMENT (BYOK)
+# ==============================
+
+class ApiKeyRequest(BaseModel):
+    apiKey: str
+    provider: str = "openai"  # openai for chatbot
+
+@app.get("/api/user/apikey")
+async def get_user_api_key(authorization: str = Header(None)):
+    """Get user's API key"""
+    try:
+        email = get_user_email_from_token(authorization)
+        
+        api_key_record = await prisma.apikey.find_first(
+            where={"userId": email}
+        )
+        
+        if not api_key_record:
+            return {
+                "hasApiKey": False,
+                "provider": None,
+                "createdAt": None,
+                "updatedAt": None
+            }
+        
+        # Mask the API key for security (show only first 8 and last 4 chars)
+        masked_key = api_key_record.apiKey[:8] + "..." + api_key_record.apiKey[-4:]
+        
+        return {
+            "hasApiKey": True,
+            "apiKey": masked_key,
+            "provider": api_key_record.provider,
+            "createdAt": api_key_record.createdAt.isoformat(),
+            "updatedAt": api_key_record.updatedAt.isoformat()
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"❌ Get API key error: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to get API key: {str(e)}")
+
+@app.post("/api/user/apikey")
+async def save_user_api_key(request: ApiKeyRequest, authorization: str = Header(None)):
+    """Save or update user's API key"""
+    try:
+        email = get_user_email_from_token(authorization)
+        
+        # Check if API key already exists
+        existing_key = await prisma.apikey.find_first(
+            where={"userId": email}
+        )
+        
+        if existing_key:
+            # Update existing key
+            updated_key = await prisma.apikey.update(
+                where={"id": existing_key.id},
+                data={
+                    "apiKey": request.apiKey,
+                    "provider": request.provider
+                }
+            )
+            return {
+                "message": "API key updated successfully",
+                "provider": updated_key.provider,
+                "updatedAt": updated_key.updatedAt.isoformat()
+            }
+        else:
+            # Create new key
+            new_key = await prisma.apikey.create(
+                data={
+                    "userId": email,
+                    "apiKey": request.apiKey,
+                    "provider": request.provider
+                }
+            )
+            return {
+                "message": "API key saved successfully",
+                "provider": new_key.provider,
+                "createdAt": new_key.createdAt.isoformat()
+            }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"❌ Save API key error: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to save API key: {str(e)}")
+
+@app.delete("/api/user/apikey")
+async def delete_user_api_key(authorization: str = Header(None)):
+    """Delete user's API key"""
+    try:
+        email = get_user_email_from_token(authorization)
+        
+        # Check if API key exists
+        existing_key = await prisma.apikey.find_first(
+            where={"userId": email}
+        )
+        
+        if not existing_key:
+            raise HTTPException(status_code=404, detail="API key not found")
+        
+        # Delete the key
+        await prisma.apikey.delete(
+            where={"id": existing_key.id}
+        )
+        
+        return {
+            "message": "API key deleted successfully"
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"❌ Delete API key error: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to delete API key: {str(e)}")
+
+async def get_user_api_key_internal(email: str) -> str | None:
+    """Internal helper to get user's API key for OCR operations"""
+    try:
+        api_key_record = await prisma.apikey.find_first(
+            where={"userId": email}
+        )
+        if api_key_record:
+            return api_key_record.apiKey
+        return None
+    except Exception as e:
+        print(f"⚠️ Error getting user API key: {str(e)}")
+        return None
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+

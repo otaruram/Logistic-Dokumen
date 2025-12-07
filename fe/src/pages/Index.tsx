@@ -130,16 +130,6 @@ const Index = () => {
   const baseURL = import.meta.env.VITE_API_URL || "http://localhost:8000";
   const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
 
-  // Apply theme on mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      document.body.classList.add('dark-mode');
-    } else {
-      document.body.classList.remove('dark-mode');
-    }
-  }, []);
-
   // Initial loading + fetch history
   useEffect(() => {
     const loadData = async () => {

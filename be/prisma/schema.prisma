@@ -25,3 +25,15 @@ model Logs {
   @@index([userId])
   @@map("logs")
 }
+
+model ApiKey {
+  id        Int      @id @default(autoincrement())
+  userId    String   @unique @map("user_id")
+  apiKey    String   @map("api_key")
+  provider  String   @default("openai") // openai for chatbot
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("api_keys")
+}

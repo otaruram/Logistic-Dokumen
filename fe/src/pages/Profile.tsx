@@ -25,16 +25,6 @@ export default function Profile() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Apply theme on mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      document.body.classList.add('dark-mode');
-    } else {
-      document.body.classList.remove('dark-mode');
-    }
-  }, []);
-
   useEffect(() => {
     // Get user from localStorage
     const userStr = localStorage.getItem('user');

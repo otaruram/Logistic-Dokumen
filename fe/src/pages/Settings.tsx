@@ -1,35 +1,79 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, Key, Info, Github, Linkedin } from 'lucide-react';
+import { ArrowLeft, Key, Info, Github, Linkedin, Trash2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://logistic-dokumen.onrender.com';
 
 export default function Settings() {
   const navigate = useNavigate();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [useOwnKey, setUseOwnKey] = useState(false);
   const [apiKey, setApiKey] = useState('');
+  const [maskedApiKey, setMaskedApiKey] = useState('');
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [provider, setProvider] = useState('openai');
+  const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Load settings from localStorage
+    // Load theme from localStorage
     const savedTheme = localStorage.getItem('theme');
-    const savedUseOwnKey = localStorage.getItem('useOwnKey') === 'true';
-    const savedApiKey = localStorage.getItem('openaiApiKey') || '';
-
     setIsDarkMode(savedTheme === 'dark');
-    setUseOwnKey(savedUseOwnKey);
-    setApiKey(savedApiKey);
-    setHasApiKey(!!savedApiKey);
 
     // Apply theme to body
     if (savedTheme === 'dark') {
       document.body.classList.add('dark-mode');
     }
+
+    // Fetch user's API key from backend
+    fetchApiKey();
   }, []);
+
+  const fetchApiKey = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('No token found, user not logged in');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/user/apikey`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setHasApiKey(data.hasApiKey);
+        if (data.hasApiKey) {
+          setMaskedApiKey(data.apiKey);
+          setProvider(data.provider);
+          setUseOwnKey(true);
+        }
+      } else {
+        console.error('Failed to fetch API key:', response.status, await response.text());
+      }
+    } catch (error) {
+      console.error('Error fetching API key:', error);
+    }
+  };
 
   const toggleTheme = () => {
     const newTheme = !isDarkMode;
@@ -46,34 +90,100 @@ export default function Settings() {
     toast.success(`Tema berhasil diubah ke ${newTheme ? 'Dark' : 'Light'} Mode`);
   };
 
-  const saveApiKey = () => {
+  const saveApiKey = async () => {
     if (!apiKey.trim()) {
       toast.error('API Key tidak boleh kosong!');
       return;
     }
 
-    localStorage.setItem('useOwnKey', 'true');
-    localStorage.setItem('openaiApiKey', apiKey);
-    setHasApiKey(true);
-    setUseOwnKey(true);
+    if (!apiKey.startsWith('sk-')) {
+      toast.error('Format API Key tidak valid! Harus diawali dengan "sk-"');
+      return;
+    }
 
-    toast.success('API Key berhasil disimpan!');
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Anda harus login terlebih dahulu!');
+      navigate('/login');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user/apikey`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          apiKey: apiKey,
+          provider: provider,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(data.message);
+        setHasApiKey(true);
+        setIsEditing(false);
+        setApiKey('');
+        await fetchApiKey(); // Refresh to get masked key
+      } else {
+        const error = await response.json();
+        toast.error(error.detail || 'Gagal menyimpan API Key');
+        console.error('Save failed:', response.status, error);
+      }
+    } catch (error) {
+      console.error('Error saving API key:', error);
+      toast.error('Gagal menyimpan API Key');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteApiKey = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/user/apikey`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(data.message);
+        setHasApiKey(false);
+        setMaskedApiKey('');
+        setUseOwnKey(false);
+        setApiKey('');
+      } else {
+        const error = await response.json();
+        toast.error(error.detail || 'Gagal menghapus API Key');
+      }
+    } catch (error) {
+      console.error('Error deleting API key:', error);
+      toast.error('Gagal menghapus API Key');
+    } finally {
+      setLoading(false);
+      setShowDeleteDialog(false);
+    }
   };
 
   const handleToggleOwnKey = (checked: boolean) => {
-    setUseOwnKey(checked);
-    
-    if (checked) {
-      // User mengaktifkan BYOK
-      localStorage.setItem('useOwnKey', 'true');
-      if (hasApiKey) {
-        toast.success('Menggunakan API Key pribadi');
-      }
-    } else {
-      // User menonaktifkan BYOK, kembali ke API key default
-      localStorage.setItem('useOwnKey', 'false');
-      toast.success('Kembali menggunakan API Key default');
+    if (!checked && hasApiKey) {
+      toast.info('API Key masih tersimpan. Gunakan tombol hapus untuk menghapus API Key.');
+      return;
     }
+    setUseOwnKey(checked);
+  };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+    setApiKey('');
   };
 
   return (
@@ -97,33 +207,11 @@ export default function Settings() {
       {/* Content */}
       <div className="container mx-auto px-4 py-8 max-w-3xl space-y-6">
         
-        {/* Theme Settings */}
-        <div className="brutal-border-thin bg-background p-6 space-y-4">
-          <div className="flex items-center gap-3 mb-4">
-            {isDarkMode ? <Moon className="w-6 h-6" /> : <Sun className="w-6 h-6" />}
-            <h2 className="text-lg font-bold uppercase">Tema Aplikasi</h2>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <Label className="text-base font-bold">Dark Mode</Label>
-              <p className="text-sm text-muted-foreground">
-                Ubah warna background dari putih ke hitam
-              </p>
-            </div>
-            <Switch
-              checked={isDarkMode}
-              onCheckedChange={toggleTheme}
-              className="data-[state=checked]:bg-black"
-            />
-          </div>
-        </div>
-
         {/* API Key Settings */}
         <div className="brutal-border-thin bg-background p-6 space-y-4">
           <div className="flex items-center gap-3 mb-4">
             <Key className="w-6 h-6" />
-            <h2 className="text-lg font-bold uppercase">OpenAI API Configuration</h2>
+            <h2 className="text-lg font-bold uppercase">Chatbot API Configuration</h2>
           </div>
 
           <div className="space-y-4">
@@ -131,44 +219,86 @@ export default function Settings() {
               <div className="space-y-1">
                 <Label className="text-base font-bold">Gunakan API Key Pribadi</Label>
                 <p className="text-sm text-muted-foreground">
-                  Bring Your Own Key (BYOK) untuk chatbot OKi
+                  Bring Your Own Key (BYOK) untuk Chatbot OKi (OpenAI)
                 </p>
               </div>
               <Switch
-                checked={useOwnKey}
+                checked={useOwnKey || hasApiKey}
                 onCheckedChange={handleToggleOwnKey}
                 className="data-[state=checked]:bg-black"
+                disabled={hasApiKey}
               />
             </div>
 
-            {useOwnKey && (
+            {(useOwnKey || hasApiKey) && (
               <div className="space-y-2 pt-4 border-t">
-                <Label htmlFor="apiKey" className="font-bold">OpenAI API Key</Label>
-                <Input
-                  id="apiKey"
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-..."
-                  className="brutal-border-thin font-mono text-sm"
-                  disabled={hasApiKey}
-                />
-                {hasApiKey ? (
-                  <p className="text-xs text-success">
-                    ✅ API Key sudah tersimpan. Matikan toggle untuk menggunakan API default.
-                  </p>
+                {hasApiKey && !isEditing ? (
+                  <>
+                    <Label className="font-bold">API Key Tersimpan</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        value={maskedApiKey}
+                        className="brutal-border-thin font-mono text-sm flex-1"
+                        disabled
+                      />
+                      <Button
+                        onClick={handleEdit}
+                        variant="outline"
+                        size="icon"
+                        className="brutal-border-thin"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        onClick={() => setShowDeleteDialog(true)}
+                        variant="destructive"
+                        size="icon"
+                        className="brutal-border-thin"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-success">
+                      ✅ API Key tersimpan. Provider: {provider.toUpperCase()}
+                    </p>
+                  </>
                 ) : (
                   <>
+                    <Label htmlFor="apiKey" className="font-bold">OpenAI API Key</Label>
+                    <Input
+                      id="apiKey"
+                      type="password"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="sk-..."
+                      className="brutal-border-thin font-mono text-sm"
+                    />
                     <p className="text-xs text-muted-foreground">
-                      API Key akan disimpan secara lokal di browser Anda
+                      API Key akan disimpan secara aman di database terenkripsi. Dapatkan di <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline">platform.openai.com</a>
                     </p>
-                    <Button
-                      onClick={saveApiKey}
-                      className="w-full mt-2 brutal-border-thin"
-                      variant="default"
-                    >
-                      Simpan API Key
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={saveApiKey}
+                        className="flex-1 brutal-border-thin"
+                        variant="default"
+                        disabled={loading}
+                      >
+                        {loading ? 'Menyimpan...' : isEditing ? 'Update API Key' : 'Simpan API Key'}
+                      </Button>
+                      {isEditing && (
+                        <Button
+                          onClick={() => {
+                            setIsEditing(false);
+                            setApiKey('');
+                          }}
+                          variant="outline"
+                          className="brutal-border-thin"
+                        >
+                          Batal
+                        </Button>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
@@ -236,6 +366,29 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus API Key?</AlertDialogTitle>
+            <AlertDialogDescription>
+              API Key Anda akan dihapus secara permanen dari database. 
+              Sistem akan menggunakan API Key default setelah penghapusan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteApiKey}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={loading}
+            >
+              {loading ? 'Menghapus...' : 'Ya, Hapus'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

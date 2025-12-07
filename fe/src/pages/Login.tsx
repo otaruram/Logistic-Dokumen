@@ -1,23 +1,11 @@
 import { useGoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
 
 export default function Login() {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    setIsDarkMode(savedTheme === 'dark');
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
-    localStorage.setItem('theme', newTheme ? 'dark' : 'light');
-  };
 
   // Google Login dengan Drive scope
   const loginWithDrive = useGoogleLogin({
@@ -53,17 +41,12 @@ export default function Login() {
   });
 
   return (
-    <div className={`min-h-screen relative overflow-hidden transition-colors duration-300 ${
-      isDarkMode ? 'bg-[#0a0a0a] text-white' : 'bg-[#FDFDFD] text-black'
-    }`}>
+    <div className="min-h-screen bg-[#FDFDFD] relative overflow-hidden">
       {/* Subtle Grid Background Pattern */}
       <div 
         className="absolute inset-0 opacity-[0.02]" 
         style={{
-          backgroundImage: isDarkMode ? `
-            linear-gradient(#fff 1px, transparent 1px),
-            linear-gradient(90deg, #fff 1px, transparent 1px)
-          ` : `
+          backgroundImage: `
             linear-gradient(#000 1px, transparent 1px),
             linear-gradient(90deg, #000 1px, transparent 1px)
           `,
@@ -71,26 +54,10 @@ export default function Login() {
         }}
       />
 
-      {/* Theme Toggle Button */}
-      <button
-        onClick={toggleTheme}
-        className={`absolute top-8 right-8 z-50 border-2 px-4 py-2 font-bold transition-all duration-200 hover:translate-x-[-2px] hover:translate-y-[-2px] ${
-          isDarkMode 
-            ? 'border-white bg-[#0a0a0a] text-white hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]'
-            : 'border-black bg-white text-black hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
-        }`}
-      >
-        {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-      </button>
-
       {/* Back Button */}
       <button
         onClick={() => navigate('/landing')}
-        className={`absolute top-8 left-8 border-2 px-4 py-2 font-mono text-xs font-bold flex items-center gap-2 hover:translate-x-[-2px] hover:translate-y-[-2px] transition-all duration-200 ${
-          isDarkMode
-            ? 'border-white bg-[#0a0a0a] text-white hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]'
-            : 'border-black bg-white text-black hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
-        }`}
+        className="absolute top-8 left-8 border-2 border-black bg-white px-4 py-2 font-mono text-xs font-bold flex items-center gap-2 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
       >
         <ArrowLeft className="w-4 h-4" />
         KEMBALI
@@ -101,34 +68,26 @@ export default function Login() {
         
         {/* Login Card */}
         <div className="w-full max-w-md animate-scale-in">
-          <div className={`border-4 p-10 ${
-            isDarkMode
-              ? 'border-white bg-[#0a0a0a] shadow-[12px_12px_0px_0px_rgba(255,255,255,1)]'
-              : 'border-black bg-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]'
-          }`}>
+          <div className="border-4 border-black bg-white p-10 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
             
             {/* Card Header */}
             <div className="text-center mb-8">
               <img 
                 src="/1.png" 
                 alt="OCR.AI"
-                className="w-24 h-24 mx-auto mb-6 object-contain"
+                className="w-24 h-24 mx-auto mb-6 object-contain logo-dark-mode"
               />
               
               <h2 className="text-3xl font-serif font-bold mb-2">
                 Masuk ke Akun Anda
               </h2>
-              <p className={`text-sm font-mono ${
-                isDarkMode ? 'text-white/60' : 'text-black/60'
-              }`}>
+              <p className="text-sm text-black/60 font-mono">
                 Login untuk mulai digitalisasi dokumen
               </p>
             </div>
 
             {/* Divider */}
-            <div className={`border-t-2 my-6 ${
-              isDarkMode ? 'border-white' : 'border-black'
-            }`}></div>
+            <div className="border-t-2 border-black my-6"></div>
 
             {/* Google Login Button - Custom Styled */}
             <div
@@ -137,19 +96,13 @@ export default function Login() {
               className="relative mb-4"
             >
               <div 
-                className={`absolute inset-0 transition-all duration-200 ${
-                  isDarkMode ? 'bg-white' : 'bg-black'
-                } ${
+                className={`absolute inset-0 bg-black transition-all duration-200 ${
                   isHovered ? 'translate-x-[6px] translate-y-[6px]' : 'translate-x-0 translate-y-0'
                 }`}
               />
               <button
                 onClick={() => loginWithDrive()}
-                className={`relative w-full border-2 transition-all duration-200 p-4 flex items-center justify-center gap-3 ${
-                  isDarkMode
-                    ? 'border-white bg-[#0a0a0a] text-white hover:bg-[#1a1a1a]'
-                    : 'border-black bg-white text-black hover:bg-gray-50'
-                } ${
+                className={`relative w-full border-2 border-black bg-white hover:bg-gray-50 transition-all duration-200 p-4 flex items-center justify-center gap-3 ${
                   isHovered ? '-translate-x-[2px] -translate-y-[2px]' : ''
                 }`}
               >
@@ -163,32 +116,24 @@ export default function Login() {
               </button>
             </div>
 
-            <p className={`text-xs text-center mb-4 ${
-              isDarkMode ? 'text-white/60' : 'text-muted-foreground'
-            }`}>
+            <p className="text-xs text-center text-muted-foreground mb-4">
               Akses penuh ke semua fitur termasuk Google Drive backup
             </p>
 
             {/* Terms & Privacy Links */}
             <div className="text-center mb-4">
-              <p className={`text-xs ${
-                isDarkMode ? 'text-white/60' : 'text-black/60'
-              }`}>
+              <p className="text-xs text-black/60">
                 Dengan masuk, Anda menyetujui{' '}
                 <button
                   onClick={() => navigate('/terms')}
-                  className={`underline hover:no-underline ${
-                    isDarkMode ? 'text-white' : 'text-black'
-                  }`}
+                  className="underline hover:no-underline text-black"
                 >
                   Syarat & Ketentuan
                 </button>
                 {' '}dan{' '}
                 <button
                   onClick={() => navigate('/privacy')}
-                  className={`underline hover:no-underline ${
-                    isDarkMode ? 'text-white' : 'text-black'
-                  }`}
+                  className="underline hover:no-underline text-black"
                 >
                   Kebijakan Privasi
                 </button>
@@ -197,12 +142,8 @@ export default function Login() {
             </div>
 
             {/* Footer */}
-            <div className={`text-center border-t-2 pt-6 mt-6 ${
-              isDarkMode ? 'border-white' : 'border-black'
-            }`}>
-              <p className={`font-mono text-xs ${
-                isDarkMode ? 'text-white/60' : 'text-black/60'
-              }`}>
+            <div className="text-center border-t-2 border-black pt-6 mt-6">
+              <p className="font-mono text-xs text-black/60">
                 © {new Date().getFullYear()} OCR.WTF - Scan Dokumen Tanpa Ribet
               </p>
             </div>
