@@ -16,7 +16,7 @@ class AITextSummarizer:
     
     def __init__(self, sumopod_api_key: str):
         self.api_key = sumopod_api_key
-        self.api_url = "https://rest.sumopod.ai/api/v1/chat/completions"
+        self.api_url = "https://ai.sumopod.com/v1/chat/completions"
         
         # Document-specific prompts untuk berbagai jenis dokumen
         self.document_prompts = {

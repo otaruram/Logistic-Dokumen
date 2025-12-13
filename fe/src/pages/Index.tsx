@@ -10,6 +10,37 @@ import DataTable from "@/components/dashboard/DataTable";
 import BrutalSpinner from "@/components/dashboard/BrutalSpinner";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { triggerCreditUsage, showCreditWarning } from "@/lib/credit-utils";
+
+// Typewriter Animation Component
+const TypewriterText = ({ text, delay = 0 }: { text: string; delay?: number }) => {
+  const [displayText, setDisplayText] = useState('')
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isStarted, setIsStarted] = useState(false)
+
+  useEffect(() => {
+    if (delay > 0) {
+      const startTimer = setTimeout(() => {
+        setIsStarted(true)
+      }, delay)
+      return () => clearTimeout(startTimer)
+    } else {
+      setIsStarted(true)
+    }
+  }, [delay])
+
+  useEffect(() => {
+    if (isStarted && currentIndex < text.length) {
+      const timeout = setTimeout(() => {
+        setDisplayText(prev => prev + text[currentIndex])
+        setCurrentIndex(prev => prev + 1)
+      }, 80) // Speed of typing (80ms per character)
+      return () => clearTimeout(timeout)
+    }
+  }, [currentIndex, text, isStarted])
+
+  return <span>{displayText}</span>
+}
 
 // Mock data for the table
 const mockLogs = [
@@ -116,9 +147,11 @@ const Index = () => {
     navigate('/landing');
   };
 
-  const handleGaskeun = () => navigate('/gaskeun');
   const handleProfile = () => navigate('/profile');
   const handleSettings = () => navigate('/settings');
+  const handleUpgrade = () => navigate('/pricing');
+  const handleViewUsage = () => navigate('/history');
+  const handleCekThisOut = () => navigate('/cek-this-out');
 
   const loadData = useCallback(async () => {
     const isInitialMount = sessionStorage.getItem('hasLoaded') !== 'true';
@@ -239,7 +272,38 @@ const Index = () => {
       if (result.status === "success") {
         await loadData(); // Re-fetch all data to get the new log
         toast({ title: "PROSES SELESAI", description: `Terdeteksi: ${result.data.kategori || "Dokumen"}` });
+        
+        // 🔥 WAJIB: Trigger credit update event untuk refresh saldo
+        window.dispatchEvent(new Event('creditUpdated'));
+        
+        // Dispatch scan complete event with credit info for immediate UI update
+        if (result.creditInfo) {
+          window.dispatchEvent(new CustomEvent('scanComplete', { 
+            detail: { creditInfo: result.creditInfo } 
+          }));
+        }
+        
+        // Trigger credit usage event
+        triggerCreditUsage('ocr_scan', `${result.data.kategori} - ${result.data.nomorDokumen}`);
+        
+        // Show credit warning if needed
+        if (result.creditInfo?.remainingCredits !== undefined) {
+          showCreditWarning(result.creditInfo.remainingCredits);
+        }
       } else {
+        // Handle insufficient credits error
+        if (result.error_type === "insufficient_credits") {
+          toast({ 
+            title: "KREDIT TIDAK CUKUP", 
+            description: "Upgrade akun Anda untuk melanjutkan scanning", 
+            variant: "destructive",
+            action: {
+              altText: "Upgrade",
+              onClick: () => navigate('/pricing')
+            }
+          });
+          return;
+        }
         throw new Error(result.message || "Gagal memproses dokumen");
       }
     } catch (error) {
@@ -333,9 +397,30 @@ const Index = () => {
         </div>
       ) : (
         <>
-      <Header user={user} onLogout={handleLogout} onGaskeun={handleGaskeun} onProfile={handleProfile} onSettings={handleSettings} />
+      <Header 
+        user={user} 
+        onLogout={handleLogout} 
+        onProfile={handleProfile} 
+        onSettings={handleSettings}
+        onUpgrade={handleUpgrade}
+        onViewUsage={handleViewUsage}
+        onCekThisOut={handleCekThisOut}
+      />
 
       <main className="container mx-auto px-3 md:px-4 py-4 md:py-6 flex-1">
+        {/* Welcome Message */}
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6 text-center mb-6">
+          <h2 className="text-xl font-bold mb-2 text-black dark:text-black">
+            <TypewriterText text="Welcome to OCR.WTF! 🚀" />
+          </h2>
+          <p className="text-gray-600 dark:text-black">
+            <TypewriterText 
+              text="Upload dokumen untuk memulai OCR scanning atau chat dengan OKi AI Assistant" 
+              delay={2500}
+            />
+          </p>
+        </div>
+
         {/* Section 1: ZONA INPUT */}
         <div className="space-y-4 md:space-y-6 mb-4 md:mb-6">
           <div className="brutal-card">

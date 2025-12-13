@@ -18,7 +18,6 @@ import os
 import shutil
 import jwt
 import json
-from prisma import Prisma
 from dotenv import load_dotenv
 import re
 import traceback
@@ -31,19 +30,52 @@ from contextlib import asynccontextmanager
 from smart_ocr_processor import SmartOCRProcessor
 from ai_text_summarizer import AITextSummarizer
 
+# Import pricing system
+from pricing_service import CreditService
+from pricing_endpoints import router as pricing_router
+
 # Load environment variables
 load_dotenv()
+
+# Try to import Prisma with graceful fallback
+Prisma = None
+try:
+    from prisma import Prisma as PrismaClient
+    Prisma = PrismaClient
+    print("✅ Prisma import successful")
+except Exception as e:
+    print(f"⚠️ Prisma import failed: {e}")
+    print("🔄 Running without database support")
 
 # --- SUMOPOD CHATBOT CONFIGURATION ---
 # Initialize the global bot instance to use SumoPoD directly.
 oki_bot = OKiChatbot(mode='sumopod_only')
 
 # Initialize Prisma Client
-prisma = Prisma()
+prisma = None
+if Prisma:
+    try:
+        prisma = Prisma()
+        print("✅ Prisma client initialized")
+    except Exception as e:
+        print(f"⚠️ Prisma client failed to initialize: {e}")
+        print("🔄 Running in fallback mode without database")
+else:
+    print("⚠️ Prisma not available - running without database")
 
 # Initialize Smart OCR dan AI Summarizer
 smart_ocr = None
 ai_summarizer = None
+
+# Initialize Credit Service
+credit_service = None
+try:
+    from pricing_service import CreditService
+    credit_service = CreditService()
+    print("✅ Credit Service initialized!")
+except Exception as e:
+    print(f"⚠️ Credit Service failed to initialize: {e}")
+    credit_service = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -74,21 +106,33 @@ async def lifespan(app: FastAPI):
         print(f"⚠️ AI Summarizer initialization failed: {e}")
         ai_summarizer = None
     
+    # Initialize Credit Service
+    global credit_service
+    try:
+        credit_service = CreditService()  # Create instance, not just class reference
+        print("✅ Credit Service initialized!")
+    except Exception as e:
+        print(f"⚠️ Credit Service initialization failed: {e}")
+        credit_service = None
+    
     # Try to connect to database with retry logic
     database_connected = False
     max_retries = 3
     
-    for attempt in range(max_retries):
-        try:
-            await prisma.connect()
-            print("✅ Connected to Supabase PostgreSQL!")
-            database_connected = True
-            break
-        except Exception as db_error:
-            print(f"⚠️ Database connection attempt {attempt + 1}/{max_retries} failed: {db_error}")
-            if attempt == max_retries - 1:
-                print("📝 System will continue without database logging")
-                print("💡 Check your DATABASE_URL and internet connection")
+    if prisma:
+        for attempt in range(max_retries):
+            try:
+                await prisma.connect()
+                print("✅ Connected to Supabase PostgreSQL!")
+                database_connected = True
+                break
+            except Exception as db_error:
+                print(f"⚠️ Database connection attempt {attempt + 1}/{max_retries} failed: {db_error}")
+                if attempt == max_retries - 1:
+                    print("📝 System will continue without database logging")
+                    print("💡 Check your DATABASE_URL and internet connection")
+    else:
+        print("⚠️ Prisma client not available - running without database")
     
     print("⚡ Enhanced OCR System ready!")
     print("🔍 Features: Smart document detection, AI summarization, structured data extraction")
@@ -97,7 +141,7 @@ async def lifespan(app: FastAPI):
     
     # Cleanup
     try:
-        if database_connected and prisma.is_connected():
+        if database_connected and prisma and prisma.is_connected():
             await prisma.disconnect()
             print("🔌 Disconnected from database")
     except Exception as e:
@@ -109,7 +153,7 @@ async def lifespan(app: FastAPI):
 async def safe_db_operation(operation, *args, **kwargs):
     """Safely execute database operations with error handling"""
     try:
-        if not prisma.is_connected():
+        if not prisma or not prisma.is_connected():
             print("⚠️ Database not connected, skipping operation")
             return None
         return await operation(*args, **kwargs)
@@ -151,6 +195,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include pricing endpoints
+app.include_router(pricing_router, prefix="/api/pricing", tags=["pricing"])
 
 # --- HELPER: DECODE JWT TOKEN OR GET EMAIL FROM GOOGLE API ---
 def get_user_email_from_token(authorization: str = Header(None)) -> str:
@@ -409,8 +456,32 @@ async def scan_document(
     receiver: str = Form(...),
     authorization: str = Header(None)
 ):
+    global credit_service
     try:
         user_email = get_user_email_from_token(authorization)
+        
+        # 🎁 ENSURE USER HAS DEFAULT CREDITS (10 for new users)
+        try:
+            if credit_service:
+                await credit_service.ensure_default_credits(user_email, prisma)
+        except Exception as credit_error:
+            print(f"⚠️ Welcome credit setup failed: {credit_error}")
+        
+        # 🔥 CHECK CREDIT - Enhanced OCR costs 1 credit
+        if credit_service:
+            try:
+                user_credits = await credit_service.get_user_credits(user_email, prisma)
+                if user_credits < 1:
+                    return {
+                        "status": "error", 
+                        "message": "Insufficient credits. Please upgrade your plan.",
+                        "credits_remaining": user_credits,
+                        "upgrade_url": "/pricing",
+                        "error_type": "insufficient_credits"
+                    }
+            except Exception as credit_error:
+                print(f"⚠️ Credit check failed: {credit_error}")
+                # Continue without credit check in case of error
         
         # 1. Baca File
         contents = await file.read()
@@ -526,7 +597,7 @@ async def scan_document(
         # 7. Enhanced Database Save dengan metadata tambahan
         log = None
         try:
-            if prisma.is_connected():
+            if prisma and prisma.is_connected():
                 log_data = {
                     "userId": user_email,
                     "timestamp": timestamp,
@@ -564,6 +635,38 @@ async def scan_document(
         print(f"   🔢 Document Number: {nomor_dokumen}")
         print(f"   📝 Summary: {summary[:100]}...")
         print(f"   🔄 Processing Method: {processing_method if 'processing_method' in locals() else 'legacy'}")
+        
+        # 🏦 DEDUCT CREDIT - Enhanced OCR scan completed (only if not using BYOK)
+        remaining_credits = None
+        byok_used = ocr_result.get("byok_used", False)
+        if credit_service and not byok_used:
+            try:
+                success = await credit_service.deduct_credits(user_email, 1, f"Enhanced OCR scan - Document ID: {log.id}", prisma)
+                if success:
+                    remaining_credits = await credit_service.get_user_credits(user_email, prisma)
+                    print(f"💳 Credit deducted. Remaining: {remaining_credits}")
+                else:
+                    print("⚠️ Failed to deduct credit but scan completed")
+            except Exception as credit_error:
+                print(f"⚠️ Credit deduction failed: {credit_error}")
+        elif byok_used:
+            print("🔑 BYOK mode - No credit deducted")
+
+        # Get updated credit information
+        credit_info = {}
+        try:
+            if credit_service:
+                user_credits = await credit_service.get_user_credits(user_email, prisma)
+                user_tier = await credit_service.get_user_tier(user_email, prisma)
+                
+                credit_info = {
+                    "remainingCredits": user_credits,
+                    "userTier": user_tier,
+                    "creditsUsed": 1,  # Enhanced OCR scan cost
+                    "upgradeAvailable": user_tier == "starter" and user_credits < 5
+                }
+        except Exception as credit_error:
+            print(f"⚠️ Failed to get credit info for response: {credit_error}")
 
         return {
             "status": "success",
@@ -578,7 +681,8 @@ async def scan_document(
                 "imageUrl": log.imagePath,  # Backward compatibility
                 "summary": log.summary,
                 "fullText": log.fullText
-            }
+            },
+            "creditInfo": credit_info
         }
 
     except Exception as e:
@@ -591,7 +695,7 @@ async def get_history(authorization: str = Header(None)):
         user_email = get_user_email_from_token(authorization)
         
         # Try to get from database if connected
-        if prisma.is_connected():
+        if prisma and prisma.is_connected():
             try:
                 logs = await prisma.logs.find_many(
                     where={"userId": user_email},
@@ -638,8 +742,34 @@ async def update_log_summary(log_id: int, request: LogUpdateRequest, authorizati
         
         print(f"UPDATE LOG REQUEST - User: {user_email}, LogID: {log_id}, New Summary: {request.summary[:50]}...")
         
-        # Return mock response for now since database is not connected
-        return {"status": "success", "message": "Summary updated (database not connected)"}
+        # Try to update in database
+        try:
+            # Check if log exists and belongs to user
+            log = await prisma.logs.find_first(
+                where={"id": log_id, "userId": user_email}
+            )
+            
+            if not log:
+                return {"status": "error", "message": "Log not found or access denied"}
+            
+            # Update the summary
+            updated_log = await prisma.logs.update(
+                where={"id": log_id},
+                data={"summary": request.summary}
+            )
+            
+            return {
+                "status": "success", 
+                "message": "Summary updated successfully",
+                "data": {
+                    "id": updated_log.id,
+                    "summary": updated_log.summary
+                }
+            }
+            
+        except Exception as db_error:
+            print(f"Database update failed: {db_error}")
+            return {"status": "success", "message": "Summary updated (database not connected)"}
         
     except Exception as e:
         print(f"Update error: {e}")
@@ -912,15 +1042,33 @@ async def chat_with_oki(
     x_user_api_key: str = Header(None, alias="X-User-API-Key")
 ):
     """Chat endpoint untuk Gaskeun - OKi AI Assistant with BYOK support"""
+    global credit_service
     try:
         # Verify user authentication
         user_email = get_user_email_from_token(authorization)
+        
+        # 💳 CHECK CREDIT BEFORE PROCESSING (for non-BYOK mode)
+        if not x_user_api_key:
+            if credit_service:
+                try:
+                    user_credits = await credit_service.get_user_credits(user_email, prisma)
+                    if user_credits < 1:
+                        return {
+                            "status": "error",
+                            "message": "Insufficient credits for chatbot usage. Please upgrade your plan.",
+                            "error_type": "insufficient_credits",
+                            "creditsRequired": 1,
+                            "creditsAvailable": user_credits
+                        }
+                except Exception as credit_error:
+                    print(f"⚠️ Credit check failed: {credit_error}")
+                    # Continue anyway if credit service fails
         
         # Convert messages to dict format
         messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
         
         # If a key is sent in the header, it's BYOK mode with failover.
-        if x_user_api_key:
+        if x_user_api_key and x_user_api_key.strip():  # Check if key exists and not empty
             print(f"BYOK MODE - Key from header detected for {user_email}")
             try:
                 # Create a temporary bot instance with the user's key
@@ -952,10 +1100,42 @@ async def chat_with_oki(
                     "error_type": "system_failed"
                 }
         
+        # 💳 DEDUCT CREDIT AFTER SUCCESSFUL CHAT (for non-BYOK mode)
+        remaining_credits = None
+        if not x_user_api_key and credit_service:
+            try:
+                success = await credit_service.deduct_credits(user_email, 1, "OKi Chatbot usage", prisma)
+                if success:
+                    remaining_credits = await credit_service.get_user_credits(user_email, prisma)
+                    print(f"💳 Credit deducted for chatbot. Remaining: {remaining_credits}")
+                else:
+                    print("⚠️ Failed to deduct credit but chat completed")
+            except Exception as credit_error:
+                print(f"⚠️ Credit deduction failed: {credit_error}")
+        elif x_user_api_key:
+            print("🔑 BYOK mode - No credit deducted for chatbot")
+        
+        # Get updated credit information
+        credit_info = {}
+        if credit_service and not x_user_api_key:
+            try:
+                user_credits = await credit_service.get_user_credits(user_email, prisma)
+                user_tier = await credit_service.get_user_tier(user_email, prisma)
+                
+                credit_info = {
+                    "remainingCredits": user_credits,
+                    "userTier": user_tier,
+                    "creditsUsed": 1,
+                    "upgradeAvailable": user_tier == "starter" and user_credits < 5
+                }
+            except Exception as credit_error:
+                print(f"⚠️ Failed to get credit info for response: {credit_error}")
+        
         return {
             "status": "success",
             "message": assistant_message,
-            "usingBYOK": using_byok
+            "usingBYOK": using_byok,
+            "creditInfo": credit_info if credit_info else None
         }
         
     except HTTPException as he:
@@ -1024,21 +1204,70 @@ async def delete_account(authorization: str = Header(None)):
     try:
         user_email = get_user_email_from_token(authorization)
         
-        # Delete all user logs
+        # Get user first to get user ID
+        user = await prisma.user.find_unique(where={"email": user_email})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user_id = user.id
+        
+        # Get all user logs to delete associated image files
+        user_logs = await prisma.logs.find_many(
+            where={"userId": user_email}
+        )
+        
+        # Delete associated image files from uploads folder
+        deleted_files = 0
+        for log in user_logs:
+            if log.imagePath:
+                filename = log.imagePath.split("/")[-1]
+                file_path = os.path.join(UPLOAD_DIR, filename)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    deleted_files += 1
+                    print(f"🗑️ Deleted image: {filename}")
+        
+        # Delete user data in the correct order (due to foreign key constraints)
         try:
-            deleted = await prisma.logs.delete_many(
+            # 1. Delete all user logs (references user email)
+            deleted_logs = await prisma.logs.delete_many(
                 where={"userId": user_email}
             )
+            
+            # 2. Delete all credit transactions (references user ID)
+            deleted_transactions = await prisma.credittransaction.delete_many(
+                where={"userId": user_id}
+            )
+            
+            # 3. Delete all API keys (references user ID)
+            deleted_api_keys = await prisma.apikey.delete_many(
+                where={"userId": user_email}  # Note: APIKey uses email as userId
+            )
+            
+            # 4. Finally delete the user record
+            deleted_user = await prisma.user.delete(
+                where={"id": user_id}
+            )
+            
         except Exception as db_error:
             print(f"Database delete failed: {db_error}")
             raise HTTPException(status_code=500, detail="Database connection error")
         
-        print(f"Deleted {deleted} logs for user {user_email}")
+        print(f"ACCOUNT DELETED: {user_email}")
+        print(f"- Logs deleted: {deleted_logs}")
+        print(f"- Transactions deleted: {deleted_transactions}")
+        print(f"- API keys deleted: {deleted_api_keys}")
+        print(f"- Image files deleted: {deleted_files}")
+        print(f"- User record deleted: {deleted_user.email}")
         
         return {
             "status": "success",
-            "message": f"Account deleted successfully. Removed {deleted} logs.",
-            "email": user_email
+            "message": f"Account completely deleted successfully.",
+            "email": user_email,
+            "deleted_logs": deleted_logs,
+            "deleted_transactions": deleted_transactions,
+            "deleted_api_keys": deleted_api_keys,
+            "deleted_files": deleted_files
         }
     except HTTPException as he:
         raise he

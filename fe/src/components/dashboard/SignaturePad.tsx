@@ -12,8 +12,44 @@ const SignaturePad = ({ onSignatureChange }: SignaturePadProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 300, height: 128 });
   const [hasSignature, setHasSignature] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
+    // Check initial theme
+    const checkTheme = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setIsDarkMode(isDark);
+    };
+    
+    checkTheme();
+    
+    // Watch for theme changes
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
+    return () => observer.disconnect();
+  }, []);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Check initial theme
+    const checkTheme = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setIsDarkMode(isDark);
+    };
+    
+    checkTheme();
+    
+    // Listen for theme changes
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, { 
+      attributes: true, 
+      attributeFilter: ['class'] 
+    });
+
     const updateSize = () => {
       if (containerRef.current) {
         const width = containerRef.current.offsetWidth - 4; // Account for border
@@ -23,7 +59,11 @@ const SignaturePad = ({ onSignatureChange }: SignaturePadProps) => {
 
     updateSize();
     window.addEventListener("resize", updateSize);
-    return () => window.removeEventListener("resize", updateSize);
+    
+    return () => {
+      window.removeEventListener("resize", updateSize);
+      observer.disconnect();
+    };
   }, []);
 
   const handleClear = () => {
@@ -52,15 +92,15 @@ const SignaturePad = ({ onSignatureChange }: SignaturePadProps) => {
       </label>
       <div
         ref={containerRef}
-        className="brutal-border-thin bg-background overflow-hidden"
+        className="brutal-border-thin bg-white dark:bg-gray-800 overflow-hidden"
       >
         <SignatureCanvas
           ref={sigCanvas}
-          penColor="black"
+          penColor={isDarkMode ? "white" : "black"}
           canvasProps={{
             width: canvasSize.width,
             height: canvasSize.height,
-            className: "signature-canvas cursor-crosshair bg-background",
+            className: "signature-canvas cursor-crosshair bg-white dark:bg-gray-800",
             style: { touchAction: "none" },
           }}
           onEnd={handleEnd}

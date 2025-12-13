@@ -8,7 +8,7 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
-import Gaskeun from "./pages/Gaskeun";
+import CekThisOut from "./pages/CekThisOut";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
@@ -52,10 +52,10 @@ const App = () => (
             } 
           />
           <Route 
-            path="/gaskeun" 
+            path="/cek-this-out" 
             element={
               <ProtectedRoute>
-                <Gaskeun />
+                <CekThisOut />
               </ProtectedRoute>
             } 
           />

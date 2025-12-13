@@ -1,4 +1,4 @@
-import { Circle, LogOut, User, Sparkles, Settings } from "lucide-react";
+import { Circle, LogOut, User, Settings, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -8,6 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import CreditDisplay from "./CreditDisplay";
 
 interface HeaderProps {
   user?: {
@@ -16,12 +17,11 @@ interface HeaderProps {
     picture: string;
   };
   onLogout?: () => void;
-  onGaskeun?: () => void;
   onProfile?: () => void;
   onSettings?: () => void;
 }
 
-const Header = ({ user, onLogout, onGaskeun, onProfile, onSettings }: HeaderProps) => {
+const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
   return (
     <header className="brutal-border-thin border-t-0 border-l-0 border-r-0 bg-background">
       <div className="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
@@ -37,6 +37,9 @@ const Header = ({ user, onLogout, onGaskeun, onProfile, onSettings }: HeaderProp
                 <div className="w-2.5 h-2.5 md:w-3 md:h-3 bg-green-500 rounded-full animate-pulse"></div>
                 <div className="absolute inset-0 w-2.5 h-2.5 md:w-3 md:h-3 bg-green-500 rounded-full animate-ping"></div>
               </div>
+              
+              {/* Credit Display */}
+              <CreditDisplay />
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -82,16 +85,6 @@ const Header = ({ user, onLogout, onGaskeun, onProfile, onSettings }: HeaderProp
                   >
                     <Settings className="w-4 h-4 mr-2" />
                     SETTINGS
-                  </DropdownMenuItem>
-                )}
-                
-                {onGaskeun && (
-                  <DropdownMenuItem 
-                    onClick={onGaskeun}
-                    className="cursor-pointer font-bold uppercase text-xs hover:bg-primary hover:text-primary-foreground"
-                  >
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    GASKEUN - OKi AI
                   </DropdownMenuItem>
                 )}
                 

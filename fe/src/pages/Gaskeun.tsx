@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Upload, FileText, Send, Bot, User as UserIcon, RefreshCw } from "lucide-react";
 import { decryptData } from "@/lib/secure-storage";
 import { useToast } from "@/hooks/use-toast";
+import { triggerCreditUsage } from "@/lib/credit-utils";
 
 interface Message {
   role: "user" | "assistant";
@@ -40,35 +41,6 @@ const Gaskeun = () => {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  // Check BYOK status on mount
-  useEffect(() => {
-    const checkBYOKStatus = async () => {
-      try {
-        const token = getAuthToken();
-        if (!token) return;
-
-        const response = await fetch(`${API_URL}/api/user/apikey`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.hasApiKey && data.isActive) {
-            setUsingBYOK(true);
-            setEncryptedApiKey(data.apiKey); // This is the encrypted key from backend
-          } else {
-            setUsingBYOK(false);
-            setEncryptedApiKey("");
-          }
-        }
-      } catch (error) {
-        console.error('Error checking BYOK status:', error);
-      }
-    };
-
-    checkBYOKStatus();
-  }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -107,6 +79,9 @@ const Gaskeun = () => {
           ...prev,
           { role: "assistant", content: `✅ PDF "${file.name}" berhasil diupload! (${data.pages} halaman)\n\nSekarang kamu bisa tanya apa aja tentang dokumen ini. Contoh:\n- "Rangkum isi dokumen ini"\n- "Siapa penerima dokumen?"\n- "Apa nomor dokumen?"` }
         ]);
+        
+        // 🔥 WAJIB: Trigger credit update event
+        window.dispatchEvent(new Event('creditUpdated'));
       } else {
         throw new Error(data.message || 'Gagal ekstraksi PDF');
       }
@@ -125,8 +100,6 @@ const Gaskeun = () => {
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
-    // The logic is now simplified. The button's disabled state handles all checks.
-    // No need for a toast here anymore.
 
     // Add user message
     const userMessage: Message = { role: "user", content: inputMessage };
@@ -140,15 +113,6 @@ const Gaskeun = () => {
         'Authorization': `Bearer ${getAuthToken()}`
       };
 
-      // If BYOK is active, decrypt the key and send it in the header
-      if (usingBYOK && encryptedApiKey) {
-        const user = JSON.parse(sessionStorage.getItem('user') || '{}');
-        const decryptedKey = decryptData(encryptedApiKey, user.email);
-        if (decryptedKey) {
-          headers['X-User-API-Key'] = decryptedKey;
-        }
-      }
-
       const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: headers,
@@ -161,12 +125,17 @@ const Gaskeun = () => {
       const data = await response.json();
 
       if (data.status === 'success') {
-        setUsingBYOK(data.usingBYOK || false);
         const aiResponse: Message = {
           role: "assistant",
           content: data.message
         };
         setMessages(prev => [...prev, aiResponse]);
+        
+        // 🔥 WAJIB: Trigger credit update event untuk refresh saldo
+        window.dispatchEvent(new Event('creditUpdated'));
+        
+        // Trigger credit usage for OKi chatbot
+        triggerCreditUsage('chatbot_oki', `Chat message: ${userMessage.content.substring(0, 30)}...`);
       } else {
         throw new Error(data.detail || 'Gagal mendapat response AI');
       }

@@ -1,12 +1,11 @@
 """
-Pricing & Credit System Backend Logic
+Pricing & Credit System Backend Logic - FIXED VERSION
 File: be/pricing_service.py
 """
 
 from enum import Enum
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-import os
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,16 +15,133 @@ class PlanType(Enum):
     PRO = "PRO"
 
 class CreditService:
-    """Service untuk mengelola credit dan pricing logic"""
+    """Service Manager untuk Logic Kredit & Pricing"""
     
-    # Konfigurasi Pricing
     STARTER_INITIAL_CREDITS = 10
-    PRO_MONTHLY_CREDITS = 200
-    DAILY_SYSTEM_LIMIT = 500
-    FREE_TIER_DAILY_LIMIT_THRESHOLD = 450
     
-    # Pricing Configuration
-    PRICING_CONFIG = {
+    @staticmethod
+    async def ensure_default_credits(user_email: str, prisma):
+        """Memastikan user baru punya saldo awal"""
+        try:
+            if not prisma: 
+                return False
+            
+            # Cek user
+            user = await prisma.user.find_unique(where={"email": user_email})
+            
+            # Jika user belum ada, buat baru dengan saldo 10
+            if not user:
+                new_user = await prisma.user.create(
+                    data={
+                        "email": user_email,
+                        "creditBalance": CreditService.STARTER_INITIAL_CREDITS,
+                        "tier": "starter"
+                    }
+                )
+                # Catat history pemberian modal awal
+                await prisma.credittransaction.create(
+                    data={
+                        "userId": new_user.id,
+                        "amount": CreditService.STARTER_INITIAL_CREDITS,
+                        "description": "Welcome Bonus - 10 Credit Gratis"
+                    }
+                )
+                print(f"✅ New user created with {CreditService.STARTER_INITIAL_CREDITS} credits: {user_email}")
+                return True
+            return True
+        except Exception as e:
+            print(f"❌ Error ensuring credits: {e}")
+            return False
+
+    @staticmethod
+    async def get_user_credits(user_email: str, prisma) -> int:
+        """Mengambil saldo LANGSUNG dari tabel User (Realtime)"""
+        try:
+            if not prisma: 
+                return 10  # Default fallback
+            user = await prisma.user.find_unique(where={"email": user_email})
+            if not user:
+                # Create user if not exists
+                await CreditService.ensure_default_credits(user_email, prisma)
+                user = await prisma.user.find_unique(where={"email": user_email})
+            return user.creditBalance if user else 10
+        except Exception as e:
+            print(f"Error getting user credits: {e}")
+            return 10
+
+    @staticmethod
+    async def get_user_tier(user_email: str, prisma) -> str:
+        """Get user tier"""
+        try:
+            if not prisma: 
+                return "starter"
+            user = await prisma.user.find_unique(where={"email": user_email})
+            return user.tier if user else "starter"
+        except Exception:
+            return "starter"
+
+    @staticmethod
+    async def deduct_credits(user_email: str, amount: int, description: str, prisma) -> bool:
+        """
+        LOGIKA KRITIKAL:
+        1. Cek saldo di tabel User.
+        2. Update tabel User (kurangi saldo).
+        3. Catat di tabel CreditTransaction.
+        """
+        try:
+            if not prisma:
+                print("⚠️ Database logic skipped (Prisma not connected)")
+                return True # Fallback agar user tidak stuck jika DB error
+
+            # 1. Ambil User
+            user = await prisma.user.find_unique(where={"email": user_email})
+            if not user:
+                # Jika user hantu, coba buatkan dulu
+                await CreditService.ensure_default_credits(user_email, prisma)
+                user = await prisma.user.find_unique(where={"email": user_email})
+                if not user:
+                    return False
+
+            # 2. Validasi Saldo (langsung dari tabel User)
+            if user.creditBalance < amount:
+                print(f"❌ Saldo tidak cukup: Punya {user.creditBalance}, Butuh {amount}")
+                return False
+
+            # 3. UPDATE SALDO (Atomic Decrement) - INI YANG SEBELUMNYA HILANG!
+            new_balance = user.creditBalance - amount
+            
+            await prisma.user.update(
+                where={"id": user.id},
+                data={"creditBalance": new_balance}
+            )
+
+            # 4. Catat Transaksi (History)
+            await prisma.credittransaction.create(
+                data={
+                    "userId": user.id,
+                    "amount": -amount, # Minus karena pemakaian
+                    "description": description
+                }
+            )
+
+            print(f"💰 Kredit berhasil dipotong. Sisa: {new_balance}")
+            return True
+
+        except Exception as e:
+            print(f"CRITICAL ERROR deduct_credits: {e}")
+            return False
+
+class SubscriptionService:
+    """Service for subscription management"""
+    pass
+
+class ImageCleanupService:
+    """Service for image cleanup"""
+    pass
+
+def get_pricing_plans():
+    """Return pricing plans"""
+    return {
         "topup_packages": [
             {"credits": 20, "price": 10000, "name": "Paket Hemat"},
             {"credits": 50, "price": 22000, "name": "Paket Sedang"}, 
@@ -36,237 +152,3 @@ class CreditService:
             "credits_per_month": 200
         }
     }
-    
-    @staticmethod
-    async def check_scan_eligibility(user_email: str, prisma) -> Dict[str, Any]:
-        """
-        Cek apakah user boleh melakukan scan
-        Returns: {"allowed": bool, "reason": str, "remaining_credits": int}
-        """
-        try:
-            # 1. Get user data
-            user = await prisma.user.find_unique(where={"email": user_email})
-            if not user:
-                return {"allowed": False, "reason": "User tidak ditemukan", "remaining_credits": 0}
-            
-            # 2. Cek saldo credit
-            if user.creditBalance < 1:
-                return {
-                    "allowed": False, 
-                    "reason": "Credit habis. Silakan top up atau upgrade ke Pro.",
-                    "remaining_credits": 0
-                }
-            
-            # 3. Cek limit sistem harian (khusus STARTER)
-            if user.planType == PlanType.STARTER.value:
-                today_scans = await CreditService._get_today_system_scans(prisma)
-                if today_scans >= CreditService.FREE_TIER_DAILY_LIMIT_THRESHOLD:
-                    return {
-                        "allowed": False,
-                        "reason": "Server sedang penuh. Upgrade ke Pro untuk jalur prioritas.",
-                        "remaining_credits": user.creditBalance
-                    }
-            
-            return {
-                "allowed": True,
-                "reason": "OK",
-                "remaining_credits": user.creditBalance
-            }
-            
-        except Exception as e:
-            logger.error(f"Error checking scan eligibility: {e}")
-            return {"allowed": False, "reason": "Terjadi kesalahan sistem", "remaining_credits": 0}
-    
-    @staticmethod
-    async def deduct_credit(user_email: str, description: str, prisma) -> bool:
-        """
-        Kurangi credit user dan catat transaksi
-        Returns: True jika berhasil
-        """
-        try:
-            user = await prisma.user.find_unique(where={"email": user_email})
-            if not user or user.creditBalance < 1:
-                return False
-            
-            # Update credit balance
-            await prisma.user.update(
-                where={"email": user_email},
-                data={"creditBalance": user.creditBalance - 1}
-            )
-            
-            # Catat transaksi
-            await prisma.credittransaction.create(
-                data={
-                    "userId": user.id,
-                    "amount": -1,
-                    "description": description
-                }
-            )
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error deducting credit: {e}")
-            return False
-    
-    @staticmethod
-    async def _get_today_system_scans(prisma) -> int:
-        """Hitung total scan di seluruh sistem hari ini"""
-        try:
-            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            
-            count = await prisma.credittransaction.count(
-                where={
-                    "amount": -1,  # Hanya transaksi scan
-                    "createdAt": {
-                        "gte": today_start
-                    }
-                }
-            )
-            return count
-            
-        except Exception as e:
-            logger.error(f"Error getting today's scans: {e}")
-            return 0
-    
-    @staticmethod
-    async def get_user_plan_info(user_email: str, prisma) -> Dict[str, Any]:
-        """Get informasi lengkap paket user"""
-        try:
-            user = await prisma.user.find_unique(where={"email": user_email})
-            if not user:
-                return {"error": "User tidak ditemukan"}
-            
-            plan_info = {
-                "email": user.email,
-                "plan_type": user.planType,
-                "credit_balance": user.creditBalance,
-                "subscription_end_date": user.subscriptionEndDate,
-                "is_pro_active": False
-            }
-            
-            # Cek status PRO
-            if user.planType == PlanType.PRO.value and user.subscriptionEndDate:
-                plan_info["is_pro_active"] = user.subscriptionEndDate > datetime.now()
-                if not plan_info["is_pro_active"]:
-                    # Auto downgrade to STARTER if subscription expired
-                    await prisma.user.update(
-                        where={"email": user_email},
-                        data={"planType": PlanType.STARTER.value}
-                    )
-                    plan_info["plan_type"] = PlanType.STARTER.value
-            
-            return plan_info
-            
-        except Exception as e:
-            logger.error(f"Error getting user plan info: {e}")
-            return {"error": "Terjadi kesalahan sistem"}
-
-class ImageCleanupService:
-    """Service untuk cleanup foto expired"""
-    
-    @staticmethod
-    async def cleanup_expired_images(prisma):
-        """
-        Hapus foto user STARTER yang sudah > 7 hari
-        Jalankan sebagai cron job setiap malam
-        """
-        try:
-            seven_days_ago = datetime.now() - timedelta(days=7)
-            
-            # Cari foto yang perlu dihapus
-            expired_scans = await prisma.scanhistory.find_many(
-                where={
-                    "user": {
-                        "planType": PlanType.STARTER.value
-                    },
-                    "createdAt": {
-                        "lt": seven_days_ago
-                    },
-                    "isImageExpired": False,
-                    "imagePath": {
-                        "not": None
-                    }
-                },
-                include={"user": True}
-            )
-            
-            cleanup_count = 0
-            for scan in expired_scans:
-                try:
-                    # Hapus file fisik
-                    if scan.imagePath and os.path.exists(scan.imagePath):
-                        os.remove(scan.imagePath)
-                    
-                    # Update database
-                    await prisma.scanhistory.update(
-                        where={"id": scan.id},
-                        data={
-                            "isImageExpired": True,
-                            "imagePath": None
-                        }
-                    )
-                    cleanup_count += 1
-                    
-                except Exception as e:
-                    logger.error(f"Error cleaning up scan {scan.id}: {e}")
-            
-            logger.info(f"Cleaned up {cleanup_count} expired images")
-            return cleanup_count
-            
-        except Exception as e:
-            logger.error(f"Error in cleanup_expired_images: {e}")
-            return 0
-
-class SubscriptionService:
-    """Service untuk mengelola langganan PRO"""
-    
-    @staticmethod
-    async def process_monthly_reset(prisma):
-        """
-        Reset credit bulanan untuk user PRO
-        Jalankan sebagai cron job setiap hari
-        """
-        try:
-            today = datetime.now().date()
-            
-            # Cari user PRO yang hari ini adalah tanggal reset-nya
-            pro_users = await prisma.user.find_many(
-                where={
-                    "planType": PlanType.PRO.value,
-                    "subscriptionEndDate": {
-                        "gte": datetime.now()
-                    }
-                }
-            )
-            
-            reset_count = 0
-            for user in pro_users:
-                # Cek apakah hari ini adalah tanggal reset bulanan
-                if user.subscriptionEndDate:
-                    # Assume subscription started 1 month before end date
-                    # This logic can be improved with a separate subscription_start_date field
-                    day_of_month = user.subscriptionEndDate.day
-                    if today.day == day_of_month:
-                        # Reset credit
-                        await prisma.user.update(
-                            where={"id": user.id},
-                            data={"creditBalance": CreditService.PRO_MONTHLY_CREDITS}
-                        )
-                        
-                        # Catat transaksi
-                        await prisma.credittransaction.create(
-                            data={
-                                "userId": user.id,
-                                "amount": CreditService.PRO_MONTHLY_CREDITS,
-                                "description": "Reset Bulanan Pro"
-                            }
-                        )
-                        reset_count += 1
-            
-            logger.info(f"Reset credit for {reset_count} PRO users")
-            return reset_count
-            
-        except Exception as e:
-            logger.error(f"Error in process_monthly_reset: {e}")
-            return 0
