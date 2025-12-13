@@ -163,7 +163,6 @@ Aplikasi menggunakan **Light Brutalism Design** dengan karakteristik:
 
 ### Production URLs
 - **Frontend:** https://ocrai.vercel.app/
-- **Backend API:** https://logistic-dokumen.onrender.com
 
 ### Environment Variables Required
 
