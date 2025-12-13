@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import CreditDisplay from "./CreditDisplay";
+import NotificationIcon from "./NotificationIcon";
 
 interface HeaderProps {
   user?: {
@@ -38,8 +39,11 @@ const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
                 <div className="absolute inset-0 w-2.5 h-2.5 md:w-3 md:h-3 bg-green-500 rounded-full animate-ping"></div>
               </div>
               
-              {/* Credit Display */}
-              <CreditDisplay />
+              {/* Credit Display & Notifications */}
+              <div className="flex items-center gap-1">
+                <CreditDisplay />
+                <NotificationIcon />
+              </div>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

@@ -57,8 +57,9 @@ export default function Login() {
           email: userInfo.email,
           name: userInfo.name,
           picture: userInfo.picture,
-          credential: tokenResponse.access_token, // Save access token
-          driveToken: tokenResponse.access_token, // Explicitly save for Drive
+          access_token: tokenResponse.access_token, // Primary token field
+          credential: tokenResponse.access_token, // Backward compatibility
+          driveToken: tokenResponse.access_token, // For Drive operations
         };
 
         sessionStorage.setItem('user', JSON.stringify(user));

@@ -8,6 +8,7 @@ import ImagePreview from "@/components/dashboard/ImagePreview";
 import SignaturePad from "@/components/dashboard/SignaturePad";
 import DataTable from "@/components/dashboard/DataTable";
 import BrutalSpinner from "@/components/dashboard/BrutalSpinner";
+import NotificationManager from "@/components/dashboard/NotificationManager";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -274,13 +275,29 @@ const Index = () => {
         await loadData(); // Re-fetch all data to get the new log
         toast({ title: "PROSES SELESAI", description: `Terdeteksi: ${result.data.kategori || "Dokumen"}` });
         
-        // 🔥 WAJIB: Trigger credit update event untuk refresh saldo
-        window.dispatchEvent(new Event('creditUpdated'));
+        // ⚡ REAL-TIME CREDIT EVENT WITH DIRECT BALANCE
+        console.log('⚡ TRIGGERING REAL-TIME CREDIT UPDATE...');
         
-        // Dispatch scan complete event with credit info for immediate UI update
-        if (result.creditInfo) {
+        if (typeof result.remaining_credits === 'number') {
+          // Fire event with exact remaining credits from server
+          const creditEvent = new CustomEvent('creditUpdated', { 
+            detail: { 
+              remainingCredits: result.remaining_credits,
+              timestamp: new Date().toISOString()
+            } 
+          });
+          window.dispatchEvent(creditEvent);
+          
+          console.log(`💳 Credit updated to: ${result.remaining_credits}`);
+        }
+        
+        // Also dispatch scan complete event with full credit info
+        if (result.creditInfo || result.remaining_credits !== undefined) {
           window.dispatchEvent(new CustomEvent('scanComplete', { 
-            detail: { creditInfo: result.creditInfo } 
+            detail: { 
+              creditInfo: result.creditInfo,
+              remainingCredits: result.remaining_credits
+            } 
           }));
         }
         
@@ -299,7 +316,7 @@ const Index = () => {
             description: "Upgrade akun Anda untuk melanjutkan scanning", 
             variant: "destructive",
             action: (
-              <ToastAction onClick={() => navigate('/pricing')}>
+              <ToastAction onClick={() => navigate('/pricing')} altText="Upgrade">
                 Upgrade
               </ToastAction>
             )
@@ -414,10 +431,15 @@ const Index = () => {
           </h2>
           <p className="text-gray-600 dark:text-black">
             <TypewriterText 
-              text="Upload dokumen untuk memulai OCR scanning atau chat dengan OKi AI Assistant" 
+              text="Upload dokumen untuk memulai OCR scanning" 
               delay={2500}
             />
           </p>
+        </div>
+
+        {/* Notification System */}
+        <div className="mb-6">
+          <NotificationManager userCredits={user?.credits || 0} />
         </div>
 
         {/* Section 1: ZONA INPUT */}

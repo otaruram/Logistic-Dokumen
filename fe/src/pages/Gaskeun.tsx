@@ -32,9 +32,9 @@ const Gaskeun = () => {
   const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
 
   // Get JWT token
-  const getAuthToken = () => {
+  const getAccessToken = () => {
     const user = JSON.parse(sessionStorage.getItem('user') || '{}');
-    return user.credential || '';
+    return user.credential || user.access_token || '';
   };
 
   // Auto scroll to bottom when new message

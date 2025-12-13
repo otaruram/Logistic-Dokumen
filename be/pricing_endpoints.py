@@ -231,3 +231,256 @@ async def manual_reset_credits(authorization: str = Header(None)):
         return {"status": "success", "message": "Reset completed (mock)"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Reset failed: {str(e)}")
+
+@router.get("/monthly-cleanup-warning")
+async def get_monthly_cleanup_warning(authorization: str = Header(None)):
+    """Get monthly data cleanup warning if approaching user's monthly anniversary"""
+    try:
+        from main import prisma
+        user_email = get_user_email_from_token(authorization)
+        
+        if not prisma:
+            return {"status": "success", "data": {"warning": False}}
+        
+        warning_data = await CreditService.check_monthly_cleanup_warning(user_email, prisma)
+        
+        return {"status": "success", "data": warning_data}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Warning check failed: {str(e)}")
+
+@router.get("/credit-status/{credits}")
+async def get_credit_status(credits: int):
+    """Get credit exhaustion message based on remaining credits"""
+    try:
+        credit_message = CreditService.get_credit_exhaustion_message(credits)
+        
+        return {"status": "success", "data": credit_message}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Credit status check failed: {str(e)}")
+
+@router.post("/manual-monthly-cleanup")
+async def manual_monthly_cleanup(authorization: str = Header(None)):
+    """ADMIN ONLY: Manual trigger monthly data cleanup for specific user"""
+    try:
+        from main import prisma
+        user_email = get_user_email_from_token(authorization)
+        
+        if not prisma:
+            return {"status": "error", "message": "Database not available"}
+        
+        cleanup_result = await CreditService.perform_monthly_cleanup_for_user(user_email, prisma)
+        
+        if cleanup_result:
+            return {"status": "success", "message": f"Monthly cleanup completed for {user_email}"}
+        else:
+            return {"status": "success", "message": "No cleanup needed (not user's monthly anniversary)"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
+
+@router.post("/admin/check-all-cleanup")
+async def admin_check_all_cleanup(authorization: str = Header(None)):
+    """ADMIN ONLY: Check and perform cleanup for all users who reached monthly anniversary"""
+    try:
+        from main import prisma
+        # TODO: Add admin authorization check
+        user_email = get_user_email_from_token(authorization)
+        
+        if not prisma:
+            return {"status": "error", "message": "Database not available"}
+        
+        cleanup_count = await CreditService.check_all_users_cleanup(prisma)
+        
+        return {"status": "success", "message": f"Checked all users, performed cleanup for {cleanup_count} users"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Admin cleanup check failed: {str(e)}")
+
+@router.get("/monthly-cleanup-warning")
+async def get_monthly_cleanup_warning(authorization: str = Header(None)):
+    """Check if monthly data cleanup is approaching"""
+    try:
+        from main import prisma
+        
+        user_email = get_user_email_from_token(authorization)
+        warning_info = await CreditService.check_monthly_cleanup_warning(prisma)
+        
+        return {
+            "status": "success",
+            "data": warning_info
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to check cleanup warning: {str(e)}")
+
+@router.post("/perform-monthly-cleanup")
+async def perform_monthly_cleanup(authorization: str = Header(None)):
+    """ADMIN ONLY: Perform monthly data cleanup"""
+    try:
+        from main import prisma
+        
+        user_email = get_user_email_from_token(authorization)
+        # TODO: Add admin check
+        
+        cleanup_result = await CreditService.perform_monthly_cleanup(prisma)
+        
+        return {
+            "status": "success", 
+            "cleanup_performed": cleanup_result,
+            "message": "Monthly cleanup completed" if cleanup_result else "No cleanup needed"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
+
+@router.get("/credit-status/{credits}")
+async def get_credit_status_message(credits: int):
+    """Get credit status message based on remaining credits"""
+    try:
+        message_info = CreditService.get_credit_exhaustion_message(credits)
+        
+        return {
+            "status": "success",
+            "data": message_info
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get credit status: {str(e)}")
+
+@router.get("/user/profile")
+async def get_user_profile(authorization: str = Header(None)):
+    """Get comprehensive user profile data for profile card"""
+    try:
+        from main import prisma
+        from datetime import date, timedelta
+        import calendar
+        
+        print(f"🔍 PROFILE REQUEST - Starting profile fetch...")
+        
+        user_email = get_user_email_from_token(authorization)
+        print(f"👤 USER EMAIL - {user_email}")
+        
+        if not prisma:
+            print("❌ DATABASE NOT AVAILABLE")
+            return {"status": "error", "message": "Database not available"}
+        
+        # Get user data with better error handling
+        try:
+            user = await prisma.user.find_unique(
+                where={"email": user_email}
+            )
+            print(f"📊 USER FOUND - {user.email if user else 'None'}")
+        except Exception as db_error:
+            print(f"💥 DATABASE ERROR getting user: {db_error}")
+            return {"status": "error", "message": "Database connection error"}
+        
+        if not user:
+            # Create user if not exists
+            print(f"🆕 CREATING NEW USER - {user_email}")
+            try:
+                user = await prisma.user.create(
+                    data={
+                        "email": user_email,
+                        "creditBalance": 3,
+                        "tier": "starter"
+                    }
+                )
+                print(f"✅ NEW USER CREATED - {user_email}")
+            except Exception as create_error:
+                print(f"💥 ERROR creating user: {create_error}")
+                return {"status": "error", "message": "Could not create user"}
+        
+        # Calculate statistics
+        try:
+            # Get recent activity
+            recent_logs = await prisma.logs.find_many(
+                where={"userId": user_email},
+                order_by={"timestamp": "desc"},
+                take=1
+            )
+            
+            # Get credit transactions count
+            total_usage_count = await prisma.logs.count(
+                where={"userId": user_email}
+            )
+            
+            last_activity = recent_logs[0].timestamp if recent_logs else user.createdAt
+        except Exception as stats_error:
+            print(f"Error calculating stats: {stats_error}")
+            total_usage_count = 0
+            last_activity = user.createdAt
+        
+        # Calculate next cleanup date based on registration - USING SAFE FUNCTION
+        from date_utils import calculate_cleanup_info_safe
+        cleanup_data = calculate_cleanup_info_safe(user.createdAt)
+        
+        # Get current credits
+        current_credits = await CreditService.get_user_credits(user_email, prisma)
+        
+        profile_data = {
+            "user_info": {
+                "email": user.email,
+                "name": user.email.split('@')[0].upper(),  # Extract name from email
+                "joined_date": user.createdAt.strftime("%d %B %Y"),
+                "tier": user.tier or "starter"
+            },
+            "statistics": {
+                "total_usage_count": total_usage_count,
+                "credits_remaining": current_credits,
+                "last_activity": last_activity.strftime("%d Desember %Y pukul %H.%M") if last_activity else "Belum ada aktivitas"
+            },
+            "cleanup_info": {
+                "next_cleanup_date": cleanup_data["next_cleanup_date"],
+                "days_until_cleanup": cleanup_data["days_until_cleanup"],
+                "cleanup_warning": cleanup_data["days_until_cleanup"] <= 7
+            }
+        }
+        
+        return {"status": "success", "data": profile_data}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Profile fetch failed: {str(e)}")
+
+@router.post("/test/reset-credits")
+async def test_reset_credits(authorization: str = Header(None)):
+    """TEST ONLY: Manual reset credits to test daily reset functionality"""
+    try:
+        from main import prisma
+        user_email = get_user_email_from_token(authorization)
+        
+        if not prisma:
+            return {"status": "error", "message": "Database not available"}
+        
+        # Force reset user credits to 3
+        await CreditService.ensure_default_credits(user_email, prisma)
+        updated_credits = await CreditService.get_user_credits(user_email, prisma)
+        
+        return {
+            "status": "success", 
+            "message": f"Credits reset to {updated_credits} for testing",
+            "data": {"credits": updated_credits}
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Credit reset failed: {str(e)}")
+
+@router.post("/test/trigger-cleanup")
+async def test_trigger_cleanup(authorization: str = Header(None)):
+    """TEST ONLY: Trigger monthly cleanup for current user"""
+    try:
+        from main import prisma
+        user_email = get_user_email_from_token(authorization)
+        
+        if not prisma:
+            return {"status": "error", "message": "Database not available"}
+        
+        # Force cleanup for this user
+        cleanup_result = await CreditService.perform_monthly_cleanup_for_user(user_email, prisma)
+        
+        return {
+            "status": "success",
+            "message": "Cleanup test completed",
+            "data": {"cleanup_performed": cleanup_result}
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Cleanup test failed: {str(e)}")

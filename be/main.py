@@ -22,7 +22,9 @@ from dotenv import load_dotenv
 import re
 import traceback
 import PyPDF2
+import asyncio
 from oki_chatbot import OKiChatbot
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from drive_service import export_to_google_drive_with_token, upload_image_to_drive
 from contextlib import asynccontextmanager
 
@@ -77,10 +79,55 @@ except Exception as e:
     print(f"⚠️ Credit Service failed to initialize: {e}")
     credit_service = None
 
+async def daily_maintenance_task():
+    """Automatic daily maintenance - runs every day at midnight"""
+    try:
+        print("🔄 Running automatic daily maintenance...")
+        
+        if prisma:
+            # Check all users for monthly cleanup
+            cleanup_count = await CreditService.check_all_users_cleanup(prisma)
+            
+            if cleanup_count > 0:
+                print(f"🗑️ Automatic cleanup performed for {cleanup_count} users")
+            else:
+                print("✅ No users needed cleanup today")
+        else:
+            print("⚠️ Database not available for maintenance")
+            
+    except Exception as e:
+        print(f"❌ Error in daily maintenance: {e}")
+
+# Global scheduler variable
+scheduler = None
+
+async def monthly_cleanup_scheduler():
+    """Background task to check all users for monthly cleanup based on registration anniversary"""
+    while True:
+        try:
+            from datetime import date
+            
+            if prisma:
+                print("🗑️ Daily check: Looking for users who reached monthly anniversary...")
+                cleanup_count = await CreditService.check_all_users_cleanup(prisma)
+                
+                if cleanup_count > 0:
+                    print(f"✅ Performed monthly cleanup for {cleanup_count} users")
+                else:
+                    print("ℹ️ No users reached monthly anniversary today.")
+            
+            # Wait 24 hours before checking again
+            await asyncio.sleep(24 * 60 * 60)  # 24 hours
+            
+        except Exception as e:
+            print(f"❌ Error in monthly cleanup scheduler: {e}")
+            # Wait 1 hour before retrying on error
+            await asyncio.sleep(60 * 60)  # 1 hour
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize Smart OCR, AI components, and connect to database"""
-    global smart_ocr, ai_summarizer
+    global smart_ocr, ai_summarizer, scheduler
     
     print("🚀 Starting Enhanced OCR System...")
     
@@ -95,13 +142,35 @@ async def lifespan(app: FastAPI):
         print(f"⚠️ Smart OCR initialization failed: {e}")
         smart_ocr = None
         
+    # Initialize automatic scheduler
     try:
-        if sumopod_api_key:
-            ai_summarizer = AITextSummarizer(sumopod_api_key)
-            print("✅ AI Text Summarizer initialized!")
-        else:
-            print("⚠️ SUMOPOD_API_KEY not found, using rule-based summaries")
-            ai_summarizer = None
+        scheduler = AsyncIOScheduler()
+        
+        # Schedule daily maintenance at midnight
+        scheduler.add_job(
+            daily_maintenance_task,
+            "cron",
+            hour=0,
+            minute=0,
+            id="daily_maintenance"
+        )
+        
+        # Start scheduler
+        scheduler.start()
+        print("🚀 Automatic scheduler started - daily maintenance at midnight!")
+    except Exception as e:
+        print(f"⚠️ Scheduler initialization failed: {e}")
+        
+    try:
+        # DISABLED: SumoPod AI not used anymore
+        # if sumopod_api_key:
+        #     ai_summarizer = AITextSummarizer(sumopod_api_key)
+        #     print("✅ AI Text Summarizer initialized!")
+        # else:
+        #     print("⚠️ SUMOPOD_API_KEY not found, using rule-based summaries")
+        #     ai_summarizer = None
+        print("ℹ️ SumoPod AI disabled - using rule-based summaries")
+        ai_summarizer = None
     except Exception as e:
         print(f"⚠️ AI Summarizer initialization failed: {e}")
         ai_summarizer = None
@@ -138,6 +207,14 @@ async def lifespan(app: FastAPI):
     print("🔍 Features: Smart document detection, AI summarization, structured data extraction")
     
     yield
+    
+    # Shutdown scheduler
+    try:
+        if scheduler:
+            scheduler.shutdown()
+            print("🛑 Scheduler shutdown completed")
+    except Exception as e:
+        print(f"⚠️ Scheduler shutdown error: {e}")
     
     # Cleanup
     try:
@@ -182,6 +259,11 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:8080")
 allowed_origins = [
     "http://localhost:8080",
     "http://localhost:8081",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:8080", 
     "https://ocrai.vercel.app",
     "https://ocr.wtf",
     "https://www.ocr.wtf",
@@ -192,7 +274,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -390,17 +472,9 @@ async def basic_ocr_extract(image_np, api_key: str):
         return f"[ERROR OCR: {str(e)}]"
 
 async def generate_smart_summary(text: str, doc_type: str, structured_data: dict) -> str:
-    """Generate summary menggunakan AI atau rule-based"""
+    """Generate summary menggunakan rule-based only (SumoPod disabled)"""
     try:
-        # Jika AI summarizer tersedia, gunakan AI
-        if ai_summarizer:
-            ai_summary = await ai_summarizer.generate_intelligent_summary(
-                text, doc_type, structured_data
-            )
-            if ai_summary and not ai_summary.startswith("[ERROR"):
-                return ai_summary
-        
-        # Fallback to smart rule-based summary
+        # SumoPod AI disabled - use smart rule-based summary only
         if smart_ocr:
             return smart_ocr.generate_smart_summary(text, structured_data, doc_type)
         
@@ -639,34 +713,54 @@ async def scan_document(
         # 🏦 DEDUCT CREDIT - Enhanced OCR scan completed (only if not using BYOK)
         remaining_credits = None
         byok_used = ocr_result.get("byok_used", False)
+        print(f"💳 CREDIT CHECK - BYOK: {byok_used}, CreditService: {credit_service is not None}")
+        
         if credit_service and not byok_used:
             try:
-                success = await credit_service.deduct_credits(user_email, 1, f"Enhanced OCR scan - Document ID: {log.id}", prisma)
-                if success:
-                    remaining_credits = await credit_service.get_user_credits(user_email, prisma)
-                    print(f"💳 Credit deducted. Remaining: {remaining_credits}")
+                print(f"🔄 ENSURING DEFAULT CREDITS for {user_email}")
+                await credit_service.ensure_default_credits(user_email, prisma)
+                
+                print(f"💸 ATTEMPTING CREDIT DEDUCTION for {user_email}")
+                # 🔥 NEW: Get remaining balance directly from deduct function
+                remaining_credits = await credit_service.deduct_credits(user_email, 1, f"Enhanced OCR scan - Document ID: {log.id}", prisma)
+                
+                if remaining_credits is not None:
+                    print(f"🎉 CREDIT DEDUCTION SUCCESSFUL - Remaining: {remaining_credits}")
                 else:
-                    print("⚠️ Failed to deduct credit but scan completed")
+                    print(f"❌ CREDIT DEDUCTION FAILED for {user_email}")
+                    remaining_credits = 0
             except Exception as credit_error:
-                print(f"⚠️ Credit deduction failed: {credit_error}")
+                print(f"💥 CREDIT DEDUCTION EXCEPTION: {credit_error}")
+                remaining_credits = 0
         elif byok_used:
-            print("🔑 BYOK mode - No credit deducted")
+            print(f"🔑 BYOK MODE - No credit deducted for {user_email}")
+            # Get current credits without deducting
+            try:
+                if credit_service:
+                    remaining_credits = await credit_service.get_user_credits(user_email, prisma)
+                else:
+                    remaining_credits = 3
+            except:
+                remaining_credits = 3
+        else:
+            print(f"⚠️ CREDIT SERVICE UNAVAILABLE")
+            remaining_credits = 3
 
-        # Get updated credit information
+        # Get updated credit information for response
         credit_info = {}
         try:
-            if credit_service:
-                user_credits = await credit_service.get_user_credits(user_email, prisma)
+            if credit_service and remaining_credits is not None:
                 user_tier = await credit_service.get_user_tier(user_email, prisma)
                 
                 credit_info = {
-                    "remainingCredits": user_credits,
+                    "remainingCredits": remaining_credits,
                     "userTier": user_tier,
-                    "creditsUsed": 1,  # Enhanced OCR scan cost
-                    "upgradeAvailable": user_tier == "starter" and user_credits < 5
+                    "creditsUsed": 0 if byok_used else 1,  # Enhanced OCR scan cost
+                    "upgradeAvailable": user_tier == "starter" and remaining_credits < 5
                 }
         except Exception as credit_error:
             print(f"⚠️ Failed to get credit info for response: {credit_error}")
+            credit_info = {"remainingCredits": remaining_credits or 3}
 
         return {
             "status": "success",
@@ -682,7 +776,9 @@ async def scan_document(
                 "summary": log.summary,
                 "fullText": log.fullText
             },
-            "creditInfo": credit_info
+            "creditInfo": credit_info,
+            # ⚡ REAL-TIME CREDIT UPDATE KEY
+            "remaining_credits": remaining_credits if remaining_credits is not None else 3
         }
 
     except Exception as e:

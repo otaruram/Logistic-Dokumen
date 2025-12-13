@@ -1,44 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { Coins, CreditCard, Zap, Sparkles } from 'lucide-react';
+import { Coins, Zap, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
 
 interface CreditInfo {
   remainingCredits: number;
   userTier: string;
-  creditsUsed?: number;
   upgradeAvailable?: boolean;
 }
 
 const CreditDisplay = () => {
-  const navigate = useNavigate();
   const [creditInfo, setCreditInfo] = useState<CreditInfo>({
-    remainingCredits: 10, // Default 10 credits for new users
-    userTier: 'starter',
-    upgradeAvailable: true
+    remainingCredits: 3,
+    userTier: 'starter'
   });
-  const [isLoading, setIsLoading] = useState(true);
+  const [isAnimating, setIsAnimating] = useState(false);
 
+  // Fetch credits from API (fallback/initial load)
   const fetchCreditInfo = async () => {
     try {
       const userStr = sessionStorage.getItem('user');
       if (!userStr) return;
       
       const user = JSON.parse(userStr);
-      const token = user.credential || user.driveToken;
+      const token = user.credential || user.driveToken || user.access_token;
       if (!token) return;
-
-      const response = await fetch('http://localhost:8000/api/pricing/user/credits', {
-        headers: {
+      
+      const baseURL = import.meta.env.VITE_API_URL || window.location.origin;
+      const apiURL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
+      
+      const response = await fetch(`${apiURL}/api/pricing/user/credits`, {
+        headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
@@ -46,152 +44,109 @@ const CreditDisplay = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setCreditInfo(data.data);
-        console.log('💰 Credit info updated:', data.data);
-      } else {
-        console.error('Failed to fetch credit info:', response.status);
+        if (data.status === 'success' && data.data) {
+          console.log('📊 Credit API success:', data.data);
+          setCreditInfo(data.data);
+        }
       }
     } catch (error) {
-      console.error('Error fetching credit info:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('Credit fetch failed:', error);
     }
   };
 
   useEffect(() => {
+    // 1. Initial Load
     fetchCreditInfo();
-    
-    // Polling interval setiap 2 detik untuk update responsif  
-    const interval = setInterval(() => fetchCreditInfo(), 2000);
-    
-    // Event listener untuk update manual dengan force refresh
-    const handleCreditUpdate = () => {
-      console.log('🔄 Credit update event received, force refreshing...');
-      fetchCreditInfo();
-    };
-    
-    // Listen for scan completion events
-    const handleScanComplete = (event: any) => {
-      if (event.detail?.creditInfo) {
-        console.log('📊 Updating credits from scan response:', event.detail.creditInfo);
-        setCreditInfo(event.detail.creditInfo);
+
+    // 2. Polling ringan (30 detik)
+    const interval = setInterval(fetchCreditInfo, 30000);
+
+    // 3. ⚡ REALTIME LISTENER - Key part!
+    const handleRealtimeUpdate = (event: any) => {
+      console.log('⚡ Realtime credit update received:', event.detail);
+      
+      if (event.detail && typeof event.detail.remainingCredits === 'number') {
+        console.log(`💳 Credit updated: ${creditInfo.remainingCredits} → ${event.detail.remainingCredits}`);
+        
+        setCreditInfo(prev => ({
+          ...prev,
+          remainingCredits: event.detail.remainingCredits
+        }));
+        
+        // Visual feedback
+        setIsAnimating(true);
+        setTimeout(() => setIsAnimating(false), 1000);
+      } else {
+        console.log('🔄 Event without data, doing manual fetch');
+        setTimeout(fetchCreditInfo, 200);
       }
-      fetchCreditInfo();
     };
-    
-    window.addEventListener('creditUpdated', handleCreditUpdate);
-    window.addEventListener('scanComplete', handleScanComplete);
-    
+
+    // Listen for real-time events
+    window.addEventListener('creditUpdated', handleRealtimeUpdate);
+    window.addEventListener('scanComplete', handleRealtimeUpdate);
+    window.addEventListener('refreshCredits', fetchCreditInfo);
+
     return () => {
       clearInterval(interval);
-      window.removeEventListener('creditUpdated', handleCreditUpdate);
-      window.removeEventListener('scanComplete', handleScanComplete);
+      window.removeEventListener('creditUpdated', handleRealtimeUpdate);
+      window.removeEventListener('scanComplete', handleRealtimeUpdate);
+      window.removeEventListener('refreshCredits', fetchCreditInfo);
     };
   }, []);
 
-  const getTierIcon = () => {
-    switch (creditInfo.userTier) {
-      case 'PRO':
-        return <Sparkles className="w-4 h-4 text-yellow-500" />;
-      default:
-        return <Coins className="w-4 h-4 text-blue-500" />;
-    }
-  };
-
-  const getTierColor = () => {
-    switch (creditInfo.userTier) {
-      case 'PRO':
-        return 'bg-gradient-to-r from-yellow-500 to-orange-500';
-      default:
-        return 'bg-gradient-to-r from-blue-500 to-purple-500';
-    }
-  };
-
+  // Visual Logic
   const getCreditColor = () => {
-    if (creditInfo.remainingCredits <= 2) return 'text-red-500';
-    if (creditInfo.remainingCredits <= 5) return 'text-yellow-500';
-    return 'text-green-500';
+    if (creditInfo.remainingCredits <= 0) return 'text-red-600';
+    if (creditInfo.remainingCredits <= 1) return 'text-orange-500';
+    return 'text-green-600';
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
-        <div className="w-12 h-4 bg-gray-200 rounded animate-pulse"></div>
-      </div>
-    );
-  }
+  const getCreditIcon = () => {
+    if (creditInfo.userTier === 'PRO') {
+      return <Sparkles className="w-4 h-4 text-yellow-500" />;
+    }
+    return <Coins className="w-4 h-4 text-blue-500" />;
+  };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className="brutal-border-thin px-3 py-2 bg-background flex items-center gap-2 hover:bg-accent"
+          className={`brutal-border-thin px-3 py-2 bg-background flex items-center gap-2 hover:bg-accent transition-all duration-300 ${
+            isAnimating ? 'scale-110 bg-green-50 ring-2 ring-green-300' : ''
+          }`}
         >
           <div className="relative">
-            {getTierIcon()}
-            <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+             {getCreditIcon()}
+             {isAnimating && (
+               <div className="absolute -inset-1 bg-green-400 rounded-full animate-ping opacity-30"></div>
+             )}
           </div>
-          <span className={`font-bold text-sm ${getCreditColor()}`}>
+          <span className={`font-bold text-sm ${getCreditColor()} tabular-nums transition-all duration-300`}>
             {creditInfo.remainingCredits}
           </span>
-          <Badge variant="secondary" className={`text-xs text-white ${getTierColor()}`}>
-            {creditInfo.userTier.toUpperCase()}
-          </Badge>
         </Button>
       </DropdownMenuTrigger>
       
-      <DropdownMenuContent align="end" className="w-72 brutal-border-thin">
-        <DropdownMenuLabel className="flex items-center justify-between">
-          <span>Credit Balance</span>
-          <div className="flex items-center gap-2">
-            {getTierIcon()}
-            <span className="text-sm font-normal">{creditInfo.userTier.toUpperCase()}</span>
-          </div>
+      <DropdownMenuContent align="end" className="w-64 brutal-border-thin">
+        <DropdownMenuLabel className="flex justify-between items-center">
+          <span>Sisa Kredit</span>
+          <span className={`font-mono text-lg ${getCreditColor()}`}>
+            {creditInfo.remainingCredits}
+          </span>
         </DropdownMenuLabel>
-        
         <DropdownMenuSeparator />
-        
-        <div className="px-3 py-2">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Remaining Credits</span>
-            <span className={`font-bold text-lg ${getCreditColor()}`}>
-              {creditInfo.remainingCredits}
-            </span>
-          </div>
-          
-          {creditInfo.remainingCredits <= 5 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-2 mb-3">
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-yellow-600" />
-                <span className="text-xs text-yellow-700">
-                  {creditInfo.remainingCredits <= 2 ? 'Critical: Almost out of credits!' : 'Low credits remaining'}
-                </span>
-              </div>
+        <div className="p-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 mb-1">
+                <Zap className="w-3 h-3" /> 1 Scan = 1 Kredit
             </div>
-          )}
-          
-          <div className="text-xs text-muted-foreground mb-3">
-            <div>• OCR Scan: 1 credit</div>
-            
-            {creditInfo.userTier === 'starter' && (
-              <div>• Pro features: Unlimited</div>
+            <p>Reset otomatis setiap jam 00:00</p>
+            {creditInfo.remainingCredits <= 1 && (
+              <p className="text-red-600 font-medium mt-1">⚠️ Kredit hampir habis!</p>
             )}
-          </div>
         </div>
-        
-        <DropdownMenuSeparator />
-        
-        {(creditInfo.upgradeAvailable || creditInfo.remainingCredits <= 5) && (
-          <DropdownMenuItem 
-            onClick={() => navigate('/cek-this-out?tab=pricing')}
-            className="flex items-center gap-2 text-blue-600"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Upgrade Plan</span>
-          </DropdownMenuItem>
-        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
