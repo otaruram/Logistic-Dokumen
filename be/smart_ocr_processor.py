@@ -2,7 +2,7 @@
 Smart OCR & Text Processing Module
 File: be/smart_ocr_processor.py
 
-Advanced OCR processing dengan AI untuk akurasi tinggi
+Advanced OCR processing dengan AI untuk akurasi tinggi + Hybrid (API + Tesseract)
 """
 
 import re
@@ -14,6 +14,15 @@ import io
 import base64
 import requests
 from datetime import datetime
+
+# Import Tesseract untuk hybrid OCR (optional untuk Render)
+try:
+    import pytesseract
+    TESSERACT_AVAILABLE = True
+    print("✅ Tesseract available for hybrid OCR")
+except ImportError:
+    TESSERACT_AVAILABLE = False
+    print("⚠️ Pytesseract not available - API-only mode (Render deployment)")
 
 class SmartOCRProcessor:
     """Advanced OCR dengan preprocessing dan AI enhancement"""
@@ -114,7 +123,42 @@ class SmartOCRProcessor:
             return Image.fromarray(image_np)
     
     async def enhanced_ocr_extract(self, image_np: np.ndarray) -> str:
-        """OCR dengan preprocessing dan multiple attempts"""
+        """🔥 HYBRID OCR: API first, then Tesseract fallback"""
+        try:
+            # 🌐 STEP 1: Try API OCR first (primary method)
+            print("🔥 Trying API OCR first...")
+            api_result = await self._api_ocr_extract(image_np)
+            
+            if api_result and api_result.strip() and not api_result.startswith("[ERROR"):
+                print("✅ API OCR successful!")
+                return api_result
+            else:
+                print("⚠️ API OCR failed or returned empty result")
+                raise Exception("API OCR failed or empty result")
+        
+        except Exception as api_error:
+            print(f"🔄 API OCR failed: {api_error}")
+            
+            # 🖥️ STEP 2: Fallback to Tesseract VPS OCR (if available)
+            if TESSERACT_AVAILABLE:
+                print("🔧 Switching to Tesseract VPS OCR...")
+                try:
+                    tesseract_result = self._tesseract_ocr_extract(image_np)
+                    if tesseract_result and tesseract_result.strip():
+                        print("✅ Tesseract OCR successful!")
+                        return tesseract_result
+                    else:
+                        print("⚠️ Tesseract OCR returned empty result")
+                except Exception as tesseract_error:
+                    print(f"❌ Tesseract OCR failed: {tesseract_error}")
+            else:
+                print("❌ Tesseract not available - API-only deployment (Render)")
+            
+            # 🆘 Final fallback - return basic error with fallback text
+            return "[ERROR] API OCR failed - Please try again or use a clearer image"
+
+    async def _api_ocr_extract(self, image_np: np.ndarray) -> str:
+        """API OCR extraction (original method)"""
         try:
             # Preprocess image
             processed_image = self.preprocess_image(image_np)
@@ -137,29 +181,62 @@ class SmartOCRProcessor:
                 'isTable': True   # Better table detection
             }
             
-            print("Enhanced OCR processing...")
+            print("📡 API OCR processing...")
             response = requests.post(self.ocr_api_url, data=payload, timeout=45)
             result = response.json()
             
-            if result.get('IsErroredOnProcessing'):
-                # Fallback to engine 1
-                payload['OCREngine'] = 1
-                response = requests.post(self.ocr_api_url, data=payload, timeout=30)
-                result = response.json()
+            if result.get('IsErroredOnProcessing', False):
+                error_msg = result.get('ErrorMessage', 'Unknown API error')
+                return f"[ERROR] API: {error_msg}"
             
-            parsed_results = result.get('ParsedResults', [])
-            if parsed_results:
-                raw_text = parsed_results[0].get('ParsedText', '').strip()
-                
-                # Post-process text for better quality
-                cleaned_text = self.post_process_ocr_text(raw_text)
-                return cleaned_text
+            # Extract text from all pages
+            all_text = ""
+            if 'ParsedResults' in result and result['ParsedResults']:
+                for parsed_result in result['ParsedResults']:
+                    if 'ParsedText' in parsed_result:
+                        all_text += parsed_result['ParsedText'] + "\n"
             
-            return ""
+            return all_text.strip() if all_text else "[ERROR] No text extracted by API"
             
         except Exception as e:
-            print(f"Enhanced OCR failed: {e}")
-            return f"[ERROR OCR: {str(e)}]"
+            print(f"API OCR error: {e}")
+            return f"[ERROR] API exception: {str(e)}"
+    
+    def _tesseract_ocr_extract(self, image_np: np.ndarray) -> str:
+        """Tesseract VPS OCR extraction (fallback)"""
+        try:
+            # Preprocess image for Tesseract
+            processed_image = self.preprocess_image(image_np)
+            
+            # Configure Tesseract for better accuracy
+            custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,/:()- '
+            
+            # Extract text using Tesseract
+            print("🖥️ Tesseract VPS processing...")
+            text = pytesseract.image_to_string(processed_image, config=custom_config)
+            
+            # Clean up extracted text
+            cleaned_text = self._clean_tesseract_text(text)
+            
+            return cleaned_text
+            
+        except Exception as e:
+            print(f"Tesseract OCR error: {e}")
+            return f"[ERROR] Tesseract exception: {str(e)}"
+    
+    def _clean_tesseract_text(self, text: str) -> str:
+        """Clean and improve Tesseract extracted text"""
+        if not text:
+            return ""
+        
+        # Remove extra whitespace and normalize
+        lines = []
+        for line in text.split('\n'):
+            line = line.strip()
+            if line:  # Skip empty lines
+                lines.append(line)
+        
+        return '\n'.join(lines)
     
     def post_process_ocr_text(self, raw_text: str) -> str:
         """Clean up OCR text dengan pattern correction"""

@@ -98,6 +98,58 @@ async def daily_maintenance_task():
     except Exception as e:
         print(f"❌ Error in daily maintenance: {e}")
 
+async def daily_credit_reset_task():
+    """Reset credits for all users at midnight Jakarta time"""
+    try:
+        print("💳 Running daily credit reset...")
+        
+        if prisma:
+            from datetime import datetime, date
+            
+            # Get all users
+            users = await prisma.user.find_many()
+            reset_count = 0
+            
+            for user in users:
+                try:
+                    # Check if user needs credit reset today
+                    today = date.today()
+                    last_reset = user.lastCreditReset.date() if user.lastCreditReset else None
+                    
+                    if last_reset != today:
+                        # Reset credits to daily limit (3)
+                        await prisma.user.update(
+                            where={"id": user.id},
+                            data={
+                                "creditBalance": CreditService.DAILY_CREDIT_LIMIT,
+                                "lastCreditReset": datetime.now()
+                            }
+                        )
+                        
+                        # Log credit reset transaction
+                        await prisma.credittransaction.create(
+                            data={
+                                "userId": user.id,
+                                "amount": CreditService.DAILY_CREDIT_LIMIT,
+                                "description": f"Daily credit reset - {today}"
+                            }
+                        )
+                        
+                        reset_count += 1
+                        print(f"💳 Credits reset for user: {user.email}")
+                        
+                except Exception as e:
+                    print(f"❌ Error resetting credits for user {user.id}: {e}")
+                    continue
+            
+            print(f"✅ Daily credit reset completed! {reset_count} users updated")
+            
+        else:
+            print("⚠️ Database not available for credit reset")
+            
+    except Exception as e:
+        print(f"❌ Error in daily credit reset: {e}")
+
 # Global scheduler variable
 scheduler = None
 
@@ -146,13 +198,24 @@ async def lifespan(app: FastAPI):
     try:
         scheduler = AsyncIOScheduler()
         
-        # Schedule daily maintenance at midnight
+        # Schedule daily maintenance at midnight Jakarta time
         scheduler.add_job(
             daily_maintenance_task,
             "cron",
             hour=0,
             minute=0,
+            timezone='Asia/Jakarta',
             id="daily_maintenance"
+        )
+        
+        # Schedule daily credit reset at midnight Jakarta time
+        scheduler.add_job(
+            daily_credit_reset_task,
+            "cron", 
+            hour=0,
+            minute=1,
+            timezone='Asia/Jakarta',
+            id="daily_credit_reset"
         )
         
         # Start scheduler

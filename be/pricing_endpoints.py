@@ -484,3 +484,83 @@ async def test_trigger_cleanup(authorization: str = Header(None)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Cleanup test failed: {str(e)}")
+
+@router.post("/test/reset-all-credits")
+async def test_reset_all_credits(authorization: str = Header(None)):
+    """TEST ONLY: Manual reset all users credits for testing"""
+    try:
+        from main import prisma
+        from datetime import datetime, date
+        
+        user_email = get_user_email_from_token(authorization)
+        print(f"🔧 Manual credit reset triggered by: {user_email}")
+        
+        if not prisma:
+            return {"status": "error", "message": "Database not available"}
+        
+        # Get all users
+        users = await prisma.user.find_many()
+        reset_count = 0
+        
+        for user in users:
+            try:
+                # Force reset credits to 3 regardless of last reset date
+                await prisma.user.update(
+                    where={"id": user.id},
+                    data={
+                        "creditBalance": CreditService.DAILY_CREDIT_LIMIT,
+                        "lastCreditReset": datetime.now()
+                    }
+                )
+                
+                # Log manual reset transaction
+                await prisma.credittransaction.create(
+                    data={
+                        "userId": user.id,
+                        "amount": CreditService.DAILY_CREDIT_LIMIT,
+                        "description": f"Manual credit reset - {date.today()}"
+                    }
+                )
+                
+                reset_count += 1
+                print(f"💳 Manual reset credits for: {user.email}")
+                
+            except Exception as e:
+                print(f"❌ Error resetting credits for user {user.id}: {e}")
+                continue
+        
+        return {
+            "status": "success",
+            "message": f"Manual credit reset completed for {reset_count} users",
+            "data": {
+                "users_updated": reset_count,
+                "credit_amount": CreditService.DAILY_CREDIT_LIMIT
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Manual credit reset failed: {str(e)}")
+
+@router.get("/scheduler/status")
+async def get_scheduler_status():
+    """Get current scheduler status and timezone"""
+    try:
+        from datetime import datetime
+        import pytz
+        
+        jakarta_tz = pytz.timezone('Asia/Jakarta')
+        current_time_jakarta = datetime.now(jakarta_tz)
+        
+        return {
+            "status": "success",
+            "data": {
+                "current_time_utc": datetime.utcnow().isoformat(),
+                "current_time_jakarta": current_time_jakarta.isoformat(),
+                "next_credit_reset": "00:01 WIB daily",
+                "next_maintenance": "00:00 WIB daily",
+                "timezone": "Asia/Jakarta"
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Scheduler status check failed: {str(e)}")
