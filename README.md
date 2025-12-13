@@ -8,7 +8,7 @@
 
 ---
 
-## 🎯 OVERVIEW
+## 🎯 OVERVIEw
 
 **OCR.WTF** adalah aplikasi web modern yang mengubah cara Anda mengelola dokumen. Dengan teknologi **OCR berbasis AI**, aplikasi ini mampu mengekstrak data dari dokumen fisik secara otomatis, mengurangi input manual hingga 90%, dan dilengkapi dengan **AI Chatbot (OKi)** untuk membantu analisis dokumen.
 
