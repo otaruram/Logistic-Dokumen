@@ -409,3 +409,5 @@ Untuk mengaktifkan fitur upload otomatis ke Google Drive:
 1. **Context Injection:** The "PROJECT OVERVIEW FOR AI ASSISTANTS" section tells AI assistants what role to take (Supply Chain Developer).
 2. **Design System Rules:** Light Brutalism rules are explicit (color codes, border thickness) so AI generates consistent UI.
 3. **API Contract:** Clear JSON structure ensures AI generates correct axios/fetch code.
+#   D e p l o y   t r i g g e r   -   1 2 / 1 3 / 2 0 2 5   1 6 : 2 0 : 2 5  
+ 
