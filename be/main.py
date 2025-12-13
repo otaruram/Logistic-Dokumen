@@ -24,22 +24,20 @@ import traceback
 import PyPDF2
 from oki_chatbot import OKiChatbot
 from drive_service import export_to_google_drive_with_token, upload_image_to_drive
+from contextlib import asynccontextmanager
 
 # Load environment variables
 load_dotenv()
 
 # --- SUMOPOD CHATBOT CONFIGURATION ---
-# Using SumoPoD API via OKiChatbot class (reads from .env)
-oki_bot = OKiChatbot()
-
-# --- INISIALISASI APP ---
-app = FastAPI(title="Supply Chain OCR API", description="Backend untuk scan dokumen gudang")
+# Initialize the global bot instance to use SumoPoD directly.
+oki_bot = OKiChatbot(mode='sumopod_only')
 
 # Initialize Prisma Client
 prisma = Prisma()
 
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """Connect to Supabase PostgreSQL on startup"""
     try:
         import os
@@ -50,13 +48,20 @@ async def startup():
         print(f"Failed to connect to DB: {e}")
         print(f"Full error: {traceback.format_exc()}")
         raise RuntimeError(f"Database connection failed: {e}") from e
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Disconnect from database on shutdown"""
+    
+    yield
+    
+    # Disconnect from database on shutdown
     if prisma.is_connected():
         await prisma.disconnect()
         print("Disconnected from database")
+
+# --- INISIALISASI APP ---
+app = FastAPI(
+    title="Supply Chain OCR API", 
+    description="Backend untuk scan dokumen gudang",
+    lifespan=lifespan
+)
 
 # --- SETUP FOLDER UPLOADS ---
 UPLOAD_DIR = "uploads"
@@ -343,6 +348,44 @@ async def get_history(authorization: str = Header(None)):
         traceback.print_exc()
         return []
 
+class LogUpdateRequest(BaseModel):
+    summary: str
+
+@app.put("/logs/{log_id}")
+async def update_log_summary(log_id: int, request: LogUpdateRequest, authorization: str = Header(None)):
+    try:
+        user_email = get_user_email_from_token(authorization)
+        
+        print(f"UPDATE LOG REQUEST - User: {user_email}, LogID: {log_id}, New Summary: {request.summary[:50]}...")
+        
+        # Check ownership
+        log = await prisma.logs.find_first(
+            where={"id": log_id, "userId": user_email}
+        )
+        
+        if not log:
+            print(f"LOG NOT FOUND - LogID: {log_id}, User: {user_email}")
+            raise HTTPException(status_code=404, detail="Log not found or you do not have permission to edit it")
+
+        print(f"CURRENT SUMMARY BEFORE UPDATE: {log.summary[:50]}...")
+        
+        # Update the summary
+        updated_log = await prisma.logs.update(
+            where={"id": log_id},
+            data={"summary": request.summary}
+        )
+
+        print(f"NEW SUMMARY AFTER UPDATE: {updated_log.summary[:50]}...")
+        
+        return {"status": "success", "data": updated_log}
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Update log error: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to update log: {str(e)}")
+
 @app.delete("/logs/{log_id}")
 async def delete_log(log_id: int, authorization: str = Header(None)):
     try:
@@ -602,23 +645,38 @@ async def chat_with_oki(
         # Convert messages to dict format
         messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
         
-        # Priority: 1. Header API key, 2. Database BYOK, 3. Default
-        user_api_key = x_user_api_key
-        if not user_api_key:
-            # Try to get from database
-            user_api_key = await get_user_api_key_internal(user_email)
-        
-        # Determine which API key to use
-        using_byok = bool(user_api_key)
-        
-        # Use user's API key if available (BYOK), otherwise use default
-        if using_byok:
-            print(f"BYOK ENABLED - Using user's API key for {user_email}")
-            custom_bot = OKiChatbot(api_key=user_api_key)
-            assistant_message = custom_bot.chat(messages=messages, pdf_text=request.pdfText)
+        # If a key is sent in the header, it's BYOK mode with failover.
+        if x_user_api_key:
+            print(f"BYOK MODE - Key from header detected for {user_email}")
+            try:
+                # Create a temporary bot instance with the user's key
+                custom_bot = OKiChatbot(api_key=x_user_api_key, mode='sumopod_only')
+                assistant_message = custom_bot.chat(messages=messages, pdf_text=request.pdfText)
+                using_byok = True
+            except Exception as byok_error:
+                print(f"BYOK failed: {str(byok_error)}")
+                # Return user-friendly error without falling back
+                return {
+                    "status": "error",
+                    "message": f"BYOK Error: {str(byok_error)}",
+                    "usingBYOK": True,
+                    "error_type": "byok_failed"
+                }
+        # Otherwise, it's default mode, using the system's SumoPoD key directly.
         else:
-            print(f"DEFAULT API KEY - Using system API key for {user_email}")
-            assistant_message = oki_bot.chat(messages=messages, pdf_text=request.pdfText)
+            print(f"DEFAULT MODE - Using system SumoPoD key for {user_email}")
+            try:
+                # Use the global bot instance configured for sumopod_only.
+                assistant_message = oki_bot.chat(messages=messages, pdf_text=request.pdfText)
+                using_byok = False
+            except Exception as system_error:
+                print(f"System chat failed: {str(system_error)}")
+                return {
+                    "status": "error",
+                    "message": f"System chat error: {str(system_error)}",
+                    "usingBYOK": False,
+                    "error_type": "system_failed"
+                }
         
         return {
             "status": "success",
@@ -626,10 +684,17 @@ async def chat_with_oki(
             "usingBYOK": using_byok
         }
         
+    except HTTPException as he:
+        raise he
     except Exception as e:
-        print(f"Chat error: {str(e)}")
+        print(f"Chat endpoint error: {str(e)}")
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Unexpected error: {str(e)[:100]}",
+            "usingBYOK": False,
+            "error_type": "unexpected"
+        }
 
 # --- ENDPOINT: EXTRACT PDF TEXT ---
 @app.post("/api/extract-pdf")
@@ -811,12 +876,10 @@ async def get_user_api_key(provider: str = "openai", authorization: str = Header
                 "updatedAt": None
             }
         
-        # Mask the API key for security (show only first 8 and last 4 chars)
-        masked_key = api_key_record.apiKey[:8] + "..." + api_key_record.apiKey[-4:]
-        
+        # Return the full encrypted key. The frontend will handle masking for display.
         return {
             "hasApiKey": True,
-            "apiKey": masked_key,
+            "apiKey": api_key_record.apiKey,
             "provider": api_key_record.provider,
             "isActive": api_key_record.isActive,
             "createdAt": api_key_record.createdAt.isoformat(),

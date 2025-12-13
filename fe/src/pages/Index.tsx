@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { Send, Package, ClipboardCheck } from "lucide-react";
+import imageCompression from 'browser-image-compression';
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/dashboard/Header";
 import FileUploadZone from "@/components/dashboard/FileUploadZone";
@@ -15,7 +16,7 @@ const mockLogs = [
   {
     id: 1,
     time: "08:32:15",
-    date: "6/12/25",
+    date: "2025-12-06",
     docType: "MANIFEST",
     docNumber: "MNF-2024-001",
     receiver: "JOHN DOE",
@@ -25,7 +26,7 @@ const mockLogs = [
   {
     id: 2,
     time: "09:15:42",
-    date: "6/12/25",
+    date: "2025-12-06",
     docType: "INVOICE",
     docNumber: "INV-2024-042",
     receiver: "JANE SMITH",
@@ -35,7 +36,7 @@ const mockLogs = [
   {
     id: 3,
     time: "10:03:08",
-    date: "6/12/25",
+    date: "2025-12-06",
     docType: "SURAT JALAN",
     docNumber: "SJ-2024-118",
     receiver: "BUDI SANTOSO",
@@ -45,7 +46,7 @@ const mockLogs = [
   {
     id: 4,
     time: "11:27:33",
-    date: "6/12/25",
+    date: "2025-12-06",
     docType: "MANIFEST",
     docNumber: "MNF-2024-002",
     receiver: "AHMAD YANI",
@@ -55,7 +56,7 @@ const mockLogs = [
   {
     id: 5,
     time: "13:45:19",
-    date: "6/12/25",
+    date: "2025-12-06",
     docType: "DELIVERY NOTE",
     docNumber: "DN-2024-055",
     receiver: "SITI RAHMA",
@@ -65,7 +66,7 @@ const mockLogs = [
   {
     id: 6,
     time: "14:22:08",
-    date: "6/12/25",
+    date: "2025-12-06",
     docType: "INVOICE",
     docNumber: "INV-2024-043",
     receiver: "DEWI KUSUMA",
@@ -75,7 +76,7 @@ const mockLogs = [
   {
     id: 7,
     time: "15:10:33",
-    date: "6/12/25",
+    date: "2025-12-06",
     docType: "MANIFEST",
     docNumber: "MNF-2024-003",
     receiver: "RUDI HARTONO",
@@ -85,7 +86,7 @@ const mockLogs = [
   {
     id: 8,
     time: "16:05:47",
-    date: "6/12/25",
+    date: "2025-12-06",
     docType: "SURAT JALAN",
     docNumber: "SJ-2024-119",
     receiver: "WATI SURYANI",
@@ -105,250 +106,223 @@ const Index = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Get user info from localStorage
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('isAuthenticated');
-    navigate('/landing');
-  };
-
-  const handleGaskeun = () => {
-    navigate('/gaskeun');
-  };
-
-  const handleProfile = () => {
-    navigate('/profile');
-  };
-
-  const handleSettings = () => {
-    navigate('/settings');
-  };
-
-  // Auto-detect environment: development = localhost, production = Render
+  const user = JSON.parse(sessionStorage.getItem('user') || '{}');
   const baseURL = import.meta.env.VITE_API_URL || "http://localhost:8000";
   const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
 
-  // Initial loading + fetch history
+  const handleLogout = () => {
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('isAuthenticated');
+    navigate('/landing');
+  };
+
+  const handleGaskeun = () => navigate('/gaskeun');
+  const handleProfile = () => navigate('/profile');
+  const handleSettings = () => navigate('/settings');
+
+  const loadData = useCallback(async () => {
+    const isInitialMount = sessionStorage.getItem('hasLoaded') !== 'true';
+    if (isInitialMount) {
+      setIsLoading(true);
+      sessionStorage.setItem('hasLoaded', 'true');
+    }
+    try {
+      const userStr = sessionStorage.getItem("user");
+      const user = userStr ? JSON.parse(userStr) : null;
+      const token = user?.credential || "";
+      const response = await fetch(`${API_URL}/history`, { headers: { "Authorization": `Bearer ${token}` } });
+      const data = await response.json();
+      const formattedLogs = data.map((log: any) => {
+        const logDate = new Date(log.timestamp);
+        const pad = (num: number) => num.toString().padStart(2, '0');
+        const isoDate = `${logDate.getFullYear()}-${pad(logDate.getMonth() + 1)}-${pad(logDate.getDate())}`;
+        return {
+          id: log.id,
+          time: logDate.toLocaleTimeString("id-ID"),
+          date: isoDate,
+          docType: log.kategori || "DOKUMEN",
+          docNumber: log.nomorDokumen || log.nomor_dokumen || "TIDAK TERDETEKSI",
+          receiver: log.receiver || "TIDAK ADA",
+          imageUrl: log.imagePath || log.image_url || "",
+          summary: log.summary || "",
+          status: "SUCCESS" as const,
+        };
+      });
+      setLogs(formattedLogs);
+    } catch (error) {
+      console.error("Error loading history:", error);
+    } finally {
+      setTimeout(() => setIsLoading(false), 1200);
+    }
+  }, [API_URL]);
+
   useEffect(() => {
-    const loadData = async () => {
-      // Show loading only on initial mount (page refresh)
-      const isInitialMount = sessionStorage.getItem('hasLoaded') !== 'true';
-      if (isInitialMount) {
-        setIsLoading(true);
-        sessionStorage.setItem('hasLoaded', 'true');
-      }
-      
-      try {
-        // Get user credential token
-        const userStr = localStorage.getItem("user");
-        const user = userStr ? JSON.parse(userStr) : null;
-        const token = user?.credential || "";
-
-        const response = await fetch(`${API_URL}/history`, {
-          headers: {
-            "Authorization": `Bearer ${token}`, // Kirim JWT token
-          },
-        });
-        const data = await response.json();
-        
-        const formattedLogs = data.map((log: any) => {
-          const logDate = new Date(log.timestamp);
-          const formattedDate = `${logDate.getDate()}/${logDate.getMonth() + 1}/${logDate.getFullYear().toString().slice(-2)}`;
-          
-          return {
-            id: log.id,
-            time: logDate.toLocaleTimeString('id-ID'),
-            date: formattedDate,
-            docType: log.kategori || "DOKUMEN LAIN",
-            docNumber: log.nomorDokumen || log.nomor_dokumen || "TIDAK TERDETEKSI",
-            receiver: log.receiver || "TIDAK ADA",
-            imageUrl: log.imagePath || log.image_path || "",
-            summary: log.summary || "",
-            status: "SUCCESS" as const
-          };
-        });
-        
-        setLogs(formattedLogs);
-      } catch (error) {
-        console.error("Error loading history:", error);
-      } finally {
-        // Loading screen duration: 1200ms (not too fast, not too slow)
-        setTimeout(() => setIsLoading(false), 1200);
-      }
-    };
-    
     loadData();
-  }, []);
+  }, [loadData]);
 
-  const handleFileSelect = useCallback((file: File) => {
-    setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImagePreview(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-  }, []);
+  const handleFileSelect = useCallback(async (file: File) => {
+    try {
+      const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
+      toast({ description: 'Mengompres gambar...' });
+      const compressedFile = await imageCompression(file, options);
+      setSelectedFile(compressedFile);
+      const reader = new FileReader();
+      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.readAsDataURL(compressedFile);
+      toast({ title: 'Sukses', description: 'Gambar siap diproses!' });
+    } catch (error) {
+      console.error('Image compression error:', error);
+      toast({ title: 'Error', description: 'Gagal mengompres gambar.', variant: 'destructive' });
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  }, [toast]);
 
   const handleClearImage = useCallback(() => {
     setSelectedFile(null);
     setImagePreview(null);
   }, []);
 
-  const handleCameraCapture = useCallback((file: File) => {
-    setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImagePreview(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-    toast({
-      title: "FOTO BERHASIL DIAMBIL",
-      description: "Foto siap untuk diproses",
-    });
+  const handleCameraCapture = useCallback(async (file: File) => {
+    try {
+      const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
+      toast({ description: 'Mengompres gambar...' });
+      const compressedFile = await imageCompression(file, options);
+      setSelectedFile(compressedFile);
+      const reader = new FileReader();
+      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.readAsDataURL(compressedFile);
+      toast({ title: 'Sukses', description: 'Foto berhasil diambil!' });
+    } catch (error) {
+      console.error('Camera compression error:', error);
+      toast({ title: 'Error', description: 'Gagal mengompres gambar.', variant: 'destructive' });
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
   }, [toast]);
 
   const handleSignatureChange = useCallback((signatureData: string | null) => {
     setSignature(signatureData);
     if (signatureData) {
-      toast({
-        title: "TANDA TANGAN TERSIMPAN",
-        description: "Tanda tangan berhasil dikonfirmasi",
-      });
+      toast({ title: "TANDA TANGAN TERSIMPAN" });
     }
   }, [toast]);
 
   const handleProcess = useCallback(async () => {
-    if (!imagePreview && !selectedFile) {
-      toast({
-        title: "ERROR: TIDAK ADA INPUT",
-        description: "Silakan upload file terlebih dahulu",
-        variant: "destructive",
-      });
-      return;
+    if (!imagePreview || !selectedFile) {
+      return toast({ title: "ERROR", description: "Silakan upload file terlebih dahulu", variant: "destructive" });
     }
-
     if (!receiver.trim()) {
-      toast({
-        title: "ERROR: PENERIMA KOSONG",
-        description: "Silakan isi nama penerima",
-        variant: "destructive",
-      });
-      return;
+      return toast({ title: "ERROR", description: "Silakan isi nama penerima", variant: "destructive" });
     }
 
     setIsProcessing(true);
-
     try {
-      // Get user credential token
-      const userStr = localStorage.getItem("user");
+      const userStr = sessionStorage.getItem("user");
       const user = userStr ? JSON.parse(userStr) : null;
       const token = user?.credential || "";
-
-      // Kirim file ke backend API
       const formData = new FormData();
-      formData.append("file", selectedFile!);
-      formData.append("receiver", receiver); // Kirim nama penerima
+      formData.append("file", selectedFile);
+      formData.append("receiver", receiver);
 
       const response = await fetch(`${API_URL}/scan`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`, // Kirim JWT token
-        },
+        headers: { "Authorization": `Bearer ${token}` },
         body: formData,
       });
 
       const result = await response.json();
-
       if (result.status === "success") {
-        // Gunakan data dari backend
-        const uploadDate = new Date(result.data.timestamp);
-        const formattedDate = `${uploadDate.getDate()}/${uploadDate.getMonth() + 1}/${uploadDate.getFullYear().toString().slice(-2)}`;
-        
-        const newLog = {
-          id: result.data.id,
-          time: uploadDate.toLocaleTimeString("id-ID"),
-          date: formattedDate,
-          docType: result.data.kategori || "DOKUMEN",
-          docNumber: result.data.nomorDokumen || result.data.nomor_dokumen || "TIDAK TERDETEKSI",
-          receiver: result.data.receiver || "TIDAK ADA",
-          imageUrl: result.data.imagePath || result.data.imageUrl || "",
-          summary: result.data.summary || "",
-          status: "SUCCESS" as const,
-        };
-
-        setLogs((prev) => [newLog, ...prev]);
-        
-        toast({
-          title: "PROSES SELESAI",
-          description: `Terdeteksi: ${result.data.kategori || "Dokumen"}`,
-        });
+        await loadData(); // Re-fetch all data to get the new log
+        toast({ title: "PROSES SELESAI", description: `Terdeteksi: ${result.data.kategori || "Dokumen"}` });
       } else {
         throw new Error(result.message || "Gagal memproses dokumen");
       }
     } catch (error) {
-      toast({
-        title: "ERROR",
-        description: error instanceof Error ? error.message : "Gagal terhubung ke backend",
-        variant: "destructive",
-      });
+      toast({ title: "ERROR", description: error instanceof Error ? error.message : "Gagal terhubung ke backend", variant: "destructive" });
     } finally {
       setIsProcessing(false);
       handleClearImage();
       setReceiver("");
       setSignature(null);
     }
-  }, [imagePreview, selectedFile, receiver, toast, handleClearImage]);
+  }, [imagePreview, selectedFile, receiver, toast, handleClearImage, API_URL, loadData]);
 
-  // Handle delete log
-  const handleDeleteLog = async (logId: number) => {
-    // Beautiful confirmation dialog
-    const confirmed = window.confirm(
-      "⚠️ HAPUS LOG INI?\n\n" +
-      "Data akan dihapus permanen dari database.\n" +
-      "Tindakan ini tidak dapat dibatalkan.\n\n" +
-      "Yakin ingin melanjutkan?"
-    );
-
-    if (!confirmed) return;
-
+  const handleUpdateLog = async (logId: number, newSummary: string) => {
     try {
-      const userStr = localStorage.getItem("user");
+      const userStr = sessionStorage.getItem("user");
       const user = userStr ? JSON.parse(userStr) : null;
       const token = user?.credential || "";
-
+      
+      console.log("UPDATE LOG - Sending request:", { logId, newSummary: newSummary.substring(0, 50) + "..." });
+      
       const response = await fetch(`${API_URL}/logs/${logId}`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ summary: newSummary }),
       });
 
       const result = await response.json();
+      console.log("UPDATE LOG - Server response:", result);
 
+      if (result.status === "success" && result.data) {
+        // Update state dengan data terbaru dari server
+        setLogs(currentLogs => {
+          const updatedLogs = [...currentLogs];
+          const indexToUpdate = updatedLogs.findIndex(log => log.id === logId);
+          if (indexToUpdate !== -1) {
+            updatedLogs[indexToUpdate] = {
+              ...updatedLogs[indexToUpdate],
+              summary: result.data.summary, // Pastikan menggunakan data dari server
+            };
+            console.log("UPDATE LOG - Updated log in state:", updatedLogs[indexToUpdate]);
+          }
+          return updatedLogs;
+        });
+
+        // Refresh data dari server untuk memastikan konsistensi
+        await loadData();
+        
+        toast({ title: "✅ BERHASIL DIPERBARUI" });
+      } else {
+        throw new Error(result.message || "Gagal memperbarui log");
+      }
+    } catch (error) {
+      toast({ title: "❌ ERROR", description: error instanceof Error ? error.message : "Gagal memperbarui log", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteLog = async (logId: number) => {
+    const confirmed = window.confirm("⚠️ HAPUS LOG INI?\n\nData akan dihapus permanen.");
+    if (!confirmed) return;
+
+    try {
+      const userStr = sessionStorage.getItem("user");
+      const user = userStr ? JSON.parse(userStr) : null;
+      const token = user?.credential || "";
+      const response = await fetch(`${API_URL}/logs/${logId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      const result = await response.json();
       if (result.status === "success") {
         setLogs((prev) => prev.filter((log) => log.id !== logId));
-        toast({
-          title: "✅ BERHASIL DIHAPUS",
-          description: "Log telah dihapus dari database",
-        });
+        toast({ title: "✅ BERHASIL DIHAPUS" });
       } else {
         throw new Error(result.message || "Gagal menghapus log");
       }
     } catch (error) {
-      toast({
-        title: "❌ ERROR",
-        description: error instanceof Error ? error.message : "Gagal menghapus log",
-        variant: "destructive",
-      });
+      toast({ title: "❌ ERROR", description: error instanceof Error ? error.message : "Gagal menghapus log", variant: "destructive" });
     }
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {isLoading ? (
-        // Loading Screen
         <div className="fixed inset-0 bg-background flex items-center justify-center z-50">
           <div className="text-center space-y-4">
             <BrutalSpinner size="lg" />
@@ -433,7 +407,12 @@ const Index = () => {
         </div>
 
         {/* Section 3: LOG HARIAN */}
-        <DataTable logs={logs} onDeleteLog={handleDeleteLog} />
+        <DataTable 
+          key={`logs-${logs.length}-${Date.now()}`} 
+          logs={logs} 
+          onDeleteLog={handleDeleteLog} 
+          onUpdateLog={handleUpdateLog} 
+        />
       </main>
 
       {/* Footer */}

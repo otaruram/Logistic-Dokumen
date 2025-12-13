@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Download, FileSpreadsheet, Search, Trash2, CloudUpload, ExternalLink } from "lucide-react";
+import { Download, FileSpreadsheet, Search, Trash2, CloudUpload, ExternalLink, Pencil, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Pagination,
@@ -28,17 +28,44 @@ export interface LogEntry {
 interface DataTableProps {
   logs: LogEntry[];
   onDeleteLog?: (logId: number) => void;
+  onUpdateLog?: (logId: number, newSummary: string) => void;
 }
 
 const ITEMS_PER_PAGE = 5;
 
-const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
+const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedYear, setSelectedYear] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const [newLogIds, setNewLogIds] = useState<Set<number>>(new Set());
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [isUploadingToDrive, setIsUploadingToDrive] = useState(false);
+  const [editingLogId, setEditingLogId] = useState<number | null>(null);
+  const [editingSummary, setEditingSummary] = useState("");
+  const [isBlurDelayed, setIsBlurDelayed] = useState(false);
   const prevLogsLength = useRef(logs.length);
+
+  // Debug logging untuk tracking props changes
+  React.useEffect(() => {
+    console.log("DataTable - Received logs prop:", logs.length, "items");
+    if (logs.length > 0) {
+      console.log("DataTable - First log summary:", logs[0].summary.substring(0, 50) + "...");
+    }
+  }, [logs]);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedYear, selectedMonth, selectedDate]);
+
+  // Helper function to format date for display
+  const formatDateForDisplay = (isoDate: string) => {
+    if (!isoDate || !isoDate.includes('-')) return isoDate; // Fallback
+    const [year, month, day] = isoDate.split('-');
+    return `${day}/${month}/${year.slice(-2)}`;
+  };
 
   // Detect new log entries
   useEffect(() => {
@@ -72,29 +99,73 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
 
   // Filter logs based on search query
   const filteredLogs = useMemo(() => {
-    if (!searchQuery.trim()) return logs;
-    const query = searchQuery.toLowerCase();
-    return logs.filter(
-      (log) =>
+    return logs.filter((log) => {
+      const query = searchQuery.toLowerCase();
+      const searchMatch =
+        !searchQuery.trim() ||
         log.docType.toLowerCase().includes(query) ||
         log.docNumber.toLowerCase().includes(query) ||
         log.receiver.toLowerCase().includes(query) ||
-        log.summary.toLowerCase().includes(query)
-    );
-  }, [logs, searchQuery]);
+        log.summary.toLowerCase().includes(query);
+
+      // Date filtering logic
+      const hasDateFilter = selectedYear || selectedMonth || selectedDate;
+      if (hasDateFilter) {
+        // If a date filter is active, the log must have a valid date to be considered.
+        if (!log.date || typeof log.date !== 'string' || !log.date.includes('-')) {
+          return false;
+        }
+
+        const [logYear, logMonth, logDay] = log.date.split('-').map(Number);
+
+        const yearMatch = selectedYear ? logYear === parseInt(selectedYear, 10) : true;
+        const monthMatch = selectedMonth ? logMonth === parseInt(selectedMonth, 10) : true;
+        const dateMatch = selectedDate ? logDay === parseInt(selectedDate, 10) : true;
+
+        // Return true only if it matches the search query AND all active date filters.
+        return searchMatch && yearMatch && monthMatch && dateMatch;
+      }
+
+      // If no date filters are active, just return the result of the text search.
+      return searchMatch;
+    });
+  }, [logs, searchQuery, selectedYear, selectedMonth, selectedDate]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredLogs.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedLogs = filteredLogs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  // Reset to page 1 when search changes
+  // Handle search input changes
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    setCurrentPage(1);
   };
 
-   // Handler untuk Upload GDrive
+  const handleStartEditing = (log: LogEntry) => {
+    setEditingLogId(log.id);
+    setEditingSummary(log.summary);
+  };
+
+  const handleCancelEditing = () => {
+    setEditingLogId(null);
+    setEditingSummary("");
+  };
+
+  const handleSaveEditing = async () => {
+    if (editingLogId === null || !onUpdateLog) return;
+    
+    console.log("DataTable - Saving edit:", { editingLogId, editingSummary: editingSummary.substring(0, 50) + "..." });
+    
+    try {
+      await onUpdateLog(editingLogId, editingSummary);
+      setEditingLogId(null);
+      setEditingSummary("");
+    } catch (error) {
+      console.error("DataTable - Save edit failed:", error);
+    }
+  };
+
+  // Handler untuk Upload GDrive
   const handleUploadGDrive = async () => {
     if (logs.length === 0) {
       toast.error("Tidak ada data untuk di-upload!");
@@ -105,8 +176,8 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
       setIsUploadingToDrive(true);
       toast.info("Mengupload ke Google Drive...");
 
-      // Get token from localStorage
-      const userStr = localStorage.getItem("user");
+      // Get token from sessionStorage
+      const userStr = sessionStorage.getItem("user");
       const user = userStr ? JSON.parse(userStr) : null;
       const token = user?.driveToken || user?.credential || "";
 
@@ -269,15 +340,52 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
           </div>
 
           {/* Search Input */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="CARI TIPE DOKUMEN ATAU NOMOR SURAT..."
-              className="w-full pl-10 pr-4 py-2 bg-background text-foreground text-xs md:text-sm border-2 border-background focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground"
-            />
+          <div className="flex flex-col md:flex-row gap-2">
+            {/* Search Input */}
+            <div className="relative flex-grow">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="CARI TIPE DOKUMEN ATAU NOMOR SURAT..."
+                className="w-full pl-10 pr-4 py-2 bg-background text-foreground text-xs md:text-sm border-2 border-background focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground"
+              />
+            </div>
+
+            {/* Date Filters */}
+            <div className="flex gap-2">
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="w-full md:w-auto px-3 py-2 bg-background text-foreground text-xs md:text-sm border-2 border-background focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">Tahun</option>
+                {Array.from({ length: 11 }, (_, i) => 2020 + i).map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="w-full md:w-auto px-3 py-2 bg-background text-foreground text-xs md:text-sm border-2 border-background focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">Bulan</option>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                  <option key={month} value={month}>{month}</option>
+                ))}
+              </select>
+              <select
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full md:w-auto px-3 py-2 bg-background text-foreground text-xs md:text-sm border-2 border-background focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">Tanggal</option>
+                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                  <option key={day} value={day}>{day}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -332,7 +440,7 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
                       {startIndex + index + 1}
                     </td>
                     <td className="brutal-border-thin border-l-0 px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm font-mono">
-                      {log.date}
+                      {formatDateForDisplay(log.date)}
                     </td>
                     <td className="brutal-border-thin border-l-0 px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm font-bold uppercase">
                       {log.receiver}
@@ -350,7 +458,39 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
                       )}
                     </td>
                     <td className="brutal-border-thin border-l-0 px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm">
-                      {log.summary}
+                      {editingLogId === log.id ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={editingSummary}
+                            onChange={(e) => setEditingSummary(e.target.value)}
+                            autoFocus
+                            className="w-full p-1 bg-background text-foreground border-2 border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                            rows={3}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleSaveEditing}
+                              className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={handleCancelEditing}
+                              className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div 
+                          onClick={() => handleStartEditing(log)}
+                          className="cursor-pointer hover:bg-gray-100 p-1 rounded"
+                          title="Klik untuk edit"
+                        >
+                          {log.summary}
+                        </div>
+                      )}
                     </td>
                     <td className="brutal-border-thin border-l-0 border-r-0 px-2 md:px-4 py-2 md:py-3">
                       <span
@@ -363,7 +503,32 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
                       </span>
                     </td>
                     <td className="brutal-border-thin border-l-0 border-r-0 px-2 md:px-4 py-2 md:py-3 text-center">
-                      {onDeleteLog && (
+                      {editingLogId === log.id ? (
+                        <div className="flex items-center justify-center gap-2">
+                           <Button
+                            onClick={handleSaveEditing}
+                            variant="outline"
+                            size="sm"
+                            className="brutal-btn brutal-press h-7 px-2 hover:bg-green-500 hover:text-white hover:border-green-600 transition-colors"
+                            title="Simpan perubahan"
+                          >
+                            <Save className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-2">
+                          {onUpdateLog && (
+                            <Button
+                              onClick={() => handleStartEditing(log)}
+                              variant="outline"
+                              size="sm"
+                              className="brutal-btn brutal-press h-7 px-2 hover:bg-yellow-500 hover:text-white hover:border-yellow-600 transition-colors"
+                              title="Edit log ini"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                          )}
+                          {onDeleteLog && (
                         <Button
                           onClick={() => onDeleteLog(log.id)}
                           variant="outline"
@@ -373,6 +538,8 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
+                      )}
+                        </div>
                       )}
                     </td>
                   </tr>
