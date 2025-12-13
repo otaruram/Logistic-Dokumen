@@ -1,11 +1,20 @@
 import { useGoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 
 export default function Login() {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    const isAuthenticated = sessionStorage.getItem('isAuthenticated') === 'true';
+    if (isAuthenticated) {
+      toast.info('Anda sudah login');
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
 
   // Google Login dengan Drive scope
   const loginWithDrive = useGoogleLogin({
@@ -25,8 +34,8 @@ export default function Login() {
           driveToken: tokenResponse.access_token, // Explicitly save for Drive
         };
 
-        localStorage.setItem('user', JSON.stringify(user));
-        localStorage.setItem('isAuthenticated', 'true');
+        sessionStorage.setItem('user', JSON.stringify(user));
+        sessionStorage.setItem('isAuthenticated', 'true');
         navigate('/');
       } catch (error) {
         console.error('Login failed:', error);

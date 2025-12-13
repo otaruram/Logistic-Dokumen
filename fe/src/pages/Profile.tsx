@@ -26,35 +26,21 @@ export default function Profile() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    // Get user from localStorage
-    const userStr = localStorage.getItem('user');
+    const userStr = sessionStorage.getItem('user');
     if (userStr) {
       const userData = JSON.parse(userStr);
       setUser(userData);
+      fetchUserStats(userData.credential || userData.driveToken || '');
     }
-
-    // Fetch user statistics initially
-    fetchUserStats();
-
-    // Auto-refresh stats every 5 seconds for real-time updates
-    const interval = setInterval(() => {
-      fetchUserStats();
-    }, 5000);
-
-    // Cleanup interval on unmount
-    return () => clearInterval(interval);
+    // NOTE: Auto-refresh was disabled to prevent data sync issues.
   }, []);
 
-  const fetchUserStats = async () => {
+  const fetchUserStats = async (token: string) => {
+    if (!token) {
+      console.log('No token available for stats fetch');
+      return;
+    }
     try {
-      const userStr = localStorage.getItem('user');
-      const userData = userStr ? JSON.parse(userStr) : null;
-      const token = userData?.credential || userData?.driveToken || '';
-
-      if (!token) {
-        console.log('No token available');
-        return;
-      }
 
       const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
@@ -70,8 +56,8 @@ export default function Profile() {
           // Token expired, redirect to login
           console.log('Token expired, please login again');
           toast.error('Sesi berakhir, silakan login ulang');
-          localStorage.removeItem('user');
-          localStorage.removeItem('isAuthenticated');
+          sessionStorage.removeItem('user');
+          sessionStorage.removeItem('isAuthenticated');
           setTimeout(() => navigate('/login'), 2000);
           return;
         }
@@ -119,7 +105,7 @@ export default function Profile() {
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     try {
-      const userStr = localStorage.getItem('user');
+      const userStr = sessionStorage.getItem('user');
       const userData = userStr ? JSON.parse(userStr) : null;
       const token = userData?.credential || userData?.driveToken || '';
 
@@ -135,8 +121,8 @@ export default function Profile() {
 
       if (response.ok) {
         toast.success('Akun berhasil dihapus');
-        localStorage.removeItem('user');
-        localStorage.removeItem('isAuthenticated');
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('isAuthenticated');
         navigate('/landing');
       } else {
         const error = await response.json();

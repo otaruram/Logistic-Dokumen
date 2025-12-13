@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Key, Info, Github, Linkedin, Trash2, Edit } from 'lucide-react';
+import { encryptData } from '@/lib/secure-storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,8 +44,8 @@ export default function Settings() {
   const [loadingOcr, setLoadingOcr] = useState(false);
 
   useEffect(() => {
-    // Load theme from localStorage
-    const savedTheme = localStorage.getItem('theme');
+    // Load theme from sessionStorage
+    const savedTheme = sessionStorage.getItem('theme');
     setIsDarkMode(savedTheme === 'dark');
 
     // Apply theme to body
@@ -59,7 +60,7 @@ export default function Settings() {
 
   const fetchApiKey = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('user') || '{}');
       const token = user.credential;
       
       if (!token) {
@@ -80,7 +81,10 @@ export default function Settings() {
         // Only update if we got valid data
         if (data.hasApiKey) {
           setHasApiKey(true);
-          setMaskedApiKey(data.apiKey);
+          // The backend now sends the full encrypted key. We mask it on the client.
+          const encryptedKey = data.apiKey;
+          const masked = encryptedKey.substring(0, 8) + "..." + encryptedKey.substring(encryptedKey.length - 4);
+          setMaskedApiKey(masked);
           setProvider(data.provider);
           setUseOwnKey(data.isActive); // Use isActive from backend
         } else {
@@ -98,7 +102,7 @@ export default function Settings() {
 
   const fetchOcrApiKey = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('user') || '{}');
       const token = user.credential;
       
       if (!token) {
@@ -118,7 +122,9 @@ export default function Settings() {
         
         if (data.hasApiKey) {
           setHasOcrApiKey(true);
-          setMaskedOcrApiKey(data.apiKey);
+          const encryptedOcrKey = data.apiKey;
+          const maskedOcr = encryptedOcrKey.substring(0, 8) + "..." + encryptedOcrKey.substring(encryptedOcrKey.length - 4);
+          setMaskedOcrApiKey(maskedOcr);
           setUseOwnOcrKey(data.isActive);
         } else {
           setHasOcrApiKey(false);
@@ -138,10 +144,10 @@ export default function Settings() {
 
     if (newTheme) {
       document.body.classList.add('dark-mode');
-      localStorage.setItem('theme', 'dark');
+      sessionStorage.setItem('theme', 'dark');
     } else {
       document.body.classList.remove('dark-mode');
-      localStorage.setItem('theme', 'light');
+      sessionStorage.setItem('theme', 'light');
     }
 
     toast.success(`Tema berhasil diubah ke ${newTheme ? 'Dark' : 'Light'} Mode`);
@@ -159,7 +165,7 @@ export default function Settings() {
     }
 
     // Get token from user object
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     const token = user.credential;
     
     if (!token) {
@@ -177,7 +183,7 @@ export default function Settings() {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          apiKey: apiKey,
+          apiKey: encryptData(apiKey, user.email), // Encrypt with user-specific key
           provider: provider,
         }),
       });
@@ -214,7 +220,7 @@ export default function Settings() {
   const deleteApiKey = async () => {
     setLoading(true);
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('user') || '{}');
       const token = user.credential;
       
       const response = await fetch(`${API_BASE_URL}/api/user/apikey`, {
@@ -257,7 +263,7 @@ export default function Settings() {
     // If user has API key, update backend isActive status
     if (hasApiKey) {
       try {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const user = JSON.parse(sessionStorage.getItem('user') || '{}');
         const token = user.credential;
         
         const response = await fetch(`${API_BASE_URL}/api/user/apikey/toggle?isActive=${checked}`, {
@@ -299,7 +305,7 @@ export default function Settings() {
       return;
     }
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     const token = user.credential;
     
     if (!token) {
@@ -317,7 +323,7 @@ export default function Settings() {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          apiKey: ocrApiKey,
+          apiKey: encryptData(ocrApiKey, user.email), // Encrypt with user-specific key
           provider: 'ocrspace',
         }),
       });
@@ -348,7 +354,7 @@ export default function Settings() {
   const deleteOcrApiKey = async () => {
     setLoadingOcr(true);
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('user') || '{}');
       const token = user.credential;
       
       const response = await fetch(`${API_BASE_URL}/api/user/apikey?provider=ocrspace`, {
@@ -387,7 +393,7 @@ export default function Settings() {
     
     if (hasOcrApiKey) {
       try {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const user = JSON.parse(sessionStorage.getItem('user') || '{}');
         const token = user.credential;
         
         const response = await fetch(`${API_BASE_URL}/api/user/apikey/toggle?isActive=${checked}&provider=ocrspace`, {

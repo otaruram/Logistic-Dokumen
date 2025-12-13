@@ -1,0 +1,59 @@
+// Prisma schema untuk fitur Pricing & Subscription
+// File: be/prisma/pricing_schema.prisma (for reference)
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  
+  // Status Paket
+  planType           PlanType @default(STARTER) @map("plan_type")
+  subscriptionEndDate DateTime? @map("subscription_end_date")
+  
+  // Dompet Credit
+  creditBalance Int @default(10) @map("credit_balance")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  scanHistory       ScanHistory[]
+  creditTransactions CreditTransaction[]
+  
+  @@map("users_pricing")
+}
+
+model ScanHistory {
+  id       Int  @id @default(autoincrement())
+  userId   Int  @map("user_id")
+  user     User @relation(fields: [userId], references: [id])
+  
+  // Hasil Data (Teks selalu aman)
+  extractedText String? @map("extracted_text") @db.Text
+  jsonData      Json?   @map("json_data") // {qty: 10, item: "Baut"}
+  
+  // File Foto (Bisa kadaluarsa)
+  imagePath       String?  @map("image_path")
+  isImageExpired  Boolean  @default(false) @map("is_image_expired")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@map("scan_history")
+}
+
+model CreditTransaction {
+  id          Int    @id @default(autoincrement())
+  userId      Int    @map("user_id")
+  user        User   @relation(fields: [userId], references: [id])
+  amount      Int    // -1 (scan), +50 (topup)
+  description String @db.VarChar(100) // "Top Up Paket Hemat", "Scan Invoice #99"
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@map("credit_transactions")
+}
+
+enum PlanType {
+  STARTER
+  PRO
+}

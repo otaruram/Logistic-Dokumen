@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Upload, FileText, Send, Bot, User as UserIcon, RefreshCw } from "lucide-react";
+import { decryptData } from "@/lib/secure-storage";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -19,6 +20,7 @@ const Gaskeun = () => {
   const [inputMessage, setInputMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [usingBYOK, setUsingBYOK] = useState(false);
+  const [encryptedApiKey, setEncryptedApiKey] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -30,7 +32,7 @@ const Gaskeun = () => {
 
   // Get JWT token
   const getAuthToken = () => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     return user.credential || '';
   };
 
@@ -43,8 +45,7 @@ const Gaskeun = () => {
   useEffect(() => {
     const checkBYOKStatus = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const token = user.credential;
+        const token = getAuthToken();
         if (!token) return;
 
         const response = await fetch(`${API_URL}/api/user/apikey`, {
@@ -53,7 +54,13 @@ const Gaskeun = () => {
 
         if (response.ok) {
           const data = await response.json();
-          setUsingBYOK(data.hasApiKey);
+          if (data.hasApiKey && data.isActive) {
+            setUsingBYOK(true);
+            setEncryptedApiKey(data.apiKey); // This is the encrypted key from backend
+          } else {
+            setUsingBYOK(false);
+            setEncryptedApiKey("");
+          }
         }
       } catch (error) {
         console.error('Error checking BYOK status:', error);
@@ -118,14 +125,8 @@ const Gaskeun = () => {
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
-    if (!pdfText) {
-      toast({
-        title: "⚠️ PERINGATAN",
-        description: "Upload PDF dulu sebelum chat!",
-        variant: "destructive",
-      });
-      return;
-    }
+    // The logic is now simplified. The button's disabled state handles all checks.
+    // No need for a toast here anymore.
 
     // Add user message
     const userMessage: Message = { role: "user", content: inputMessage };
@@ -134,13 +135,23 @@ const Gaskeun = () => {
     setIsProcessing(true);
 
     try {
-      // Call backend chat API (backend will auto-fetch user's BYOK from database)
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getAuthToken()}`
+      };
+
+      // If BYOK is active, decrypt the key and send it in the header
+      if (usingBYOK && encryptedApiKey) {
+        const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+        const decryptedKey = decryptData(encryptedApiKey, user.email);
+        if (decryptedKey) {
+          headers['X-User-API-Key'] = decryptedKey;
+        }
+      }
+
       const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`
-        },
+        headers: headers,
         body: JSON.stringify({
           messages: [...messages, userMessage],
           pdfText: pdfText
@@ -299,11 +310,11 @@ const Gaskeun = () => {
             placeholder="Tanya OKi tentang PDF kamu..."
             className="brutal-input resize-none"
             rows={2}
-            disabled={!pdfText || isProcessing}
+            disabled={isProcessing}
           />
           <Button
             onClick={handleSendMessage}
-            disabled={!inputMessage.trim() || !pdfText || isProcessing}
+            disabled={!inputMessage.trim() || isProcessing}
             className="brutal-btn brutal-press self-end"
           >
             <Send className="w-4 h-4" />
