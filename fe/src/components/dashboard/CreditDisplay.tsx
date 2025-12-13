@@ -16,10 +16,7 @@ interface CreditInfo {
 }
 
 const CreditDisplay = () => {
-  const [creditInfo, setCreditInfo] = useState<CreditInfo>({
-    remainingCredits: 3,
-    userTier: 'starter'
-  });
+  const [creditInfo, setCreditInfo] = useState<CreditInfo | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Fetch credits from API (fallback/initial load)
@@ -55,10 +52,10 @@ const CreditDisplay = () => {
   };
 
   useEffect(() => {
-    // 1. Initial Load
+    // 1. Initial Load - immediately fetch on mount
     fetchCreditInfo();
 
-    // 2. Polling ringan (30 detik)
+    // 2. Polling ringan (30 detik) 
     const interval = setInterval(fetchCreditInfo, 30000);
 
     // 3. ⚡ REALTIME LISTENER - Key part!
@@ -66,11 +63,12 @@ const CreditDisplay = () => {
       console.log('⚡ Realtime credit update received:', event.detail);
       
       if (event.detail && typeof event.detail.remainingCredits === 'number') {
-        console.log(`💳 Credit updated: ${creditInfo.remainingCredits} → ${event.detail.remainingCredits}`);
+        console.log(`💳 Credit updated: ${creditInfo?.remainingCredits || '...'} → ${event.detail.remainingCredits}`);
         
         setCreditInfo(prev => ({
           ...prev,
-          remainingCredits: event.detail.remainingCredits
+          remainingCredits: event.detail.remainingCredits,
+          userTier: prev?.userTier || 'starter'
         }));
         
         // Visual feedback
@@ -93,21 +91,41 @@ const CreditDisplay = () => {
       window.removeEventListener('scanComplete', handleRealtimeUpdate);
       window.removeEventListener('refreshCredits', fetchCreditInfo);
     };
-  }, []);
+  }, []); // Empty dependency array for immediate mount effect
 
   // Visual Logic
   const getCreditColor = () => {
+    if (!creditInfo) return 'text-gray-400';
     if (creditInfo.remainingCredits <= 0) return 'text-red-600';
     if (creditInfo.remainingCredits <= 1) return 'text-orange-500';
     return 'text-green-600';
   };
 
   const getCreditIcon = () => {
+    if (!creditInfo) {
+      return <Coins className="w-4 h-4 text-gray-400 animate-pulse" />;
+    }
     if (creditInfo.userTier === 'PRO') {
       return <Sparkles className="w-4 h-4 text-yellow-500" />;
     }
     return <Coins className="w-4 h-4 text-blue-500" />;
   };
+
+  // Show loading state if credit info not loaded yet
+  if (!creditInfo) {
+    return (
+      <Button
+        variant="outline"
+        className="brutal-border-thin px-3 py-2 bg-background flex items-center gap-2"
+        disabled
+      >
+        <Coins className="w-4 h-4 text-gray-400 animate-pulse" />
+        <span className="font-bold text-sm text-gray-400 tabular-nums">
+          ...
+        </span>
+      </Button>
+    );
+  }
 
   return (
     <DropdownMenu>
