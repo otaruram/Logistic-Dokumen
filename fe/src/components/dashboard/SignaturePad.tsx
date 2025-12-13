@@ -15,7 +15,7 @@ const SignaturePad = ({ onSignatureChange }: SignaturePadProps) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
-    // Check initial theme
+    // Check initial theme and setup theme observer
     const checkTheme = () => {
       const isDark = document.documentElement.classList.contains('dark');
       setIsDarkMode(isDark);
@@ -29,27 +29,11 @@ const SignaturePad = ({ onSignatureChange }: SignaturePadProps) => {
       attributes: true,
       attributeFilter: ['class']
     });
-    
+
     return () => observer.disconnect();
   }, []);
-  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
-    // Check initial theme
-    const checkTheme = () => {
-      const isDark = document.documentElement.classList.contains('dark');
-      setIsDarkMode(isDark);
-    };
-    
-    checkTheme();
-    
-    // Listen for theme changes
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, { 
-      attributes: true, 
-      attributeFilter: ['class'] 
-    });
-
     const updateSize = () => {
       if (containerRef.current) {
         const width = containerRef.current.offsetWidth - 4; // Account for border
@@ -59,11 +43,7 @@ const SignaturePad = ({ onSignatureChange }: SignaturePadProps) => {
 
     updateSize();
     window.addEventListener("resize", updateSize);
-    
-    return () => {
-      window.removeEventListener("resize", updateSize);
-      observer.disconnect();
-    };
+    return () => window.removeEventListener("resize", updateSize);
   }, []);
 
   const handleClear = () => {

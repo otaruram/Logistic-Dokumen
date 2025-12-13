@@ -10,6 +10,7 @@ import DataTable from "@/components/dashboard/DataTable";
 import BrutalSpinner from "@/components/dashboard/BrutalSpinner";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { triggerCreditUsage, showCreditWarning } from "@/lib/credit-utils";
 
 // Typewriter Animation Component
@@ -297,10 +298,11 @@ const Index = () => {
             title: "KREDIT TIDAK CUKUP", 
             description: "Upgrade akun Anda untuk melanjutkan scanning", 
             variant: "destructive",
-            action: {
-              altText: "Upgrade",
-              onClick: () => navigate('/pricing')
-            }
+            action: (
+              <ToastAction onClick={() => navigate('/pricing')}>
+                Upgrade
+              </ToastAction>
+            )
           });
           return;
         }
@@ -402,9 +404,6 @@ const Index = () => {
         onLogout={handleLogout} 
         onProfile={handleProfile} 
         onSettings={handleSettings}
-        onUpgrade={handleUpgrade}
-        onViewUsage={handleViewUsage}
-        onCekThisOut={handleCekThisOut}
       />
 
       <main className="container mx-auto px-3 md:px-4 py-4 md:py-6 flex-1">
