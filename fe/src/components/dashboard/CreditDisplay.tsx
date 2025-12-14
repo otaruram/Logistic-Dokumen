@@ -29,7 +29,7 @@ const CreditDisplay = () => {
       const token = user.credential || user.driveToken || user.access_token;
       if (!token) return;
       
-      const baseURL = import.meta.env.VITE_API_URL || window.location.origin;
+      const baseURL = import.meta.env.VITE_API_URL || 'https://api-ocr.xyz';
       const apiURL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
       
       const response = await fetch(`${apiURL}/api/pricing/user/credits`, {

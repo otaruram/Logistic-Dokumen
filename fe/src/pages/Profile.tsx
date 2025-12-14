@@ -42,7 +42,7 @@ export default function Profile() {
     }
     try {
 
-      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const baseURL = import.meta.env.VITE_API_URL || 'https://api-ocr.xyz';
       const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
 
       const response = await fetch(`${API_URL}/history`, {
@@ -109,7 +109,7 @@ export default function Profile() {
       const userData = userStr ? JSON.parse(userStr) : null;
       const token = userData?.credential || userData?.driveToken || '';
 
-      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const baseURL = import.meta.env.VITE_API_URL || 'https://api-ocr.xyz';
       const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
 
       const response = await fetch(`${API_URL}/delete-account`, {

@@ -28,11 +28,11 @@ const Gaskeun = () => {
   const { toast } = useToast();
 
   // API URL configuration
-  const baseURL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const baseURL = import.meta.env.VITE_API_URL || "https://api-ocr.xyz";
   const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
 
   // Get JWT token
-  const getAccessToken = () => {
+  const getAuthToken = () => {
     const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     return user.credential || user.access_token || '';
   };

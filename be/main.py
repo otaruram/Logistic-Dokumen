@@ -326,12 +326,24 @@ allowed_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
-    "http://127.0.0.1:8080", 
+    "http://127.0.0.1:8080",
     "https://ocrai.vercel.app",
     "https://ocr.wtf",
     "https://www.ocr.wtf",
-    "*"  # Fallback for development
+    "https://api-ocr.xyz",
+    "http://api-ocr.xyz",
+    "https://files.ocr.wtf",
+    "https://logistic-dokumen.onrender.com",
+    "*"
 ]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -343,6 +355,14 @@ app.add_middleware(
 
 # Include pricing endpoints
 app.include_router(pricing_router, prefix="/api/pricing", tags=["pricing"])
+
+# Import Cloudflare service
+try:
+    from cloudflare_service import cloudflare_service
+    print("✅ Cloudflare service loaded successfully")
+except ImportError as e:
+    print(f"⚠️ Cloudflare service not available: {e}")
+    cloudflare_service = None
 
 # --- HELPER: DECODE JWT TOKEN OR GET EMAIL FROM GOOGLE API ---
 def get_user_email_from_token(authorization: str = Header(None)) -> str:
@@ -570,6 +590,16 @@ def generate_basic_summary(text: str) -> str:
         return "Error dalam membuat ringkasan"
 
 # --- ENDPOINTS ---
+
+# Health Check untuk Frontend Failover System
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "server": "VPS-Primary", 
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0"
+    }
 
 @app.get("/")
 def home():
@@ -1696,4 +1726,314 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
+# ==============================
+# CLOUDFLARE CDN ENDPOINTS
+# ==============================
 
+@app.post("/api/cloudflare/upload")
+async def upload_to_cloudflare(
+    file: UploadFile = File(...),
+    authorization: str = Header(None)
+):
+    """Upload file to Cloudflare R2 Storage"""
+    if not cloudflare_service or not getattr(cloudflare_service, 'enabled', False):
+        raise HTTPException(status_code=503, detail="Cloudflare service not available")
+    
+    try:
+        # Verify user authentication
+        user_email = get_user_email_from_token(authorization)
+        
+        # Read file content
+        file_content = await file.read()
+        
+        # Upload to Cloudflare R2
+        result = cloudflare_service.upload_to_r2(
+            file_content=file_content,
+            file_name=file.filename,
+            bucket_name="logistic-files"
+        )
+        
+        if result["status"] == "success":
+            # Log the upload
+            await prisma.log.create(
+                data={
+                    "email": user_email,
+                    "timestamp": datetime.now(),
+                    "receiver": "Cloudflare CDN",
+                    "scannedText": f"File uploaded: {file.filename}",
+                    "signature": None,
+                    "fileUrl": result["file_url"]
+                }
+            )
+            
+            return {
+                "status": "success",
+                "message": "File uploaded to Cloudflare CDN successfully",
+                "data": result
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result["message"])
+            
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Cloudflare upload error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+@app.delete("/api/cloudflare/delete/{file_name}")
+async def delete_from_cloudflare(
+    file_name: str,
+    authorization: str = Header(None)
+):
+    """Delete file from Cloudflare R2"""
+    if not cloudflare_service:
+        raise HTTPException(status_code=503, detail="Cloudflare service not available")
+    
+    try:
+        # Verify user authentication
+        user_email = get_user_email_from_token(authorization)
+        
+        result = await cloudflare_service.delete_from_r2(file_name)
+        
+        return {
+            "status": "success" if result["status"] == "success" else "error",
+            "message": result["message"]
+        }
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Cloudflare delete error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Delete failed: {str(e)}")
+
+@app.post("/api/cloudflare/purge-cache")
+async def purge_cloudflare_cache(
+    urls: list,
+    authorization: str = Header(None)
+):
+    """Purge Cloudflare cache for specific URLs"""
+    if not cloudflare_service:
+        raise HTTPException(status_code=503, detail="Cloudflare service not available")
+    
+    try:
+        # Verify user authentication (admin only)
+        user_email = get_user_email_from_token(authorization)
+        
+        result = await cloudflare_service.purge_cache(urls)
+        
+        return {
+            "status": result["status"],
+            "message": result["message"]
+        }
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Cache purge error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Cache purge failed: {str(e)}")
+
+@app.get("/api/cloudflare/analytics")
+async def get_cloudflare_analytics(authorization: str = Header(None)):
+    """Get Cloudflare analytics data"""
+    if not cloudflare_service:
+        raise HTTPException(status_code=503, detail="Cloudflare service not available")
+    
+    try:
+        # Verify user authentication
+        user_email = get_user_email_from_token(authorization)
+        
+        result = await cloudflare_service.get_analytics()
+        
+        return result
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Analytics error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Analytics failed: {str(e)}")
+
+@app.get("/api/cloudflare/dns-status")
+async def get_dns_status(authorization: str = Header(None)):
+    """Check DNS nameserver status and get fix instructions"""
+    if not cloudflare_service:
+        raise HTTPException(status_code=503, detail="Cloudflare service not available")
+    
+    try:
+        # Verify user authentication
+        user_email = get_user_email_from_token(authorization)
+        
+        result = cloudflare_service.check_dns_status()
+        
+        return result
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"DNS status error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"DNS check failed: {str(e)}")
+
+@app.get("/api/cloudflare/nameservers")
+async def get_nameservers(authorization: str = Header(None)):
+    """Get Cloudflare nameservers for domain setup"""
+    if not cloudflare_service:
+        raise HTTPException(status_code=503, detail="Cloudflare service not available")
+    
+    try:
+        # Verify user authentication
+        user_email = get_user_email_from_token(authorization)
+        
+        result = cloudflare_service.get_nameservers()
+        
+        return result
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Nameserver error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Nameserver fetch failed: {str(e)}")
+
+@app.post("/api/cloudflare/setup-dns")
+async def setup_dns_records(authorization: str = Header(None)):
+    """Setup all required DNS records automatically"""
+    if not cloudflare_service:
+        raise HTTPException(status_code=503, detail="Cloudflare service not available")
+    
+    try:
+        # Verify user authentication (admin only)
+        user_email = get_user_email_from_token(authorization)
+        
+        result = cloudflare_service.setup_required_dns()
+        
+        return result
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"DNS setup error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"DNS setup failed: {str(e)}")
+
+@app.post("/api/cloudflare/create-dns")
+async def create_dns_record(
+    record_type: str,
+    name: str,
+    content: str,
+    ttl: int = 1,
+    authorization: str = Header(None)
+):
+    """Create individual DNS record"""
+    if not cloudflare_service:
+        raise HTTPException(status_code=503, detail="Cloudflare service not available")
+    
+    try:
+        # Verify user authentication
+        user_email = get_user_email_from_token(authorization)
+        
+        result = cloudflare_service.create_dns_record(record_type, name, content, ttl)
+        
+        return result
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"DNS creation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"DNS creation failed: {str(e)}")
+
+@app.post("/api/cloudflare/setup-ssl")
+async def setup_ssl_settings(authorization: str = Header(None)):
+    """Configure SSL/TLS settings for domain"""
+    if not cloudflare_service:
+        raise HTTPException(status_code=503, detail="Cloudflare service not available")
+    
+    try:
+        # Verify user authentication (admin only)
+        user_email = get_user_email_from_token(authorization)
+        
+        result = cloudflare_service.setup_ssl_settings()
+        
+        return result
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"SSL setup error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"SSL setup failed: {str(e)}")
+
+@app.post("/api/cloudflare/setup-page-rules")
+async def setup_page_rules(authorization: str = Header(None)):
+    """Setup page rules for caching and performance"""
+    if not cloudflare_service:
+        raise HTTPException(status_code=503, detail="Cloudflare service not available")
+    
+    try:
+        # Verify user authentication (admin only)
+        user_email = get_user_email_from_token(authorization)
+        
+        result = cloudflare_service.setup_page_rules()
+        
+        return result
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Page rules error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Page rules setup failed: {str(e)}")
+
+@app.post("/api/cloudflare/setup-caching")
+async def setup_caching_settings(authorization: str = Header(None)):
+    """Configure caching settings"""
+    if not cloudflare_service:
+        raise HTTPException(status_code=503, detail="Cloudflare service not available")
+    
+    try:
+        # Verify user authentication (admin only)
+        user_email = get_user_email_from_token(authorization)
+        
+        result = cloudflare_service.setup_caching_settings()
+        
+        return result
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Caching setup error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Caching setup failed: {str(e)}")
+
+@app.post("/api/cloudflare/setup-r2")
+async def setup_r2_storage(bucket_name: str = "logistic-files", authorization: str = Header(None)):
+    """Setup R2 storage bucket with CDN"""
+    if not cloudflare_service:
+        raise HTTPException(status_code=503, detail="Cloudflare service not available")
+    
+    try:
+        # Verify user authentication (admin only)
+        user_email = get_user_email_from_token(authorization)
+        
+        result = cloudflare_service.setup_r2_bucket(bucket_name)
+        
+        return result
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"R2 setup error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"R2 setup failed: {str(e)}")
+
+@app.get("/api/cloudflare/r2-usage")
+async def get_r2_usage(bucket_name: str = "logistic-files", authorization: str = Header(None)):
+    """Get R2 storage usage statistics"""
+    if not cloudflare_service:
+        raise HTTPException(status_code=503, detail="Cloudflare service not available")
+    
+    try:
+        # Verify user authentication
+        user_email = get_user_email_from_token(authorization)
+        
+        result = cloudflare_service.get_r2_usage(bucket_name)
+        
+        return result
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"R2 usage error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"R2 usage failed: {str(e)}")
