@@ -27,10 +27,6 @@ const Gaskeun = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // API URL configuration
-  const baseURL = import.meta.env.VITE_API_URL || "https://api-ocr.xyz";
-  const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
-
   // Get JWT token
   const getAuthToken = () => {
     const user = JSON.parse(sessionStorage.getItem('user') || '{}');
@@ -63,7 +59,7 @@ const Gaskeun = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(`${API_URL}/api/extract-pdf`, {
+      const response = await apiFetch('/api/extract-pdf', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${getAuthToken()}`
@@ -113,7 +109,7 @@ const Gaskeun = () => {
         'Authorization': `Bearer ${getAuthToken()}`
       };
 
-      const response = await fetch(`${API_URL}/api/chat`, {
+      const response = await apiFetch('/api/chat', {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({

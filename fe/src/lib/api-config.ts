@@ -35,15 +35,28 @@ let isUsingBackup = false;
 async function checkAPIHealth(url: string): Promise<boolean> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
     
-    const response = await fetch(`${url}/health`, {
-      method: 'GET',
-      signal: controller.signal
-    });
+    // Try root endpoint first, then health if available
+    const testEndpoints = ['/', '/health'];
+    
+    for (const endpoint of testEndpoints) {
+      try {
+        const response = await fetch(`${url}${endpoint}`, {
+          method: 'GET',
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        if (response.ok) return true;
+      } catch (err) {
+        // Try next endpoint
+        continue;
+      }
+    }
     
     clearTimeout(timeoutId);
-    return response.ok;
+    return false;
   } catch {
     return false;
   }
