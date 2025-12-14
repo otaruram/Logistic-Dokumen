@@ -35,7 +35,6 @@ const PricingPage: React.FC = () => {
   const [pricingData, setPricingData] = useState<PricingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [processingOrder, setProcessingOrder] = useState<string | null>(null);
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   useEffect(() => {
     loadPricingData();
@@ -47,7 +46,7 @@ const PricingPage: React.FC = () => {
       const user = userStr ? JSON.parse(userStr) : null;
       const token = user?.credential || "";
 
-      const response = await fetch(`${API_URL}/api/pricing`, {
+      const response = await apiFetch('/api/pricing', {
         headers: token ? { "Authorization": `Bearer ${token}` } : {}
       });
 
@@ -76,7 +75,7 @@ const PricingPage: React.FC = () => {
 
       setProcessingOrder(`topup-${packageIndex}`);
 
-      const response = await fetch(`${API_URL}/api/topup`, {
+      const response = await apiFetch('/api/topup', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -117,7 +116,7 @@ const PricingPage: React.FC = () => {
 
       setProcessingOrder("subscription");
 
-      const response = await fetch(`${API_URL}/api/subscribe`, {
+      const response = await apiFetch('/api/subscribe', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

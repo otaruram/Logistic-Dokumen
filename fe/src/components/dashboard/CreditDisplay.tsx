@@ -8,6 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { apiFetch } from '@/lib/api-config';
 
 interface CreditInfo {
   remainingCredits: number;
@@ -29,10 +30,7 @@ const CreditDisplay = () => {
       const token = user.credential || user.driveToken || user.access_token;
       if (!token) return;
       
-      const baseURL = import.meta.env.VITE_API_URL || 'https://api-ocr.xyz';
-      const apiURL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
-      
-      const response = await fetch(`${apiURL}/api/pricing/user/credits`, {
+      const response = await apiFetch('/api/pricing/user/credits', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { apiFetch } from '@/lib/api-config';
 
 interface CreditUsage {
   id: string;
@@ -41,7 +42,7 @@ const CreditUsageCard = ({ onViewAll, onUpgrade }: CreditUsageCardProps) => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:8000/history', {
+      const response = await apiFetch('/history', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

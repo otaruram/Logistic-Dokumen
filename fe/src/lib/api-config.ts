@@ -1,33 +1,30 @@
-/**
- * API Configuration with Hybrid Production + Development Support
- * File: fe/src/lib/api-config.ts
- */
+// fe/src/lib/api-config.ts
 
 // Detect environment
-const isDevelopment = import.meta.env.DEV || window.location.hostname === 'localhost';
+const isDevelopment = import.meta.env.DEV; 
 
 export const API_CONFIG = {
-  // Development: localhost BE
+  // Development: Tetap localhost untuk debugging mudah
   development: {
-    primary: "http://localhost:8000",
-    backup: "http://localhost:8000",
-    cdn: "http://localhost:8000"
+    primary: "https://api-ocr.xyz", // Pakai VPS biar tidak kena CORS di local
+    backup: "http://localhost:8000"
   },
   
-  // Production: Hybrid VPS SSL primary + Render backup
+  // Production: VPS Utama, Render Backup
   production: {
-    primary: "https://api-ocr.xyz",
-    backup: "https://logistic-dokumen.onrender.com", 
-    cdn: "https://files.ocr.wtf"
+    primary: "https://api-ocr.xyz", // 👈 VPS JADI PRIMARY
+    backup: "https://logistic-dokumen.onrender.com"
   },
   
-  // Auto-select based on environment
   get current() {
+    // Force production logic jika mau test failover, atau gunakan isDevelopment normal
     return isDevelopment ? this.development : this.production;
   },
   
-  timeout: 10000 // 10 seconds
+  timeout: 10000 
 };
+
+// ... (sisa kode apiFetch dll biarkan sama)
 
 let currentAPI = API_CONFIG.current.primary;
 let isUsingBackup = false;

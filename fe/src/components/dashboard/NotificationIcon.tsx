@@ -7,6 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { apiFetch } from '@/lib/api-config';
 
 interface NotificationIconProps {
   className?: string;
@@ -55,10 +56,7 @@ const NotificationIcon: React.FC<NotificationIconProps> = ({ className = '' }) =
           return;
         }
 
-        const baseURL = import.meta.env.VITE_API_URL || window.location.origin;
-        const apiURL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
-        
-        const profileResponse = await fetch(`${apiURL}/api/pricing/user/profile`, {
+        const profileResponse = await apiFetch('/api/pricing/user/profile', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

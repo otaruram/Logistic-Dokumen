@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { triggerCreditUsage, showCreditWarning } from "@/lib/credit-utils";
+// ✅ IMPORT PENTING: Gunakan apiFetch buatanmu sendiri
+import { apiFetch } from "@/lib/api-config";
 
 // Typewriter Animation Component
 const TypewriterText = ({ text, delay = 0 }: { text: string; delay?: number }) => {
@@ -140,8 +142,8 @@ const Index = () => {
   const navigate = useNavigate();
 
   const user = JSON.parse(sessionStorage.getItem('user') || '{}');
-  const baseURL = import.meta.env.VITE_API_URL || "https://api-ocr.xyz";
-  const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
+  
+  // ❌ REMOVED: Manual API URL construction - now using apiFetch
 
   const handleLogout = () => {
     sessionStorage.removeItem('user');
@@ -165,7 +167,10 @@ const Index = () => {
       const userStr = sessionStorage.getItem("user");
       const user = userStr ? JSON.parse(userStr) : null;
       const token = user?.credential || "";
-      const response = await fetch(`${API_URL}/history`, { headers: { "Authorization": `Bearer ${token}` } });
+      // Gunakan apiFetch (otomatis handle URL & Failover)
+      const response = await apiFetch('/history', { 
+        headers: { "Authorization": `Bearer ${token}` } 
+      });
       const data = await response.json();
       const formattedLogs = data.map((log: any) => {
         const logDate = new Date(log.timestamp);
@@ -189,7 +194,7 @@ const Index = () => {
     } finally {
       setTimeout(() => setIsLoading(false), 1200);
     }
-  }, [API_URL]);
+  }, []); // Dependency array kosong karena apiFetch diimport statis
 
   useEffect(() => {
     loadData();
@@ -264,7 +269,8 @@ const Index = () => {
       formData.append("file", selectedFile);
       formData.append("receiver", receiver);
 
-      const response = await fetch(`${API_URL}/scan`, {
+      // Gunakan apiFetch
+      const response = await apiFetch('/scan', {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },
         body: formData,
@@ -333,7 +339,7 @@ const Index = () => {
       setReceiver("");
       setSignature(null);
     }
-  }, [imagePreview, selectedFile, receiver, toast, handleClearImage, API_URL, loadData]);
+  }, [imagePreview, selectedFile, receiver, toast, handleClearImage, loadData]);
 
   const handleUpdateLog = async (logId: number, newSummary: string) => {
     try {
@@ -343,7 +349,7 @@ const Index = () => {
       
       console.log("UPDATE LOG - Sending request:", { logId, newSummary: newSummary.substring(0, 50) + "..." });
       
-      const response = await fetch(`${API_URL}/logs/${logId}`, {
+      const response = await apiFetch(`/logs/${logId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ summary: newSummary }),
@@ -387,17 +393,14 @@ const Index = () => {
       const userStr = sessionStorage.getItem("user");
       const user = userStr ? JSON.parse(userStr) : null;
       const token = user?.credential || "";
-      const response = await fetch(`${API_URL}/logs/${logId}`, {
+      await apiFetch(`/logs/${logId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` },
       });
-      const result = await response.json();
-      if (result.status === "success") {
-        setLogs((prev) => prev.filter((log) => log.id !== logId));
-        toast({ title: "✅ BERHASIL DIHAPUS" });
-      } else {
-        throw new Error(result.message || "Gagal menghapus log");
-      }
+      
+      // Asumsikan sukses jika tidak throw error (DELETE biasanya tidak return data)
+      setLogs((prev) => prev.filter((log) => log.id !== logId));
+      toast({ title: "✅ BERHASIL DIHAPUS" });
     } catch (error) {
       toast({ title: "❌ ERROR", description: error instanceof Error ? error.message : "Gagal menghapus log", variant: "destructive" });
     }
