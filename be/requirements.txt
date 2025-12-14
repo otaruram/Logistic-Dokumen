@@ -19,6 +19,5 @@ schedule==1.2.0
 apscheduler==3.10.4
 pytz==2023.3
 cloudflare==2.19.4
-aiohttp==3.13.2
 
 
