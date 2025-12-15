@@ -4,16 +4,16 @@
 const isDevelopment = import.meta.env.DEV; 
 
 export const API_CONFIG = {
-  // Development: VPS Primary, Render Backup (no localhost to avoid CORS)
+  // Development: Use localhost backend for local testing
   development: {
-    primary: "https://api-ocr.xyz", 
-    backup: "https://logistic-dokumen.onrender.com"
+    primary: "http://localhost:8000",                   // Local backend
+    backup: "https://logistic-dokumen.onrender.com"     // Render backup
   },
   
-  // Production: VPS Utama, Render Backup
+  // Production: Render primary, VPS backup
   production: {
-    primary: "https://api-ocr.xyz", // 👈 VPS JADI PRIMARY
-    backup: "https://logistic-dokumen.onrender.com"
+    primary: "https://logistic-dokumen.onrender.com", 
+    backup: "https://api-ocr.xyz"
   },
   
   get current() {
