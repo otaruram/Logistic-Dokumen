@@ -158,7 +158,6 @@ const Index = () => {
     });
   };
   const handleViewUsage = () => navigate('/history');
-  const handleCekThisOut = () => navigate('/cek-this-out');
 
   const loadData = useCallback(async () => {
     const isInitialMount = sessionStorage.getItem('hasLoaded') !== 'true';
