@@ -8,11 +8,9 @@ import ImagePreview from "@/components/dashboard/ImagePreview";
 import SignaturePad from "@/components/dashboard/SignaturePad";
 import DataTable from "@/components/dashboard/DataTable";
 import BrutalSpinner from "@/components/dashboard/BrutalSpinner";
-import NotificationManager from "@/components/dashboard/NotificationManager";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
-import { triggerCreditUsage, showCreditWarning } from "@/lib/credit-utils";
 // ✅ IMPORT PENTING: Gunakan apiFetch buatanmu sendiri
 import { apiFetch } from "@/lib/api-config";
 
@@ -153,7 +151,12 @@ const Index = () => {
 
   const handleProfile = () => navigate('/profile');
   const handleSettings = () => navigate('/settings');
-  const handleUpgrade = () => navigate('/pricing');
+  const handleUpgrade = () => {
+    toast({
+      title: "Upgrade Feature",
+      description: "Upgrade feature coming soon!",
+    });
+  };
   const handleViewUsage = () => navigate('/history');
   const handleCekThisOut = () => navigate('/cek-this-out');
 
@@ -307,13 +310,9 @@ const Index = () => {
           }));
         }
         
-        // Trigger credit usage event
-        triggerCreditUsage('ocr_scan', `${result.data.kategori} - ${result.data.nomorDokumen}`);
+        // Scan completed successfully
+        console.log('✅ Scan completed:', result.data);
         
-        // Show credit warning if needed
-        if (result.creditInfo?.remainingCredits !== undefined) {
-          showCreditWarning(result.creditInfo.remainingCredits);
-        }
       } else {
         // Handle insufficient credits error
         if (result.error_type === "insufficient_credits") {
@@ -322,7 +321,7 @@ const Index = () => {
             description: "Upgrade akun Anda untuk melanjutkan scanning", 
             variant: "destructive",
             action: (
-              <ToastAction onClick={() => navigate('/pricing')} altText="Upgrade">
+              <ToastAction onClick={handleUpgrade} altText="Upgrade">
                 Upgrade
               </ToastAction>
             )
@@ -438,11 +437,6 @@ const Index = () => {
               delay={2500}
             />
           </p>
-        </div>
-
-        {/* Notification System */}
-        <div className="mb-6">
-          <NotificationManager userCredits={user?.credits || 0} />
         </div>
 
         {/* Section 1: ZONA INPUT */}

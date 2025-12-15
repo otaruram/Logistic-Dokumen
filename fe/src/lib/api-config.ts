@@ -4,10 +4,10 @@
 const isDevelopment = import.meta.env.DEV; 
 
 export const API_CONFIG = {
-  // Development: Tetap localhost untuk debugging mudah
+  // Development: VPS Primary, Render Backup (no localhost to avoid CORS)
   development: {
-    primary: "https://api-ocr.xyz", // Pakai VPS biar tidak kena CORS di local
-    backup: "http://localhost:8000"
+    primary: "https://api-ocr.xyz", 
+    backup: "https://logistic-dokumen.onrender.com"
   },
   
   // Production: VPS Utama, Render Backup
