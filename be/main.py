@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 import requests
 import base64
 import numpy as np
@@ -16,44 +16,33 @@ import pandas as pd
 from datetime import datetime
 import os
 import shutil
-import jwt
-import json
-from dotenv import load_dotenv
-import re
 import traceback
-import PyPDF2
 import asyncio
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from dotenv import load_dotenv
 
-# --- MODULE LOKAL (REFACTORED) ---
-from db import prisma, connect_db, disconnect_db  # <--- IMPORT DARI DB.PY
-from utils import get_user_email_from_token       # <--- IMPORT DARI UTILS.PY
-from oki_chatbot import OKiChatbot
+# --- MODULE LOKAL (HASIL REFACTOR) ---
+from db import prisma, connect_db, disconnect_db  # Koneksi Database Terpusat
+from utils import get_user_email_from_token       # Auth Utilities
 from drive_service import export_to_google_drive_with_token, upload_image_to_drive
 
-# Import smart OCR dan AI modules
+# Import Core Services
 from smart_ocr_processor import SmartOCRProcessor
-from ai_text_summarizer import AITextSummarizer
-
-# Import pricing system
 from pricing_service import CreditService
 from pricing_endpoints import router as pricing_router
 
 # Load environment variables
 load_dotenv()
 
-# --- SUMOPOD CHATBOT CONFIGURATION ---
-oki_bot = OKiChatbot(mode='sumopod_only')
-
-# Initialize Global Variables
+# --- GLOBAL VARIABLES ---
 smart_ocr = None
-ai_summarizer = None
 credit_service = None
 scheduler = None
 
+# --- BACKGROUND TASKS ---
 async def daily_maintenance_task():
-    """Automatic daily maintenance - runs every day at midnight"""
+    """Maintenance harian: Hapus data user yg udah lewat masa simpan"""
     try:
         print("🔄 Running automatic daily maintenance...")
         if prisma.is_connected():
@@ -62,22 +51,20 @@ async def daily_maintenance_task():
                 print(f"🗑️ Automatic cleanup performed for {cleanup_count} users")
             else:
                 print("✅ No users needed cleanup today")
-        else:
-            print("⚠️ Database not available for maintenance")
     except Exception as e:
         print(f"❌ Error in daily maintenance: {e}")
 
 async def daily_credit_reset_task():
-    """Reset credits for all users at midnight Jakarta time"""
+    """Reset kredit harian user setiap jam 00:00 WIB"""
     try:
         print("💳 Running daily credit reset...")
         if prisma.is_connected():
-            from datetime import datetime, date
             users = await prisma.user.find_many()
             reset_count = 0
+            today = datetime.now().date()
+            
             for user in users:
                 try:
-                    today = date.today()
                     last_reset = user.lastCreditReset.date() if user.lastCreditReset else None
                     if last_reset != today:
                         await prisma.user.update(
@@ -87,6 +74,7 @@ async def daily_credit_reset_task():
                                 "lastCreditReset": datetime.now()
                             }
                         )
+                        # Log reset transaction
                         await prisma.credittransaction.create(
                             data={
                                 "userId": user.id,
@@ -95,30 +83,28 @@ async def daily_credit_reset_task():
                             }
                         )
                         reset_count += 1
-                        print(f"💳 Credits reset for user: {user.email}")
                 except Exception as e:
-                    print(f"❌ Error resetting credits for user {user.id}: {e}")
+                    print(f"❌ Reset failed for user {user.id}: {e}")
                     continue
             print(f"✅ Daily credit reset completed! {reset_count} users updated")
-        else:
-            print("⚠️ Database not available for credit reset")
     except Exception as e:
         print(f"❌ Error in daily credit reset: {e}")
 
+# --- LIFESPAN (STARTUP & SHUTDOWN) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize Smart OCR, AI components, and connect to database"""
-    global smart_ocr, ai_summarizer, scheduler, credit_service
+    """Inisialisasi Database, OCR, dan Scheduler saat server nyala"""
+    global smart_ocr, credit_service, scheduler
 
-    print("🚀 Starting Enhanced OCR System...")
+    print("🚀 Starting Supply Chain OCR System...")
 
     # 1. Connect Database
     try:
         await connect_db()
-        print("✅ Connected to Database via db.py!")
+        print("✅ Connected to Database via db.py")
     except Exception as e:
-        print(f"⚠️ Database connection attempt failed: {e}")
-        print("📝 System will continue without database logging")
+        print(f"⚠️ Database connection failed: {e}")
+        print("📝 System running in offline mode (No History Save)")
 
     # 2. Initialize Smart OCR
     ocr_api_key = os.getenv('OCR_SPACE_API_KEY', 'helloworld')
@@ -127,7 +113,6 @@ async def lifespan(app: FastAPI):
         print("✅ Smart OCR Processor initialized!")
     except Exception as e:
         print(f"⚠️ Smart OCR initialization failed: {e}")
-        smart_ocr = None
 
     # 3. Initialize Credit Service
     try:
@@ -135,11 +120,11 @@ async def lifespan(app: FastAPI):
         print("✅ Credit Service initialized!")
     except Exception as e:
         print(f"⚠️ Credit Service initialization failed: {e}")
-        credit_service = None
 
     # 4. Initialize Scheduler
     try:
         scheduler = AsyncIOScheduler()
+        # Jadwal Reset Kredit & Maintenance jam 00:00 WIB
         scheduler.add_job(daily_maintenance_task, "cron", hour=0, minute=0, timezone='Asia/Jakarta', id="daily_maintenance")
         scheduler.add_job(daily_credit_reset_task, "cron", hour=0, minute=1, timezone='Asia/Jakarta', id="daily_credit_reset")
         scheduler.start()
@@ -147,49 +132,35 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"⚠️ Scheduler initialization failed: {e}")
 
-    # 5. AI Summarizer (Disabled/Legacy)
-    print("ℹ️ SumoPod AI disabled - using rule-based summaries")
-    ai_summarizer = None
+    yield  # --- APLIKASI BERJALAN DI SINI ---
 
-    print("⚡ Enhanced OCR System ready!")
-    
-    yield  # --- APP RUNNING HERE ---
-
-    # Shutdown Logic
+    # Shutdown Process
     try:
-        if scheduler:
-            scheduler.shutdown()
-            print("🛑 Scheduler shutdown completed")
-    except Exception as e:
-        print(f"⚠️ Scheduler shutdown error: {e}")
-
-    try:
+        if scheduler: scheduler.shutdown()
         await disconnect_db()
-        print("🔌 Disconnected from database")
+        print("🔌 Database disconnected & Scheduler stopped")
     except Exception as e:
         print(f"Cleanup error: {e}")
     
-    print("🛑 Enhanced OCR System shutdown complete")
+    print("🛑 System shutdown complete")
 
-# --- INISIALISASI APP ---
+# --- APP INITIALIZATION ---
 app = FastAPI(
     title="Supply Chain OCR API", 
-    description="Backend untuk scan dokumen gudang",
+    description="Backend khusus OCR Dokumen Gudang",
     lifespan=lifespan
 )
 
-# --- SETUP FOLDER UPLOADS ---
+# --- FOLDER UPLOADS ---
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
-# --- KONFIGURASI CORS ---
+# --- CORS ---
 allowed_origins = [
     "http://localhost:8080", "http://localhost:8081", "http://localhost:5173",
-    "http://localhost:3000", "http://127.0.0.1:3000", "http://127.0.0.1:5173",
-    "http://127.0.0.1:8080", "https://ocrai.vercel.app", "https://ocr.wtf",
-    "https://www.ocr.wtf", "https://api-ocr.xyz", "http://api-ocr.xyz",
-    "https://files.ocr.wtf", "https://logistic-dokumen.onrender.com", "*"
+    "http://localhost:3000", "https://ocr.wtf", "https://www.ocr.wtf",
+    "https://api-ocr.xyz", "https://logistic-dokumen.onrender.com", "*"
 ]
 
 app.add_middleware(
@@ -200,220 +171,198 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include pricing endpoints
+# --- ROUTERS ---
+# Include endpoint pricing (Topup, Paket, dll)
 app.include_router(pricing_router, prefix="/api/pricing", tags=["pricing"])
 
-# Import Cloudflare service
+# Import Cloudflare Service (Optional)
 try:
     from cloudflare_service import cloudflare_service
-    print("✅ Cloudflare service loaded successfully")
-except ImportError as e:
-    print(f"⚠️ Cloudflare service not available: {e}")
+    print("✅ Cloudflare service loaded")
+except ImportError:
+    print("⚠️ Cloudflare service not found")
     cloudflare_service = None
 
-# --- HELPER: OCR ENGINE (OCR.SPACE) ---
-OCR_API_KEY = os.getenv("OCR_API_KEY", "helloworld") 
+# --- CONSTANTS ---
 OCR_API_URL = "https://api.ocr.space/parse/image"
+OCR_API_KEY = os.getenv("OCR_API_KEY", "helloworld")
 
-async def get_user_ocr_api_key_internal(email: str) -> str | None:
-    """Internal helper to get user's OCR API key"""
+# --- OCR ENGINE FUNCTIONS ---
+async def extract_text_from_image(image_np):
+    """Proses OCR Utama: Coba Smart OCR dulu, kalau gagal pakai Basic"""
     try:
-        api_key_record = await prisma.apikey.find_first(
-            where={"userId": email, "provider": "ocrspace"}
-        )
-        if api_key_record and api_key_record.isActive:
-            return api_key_record.apiKey
-        return None
-    except Exception:
-        return None
-
-async def extract_text_from_image(image_np, user_email: str = None):
-    """Enhanced OCR dengan Smart Processing dan AI Summarization"""
-    try:
-        print("Starting enhanced OCR processing...")
-        api_key_to_use = OCR_API_KEY
-        using_byok = False
-
-        if user_email:
-            user_ocr_key = await get_user_ocr_api_key_internal(user_email)
-            if user_ocr_key:
-                api_key_to_use = user_ocr_key
-                using_byok = True
-                print(f"BYOK OCR ENABLED - Using user's OCR API key for {user_email}")
-
-        if smart_ocr and api_key_to_use != "helloworld":
+        # 1. Coba Smart OCR (Enhanced)
+        if smart_ocr:
             try:
-                if using_byok:
-                    user_smart_ocr = SmartOCRProcessor(api_key_to_use)
-                    extracted_text = await user_smart_ocr.enhanced_ocr_extract(image_np)
-                else:
-                    extracted_text = await smart_ocr.enhanced_ocr_extract(image_np)
-
+                extracted_text = await smart_ocr.enhanced_ocr_extract(image_np)
                 if extracted_text and not extracted_text.startswith("[ERROR"):
                     doc_type = smart_ocr.detect_document_type(extracted_text)
                     structured_data = smart_ocr.extract_structured_data(extracted_text, doc_type)
-                    smart_summary = await generate_smart_summary(extracted_text, doc_type, structured_data)
-
+                    summary = smart_ocr.generate_smart_summary(extracted_text, structured_data, doc_type)
+                    
                     return {
                         "raw_text": extracted_text,
-                        "summary": smart_summary,
+                        "summary": summary,
                         "document_type": doc_type,
                         "structured_data": structured_data,
-                        "processing_method": "smart_ocr",
-                        "byok_used": using_byok
+                        "method": "smart_ocr"
                     }
             except Exception as e:
-                print(f"Smart OCR error: {e}, falling back to basic OCR")
+                print(f"Smart OCR skip: {e}")
 
-        # Fallback to basic OCR
-        basic_text = await basic_ocr_extract(image_np, api_key_to_use)
-        if basic_text:
-            return {
-                "raw_text": basic_text,
-                "summary": generate_basic_summary(basic_text),
-                "document_type": "unknown",
-                "structured_data": {},
-                "processing_method": "basic_ocr",
-                "byok_used": using_byok
-            }
-        else:
-            return {
-                "raw_text": "",
-                "summary": "Tidak dapat mengekstrak teks",
-                "document_type": "unknown",
-                "structured_data": {},
-                "processing_method": "failed",
-                "byok_used": using_byok
-            }
+        # 2. Fallback ke Basic OCR
+        return await basic_ocr_extract(image_np)
+
     except Exception as e:
-        print(f"OCR processing error: {e}")
-        return {"raw_text": f"[ERROR: {str(e)}]", "summary": "Error saat memproses gambar", "document_type": "error", "structured_data": {}, "processing_method": "error", "byok_used": False}
+        print(f"OCR Critical Error: {e}")
+        return {"raw_text": "", "summary": "Error Processing", "document_type": "error", "method": "fail"}
 
-async def basic_ocr_extract(image_np, api_key: str):
-    """Basic OCR fallback"""
+async def basic_ocr_extract(image_np):
+    """Fallback OCR biasa via OCR.space"""
     try:
         image = Image.fromarray(image_np)
+        # Convert RGBA -> RGB
         if image.mode in ('RGBA', 'LA', 'P'):
-            background = Image.new('RGB', image.size, (255, 255, 255))
+            bg = Image.new('RGB', image.size, (255, 255, 255))
             if image.mode == 'P': image = image.convert('RGBA')
-            background.paste(image, mask=image.split()[-1] if image.mode == 'RGBA' else None)
-            image = background
+            bg.paste(image, mask=image.split()[-1] if image.mode == 'RGBA' else None)
+            image = bg
 
-        max_width = 1024
-        if image.width > max_width:
-            ratio = max_width / image.width
-            new_height = int(image.height * ratio)
-            image = image.resize((max_width, new_height), Image.Resampling.LANCZOS)
+        # Resize for speed
+        if image.width > 1024:
+            ratio = 1024 / image.width
+            image = image.resize((1024, int(image.height * ratio)), Image.Resampling.LANCZOS)
 
-        img_byte_arr = io.BytesIO()
-        image.save(img_byte_arr, format='JPEG', quality=85)
-        base64_image = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
+        img_byte = io.BytesIO()
+        image.save(img_byte, format='JPEG', quality=85)
+        b64_img = base64.b64encode(img_byte.getvalue()).decode('utf-8')
 
-        payload = {'apikey': api_key, 'base64Image': f'data:image/jpeg;base64,{base64_image}', 'language': 'eng', 'isOverlayRequired': False, 'scale': True, 'OCREngine': 1}
-        response = requests.post(OCR_API_URL, data=payload, timeout=30)
-        result = response.json()
+        payload = {
+            'apikey': OCR_API_KEY,
+            'base64Image': f'data:image/jpeg;base64,{b64_img}',
+            'language': 'eng',
+            'scale': True,
+            'OCREngine': 1
+        }
+        res = requests.post(OCR_API_URL, data=payload, timeout=30)
+        result = res.json()
         
-        parsed_results = result.get('ParsedResults', [])
-        return parsed_results[0].get('ParsedText', '').strip() if parsed_results else ""
+        text = ""
+        if result.get('ParsedResults'):
+            text = result['ParsedResults'][0].get('ParsedText', '').strip()
+        
+        # Simple Summary Generator
+        summary = text[:100].replace('\n', ' ') + "..." if len(text) > 10 else "Teks tidak terbaca"
+        
+        return {
+            "raw_text": text,
+            "summary": summary,
+            "document_type": "unknown",
+            "structured_data": {},
+            "method": "basic_ocr"
+        }
     except Exception as e:
-        print(f"Basic OCR failed: {e}")
-        return f"[ERROR OCR: {str(e)}]"
+        return {"raw_text": str(e), "summary": "OCR Failed", "document_type": "error", "method": "error"}
 
-async def generate_smart_summary(text: str, doc_type: str, structured_data: dict) -> str:
-    if smart_ocr: return smart_ocr.generate_smart_summary(text, structured_data, doc_type)
-    return generate_basic_summary(text)
-
-def generate_basic_summary(text: str) -> str:
-    if not text or text.startswith("[ERROR"): return "Tidak dapat membuat ringkasan"
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
-    for line in lines[:3]:
-        if len(line) > 10 and not line.isdigit():
-            return (line[:97] + "...") if len(line) > 100 else line
-    return "Dokumen berhasil dipindai" if lines else "Tidak ada teks terdeteksi"
-
-# --- ENDPOINTS ---
+# --- MAIN ENDPOINTS ---
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "server": "VPS-Primary", "timestamp": datetime.now().isoformat()}
+    """Cek kesehatan server & DB"""
+    db_status = "connected" if prisma.is_connected() else "disconnected"
+    return {"status": "healthy", "database": db_status, "timestamp": datetime.now().isoformat()}
 
 @app.get("/")
 def home():
-    return {"status": "Online", "backend": "FastAPI + Enhanced Smart OCR", "features": ["Smart Detection", "AI Summarization"], "smart_ocr": "✅ Active" if smart_ocr else "❌ Inactive"}
+    return {
+        "status": "Online", 
+        "service": "Supply Chain OCR API", 
+        "version": "Refactored V2",
+        "features": ["OCR", "Pricing", "Cloudflare", "Excel Export"]
+    }
 
 @app.post("/scan")
 async def scan_document(
-    file: UploadFile = File(...), receiver: str = Form(...), authorization: str = Header(None)
+    file: UploadFile = File(...), 
+    receiver: str = Form(...),
+    authorization: str = Header(None)
 ):
-    global credit_service
+    """Endpoint Utama: Upload -> Cek Kredit -> OCR -> Simpan DB"""
     try:
         user_email = get_user_email_from_token(authorization)
         
-        # Credit Check
-        if credit_service:
-            try:
-                await credit_service.ensure_default_credits(user_email, prisma)
-                user_credits = await credit_service.get_user_credits(user_email, prisma)
-                if user_credits < 1:
-                    return {"status": "error", "message": "Insufficient credits", "error_type": "insufficient_credits"}
-            except Exception as e: print(f"Credit check error: {e}")
+        # 1. Cek Kredit (Wajib ada saldo minimal 1)
+        if credit_service and prisma.is_connected():
+            await credit_service.ensure_default_credits(user_email, prisma)
+            credits = await credit_service.get_user_credits(user_email, prisma)
+            if credits < 1:
+                return {"status": "error", "message": "Kredit habis. Silakan topup.", "error_type": "insufficient_credits"}
 
-        # Process Image
-        contents = await file.read()
-        image_np = np.array(Image.open(io.BytesIO(contents)))
-        ocr_result = await extract_text_from_image(image_np, user_email)
-
-        full_text = ocr_result.get("raw_text", "")
-        summary = ocr_result.get("summary", "")
-        doc_type = ocr_result.get("document_type", "unknown")
-        structured_data = ocr_result.get("structured_data", {})
-        byok_used = ocr_result.get("byok_used", False)
-
-        # Detect Metadata
-        nomor_dokumen = structured_data.get('invoice_number') or structured_data.get('do_number') or structured_data.get('po_number') or "TIDAK TERDETEKSI"
+        # 2. Proses Image
+        content = await file.read()
+        image_np = np.array(Image.open(io.BytesIO(content)))
         
+        # 3. Jalankan OCR
+        ocr_res = await extract_text_from_image(image_np)
+        
+        # 4. Klasifikasi Data
+        doc_data = ocr_res.get("structured_data", {})
+        nomor_dokumen = doc_data.get('invoice_number') or doc_data.get('do_number') or doc_data.get('po_number') or "TIDAK TERDETEKSI"
+        
+        doc_type = ocr_res.get("document_type", "unknown")
         kategori = "DOKUMEN LAIN"
         if doc_type == "invoice": kategori = "INVOICE"
         elif doc_type == "delivery_note": kategori = "SURAT JALAN"
         elif doc_type == "purchase_order": kategori = "PURCHASE ORDER"
 
-        # Save File
-        saved_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
-        with open(os.path.join(UPLOAD_DIR, saved_filename), "wb") as buffer: buffer.write(contents)
+        # 5. Simpan File Lokal
+        filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        with open(filepath, "wb") as f: f.write(content)
         
-        # Env Config
-        ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
-        BASE_URL = os.getenv("BASE_URL", "http://localhost:8000") if ENVIRONMENT == "development" else os.getenv("PRODUCTION_URL", "https://logistic-dokumen.onrender.com")
-        image_url = f"{BASE_URL}/uploads/{saved_filename}"
+        # Generate URL
+        BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+        if os.getenv("ENVIRONMENT") == "production":
+            BASE_URL = os.getenv("PRODUCTION_URL", "https://api-ocr.xyz")
+        image_url = f"{BASE_URL}/uploads/{filename}"
 
-        # Save to DB
-        log = None
+        # 6. Simpan ke Database
+        log_id = 0
         if prisma.is_connected():
             log = await prisma.logs.create(data={
-                "userId": user_email, "timestamp": datetime.now(), "filename": file.filename,
-                "kategori": kategori, "nomorDokumen": nomor_dokumen, "receiver": receiver.upper(),
-                "imagePath": image_url, "summary": summary, "fullText": full_text
+                "userId": user_email,
+                "timestamp": datetime.now(),
+                "filename": file.filename,
+                "kategori": kategori,
+                "nomorDokumen": nomor_dokumen,
+                "receiver": receiver.upper(),
+                "imagePath": image_url,
+                "summary": ocr_res.get("summary", ""),
+                "fullText": ocr_res.get("raw_text", "")
             })
+            log_id = log.id
 
-        # Deduct Credit
-        remaining_credits = 3
-        if credit_service and not byok_used:
-            deducted = await credit_service.deduct_credits(user_email, 1, f"OCR Scan {log.id if log else 'temp'}", prisma)
-            if deducted is not None: remaining_credits = deducted
-        elif byok_used and credit_service:
-            remaining_credits = await credit_service.get_user_credits(user_email, prisma)
+            # 7. Potong Kredit (Hanya jika sukses simpan DB)
+            if credit_service:
+                new_balance = await credit_service.deduct_credits(user_email, 1, f"Scan OCR #{log_id}", prisma)
+                remaining = new_balance if new_balance is not None else credits
+        else:
+            remaining = 99 # Mode offline/tanpa DB
 
         return {
             "status": "success",
             "data": {
-                "id": log.id if log else 0, "kategori": kategori, "nomorDokumen": nomor_dokumen,
-                "summary": summary, "imagePath": image_url
+                "id": log_id,
+                "kategori": kategori,
+                "nomorDokumen": nomor_dokumen,
+                "summary": ocr_res.get("summary", ""),
+                "imagePath": image_url
             },
-            "remaining_credits": remaining_credits
+            "remaining_credits": remaining
         }
 
     except Exception as e:
-        print(f"Global Error: {traceback.format_exc()}")
+        print(f"Scan Error: {traceback.format_exc()}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/history")
@@ -421,8 +370,20 @@ async def get_history(authorization: str = Header(None)):
     try:
         user_email = get_user_email_from_token(authorization)
         if prisma.is_connected():
-            logs = await prisma.logs.find_many(where={"userId": user_email}, order={"id": "desc"})
-            return [{"id": l.id, "timestamp": l.timestamp.isoformat(), "kategori": l.kategori, "nomorDokumen": l.nomorDokumen, "receiver": l.receiver, "imagePath": l.imagePath, "summary": l.summary} for l in logs]
+            logs = await prisma.logs.find_many(
+                where={"userId": user_email}, 
+                order={"id": "desc"}
+            )
+            # Format output
+            return [{
+                "id": l.id,
+                "timestamp": l.timestamp.isoformat(),
+                "kategori": l.kategori,
+                "nomorDokumen": l.nomorDokumen,
+                "receiver": l.receiver,
+                "imagePath": l.imagePath,
+                "summary": l.summary
+            } for l in logs]
         return []
     except Exception as e: return []
 
@@ -430,50 +391,64 @@ async def get_history(authorization: str = Header(None)):
 async def delete_log(log_id: int, authorization: str = Header(None)):
     try:
         user_email = get_user_email_from_token(authorization)
+        if not prisma.is_connected(): raise HTTPException(503, "DB Offline")
+
         log = await prisma.logs.find_first(where={"id": log_id, "userId": user_email})
-        if not log: raise HTTPException(status_code=404, detail="Log not found")
-        
+        if not log: raise HTTPException(404, "Log not found")
+
+        # Hapus file fisik
         if log.imagePath:
-            local_path = os.path.join(UPLOAD_DIR, log.imagePath.split("/")[-1])
-            if os.path.exists(local_path): os.remove(local_path)
-            
+            fname = log.imagePath.split("/")[-1]
+            lpath = os.path.join(UPLOAD_DIR, fname)
+            if os.path.exists(lpath): os.remove(lpath)
+        
         await prisma.logs.delete(where={"id": log_id})
         return {"status": "success"}
-    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e: return {"status": "error", "message": str(e)}
 
 @app.get("/export")
 async def export_excel(authorization: str = Header(None), upload_to_drive: bool = True):
     try:
         user_email = get_user_email_from_token(authorization)
         token = authorization.replace("Bearer ", "")
-        logs = await prisma.logs.find_many(where={"userId": user_email}, order={"id": "desc"})
         
-        image_links = {}
+        if not prisma.is_connected(): raise HTTPException(503, "DB Offline")
+        logs = await prisma.logs.find_many(where={"userId": user_email}, order={"id": "desc"})
+
+        # Upload images to drive if requested
+        drive_links = {}
         if upload_to_drive and token:
             for l in logs:
                 if l.imagePath:
-                    local_path = os.path.join(UPLOAD_DIR, l.imagePath.split("/")[-1])
-                    if os.path.exists(local_path):
-                        res = upload_image_to_drive(token, local_path, "LOGISTIC.AI Images")
-                        if res: image_links[l.id] = res['direct_link']
+                    fname = l.imagePath.split("/")[-1]
+                    lpath = os.path.join(UPLOAD_DIR, fname)
+                    if os.path.exists(lpath):
+                        res = upload_image_to_drive(token, lpath, "LOGISTIC Images")
+                        if res: drive_links[l.id] = res['direct_link']
 
         data = [{
             "Tanggal": l.timestamp.replace(tzinfo=None),
-            "Kategori": l.kategori, "Nomor Dokumen": l.nomorDokumen, "Penerima": l.receiver,
-            "Ringkasan": l.summary, "Link Foto": image_links.get(l.id, l.imagePath)
+            "Kategori": l.kategori,
+            "Nomor Dokumen": l.nomorDokumen,
+            "Penerima": l.receiver,
+            "Ringkasan": l.summary,
+            "Link Foto": drive_links.get(l.id, l.imagePath)
         } for l in logs]
 
         df = pd.DataFrame(data)
         filename = f"Laporan_{user_email.split('@')[0]}_{datetime.now().strftime('%Y%m%d')}.xlsx"
-        
-        # Save Excel logic (Simplified for brevity - keep your original detailed logic here if needed)
         df.to_excel(filename, index=False)
-        
+
+        # Upload Excel ke Drive
         if upload_to_drive and token:
             with open(filename, 'rb') as f: content = f.read()
             drive_res = export_to_google_drive_with_token(token, content, filename)
-            return {"status": "success", "drive_url": drive_res['web_view_link'], "download_url": f"/download/{filename}"}
-            
+            return {
+                "status": "success", 
+                "drive_url": drive_res['web_view_link'], 
+                "download_url": f"/download/{filename}"
+            }
+        
         return FileResponse(filename, filename=filename)
     except Exception as e: return {"status": "error", "message": str(e)}
 
@@ -481,17 +456,39 @@ async def export_excel(authorization: str = Header(None), upload_to_drive: bool 
 async def download_file(filename: str):
     path = os.path.join(os.getcwd(), filename)
     if os.path.exists(path): return FileResponse(path, filename=filename)
-    raise HTTPException(status_code=404)
+    raise HTTPException(404, "File not found")
 
-@app.post("/api/chat")
-async def chat_with_oki(request: BaseModel, authorization: str = Header(None)):
-    # Chat logic placeholder - keep your existing implementation or import from oki_chatbot
-    return {"status": "success", "message": "Chat module ready"}
+# --- ADMIN ENDPOINTS (Maintenance Only) ---
+class ResetRequest(BaseModel):
+    admin_password: str
 
-# --- BYOK & API KEY ENDPOINTS ---
-# (Pastikan logic API Key di sini menggunakan prisma dari db.py)
-# ... Copy endpoint /api/user/apikey dari kode lamamu, tapi pastikan pakai `prisma` yang di-import dari db.py
+@app.post("/admin/reset-database")
+async def admin_reset_database(request: ResetRequest):
+    if request.admin_password != os.getenv("ADMIN_PASSWORD", "supply2024reset"):
+        raise HTTPException(403, "Invalid Password")
+    
+    if prisma.is_connected():
+        await prisma.logs.delete_many()
+        # Clean uploads folder
+        for f in os.listdir(UPLOAD_DIR):
+            os.remove(os.path.join(UPLOAD_DIR, f))
+        return {"status": "success", "message": "System Reset Complete"}
+    return {"status": "error", "message": "DB not connected"}
+
+# --- CLOUDFLARE ENDPOINTS ---
+@app.post("/api/cloudflare/upload")
+async def upload_to_cloudflare(file: UploadFile = File(...), authorization: str = Header(None)):
+    if not cloudflare_service: raise HTTPException(503, "Cloudflare Service Disabled")
+    try:
+        user_email = get_user_email_from_token(authorization) # Verify auth
+        content = await file.read()
+        return await cloudflare_service.upload_to_r2(content, file.filename)
+    except Exception as e: raise HTTPException(500, str(e))
+
+# ... Endpoint Cloudflare lainnya (setup-dns, purge-cache) bisa ditambahkan jika perlu,
+# tapi yang utama adalah upload untuk CDN.
 
 if __name__ == "__main__":
     import uvicorn
+    # Jalankan server
     uvicorn.run(app, host="0.0.0.0", port=8000)
