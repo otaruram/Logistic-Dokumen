@@ -14,9 +14,9 @@ import requests
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fpdf import FPDF  # Pastikan sudah pip install fpdf
+from fpdf import FPDF
 
-# MODULE LOKAL
+# MODULE LOKAL (Pastikan file-file ini ada di folder be/)
 from db import prisma, connect_db, disconnect_db
 from utils import get_user_email_from_token
 from drive_service import export_to_google_drive_with_token, upload_image_to_drive
@@ -29,7 +29,7 @@ smart_ocr = None
 credit_service = None
 scheduler = None
 
-# --- BACKGROUND TASK: RESET RATING BULANAN ---
+# --- BACKGROUND TASK ---
 async def monthly_rating_reset_task():
     try:
         if prisma.is_connected():
@@ -38,7 +38,7 @@ async def monthly_rating_reset_task():
     except Exception as e:
         print(f"❌ Error resetting ratings: {e}")
 
-# --- LIFESPAN (STARTUP & SHUTDOWN) ---
+# --- LIFESPAN ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Starting Server...")
@@ -52,7 +52,6 @@ async def lifespan(app: FastAPI):
     smart_ocr = SmartOCRProcessor(os.getenv('OCR_SPACE_API_KEY', 'helloworld'))
     credit_service = CreditService()
     
-    # Scheduler: Reset rating setiap tanggal 1 jam 00:00
     scheduler = AsyncIOScheduler()
     scheduler.add_job(monthly_rating_reset_task, "cron", day=1, hour=0, minute=0, timezone='Asia/Jakarta')
     scheduler.start()
@@ -63,7 +62,6 @@ async def lifespan(app: FastAPI):
     await disconnect_db()
     print("🛑 Server Shutdown")
 
-# --- APP SETUP ---
 app = FastAPI(lifespan=lifespan)
 
 UPLOAD_DIR = "uploads"
@@ -80,9 +78,7 @@ app.add_middleware(
 
 app.include_router(pricing_router, prefix="/api/pricing")
 
-# --- HELPER FUNCTIONS ---
-
-# Validasi Access Token (Untuk User Baru dengan Izin Drive)
+# --- HELPER ---
 def get_user_email_from_access_token(access_token):
     try:
         res = requests.get('https://www.googleapis.com/oauth2/v3/userinfo', headers={'Authorization': f'Bearer {access_token}'})
@@ -116,7 +112,6 @@ class LogUpdate(BaseModel):
     summary: str
 
 # --- ENDPOINTS ---
-
 @app.get("/health")
 def health(): return {"status": "ok", "db": prisma.is_connected()}
 
@@ -168,12 +163,10 @@ async def scan_document(
         
         if not user_email: return {"status": "error", "message": "Login diperlukan"}
 
-        remaining_credits = 0
         if not prisma.is_connected(): await connect_db()
         
         # Cek Kredit
         credits = await credit_service.get_user_credits(user_email, prisma)
-        remaining_credits = credits
         if credits < 1:
             return {"status": "error", "error_type": "insufficient_credits", "message": "Kredit habis.", "remaining_credits": 0}
 
@@ -202,7 +195,7 @@ async def scan_document(
         if doc_type == "invoice": kategori = "INVOICE"
         elif doc_type == "delivery_note": kategori = "SURAT JALAN"
 
-        # Simpan DB
+        # Simpan DB & Potong Kredit
         user = await prisma.user.find_unique(where={"email": user_email})
         if not user: await credit_service.ensure_default_credits(user_email, prisma)
 
@@ -219,21 +212,20 @@ async def scan_document(
         })
 
         new_bal = await credit_service.deduct_credits(user_email, 1, f"Scan #{log.id}", prisma)
-        if new_bal is not None: remaining_credits = new_bal
-
+        
         return {
             "status": "success",
             "data": {
                 "id": log.id, "kategori": kategori, "nomorDokumen": nomor_dokumen,
                 "summary": ocr_res.get("summary", ""), "imagePath": image_url
             },
-            "remaining_credits": remaining_credits
+            "remaining_credits": new_bal if new_bal is not None else 0
         }
     except Exception as e:
         print(f"Scan Error: {traceback.format_exc()}")
         return {"status": "error", "message": str(e)}
 
-# 3. HISTORY & LOGS
+# 3. HISTORY
 @app.get("/history")
 async def get_history(authorization: str = Header(None)):
     try:
@@ -257,11 +249,6 @@ async def get_history(authorization: str = Header(None)):
 @app.put("/logs/{log_id}")
 async def update_log(log_id: int, log_data: LogUpdate, authorization: str = Header(None)):
     try:
-        token = authorization.replace("Bearer ", "").strip()
-        user_email = None
-        try: user_email = get_user_email_from_token(authorization)
-        except: user_email = get_user_email_from_access_token(token)
-        
         if not prisma.is_connected(): await connect_db()
         updated = await prisma.logs.update(where={"id": log_id}, data={"summary": log_data.summary})
         return {"status": "success", "data": updated}
@@ -270,30 +257,22 @@ async def update_log(log_id: int, log_data: LogUpdate, authorization: str = Head
 @app.delete("/logs/{log_id}")
 async def delete_log(log_id: int, authorization: str = Header(None)):
     try:
-        token = authorization.replace("Bearer ", "").strip()
-        user_email = None
-        try: user_email = get_user_email_from_token(authorization)
-        except: user_email = get_user_email_from_access_token(token)
-        
         if not prisma.is_connected(): await connect_db()
-        log = await prisma.logs.find_first(where={"id": log_id, "userId": user_email})
-        if not log: raise HTTPException(404, "Log not found")
-        if log.imagePath:
-            try:
-                filename = log.imagePath.split("/")[-1]
-                filepath = os.path.join(UPLOAD_DIR, filename)
-                if os.path.exists(filepath): os.remove(filepath)
-            except: pass
-        await prisma.logs.delete(where={"id": log_id})
+        log = await prisma.logs.find_unique(where={"id": log_id})
+        if log:
+            if log.imagePath:
+                try: os.remove(os.path.join(UPLOAD_DIR, log.imagePath.split("/")[-1]))
+                except: pass
+            await prisma.logs.delete(where={"id": log_id})
         return {"status": "success"}
     except Exception as e: return {"status": "error", "message": str(e)}
 
-# 4. EXPORT ENDPOINT (EXCEL + PDF)
+# 4. EXPORT ENDPOINT (EXCEL RAPI & PDF)
 @app.get("/export")
 async def export_data(
     authorization: str = Header(None), 
     upload_to_drive: bool = False,
-    format: str = "excel" # excel / pdf
+    format: str = "excel"
 ):
     try:
         token = authorization.replace("Bearer ", "").strip()
@@ -312,7 +291,7 @@ async def export_data(
         media_type = ""
         file_content = b""
 
-        # === MODE EXCEL (AUTO RAPI) ===
+        # === MODE EXCEL ===
         if format == "excel":
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
@@ -328,11 +307,11 @@ async def export_data(
                 headers = ["NO", "TANGGAL", "JAM", "KATEGORI", "NOMOR", "PENERIMA", "RINGKASAN", "FOTO"]
                 for col, txt in enumerate(headers): worksheet.write(0, col, txt, fmt_header)
                 
-                # Auto Width Setup
+                # Auto Width
                 worksheet.set_column('A:A', 5)
                 worksheet.set_column('B:C', 12)
                 worksheet.set_column('D:F', 20)
-                worksheet.set_column('G:G', 50) # Ringkasan lebar
+                worksheet.set_column('G:G', 50)
                 worksheet.set_column('H:H', 15)
 
                 for i, l in enumerate(logs):
@@ -346,7 +325,6 @@ async def export_data(
                     worksheet.write(row, 6, l.summary, fmt_left)
                     
                     link = l.imagePath
-                    # Logic upload on demand jika format Excel + Drive
                     if upload_to_drive and token and "drive" not in link and l.imagePath:
                          try:
                             fname = l.imagePath.split("/")[-1]
@@ -370,39 +348,35 @@ async def export_data(
             pdf.add_page()
             pdf.set_font("Arial", size=12)
             
-            # Judul
             pdf.set_font("Arial", 'B', 16)
             pdf.cell(190, 10, txt="LAPORAN HARIAN OCR.WTF", ln=True, align='C')
             pdf.ln(10)
 
-            # Isi
             pdf.set_font("Arial", size=10)
             for i, l in enumerate(logs):
                 tgl = l.timestamp.strftime("%Y-%m-%d %H:%M")
                 pdf.set_font("Arial", 'B', 10)
                 pdf.cell(0, 8, txt=f"#{i+1} | {tgl} | {l.kategori} | {l.receiver}", ln=True)
                 pdf.set_font("Arial", size=10)
-                pdf.multi_cell(0, 6, txt=f"No. Dok: {l.nomorDokumen}\nInfo: {l.summary}\nLink: {l.imagePath}")
+                pdf.multi_cell(0, 6, txt=f"No. Dok: {l.nomorDokumen}\nRingkasan: {l.summary}\nLink: {l.imagePath}")
                 pdf.ln(3)
                 pdf.line(10, pdf.get_y(), 200, pdf.get_y())
                 pdf.ln(3)
 
-            file_content = pdf.output(dest='S').encode('latin-1')
+            file_content = pdf.output(dest='S').encode('latin-1', 'ignore')
             filename = f"Laporan_{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
             media_type = "application/pdf"
 
-        # === RESPONSE ===
         if upload_to_drive:
             if format != "excel": 
-                return {"status": "error", "message": "Fitur Drive saat ini khusus Excel."}
+                return {"status": "error", "message": "Fitur Drive hanya untuk Excel."}
             try:
                 drive_res = export_to_google_drive_with_token(token, file_content, filename)
                 if drive_res and drive_res.get('web_view_link'):
                     return {"status": "success", "drive_url": drive_res.get('web_view_link')}
                 return {"status": "error", "message": "Gagal upload Drive (Empty Response)."}
             except Exception as e:
-                print(f"Drive Error: {e}")
-                return {"status": "error", "message": "Token Drive expired/invalid."}
+                return {"status": "error", "message": f"Drive Error: {e}"}
         else:
             return Response(
                 content=file_content, 
@@ -428,12 +402,8 @@ async def delete_account(authorization: str = Header(None)):
         user_logs = await prisma.logs.find_many(where={"userId": user_email})
         for log in user_logs:
             if log.imagePath:
-                try:
-                    filename = log.imagePath.split("/")[-1]
-                    filepath = os.path.join(UPLOAD_DIR, filename)
-                    if os.path.exists(filepath): os.remove(filepath)
+                try: os.remove(os.path.join(UPLOAD_DIR, log.imagePath.split("/")[-1]))
                 except: pass
-
         await prisma.rating.delete_many(where={"userId": user_email})
         await prisma.credittransaction.delete_many(where={"userId": user.id})
         await prisma.logs.delete_many(where={"userId": user_email})
