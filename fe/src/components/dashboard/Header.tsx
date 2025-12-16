@@ -17,7 +17,6 @@ interface HeaderProps {
 }
 
 const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
-  // Ambil data kredit langsung dari props user agar sinkron
   const credits = user?.creditBalance ?? 0;
 
   return (
@@ -30,8 +29,8 @@ const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* CREDIT COUNTER */}
-          <div className="hidden md:flex items-center gap-2 brutal-border px-3 py-1 bg-yellow-400">
+          {/* CREDIT COUNTER (Hanya Tampil di Atas, Tidak di Dropdown lagi) */}
+          <div className="flex items-center gap-2 brutal-border px-3 py-1 bg-yellow-400">
             <Zap className="w-4 h-4 text-black fill-black" />
             <div className="flex flex-col leading-none">
               <span className="text-[10px] font-bold uppercase">Credits</span>
@@ -57,7 +56,6 @@ const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-bold leading-none">{user?.name}</p>
                   <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
-                  <p className="md:hidden text-xs font-bold text-yellow-600 mt-1">Sisa Kredit: {credits}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-black" />
