@@ -2,7 +2,7 @@
 *智能文书処理システム*
 
 [![🚀 Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=for-the-badge)](https://api-ocr.xyz)
-[![⚡ API](https://img.shields.io/badge/API-Hybrid%20VPS-blue?style=for-the-badge)](https://api-ocr.xyz)
+[![⚡ API](https://img.shields.io/badge/API-Hybrid%20VPS-blue?style=for-the-badge)](https://ocr.wtf)
 [![🔧 Stack](https://img.shields.io/badge/Stack-FastAPI%20%2B%20React-orange?style=for-the-badge)](#tech-stack)
 
 > **先進的なOCR技術による** 📸 → 📝 → 💾 **完全自動化**
@@ -42,7 +42,7 @@
 - **PIL + NumPy** for image processing
 
 ### **Infrastructure**
-- **Primary**: VPS with SSL (https://api-ocr.xyz)
+- **Primary**: VPS with SSL
 - **Backup**: Render Cloud Platform
 - **CDN**: Automatic failover system
 - **Security**: JWT authentication + HTTPS
@@ -56,7 +56,7 @@
 cd fe
 npm install
 npm run dev
-# → http://localhost:5173
+# → http://localhost:8080
 ```
 
 ### **Backend Setup**  
