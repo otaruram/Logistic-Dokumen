@@ -18,7 +18,6 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
 
   const startCamera = async () => {
     try {
-      // Request camera with better constraints
       const constraints = {
         video: {
           facingMode: { ideal: "environment" },
@@ -29,21 +28,18 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
       };
 
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      
+
       if (!mediaStream || mediaStream.getVideoTracks().length === 0) {
         throw new Error("No video track available");
       }
 
-      // Check if torch/flash is supported
       const track = mediaStream.getVideoTracks()[0];
       const capabilities = track.getCapabilities() as any;
       setTorchSupported(!!capabilities.torch);
-      
-      // Set stream first
+
       setStream(mediaStream);
       setMode("camera");
-      
-      // Wait for next frame before setting video source
+
       setTimeout(() => {
         if (videoRef.current && mediaStream) {
           videoRef.current.srcObject = mediaStream;
@@ -52,7 +48,7 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
           });
         }
       }, 100);
-      
+
     } catch (error: any) {
       console.error("Camera error:", error);
       alert(`Gagal mengakses kamera: ${error.message || "Unknown error"}`);
@@ -62,19 +58,15 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
 
   const toggleFlash = async () => {
     if (!stream || !torchSupported) return;
-    
     try {
       const track = stream.getVideoTracks()[0];
       const newFlashState = !flashEnabled;
-      
       await track.applyConstraints({
         advanced: [{ torch: newFlashState } as any]
       });
-      
       setFlashEnabled(newFlashState);
     } catch (error) {
       console.error("Failed to toggle flash:", error);
-      alert("Gagal mengaktifkan flash");
     }
   };
 
@@ -104,7 +96,6 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
 
   const confirmPhoto = () => {
     if (capturedImage) {
-      // Convert base64 to File
       fetch(capturedImage)
         .then((res) => res.blob())
         .then((blob) => {
@@ -119,7 +110,6 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
 
   const retakePhoto = () => {
     setCapturedImage(null);
-    // Restart camera untuk retake
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
       setStream(null);
@@ -138,22 +128,22 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
 
   if (mode === "camera") {
     return (
-      <div className="brutal-border bg-background p-4 space-y-4">
+      <div className="brutal-border bg-background p-4 space-y-4 animate-in fade-in zoom-in-95 duration-300">
         <div className="flex justify-between items-center">
           <h3 className="font-bold text-sm uppercase">AMBIL FOTO</h3>
           <Button
             onClick={stopCamera}
             variant="outline"
             size="sm"
-            className="brutal-btn"
+            className="brutal-btn hover:bg-red-100 hover:text-red-600 transition-colors"
           >
             <X className="w-4 h-4" />
           </Button>
         </div>
 
         {!capturedImage ? (
-          <>
-            <div className="relative bg-black brutal-border">
+          <div className="space-y-4 animate-in fade-in duration-500">
+            <div className="relative bg-black brutal-border overflow-hidden group">
               <video
                 ref={videoRef}
                 autoPlay
@@ -172,51 +162,47 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
                   onClick={toggleFlash}
                   variant="outline"
                   size="sm"
-                  className={`absolute top-2 right-2 brutal-btn ${
-                    flashEnabled ? "bg-yellow-400 text-black" : ""
+                  className={`absolute top-2 right-2 brutal-btn transition-all duration-300 ${
+                    flashEnabled ? "bg-yellow-400 text-black scale-110 shadow-[0px_0px_10px_rgba(250,204,21,0.8)]" : "bg-white/80"
                   }`}
                 >
-                  {flashEnabled ? (
-                    <Zap className="w-4 h-4" />
-                  ) : (
-                    <ZapOff className="w-4 h-4" />
-                  )}
+                  {flashEnabled ? <Zap className="w-4 h-4" /> : <ZapOff className="w-4 h-4" />}
                 </Button>
               )}
             </div>
             <Button
               onClick={capturePhoto}
-              className="w-full brutal-btn brutal-press"
+              className="w-full brutal-btn h-12 text-lg active:scale-95 transition-transform duration-100"
             >
-              <Camera className="w-4 h-4 mr-2" />
+              <Camera className="w-5 h-5 mr-2" />
               AMBIL GAMBAR
             </Button>
-          </>
+          </div>
         ) : (
-          <>
+          <div className="space-y-4 animate-in zoom-in-95 duration-300">
             <img
               src={capturedImage}
               alt="Preview"
-              className="w-full brutal-border"
+              className="w-full brutal-border shadow-lg"
             />
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               <Button
                 onClick={retakePhoto}
                 variant="outline"
-                className="brutal-btn"
+                className="brutal-btn hover:bg-red-50 hover:border-red-500 hover:text-red-600 transition-all active:scale-95"
               >
                 <X className="w-4 h-4 mr-2" />
                 ULANGI
               </Button>
               <Button
                 onClick={confirmPhoto}
-                className="brutal-btn brutal-press"
+                className="brutal-btn bg-green-500 hover:bg-green-400 text-white border-black hover:translate-y-[-2px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-y-[0px] active:shadow-none"
               >
                 <Check className="w-4 h-4 mr-2" />
                 GUNAKAN
               </Button>
             </div>
-          </>
+          </div>
         )}
 
         <canvas ref={canvasRef} className="hidden" />
@@ -225,11 +211,11 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
   }
 
   return (
-    <div className="brutal-border bg-background p-6">
-      <h3 className="font-bold text-sm uppercase mb-4 text-center">
+    <div className="brutal-border bg-background p-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <h3 className="font-bold text-sm uppercase mb-4 text-center tracking-widest">
         PILIH METODE INPUT
       </h3>
-      
+
       <div className="grid grid-cols-2 gap-4">
         {/* Upload File Button */}
         <button
@@ -237,19 +223,27 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
             setMode("upload");
             fileInputRef.current?.click();
           }}
-          className="brutal-border bg-background p-6 hover:bg-accent transition-colors brutal-press flex flex-col items-center gap-3 group"
+          className="brutal-border bg-background p-6 transition-all duration-300 flex flex-col items-center gap-3 group
+                     hover:bg-blue-50 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+                     active:translate-y-0 active:shadow-none"
         >
-          <Upload className="w-8 h-8 group-hover:scale-110 transition-transform" />
-          <span className="font-bold text-xs uppercase">UPLOAD FILE</span>
+          <div className="p-3 bg-blue-100 rounded-full border-2 border-black group-hover:bg-blue-200 transition-colors">
+             <Upload className="w-8 h-8 group-hover:scale-110 transition-transform duration-300" />
+          </div>
+          <span className="font-black text-xs uppercase tracking-tight">UPLOAD FILE</span>
         </button>
 
         {/* Camera Button */}
         <button
           onClick={startCamera}
-          className="brutal-border bg-background p-6 hover:bg-accent transition-colors brutal-press flex flex-col items-center gap-3 group"
+          className="brutal-border bg-background p-6 transition-all duration-300 flex flex-col items-center gap-3 group
+                     hover:bg-yellow-50 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+                     active:translate-y-0 active:shadow-none"
         >
-          <Camera className="w-8 h-8 group-hover:scale-110 transition-transform" />
-          <span className="font-bold text-xs uppercase">AMBIL FOTO</span>
+          <div className="p-3 bg-yellow-100 rounded-full border-2 border-black group-hover:bg-yellow-200 transition-colors">
+             <Camera className="w-8 h-8 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
+          </div>
+          <span className="font-black text-xs uppercase tracking-tight">AMBIL FOTO</span>
         </button>
       </div>
 
