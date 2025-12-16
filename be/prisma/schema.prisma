@@ -9,20 +9,22 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  name          String?
-  picture       String?
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String?
+  picture         String?
   
-  // 🔥 TAMBAHKAN KOLOM 'TIER' DI SINI BIAR ERROR HILANG 🔥
-  tier          String   @default("FREE")
+  tier            String   @default("FREE")
+  creditBalance   Int      @default(3)
+  
+  // 🔥 KOLOM YANG HILANG TADI 🔥
+  lastCreditReset DateTime @default(now()) 
+  
+  createdAt       DateTime @default(now())
 
-  creditBalance Int      @default(3)
-  createdAt     DateTime @default(now())
-
-  logs          Logs[]
-  ratings       Rating[]
-  transactions  CreditTransaction[]
+  logs            Logs[]
+  ratings         Rating[]
+  transactions    CreditTransaction[]
 }
 
 model Logs {
