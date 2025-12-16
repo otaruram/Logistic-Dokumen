@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { FileText, Zap, ArrowRight, Moon, Sun, Terminal, Cpu } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import RatingMarquee from '@/components/landing/RatingMarquee'; // Import Marquee
+import RatingMarquee from '@/components/RatingMarquee'; // Import Marquee
 
 // ... (Sub-components FeaturePill & BioPanel tetap sama) ...
 // Copy FeaturePill & BioPanel dari kode sebelumnya di sini 
