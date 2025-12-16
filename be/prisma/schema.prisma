@@ -1,86 +1,65 @@
-// Prisma schema untuk Supply Chain OCR Multi-User System
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider             = "prisma-client-py"
-  recursive_type_depth = 5
+  provider = "prisma-client-py"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite" // Atau "postgresql" jika pakai PostgresRender
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  picture       String?
+  
+  // 🔥 DUA FIELD INI WAJIB ADA UTK FITUR BARU 🔥
+  creditBalance Int      @default(3)
+  createdAt     DateTime @default(now())
+
+  logs          Logs[]
+  ratings       Rating[]
+  transactions  CreditTransaction[]
 }
 
 model Logs {
   id           Int      @id @default(autoincrement())
-  userId       String   @default("anonymous@system.local") @map("user_id")
+  userId       String
   timestamp    DateTime @default(now())
   filename     String
-  kategori     String
-  nomorDokumen String   @map("nomor_dokumen")
-  receiver     String
-  imagePath    String   @map("image_path")
-  summary      String   @db.Text
-  fullText     String   @map("full_text") @db.Text
+  kategori     String?
+  nomorDokumen String?
+  receiver     String?
+  imagePath    String?
+  summary      String?
+  fullText     String?
 
-  @@index([userId])
-  @@map("logs")
+  user         User     @relation(fields: [userId], references: [email])
 }
 
-model ApiKey {
-  id        Int      @id @default(autoincrement())
-  userId    String   @map("user_id")
-  apiKey    String   @map("api_key")
-  provider  String   @default("openai")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+model Rating {
+  id         Int      @id @default(autoincrement())
+  userId     String
+  userName   String
+  userAvatar String?
+  stars      Int
+  emoji      String
+  message    String
+  createdAt  DateTime @default(now())
 
-  @@unique([userId, provider])
-  @@index([userId])
-  @@map("api_keys")
-}
-
-model User {
-  id              Int               @id @default(autoincrement())
-  email           String            @unique
-  name            String?
-  creditBalance   Int               @default(3) @map("credit_balance")
-  tier            String            @default("starter")
-  lastCreditReset DateTime?         @map("last_credit_reset")
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
-  
-  // Relations
-  transactions    CreditTransaction[]
-  
-  @@map("users")
+  user       User     @relation(fields: [userId], references: [email])
 }
 
 model CreditTransaction {
-  id          Int      @id @default(autoincrement())
-  userId      Int      @map("user_id")
-  amount      Int      
-  description String
-  createdAt   DateTime @default(now()) @map("created_at")
-  
-  // Relations
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-  @@map("credit_transactions")
-}
+  id        Int      @id @default(autoincrement())
+  userId    String
+  amount    Int
+  type      String   // "DEDUCT" | "RESET" | "TOPUP"
+  reason    String?
+  timestamp DateTime @default(now())
 
-// 🔥 MODEL BARU: RATING 🔥
-model Rating {
-  id         Int      @id @default(autoincrement())
-  userId     String   @map("user_id") // Kita pakai email sebagai ID string
-  userName   String   @map("user_name")
-  userAvatar String   @map("user_avatar")
-  stars      Int
-  emoji      String
-  message    String   @db.Text
-  createdAt  DateTime @default(now()) @map("created_at")
-
-  @@map("ratings")
+  user      User     @relation(fields: [userId], references: [id])
 }
