@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Search, Trash2, CloudUpload, Pencil, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { apiFetch } from "@/lib/api-config";
+import { apiFetch } from "@/lib/api-service";
 
 interface DataTableProps {
   logs: any[];
