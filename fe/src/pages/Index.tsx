@@ -3,10 +3,10 @@ import { apiFetch } from "@/lib/api-service";
 import Header from "@/components/dashboard/Header";
 import FileUploadZone from "@/components/dashboard/FileUploadZone";
 import DataTable from "@/components/dashboard/DataTable";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner"; // Pastikan import toast dari sonner
 import { useNavigate } from "react-router-dom";
 
-export default function Dashboard() {
+export default function Index() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
@@ -18,7 +18,7 @@ export default function Dashboard() {
       try {
         // Cek Sesi Lokal
         const storedUser = sessionStorage.getItem('user');
-        if (!storedUser) { navigate('/login'); return; }
+        if (!storedUser) { navigate('/landing'); return; } // Redirect ke Landing kalau belum login
         
         const localUser = JSON.parse(storedUser);
         
@@ -64,7 +64,7 @@ export default function Dashboard() {
     
     // Cek kredit dulu di frontend biar gak buang kuota upload
     if (user.creditBalance < 1) {
-        toast({ title: "Kredit Habis!", description: "Silakan topup atau tunggu besok.", variant: "destructive" });
+        toast.error("Kredit Habis!", { description: "Silakan topup atau tunggu besok." });
         return;
     }
 
@@ -74,7 +74,7 @@ export default function Dashboard() {
     formData.append("receiver", user.name || "User");
 
     try {
-      toast({ title: "Memproses...", description: "Sedang membaca dokumen (AI OCR)..." });
+      toast.info("Memproses...", { description: "Sedang membaca dokumen (AI OCR)..." });
       
       const res = await apiFetch("/scan", {
         method: "POST",
@@ -85,7 +85,7 @@ export default function Dashboard() {
       const json = await res.json();
 
       if (json.status === "success") {
-        toast({ title: "Berhasil!", description: "Dokumen berhasil discan." });
+        toast.success("Berhasil!", { description: "Dokumen berhasil discan." });
 
         // 🔥 UPDATE KREDIT SECARA REALTIME (PENTING!)
         const newBalance = json.remaining_credits;
@@ -109,7 +109,7 @@ export default function Dashboard() {
         throw new Error(json.message || "Gagal memproses gambar");
       }
     } catch (error: any) {
-      toast({ title: "Gagal", description: error.message, variant: "destructive" });
+      toast.error("Gagal", { description: error.message });
     } finally {
       setLoading(false);
     }
@@ -121,8 +121,8 @@ export default function Dashboard() {
     try {
         await apiFetch(`/logs/${id}`, { method: "DELETE" });
         setLogs(prev => prev.filter(l => l.id !== id));
-        toast({ title: "Terhapus", description: "Log berhasil dihapus." });
-    } catch (e) { toast({ title: "Error", variant: "destructive" }); }
+        toast.success("Terhapus", { description: "Log berhasil dihapus." });
+    } catch (e) { toast.error("Error saat menghapus"); }
   };
 
   // 4. FUNGSI UPDATE LOG
@@ -134,8 +134,8 @@ export default function Dashboard() {
             body: JSON.stringify({ summary })
         });
         setLogs(prev => prev.map(l => l.id === id ? { ...l, summary } : l));
-        toast({ title: "Tersimpan", description: "Ringkasan diperbarui." });
-    } catch (e) { toast({ title: "Error", variant: "destructive" }); }
+        toast.success("Tersimpan", { description: "Ringkasan diperbarui." });
+    } catch (e) { toast.error("Error saat menyimpan"); }
   };
 
   if (!user) return <div className="flex h-screen items-center justify-center font-bold animate-pulse">MEMUAT DATA...</div>;
