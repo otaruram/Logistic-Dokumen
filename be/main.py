@@ -29,25 +29,70 @@ smart_ocr = None
 credit_service = None
 scheduler = None
 
+# --- BACKGROUND TASKS ---
+
+# 1. Reset Rating Bulanan (Tiap tgl 1)
 async def monthly_rating_reset_task():
     try:
         if prisma.is_connected():
             await prisma.rating.delete_many()
+            print("✅ Ratings reset for new month.")
     except: pass
 
+# 2. Hapus Data User Sesuai Tanggal Join (Tiap Hari jam 01:00)
+async def daily_data_cleanup_task():
+    try:
+        if not prisma.is_connected(): await connect_db()
+        today = datetime.now()
+        current_day = today.day
+        print(f"🧹 Running Daily Cleanup (Day {current_day})...")
+        
+        # Ambil semua user
+        all_users = await prisma.user.find_many()
+        
+        for user in all_users:
+            # Jika tanggal hari ini == tanggal join user (misal user join tgl 12, skrg tgl 12)
+            if user.createdAt.day == current_day:
+                print(f"♻️ Cleaning logs for: {user.email}")
+                
+                # Hapus File Fisik
+                user_logs = await prisma.logs.find_many(where={"userId": user.email})
+                for log in user_logs:
+                    if log.imagePath:
+                        try:
+                            fname = log.imagePath.split("/")[-1]
+                            path = os.path.join(UPLOAD_DIR, fname)
+                            if os.path.exists(path): os.remove(path)
+                        except: pass
+                
+                # Hapus Log di Database
+                await prisma.logs.delete_many(where={"userId": user.email})
+                
+    except Exception as e:
+        print(f"❌ Error Cleanup Task: {e}")
+
+# --- LIFESPAN ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print("🚀 Starting Server...")
     try: await connect_db() 
     except: pass
+
     global smart_ocr, credit_service, scheduler
     smart_ocr = SmartOCRProcessor(os.getenv('OCR_SPACE_API_KEY', 'helloworld'))
     credit_service = CreditService()
+    
+    # Setup Scheduler
     scheduler = AsyncIOScheduler()
     scheduler.add_job(monthly_rating_reset_task, "cron", day=1, hour=0, minute=0, timezone='Asia/Jakarta')
+    scheduler.add_job(daily_data_cleanup_task, "cron", hour=1, minute=0, timezone='Asia/Jakarta')
     scheduler.start()
+    
     yield
+    
     if scheduler: scheduler.shutdown()
     await disconnect_db()
+    print("🛑 Server Shutdown")
 
 app = FastAPI(lifespan=lifespan)
 UPLOAD_DIR = "uploads"
@@ -87,7 +132,34 @@ class LogUpdate(BaseModel):
 
 # --- ENDPOINTS ---
 @app.get("/health")
-def health(): return {"status": "ok"}
+def health(): return {"status": "ok", "db": prisma.is_connected()}
+
+# NEW: Endpoint Get Profile (Agar FE tahu kapan User Join utk Notifikasi)
+@app.get("/me")
+async def get_my_profile(authorization: str = Header(None)):
+    try:
+        token = authorization.replace("Bearer ", "").strip()
+        user_email = None
+        try: user_email = get_user_email_from_token(authorization)
+        except: user_email = get_user_email_from_access_token(token)
+        
+        if not user_email: return {"status": "error", "message": "Token Invalid"}
+        
+        if not prisma.is_connected(): await connect_db()
+        user = await prisma.user.find_unique(where={"email": user_email})
+        
+        if user:
+            return {
+                "status": "success", 
+                "data": {
+                    "email": user.email,
+                    "createdAt": user.createdAt.isoformat(),
+                    "creditBalance": user.creditBalance
+                }
+            }
+        return {"status": "error", "message": "User not found"}
+    except Exception as e: return {"status": "error", "message": str(e)}
+
 
 @app.post("/rating")
 async def create_rating(data: RatingRequest, authorization: str = Header(None)):
@@ -209,7 +281,7 @@ async def export_data(authorization: str = Header(None), upload_to_drive: bool =
                 
                 headers = ["NO", "TANGGAL", "JAM", "KATEGORI", "NOMOR", "PENERIMA", "RINGKASAN", "FOTO"]
                 for col, txt in enumerate(headers): worksheet.write(0, col, txt, fmt_header)
-                worksheet.set_column('G:G', 50) # Wide summary
+                worksheet.set_column('G:G', 50) 
                 
                 for i, l in enumerate(logs):
                     row = i + 1
