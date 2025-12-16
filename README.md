@@ -222,7 +222,7 @@ Built with ❤️ for the logistics community
 
 ## 📞 **Support**
 
-- 🌐 **Live Demo**: [https://api-ocr.xyz](https://api-ocr.xyz)
+- 🌐 **Live Demo**: [ocr.wtf](ocr.wtf) 
 - 📧 **Contact**: [support@example.com](mailto:support@example.com)
 - 📱 **Issues**: [GitHub Issues](https://github.com/otaruram/Logistic-Dokumen/issues)
 - 📖 **Docs**: [API Documentation](https://api-ocr.xyz/docs)
