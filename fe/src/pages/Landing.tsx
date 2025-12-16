@@ -37,12 +37,9 @@ export default function Landing() {
         const res = await apiFetch("/ratings");
         const json = await res.json();
         if (json.status === "success") {
-          // 🔥 FILTER: HILANGKAN OKI TARUNA & CARD DUPLIKAT 🔥
-          const filtered = json.data.filter((r: any) => {
-            const name = r.userName.toLowerCase();
-            return !name.includes("oki taruna") && !name.includes("oki");
-          });
-          setRatings(filtered);
+          // 🔥 FIX: TIDAK ADA LAGI FILTER NAMA SENDIRI 🔥
+          // Langsung set semua data yang masuk dari API
+          setRatings(json.data || []);
         }
       } catch (e) { console.error(e); }
     };
@@ -124,7 +121,7 @@ export default function Landing() {
                 {/* Kontainer Animasi */}
                 {ratings.length > 0 ? (
                     <div className="animate-vertical-marquee group-hover:[animation-play-state:paused] flex flex-col gap-4 p-6">
-                        {/* Duplicate array untuk efek infinite loop mulus */}
+                        {/* Duplicate array untuk efek infinite loop mulus (x3) */}
                         {[...ratings, ...ratings, ...ratings].map((rating, i) => (
                             <div 
                                 key={`${rating.id}-${i}`}
