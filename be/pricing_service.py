@@ -1,26 +1,20 @@
-from enum import Enum
 from datetime import datetime, date
-from typing import Optional, Dict, Any
+from typing import Optional
 import logging
-import calendar
-
-logger = logging.getLogger(__name__)
 
 class CreditService:
-    """Service Manager untuk Logic Kredit & Pricing - CLEAN VERSION"""
-
     DAILY_CREDIT_LIMIT = 3
 
     @staticmethod
     async def ensure_default_credits(user_email: str, prisma):
-        """Ensure user has daily credits (3 per day with auto-reset)"""
+        """Pastikan user punya 3 kredit setiap hari baru"""
         try:
             if not prisma: return False
             today = date.today()
             user = await prisma.user.find_unique(where={"email": user_email})
 
             if not user:
-                # User Baru
+                # USER BARU: Kasih 3 Kredit
                 await prisma.user.create(
                     data={
                         "email": user_email,
@@ -31,12 +25,18 @@ class CreditService:
                 )
                 return True
             else:
-                # User Lama: Cek Reset Harian
+                # USER LAMA: Cek apakah hari sudah berganti?
                 last_reset = user.lastCreditReset.date() if user.lastCreditReset else None
+                
+                # Jika hari beda, RESET JADI 3 (Bukan ditambah, tapi diset ke limit harian)
                 if last_reset != today:
+                    print(f"🔄 Resetting credits for {user_email} to {CreditService.DAILY_CREDIT_LIMIT}")
                     await prisma.user.update(
                         where={"email": user_email},
-                        data={"creditBalance": CreditService.DAILY_CREDIT_LIMIT, "lastCreditReset": datetime.now()}
+                        data={
+                            "creditBalance": CreditService.DAILY_CREDIT_LIMIT, 
+                            "lastCreditReset": datetime.now()
+                        }
                     )
                 return True
         except Exception as e:
@@ -55,33 +55,29 @@ class CreditService:
 
     @staticmethod
     async def deduct_credits(user_email: str, amount: int, description: str, prisma) -> Optional[int]:
-        """
-        🔥 FIXED: Mengurangi kredit dan mengembalikan SISA SALDO TERBARU (Integer).
-        Returns: int (sisa saldo) atau None (jika gagal/saldo kurang)
-        """
+        """Potong kredit dan return sisa saldo"""
         try:
-            if not prisma: return 3 # Fallback offline mode
+            if not prisma: return 3
 
-            # 1. Ambil User & Pastikan Ada
+            # 1. Pastikan user valid & kredit harian sudah reset
+            await CreditService.ensure_default_credits(user_email, prisma)
             user = await prisma.user.find_unique(where={"email": user_email})
-            if not user:
-                await CreditService.ensure_default_credits(user_email, prisma)
-                user = await prisma.user.find_unique(where={"email": user_email})
-                if not user: return None
+            
+            if not user: return None
             
             # 2. Validasi Saldo
             if user.creditBalance < amount:
-                print(f"⛔ SALDO KURANG - User: {user_email}, Punya: {user.creditBalance}, Butuh: {amount}")
+                print(f"⛔ SALDO KURANG: {user.creditBalance}")
                 return None
 
-            # 3. Update Saldo (Kurangi)
+            # 3. Update Saldo
             new_balance = user.creditBalance - amount
             await prisma.user.update(
                 where={"id": user.id},
                 data={"creditBalance": new_balance}
             )
 
-            # 4. Catat Transaksi (Log)
+            # 4. Catat Transaksi
             try:
                 await prisma.credittransaction.create(
                     data={
@@ -91,38 +87,14 @@ class CreditService:
                         "timestamp": datetime.now()
                     }
                 )
-            except Exception as e:
-                print(f"⚠️ Gagal catat history transaksi: {e}")
+            except Exception: pass
 
-            print(f"✅ DEDUCT SUKSES: {user_email}, Sisa: {new_balance}")
             return new_balance
 
         except Exception as e:
-            print(f"💥 CRITICAL ERROR deduct_credits: {str(e)}")
+            print(f"Error deduct: {str(e)}")
             return None
-            
-    # --- Helper Lainnya ---
-    @staticmethod
-    def get_pricing_plans():
-        return {
-            "topup_packages": [
-                {"credits": 20, "price": 10000, "name": "Paket Hemat"},
-                {"credits": 50, "price": 22000, "name": "Paket Sedang"}, 
-                {"credits": 100, "price": 35000, "name": "Paket Jumbo"}
-            ],
-            "pro_subscription": {"monthly_price": 49000, "credits_per_month": 200}
-        }
     
+    # Helper lain biarkan kosong/default
     @staticmethod
-    async def check_all_users_cleanup(prisma):
-        # Placeholder untuk logic cleanup
-        return 0
-
-    @staticmethod
-    async def get_user_tier(user_email: str, prisma) -> str:
-        try:
-            if not prisma: return "starter"
-            user = await prisma.user.find_unique(where={"email": user_email})
-            return user.tier if user else "starter"
-        except Exception:
-            return "starter"
+    async def check_all_users_cleanup(prisma): return 0
