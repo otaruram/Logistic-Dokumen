@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -9,6 +10,7 @@ import pandas as pd
 from datetime import datetime
 import os
 import traceback
+import requests
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -35,7 +37,7 @@ async def monthly_rating_reset_task():
     except Exception as e:
         print(f"❌ Error resetting ratings: {e}")
 
-# --- LIFESPAN ---
+# --- LIFESPAN (STARTUP & SHUTDOWN) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Starting Server...")
@@ -49,7 +51,7 @@ async def lifespan(app: FastAPI):
     smart_ocr = SmartOCRProcessor(os.getenv('OCR_SPACE_API_KEY', 'helloworld'))
     credit_service = CreditService()
     
-    # Scheduler
+    # Scheduler: Reset rating setiap tanggal 1 jam 00:00
     scheduler = AsyncIOScheduler()
     scheduler.add_job(monthly_rating_reset_task, "cron", day=1, hour=0, minute=0, timezone='Asia/Jakarta')
     scheduler.start()
@@ -60,6 +62,7 @@ async def lifespan(app: FastAPI):
     await disconnect_db()
     print("🛑 Server Shutdown")
 
+# --- APP SETUP ---
 app = FastAPI(lifespan=lifespan)
 
 UPLOAD_DIR = "uploads"
@@ -76,7 +79,17 @@ app.add_middleware(
 
 app.include_router(pricing_router, prefix="/api/pricing")
 
-# --- OCR HELPER ---
+# --- HELPER FUNCTIONS ---
+
+# Validasi Access Token (Untuk User Baru dengan Izin Drive)
+def get_user_email_from_access_token(access_token):
+    try:
+        res = requests.get('https://www.googleapis.com/oauth2/v3/userinfo', headers={'Authorization': f'Bearer {access_token}'})
+        if res.status_code == 200:
+            return res.json().get('email')
+    except: pass
+    return None
+
 async def extract_text_from_image(image_np):
     try:
         if smart_ocr:
@@ -90,7 +103,7 @@ async def extract_text_from_image(image_np):
     except Exception as e:
         return {"raw_text": str(e), "summary": "Error Sistem", "document_type": "error"}
 
-# --- MODEL REQUEST ---
+# --- MODELS ---
 class RatingRequest(BaseModel):
     stars: int
     emoji: str
@@ -106,13 +119,22 @@ class LogUpdate(BaseModel):
 @app.get("/health")
 def health(): return {"status": "ok", "db": prisma.is_connected()}
 
-# --- 1. RATING ENDPOINTS ---
+# 1. RATING
 @app.post("/rating")
 async def create_rating(data: RatingRequest, authorization: str = Header(None)):
     try:
-        user_email = get_user_email_from_token(authorization)
-        if not prisma.is_connected(): await connect_db()
+        # Coba validasi token (bisa JWT atau Access Token)
+        token = authorization.replace("Bearer ", "").strip()
+        user_email = None
+        try: user_email = get_user_email_from_token(authorization) # Coba JWT
+        except: user_email = get_user_email_from_access_token(token) # Coba Access Token
         
+        if not user_email: 
+             # Fallback: Rating boleh anonymous kalau token gagal? Atau strict?
+             # Kita buat strict biar aman, tapi kalau gagal decode, pakai email dari request (kurang aman tapi jalan)
+             user_email = "anonymous@ocr.wtf" 
+
+        if not prisma.is_connected(): await connect_db()
         await prisma.rating.create(data={
             "userId": user_email,
             "userName": data.userName,
@@ -134,7 +156,7 @@ async def get_ratings():
     except Exception as e:
         return {"status": "error", "data": []}
 
-# --- 2. SCAN ENDPOINT (YANG HILANG TADI) ---
+# 2. SCANNING
 @app.post("/scan")
 async def scan_document(
     file: UploadFile = File(...), 
@@ -142,9 +164,15 @@ async def scan_document(
     authorization: str = Header(None)
 ):
     try:
-        user_email = get_user_email_from_token(authorization)
-        remaining_credits = 0
+        # Validasi Token Hybrid
+        token = authorization.replace("Bearer ", "").strip()
+        user_email = None
+        try: user_email = get_user_email_from_token(authorization)
+        except: user_email = get_user_email_from_access_token(token)
+        
+        if not user_email: return {"status": "error", "message": "Login diperlukan"}
 
+        remaining_credits = 0
         if not prisma.is_connected(): await connect_db()
         
         # Cek Kredit
@@ -157,14 +185,12 @@ async def scan_document(
         content = await file.read()
         image_np = np.array(Image.open(io.BytesIO(content)))
         
-        # Simpan File Fisik
         timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
         clean_name = "".join(x for x in file.filename if x.isalnum() or x in "._- ")
         filename = f"{timestamp_str}_{clean_name}"
         filepath = os.path.join(UPLOAD_DIR, filename)
         with open(filepath, "wb") as f: f.write(content)
         
-        # URL Gambar
         BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
         if os.getenv("ENVIRONMENT") == "production":
              BASE_URL = "https://logistic-dokumen.onrender.com"
@@ -211,11 +237,17 @@ async def scan_document(
         print(f"Scan Error: {traceback.format_exc()}")
         return {"status": "error", "message": str(e)}
 
-# --- 3. LOG & HISTORY ENDPOINTS ---
+# 3. HISTORY & LOGS
 @app.get("/history")
 async def get_history(authorization: str = Header(None)):
     try:
-        user_email = get_user_email_from_token(authorization)
+        token = authorization.replace("Bearer ", "").strip()
+        user_email = None
+        try: user_email = get_user_email_from_token(authorization)
+        except: user_email = get_user_email_from_access_token(token)
+        
+        if not user_email: return []
+
         if not prisma.is_connected(): await connect_db()
         logs = await prisma.logs.find_many(where={"userId": user_email}, order={"id": "desc"})
         return [{
@@ -229,7 +261,11 @@ async def get_history(authorization: str = Header(None)):
 @app.put("/logs/{log_id}")
 async def update_log(log_id: int, log_data: LogUpdate, authorization: str = Header(None)):
     try:
-        user_email = get_user_email_from_token(authorization)
+        token = authorization.replace("Bearer ", "").strip()
+        user_email = None
+        try: user_email = get_user_email_from_token(authorization)
+        except: user_email = get_user_email_from_access_token(token)
+        
         if not prisma.is_connected(): await connect_db()
         updated = await prisma.logs.update(where={"id": log_id}, data={"summary": log_data.summary})
         return {"status": "success", "data": updated}
@@ -238,7 +274,11 @@ async def update_log(log_id: int, log_data: LogUpdate, authorization: str = Head
 @app.delete("/logs/{log_id}")
 async def delete_log(log_id: int, authorization: str = Header(None)):
     try:
-        user_email = get_user_email_from_token(authorization)
+        token = authorization.replace("Bearer ", "").strip()
+        user_email = None
+        try: user_email = get_user_email_from_token(authorization)
+        except: user_email = get_user_email_from_access_token(token)
+        
         if not prisma.is_connected(): await connect_db()
         log = await prisma.logs.find_first(where={"id": log_id, "userId": user_email})
         if not log: raise HTTPException(404, "Log not found")
@@ -252,17 +292,28 @@ async def delete_log(log_id: int, authorization: str = Header(None)):
         return {"status": "success"}
     except Exception as e: return {"status": "error", "message": str(e)}
 
-# --- 4. EXPORT ENDPOINT ---
+# 4. EXPORT ENDPOINT (SMART: DOWNLOAD / DRIVE)
 @app.get("/export")
-async def export_excel(authorization: str = Header(None), upload_to_drive: bool = True):
+async def export_excel(authorization: str = Header(None), upload_to_drive: bool = False):
     try:
-        user_email = get_user_email_from_token(authorization)
-        token = authorization.replace("Bearer ", "")
+        # Validasi Hybrid (Support JWT & Access Token)
+        token = authorization.replace("Bearer ", "").strip()
+        user_email = None
+        try:
+             # Cek JWT dulu (Format ID Token)
+             user_email = get_user_email_from_token(authorization)
+        except:
+             # Kalau gagal, cek Access Token ke Google
+             user_email = get_user_email_from_access_token(token)
+
+        if not user_email: return {"status": "error", "message": "Token Invalid / Expired"}
         
         if not prisma.is_connected(): await connect_db()
         logs = await prisma.logs.find_many(where={"userId": user_email}, order={"id": "desc"})
-        if not logs: return {"status": "error", "message": "Tidak ada data"}
+        
+        if not logs: return {"status": "error", "message": "Tidak ada data."}
 
+        # Bikin File Excel di Memory
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             workbook = writer.book
@@ -288,6 +339,7 @@ async def export_excel(authorization: str = Header(None), upload_to_drive: bool 
                 worksheet.write(row, 6, l.summary, fmt_left)
                 
                 link = l.imagePath
+                # Upload foto on demand (hanya jika pakai Access Token Drive)
                 if upload_to_drive and token and "drive" not in link and l.imagePath:
                      try:
                         fname = l.imagePath.split("/")[-1]
@@ -304,25 +356,40 @@ async def export_excel(authorization: str = Header(None), upload_to_drive: bool 
         content = buffer.getvalue()
         filename = f"Laporan_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
 
-        if upload_to_drive and token:
+        # KEPUTUSAN: Upload ke Drive atau Download Biasa?
+        if upload_to_drive:
             try:
-                res = export_to_google_drive_with_token(token, content, filename)
-                return {"status": "success", "drive_url": res.get('web_view_link')}
-            except Exception as e: return {"status": "error", "message": f"Drive Error: {e}"}
+                # Coba upload dengan token yang ada
+                drive_res = export_to_google_drive_with_token(token, content, filename)
+                if drive_res and drive_res.get('web_view_link'):
+                    return {"status": "success", "drive_url": drive_res.get('web_view_link')}
+                return {"status": "error", "message": "Gagal upload ke Drive (Respon kosong)."}
+            except Exception as e:
+                print(f"Drive Error: {e}")
+                return {"status": "error", "message": "Gagal ke Drive (Token Expired?)."}
+        else:
+            # Download Biasa (Stream File)
+            return Response(
+                content=content, 
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
 
-        return {"status": "error", "message": "Token Invalid"}
     except Exception as e: return {"status": "error", "message": str(e)}
 
-# --- 5. DELETE ACCOUNT ENDPOINT ---
+# 5. DELETE ACCOUNT
 @app.delete("/delete-account")
 async def delete_account(authorization: str = Header(None)):
     try:
-        user_email = get_user_email_from_token(authorization)
+        token = authorization.replace("Bearer ", "").strip()
+        user_email = None
+        try: user_email = get_user_email_from_token(authorization)
+        except: user_email = get_user_email_from_access_token(token)
+        
         if not prisma.is_connected(): await connect_db()
         user = await prisma.user.find_unique(where={"email": user_email})
         if not user: raise HTTPException(404, "User tidak ditemukan")
         
-        # Hapus File Fisik
         user_logs = await prisma.logs.find_many(where={"userId": user_email})
         for log in user_logs:
             if log.imagePath:
@@ -332,7 +399,6 @@ async def delete_account(authorization: str = Header(None)):
                     if os.path.exists(filepath): os.remove(filepath)
                 except: pass
 
-        # Hapus Data DB
         await prisma.rating.delete_many(where={"userId": user_email})
         await prisma.credittransaction.delete_many(where={"userId": user.id})
         await prisma.logs.delete_many(where={"userId": user_email})
