@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { apiFetch } from '@/lib/api-service';
-import RatingDialog from '@/components/dashboard/RatingDialog'; // Import Komponen Baru
+import RatingDialog from '@/components/RatingDialog'; // Import Komponen Baru
 
 export default function Profile() {
   const navigate = useNavigate();
