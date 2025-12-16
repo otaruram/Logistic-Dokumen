@@ -1,7 +1,7 @@
 # 📋 Supply Chain OCR System
 *智能文书処理システム*
 
-[![🚀 Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=for-the-badge)](https://api-ocr.xyz)
+[![🚀 Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=for-the-badge)](https://ocr.wtf)
 [![⚡ API](https://img.shields.io/badge/API-Hybrid%20VPS-blue?style=for-the-badge)](https://ocr.wtf)
 [![🔧 Stack](https://img.shields.io/badge/Stack-FastAPI%20%2B%20React-orange?style=for-the-badge)](#tech-stack)
 
