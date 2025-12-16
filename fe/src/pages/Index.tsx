@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api-service";
 
+// Komponen Teks Mengetik
 const TypewriterText = ({ text, delay = 0 }: { text: string; delay?: number }) => {
   const [displayText, setDisplayText] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -34,6 +35,7 @@ const TypewriterText = ({ text, delay = 0 }: { text: string; delay?: number }) =
 }
 
 const Index = () => {
+  // Load User dari Session Storage
   const [user, setUser] = useState(() => {
     try {
       const saved = sessionStorage.getItem('user');
@@ -51,10 +53,9 @@ const Index = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // --- FUNGSI UPDATE USER DATA (KREDIT) ---
+  // --- FUNGSI UPDATE DATA USER (TERMASUK KREDIT) ---
   const syncUserData = async (currentToken: string) => {
     try {
-        // Panggil API Cek Kredit
         const res = await apiFetch('/api/pricing/user/credits', {
             headers: { "Authorization": `Bearer ${currentToken}` }
         });
@@ -62,9 +63,8 @@ const Index = () => {
         
         if (json.status === 'success' && json.data) {
             const serverCredit = json.data.remainingCredits;
-            
-            // Update State & SessionStorage jika beda
             setUser((prev: any) => {
+                // Update hanya jika kredit beda
                 if (prev.creditBalance !== serverCredit) {
                     const updated = { ...prev, creditBalance: serverCredit };
                     sessionStorage.setItem('user', JSON.stringify(updated));
@@ -73,9 +73,7 @@ const Index = () => {
                 return prev;
             });
         }
-    } catch (e) {
-        console.error("Gagal sync kredit:", e);
-    }
+    } catch (e) { console.error("Sync error:", e); }
   };
 
   const loadData = useCallback(async () => {
@@ -83,7 +81,7 @@ const Index = () => {
       const token = user?.credential || "";
       if (!token) return;
 
-      // 1. Sync Kredit (PENTING: Jalankan ini di awal)
+      // 1. Sync Kredit Server
       await syncUserData(token);
 
       // 2. Load History
@@ -155,19 +153,18 @@ const Index = () => {
       const result = await response.json();
 
       if (result.status === "success") {
-        // Update Kredit Langsung dari Respon Scan
+        // 🔥 UPDATE KREDIT DI SINI 🔥
         if (result.remaining_credits !== undefined) {
              const updatedUser = { ...user, creditBalance: result.remaining_credits };
-             setUser(updatedUser);
-             sessionStorage.setItem('user', JSON.stringify(updatedUser));
+             setUser(updatedUser); // Update State (Re-render Header)
+             sessionStorage.setItem('user', JSON.stringify(updatedUser)); // Update Storage
         }
         
-        await loadData(); // Refresh Log
+        await loadData(); // Refresh Tabel
         toast({ title: "SCAN BERHASIL", description: `Sisa Kredit: ${result.remaining_credits}` });
         
         setReceiver("");
-        handleResetSignature(); // Reset Form tapi file tetap ada (opsional)
-
+        // handleResetSignature(); // Uncomment jika ingin reset TTD setelah scan
       } else if (result.error_type === "insufficient_credits") {
         toast({ title: "KREDIT HABIS", description: "Tunggu reset besok.", variant: "destructive" });
       } else {
