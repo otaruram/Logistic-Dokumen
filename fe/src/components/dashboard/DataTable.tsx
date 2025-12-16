@@ -24,6 +24,7 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
+  // Filter Log
   const filteredLogs = logs.filter((log) => 
     (log.docType || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
     (log.receiver || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -33,9 +34,12 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
   const handleEditClick = (log: any) => { setEditingLogId(log.id); setEditingSummary(log.summary); };
   const handleSaveEdit = async () => { if (editingLogId) { await onUpdateLog(editingLogId, editingSummary); setEditingLogId(null); } };
 
+  // --- 1. EXPORT DRIVE (Login Khusus) ---
   const handleDriveUpload = async () => {
     if (logs.length === 0) return toast({ title: "Data kosong", variant: "destructive" });
     const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+    
+    // Cek Izin Drive
     if (!user.isDriveEnabled) return toast({ title: "Akses Ditolak", description: "Login ulang & centang izin Drive.", variant: "destructive" });
     
     setIsUploading(true);
@@ -54,6 +58,7 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
     finally { setIsUploading(false); }
   };
 
+  // --- 2. DOWNLOAD LOKAL (EXCEL / PDF) ---
   const handleDownload = async (format: 'excel' | 'pdf') => {
     if (logs.length === 0) return toast({ title: "Data kosong", variant: "destructive" });
     setIsDownloading(true);
@@ -64,8 +69,15 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
             method: 'GET',
             headers: { "Authorization": `Bearer ${user?.credential}` }
         });
+        
         if(response.ok) {
             const blob = await response.blob();
+            
+            // 🔥 CEK ERROR: JANGAN DOWNLOAD KALAU ISINYA HTML (ERROR PAGE) 🔥
+            if (blob.type.includes('text/html')) {
+                throw new Error("Server Error (Backend Crash). Cek Logs.");
+            }
+
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a'); 
             a.href = url;
@@ -76,8 +88,8 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
         } else {
             toast({ title: "Gagal", description: "Gagal download file.", variant: "destructive" });
         }
-    } catch {
-        toast({ title: "Error", description: "Koneksi bermasalah.", variant: "destructive" });
+    } catch (e: any) {
+        toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
         setIsDownloading(false);
     }
@@ -89,6 +101,7 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
         <h2 className="font-bold uppercase tracking-wide text-xs md:text-sm">LOG HARIAN</h2>
         
         <div className="flex gap-2">
+            {/* DROPDOWN MENU DOWNLOAD */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" disabled={isDownloading} className="bg-white text-black h-8 px-3 hover:bg-gray-200 border-2 border-transparent hover:border-white font-bold text-[10px] md:text-xs">
@@ -105,6 +118,7 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* TOMBOL EXPORT DRIVE */}
             <Button variant="outline" size="sm" onClick={handleDriveUpload} disabled={isUploading} className="text-black bg-yellow-400 h-8 text-[10px] md:text-xs font-bold border-2 border-white hover:bg-yellow-500 hover:text-black">
                 {isUploading ? "..." : <><CloudUpload className="w-3 h-3 mr-2" /> DRIVE</>}
             </Button>
