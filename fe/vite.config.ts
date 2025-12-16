@@ -9,10 +9,32 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  // 1. Plugin tetap sama seperti settingan awal kamu
+  plugins: [
+    react(), 
+    mode === "development" && componentTagger()
+  ].filter(Boolean),
+  
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+
+  // 2. TAMBAHAN PENTING: Fix Layar Putih (MIME Error)
+  base: "/", 
+
+  // 3. TAMBAHAN PENTING: Fix Warning Chunk Size
+  build: {
+    chunkSizeWarningLimit: 1600, 
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
+        },
+      },
     },
   },
 }));
