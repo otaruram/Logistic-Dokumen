@@ -10,9 +10,8 @@ import DataTable from "@/components/dashboard/DataTable";
 import BrutalSpinner from "@/components/dashboard/BrutalSpinner";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { apiFetch } from "@/lib/api-service";
+import { apiFetch } from "@/lib/api-service"; // Pastikan path ini benar
 
-// Komponen teks animasi
 const TypewriterText = ({ text, delay = 0 }: { text: string; delay?: number }) => {
   const [displayText, setDisplayText] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -36,7 +35,6 @@ const TypewriterText = ({ text, delay = 0 }: { text: string; delay?: number }) =
 }
 
 const Index = () => {
-  // State User
   const [user, setUser] = useState(() => {
     try {
       const saved = sessionStorage.getItem('user');
@@ -48,7 +46,8 @@ const Index = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [receiver, setReceiver] = useState("");
   const [signature, setSignature] = useState<string | null>(null);
-  // 🔥 STATE BARU UNTUK KUNCI TANDA TANGAN
+  
+  // STATE BARU: STATUS KUNCI TANDA TANGAN
   const [isSignatureLocked, setIsSignatureLocked] = useState(false);
   
   const [isProcessing, setIsProcessing] = useState(false);
@@ -57,33 +56,35 @@ const Index = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Load Data & Sync Credit
+  // Load Data
   const loadData = useCallback(async () => {
     try {
       const token = user?.credential || "";
       if (!token) return;
 
-      // 1. Get History
+      // 1. Load History
       const response = await apiFetch('/history', { headers: { "Authorization": `Bearer ${token}` } });
       const data = await response.json();
+      
       if (Array.isArray(data)) {
         const formatted = data.map((log: any) => ({
           id: log.id,
           time: new Date(log.timestamp).toLocaleTimeString("id-ID"),
           date: new Date(log.timestamp).toISOString().split('T')[0],
-          docType: log.kategori,
-          docNumber: log.nomorDokumen,
-          receiver: log.receiver,
+          docType: log.kategori || "DOKUMEN",
+          docNumber: log.nomorDokumen || "-",
+          receiver: log.receiver || "-",
           imageUrl: log.imagePath,
-          summary: log.summary,
+          summary: log.summary || "",
           status: "SUCCESS"
         }));
         setLogs(formatted as any);
       }
 
-      // 2. Sync Credits (Biar gak 0)
+      // 2. Sync Credits
       const creditRes = await apiFetch('/api/pricing/user/credits', { headers: { "Authorization": `Bearer ${token}` } });
       const creditData = await creditRes.json();
+      
       if (creditData.status === 'success' && creditData.data.remainingCredits !== undefined) {
          if (creditData.data.remainingCredits !== user.creditBalance) {
             const updated = { ...user, creditBalance: creditData.data.remainingCredits };
@@ -91,13 +92,11 @@ const Index = () => {
             sessionStorage.setItem('user', JSON.stringify(updated));
          }
       }
-
     } catch (e) { console.error(e); }
   }, [user?.credential]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Handle Input File
   const handleFileSelect = useCallback(async (file: File) => {
     setImagePreview(URL.createObjectURL(file));
     try {
@@ -111,27 +110,28 @@ const Index = () => {
     setImagePreview(null);
   }, []);
 
-  // Handle Tanda Tangan
-  const handleSignatureChange = useCallback((signatureData: string | null) => {
+  // LOGIC TANDA TANGAN BARU
+  const handleSignatureConfirm = (signatureData: string | null) => {
     setSignature(signatureData);
     if (signatureData) {
-       setIsSignatureLocked(true); // Kunci setelah ttd
-       toast({ title: "Tanda tangan tersimpan", description: "Tanda tangan dikunci." });
-    } else {
-       setIsSignatureLocked(false);
+       setIsSignatureLocked(true); // Kunci
+       toast({ 
+         title: "Tanda Tangan Dikunci", 
+         description: "Klik 'Hapus' jika ingin mengubah." 
+       });
     }
-  }, [toast]);
+  };
 
-  // Reset Signature Manual
   const resetSignature = () => {
     setSignature(null);
-    setIsSignatureLocked(false);
+    setIsSignatureLocked(false); // Buka Kunci
+    toast({ description: "Silakan tanda tangan ulang." });
   }
 
-  // Handle Scan Process
   const handleProcess = useCallback(async () => {
     if (!selectedFile) return toast({ title: "Upload foto dulu", variant: "destructive" });
     if (!receiver) return toast({ title: "Isi nama penerima", variant: "destructive" });
+    if (!signature && !isSignatureLocked) return toast({ title: "Harap tanda tangan", variant: "destructive" });
 
     setIsProcessing(true);
     try {
@@ -151,17 +151,18 @@ const Index = () => {
         await loadData();
         toast({ title: "SCAN BERHASIL", description: `Sisa Kredit: ${result.remaining_credits}` });
 
-        // Update Kredit UI
         if (result.remaining_credits !== undefined) {
           const updatedUser = { ...user, creditBalance: result.remaining_credits };
           setUser(updatedUser);
           sessionStorage.setItem('user', JSON.stringify(updatedUser));
         }
         
-        // Reset form input (tapi gambar preview biarkan user lihat dulu)
+        // Reset form tapi biarkan gambar
         setReceiver("");
         resetSignature();
 
+      } else if (result.error_type === "insufficient_credits") {
+        toast({ title: "KREDIT HABIS", description: "Tunggu reset besok.", variant: "destructive" });
       } else {
         throw new Error(result.message);
       }
@@ -170,45 +171,30 @@ const Index = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedFile, receiver, user, loadData]);
+  }, [selectedFile, receiver, user, loadData, signature, isSignatureLocked]);
 
-  // Handle Update Log (Edit Keterangan)
-  const handleUpdateLog = async (logId: number, newSummary: string) => {
+  const handleUpdateLog = async (id: number, summary: string) => {
     try {
-      const token = user?.credential || "";
-      const response = await apiFetch(`/logs/${logId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ summary: newSummary }),
-      });
-      
-      const result = await response.json();
-      if (result.status === "success") {
-        setLogs(prev => prev.map((log: any) => 
-          log.id === logId ? { ...log, summary: newSummary } : log
-        ));
-        toast({ title: "Berhasil Disimpan", description: "Keterangan log diperbarui." });
-      }
-    } catch {
-      toast({ title: "Gagal Update", variant: "destructive" });
-    }
+        const token = user?.credential;
+        await apiFetch(`/logs/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ summary })
+        });
+        setLogs(prev => prev.map((l:any) => l.id === id ? {...l, summary} : l));
+        toast({ title: "Tersimpan", description: "Keterangan diperbarui" });
+    } catch { toast({ title: "Gagal Update", variant: "destructive" }); }
   };
 
-  // Handle Delete
-  const handleDeleteLog = async (logId: number) => {
-    if (!window.confirm("Hapus log ini?")) return;
+  const handleDeleteLog = async (id: number) => {
+    if(!confirm("Hapus?")) return;
     try {
-      const token = user?.credential || "";
-      await apiFetch(`/logs/${logId}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` },
-      });
-      setLogs(prev => prev.filter((log: any) => log.id !== logId));
-      toast({ title: "Log Dihapus" });
-    } catch {
-      toast({ title: "Gagal Hapus", variant: "destructive" });
-    }
-  };
+        const token = user?.credential;
+        await apiFetch(`/logs/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+        setLogs(prev => prev.filter((l:any) => l.id !== id));
+        toast({ title: "Terhapus" });
+    } catch { toast({ title: "Gagal Hapus", variant: "destructive" }); }
+  }
 
   const handleLogout = () => { sessionStorage.clear(); navigate('/landing'); };
 
@@ -223,7 +209,6 @@ const Index = () => {
         </div>
 
         <div className="space-y-6 mb-6">
-          {/* ZONA INPUT */}
           <div className="brutal-card">
             <div className="flex items-center gap-2 mb-4">
               <Package className="w-5 h-5" />
@@ -236,7 +221,6 @@ const Index = () => {
             )}
           </div>
 
-          {/* ZONA VALIDASI */}
           {imagePreview && (
             <div className="brutal-card animate-in fade-in slide-in-from-bottom-4">
               <div className="flex items-center gap-2 mb-4">
@@ -253,9 +237,9 @@ const Index = () => {
                 />
               </div>
 
-              {/* Signature Pad dengan Logic Lock */}
+              {/* Signature Pad dengan Lock Mode */}
               <div className={isSignatureLocked ? "pointer-events-none opacity-80 relative" : ""}>
-                 <SignaturePad onSignatureChange={handleSignatureChange} />
+                 <SignaturePad onSignatureChange={handleSignatureConfirm} />
                  {isSignatureLocked && (
                     <div className="absolute top-2 right-2 z-10 pointer-events-auto">
                         <Button size="sm" variant="destructive" onClick={resetSignature} className="h-6 text-[10px]">
@@ -278,5 +262,4 @@ const Index = () => {
   );
 };
 
-// 🔥 PENTING: EXPORT DEFAULT AGAR VERCEL TIDAK ERROR
 export default Index;
