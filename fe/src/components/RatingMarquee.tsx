@@ -20,16 +20,13 @@ export default function RatingMarquee() {
 
   return (
     <div className="w-full overflow-hidden bg-yellow-400 border-y-4 border-black py-6 mb-12 relative group">
-      {/* Animasi Container */}
       <div className="flex w-max animate-marquee group-hover:[animation-play-state:paused] cursor-grab active:cursor-grabbing">
-        {/* Render 2x untuk efek infinite loop seamless */}
         {[...ratings, ...ratings].map((rating, i) => (
           <div 
             key={`${rating.id}-${i}`}
             className="mx-4 w-[300px] shrink-0 bg-white border-4 border-black p-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-3 hover:translate-y-[-4px] transition-transform"
           >
             <div className="flex items-center gap-3 border-b-2 border-black pb-2">
-              {/* Fallback jika avatar rusak/kosong */}
               <img 
                 src={rating.userAvatar || "https://placehold.co/40x40?text=?"} 
                 alt="User" 
@@ -49,15 +46,9 @@ export default function RatingMarquee() {
           </div>
         ))}
       </div>
-
       <style>{`
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-marquee {
-          animation: marquee 40s linear infinite;
-        }
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .animate-marquee { animation: marquee 40s linear infinite; }
       `}</style>
     </div>
   );
