@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trash2, User as UserIcon, Calendar, Activity, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Trash2, User as UserIcon, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
@@ -13,94 +13,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { apiFetch } from '@/lib/api-service';
 
 export default function Profile() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
-  const [stats, setStats] = useState({
-    joinDate: '',
-    totalScans: 0,
-    lastScan: '',
-  });
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const userStr = sessionStorage.getItem('user');
     if (userStr) {
-      const userData = JSON.parse(userStr);
-      setUser(userData);
-      fetchUserStats(userData.credential || userData.driveToken || '');
+      setUser(JSON.parse(userStr));
     }
-    // NOTE: Auto-refresh was disabled to prevent data sync issues.
   }, []);
-
-  const fetchUserStats = async (token: string) => {
-    if (!token) {
-      console.log('No token available for stats fetch');
-      return;
-    }
-    try {
-
-      const baseURL = import.meta.env.VITE_API_URL || 'https://api-ocr.xyz';
-      const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
-
-      const response = await fetch(`${API_URL}/history`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Token expired, redirect to login
-          console.log('Token expired, please login again');
-          toast.error('Sesi berakhir, silakan login ulang');
-          sessionStorage.removeItem('user');
-          sessionStorage.removeItem('isAuthenticated');
-          setTimeout(() => navigate('/login'), 2000);
-          return;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      if (response.ok) {
-        const logs = await response.json();
-        
-        // Calculate stats
-        const totalScans = logs.length;
-        
-        // Logs are ordered DESC (newest first), so:
-        // - First item (logs[0]) = newest/latest scan
-        // - Last item (logs[logs.length - 1]) = oldest/first scan
-        const joinDate = logs.length > 0 
-          ? new Date(logs[logs.length - 1].timestamp).toLocaleDateString('id-ID', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })
-          : 'Belum ada aktivitas';
-        
-        const lastScan = logs.length > 0
-          ? new Date(logs[0].timestamp).toLocaleDateString('id-ID', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })
-          : 'Belum ada aktivitas';
-
-        setStats({
-          joinDate,
-          totalScans,
-          lastScan,
-        });
-      }
-    } catch (error) {
-      console.error('Failed to fetch stats:', error);
-    }
-  };
 
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
@@ -109,28 +35,22 @@ export default function Profile() {
       const userData = userStr ? JSON.parse(userStr) : null;
       const token = userData?.credential || userData?.driveToken || '';
 
-      const baseURL = import.meta.env.VITE_API_URL || 'https://api-ocr.xyz';
-      const API_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
-
-      const response = await fetch(`${API_URL}/delete-account`, {
+      const response = await apiFetch('/delete-account', {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Authorization": `Bearer ${token}` },
       });
 
       if (response.ok) {
-        toast.success('Akun berhasil dihapus');
-        sessionStorage.removeItem('user');
-        sessionStorage.removeItem('isAuthenticated');
+        toast.success('Akun dan seluruh data berhasil dihapus.');
+        sessionStorage.clear();
+        localStorage.clear();
         navigate('/landing');
       } else {
         const error = await response.json();
-        toast.error(error.detail || 'Gagal menghapus akun');
+        toast.error(error.message || 'Gagal menghapus akun');
       }
     } catch (error) {
-      console.error('Delete account failed:', error);
-      toast.error('Terjadi kesalahan saat menghapus akun');
+      toast.error('Terjadi kesalahan koneksi');
     } finally {
       setIsDeleting(false);
       setShowDeleteDialog(false);
@@ -138,13 +58,13 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-screen bg-background p-4 flex flex-col items-center">
       {/* Header */}
-      <div className="max-w-2xl mx-auto mb-6">
+      <div className="w-full max-w-lg mb-6 flex justify-start">
         <Button
           onClick={() => navigate('/')}
           variant="outline"
-          className="brutal-border-thin px-4 py-2 font-mono text-xs font-bold flex items-center gap-2 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
+          className="brutal-border-thin px-4 py-2 font-mono text-xs font-bold flex items-center gap-2 hover:bg-yellow-200 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           KEMBALI
@@ -152,116 +72,56 @@ export default function Profile() {
       </div>
 
       {/* Profile Card */}
-      <div className="max-w-2xl mx-auto">
-        <div className="brutal-border bg-white p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] mb-6">
-          {/* User Info */}
-          <div className="flex items-center gap-4 mb-8">
+      <div className="w-full max-w-lg space-y-6">
+        
+        {/* Identitas User */}
+        <div className="brutal-border bg-white p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-center">
+          <div className="mx-auto w-24 h-24 mb-4 relative">
             {user?.picture ? (
-              <img
-                src={user.picture}
-                alt={user.name}
-                className="w-20 h-20 rounded-full brutal-border"
-              />
+              <img src={user.picture} alt={user.name} className="w-full h-full rounded-full brutal-border object-cover" />
             ) : (
-              <div className="w-20 h-20 rounded-full brutal-border bg-gray-100 flex items-center justify-center">
+              <div className="w-full h-full rounded-full brutal-border bg-gray-100 flex items-center justify-center">
                 <UserIcon className="w-10 h-10 text-gray-400" />
               </div>
             )}
-            <div>
-              <h1 className="text-2xl font-bold mb-1">{user?.name || 'User'}</h1>
-              <p className="text-sm text-muted-foreground font-mono">{user?.email}</p>
-            </div>
           </div>
-
-          {/* Statistics */}
-          <div className="border-t-2 border-black pt-6 mb-6">
-            <h2 className="text-lg font-bold mb-4 uppercase">Statistik Pengguna</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Join Date */}
-              <div className="brutal-border-thin bg-background p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar className="w-5 h-5 text-blue-500" />
-                  <span className="text-xs font-bold uppercase text-muted-foreground">
-                    Bergabung
-                  </span>
-                </div>
-                <p className="text-lg font-bold">{stats.joinDate}</p>
-              </div>
-
-              {/* Total Usage */}
-              <div className="brutal-border-thin bg-background p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Activity className="w-5 h-5 text-green-500" />
-                  <span className="text-xs font-bold uppercase text-muted-foreground">
-                    Total Penggunaan
-                  </span>
-                </div>
-                <p className="text-lg font-bold">{stats.totalScans} kali</p>
-              </div>
-
-              {/* Last Activity */}
-              <div className="brutal-border-thin bg-background p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <UserIcon className="w-5 h-5 text-purple-500" />
-                  <span className="text-xs font-bold uppercase text-muted-foreground">
-                    Aktivitas Terakhir
-                  </span>
-                </div>
-                <p className="text-sm font-bold">{stats.lastScan}</p>
-              </div>
-            </div>
-          </div>
+          <h1 className="text-2xl font-black uppercase tracking-tight mb-1">{user?.name || 'Pengguna'}</h1>
+          <p className="text-sm font-mono text-gray-500 bg-gray-100 inline-block px-2 py-1 rounded">{user?.email}</p>
         </div>
 
-        {/* Delete Account Section */}
-        <div className="brutal-border bg-destructive/10 p-6 shadow-[8px_8px_0px_0px_rgba(220,38,38,1)]">
+        {/* Zona Berbahaya */}
+        <div className="brutal-border bg-red-50 p-6 shadow-[8px_8px_0px_0px_rgba(220,38,38,1)] border-red-600">
           <div className="flex items-start gap-3 mb-4">
-            <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-1" />
+            <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0" />
             <div>
-              <h3 className="text-lg font-bold text-destructive mb-1">Zona Berbahaya</h3>
-              <p className="text-sm text-muted-foreground">
-                Menghapus akun akan menghapus semua data scan Anda secara permanen.
-                Tindakan ini tidak dapat dibatalkan.
+              <h3 className="text-lg font-black text-red-600 uppercase mb-1">Hapus Akun Permanen</h3>
+              <p className="text-sm text-red-800 leading-relaxed">
+                Menghapus akun akan menghapus <strong>seluruh data</strong> scan dan file Anda dari server. Tidak dapat dibatalkan.
               </p>
             </div>
           </div>
-          
           <Button
             onClick={() => setShowDeleteDialog(true)}
-            variant="destructive"
-            className="brutal-border-thin font-bold uppercase text-sm"
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold uppercase tracking-wider brutal-border-thin border-red-900 h-12"
           >
-            <Trash2 className="w-4 h-4 mr-2" />
-            HAPUS AKUN
+            <Trash2 className="w-4 h-4 mr-2" /> Hapus Akun Sekarang
           </Button>
         </div>
       </div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="brutal-border bg-white">
+        <AlertDialogContent className="brutal-border bg-white rounded-none border-2 border-black">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-2xl font-bold uppercase">
-              Konfirmasi Penghapusan
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-base">
-              Apakah Anda yakin ingin menghapus akun? Semua data scan Anda akan hilang permanen.
-              <br />
-              <br />
-              <strong>Email: {user?.email}</strong>
+            <AlertDialogTitle className="text-xl font-black uppercase text-red-600">Yakin Hapus Akun?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600 text-base">
+              Semua data di <strong>{user?.email}</strong> akan hilang selamanya.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="brutal-border-thin">
-              BATAL
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteAccount}
-              disabled={isDeleting}
-              className="brutal-border-thin bg-destructive hover:bg-destructive/90"
-            >
-              {isDeleting ? 'MENGHAPUS...' : 'YA, HAPUS AKUN'}
+          <AlertDialogFooter className="mt-4">
+            <AlertDialogCancel className="brutal-border-thin rounded-none font-bold">BATAL</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteAccount} disabled={isDeleting} className="bg-red-600 hover:bg-red-700 text-white rounded-none font-bold border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              {isDeleting ? 'MENGHAPUS...' : 'YA, MUSNAHKAN'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
