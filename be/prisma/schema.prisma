@@ -2,11 +2,13 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-py"
+  provider  = "prisma-client-py"
+  interface = "asyncio"
 }
 
 datasource db {
-  provider = "sqlite" // Atau "postgresql" jika pakai PostgresRender
+  // 🔥 GANTI DARI "sqlite" KE "postgresql" 🔥
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -16,7 +18,7 @@ model User {
   name          String?
   picture       String?
   
-  // 🔥 DUA FIELD INI WAJIB ADA UTK FITUR BARU 🔥
+  // Field Penting untuk Notifikasi & Kredit
   creditBalance Int      @default(3)
   createdAt     DateTime @default(now())
 
