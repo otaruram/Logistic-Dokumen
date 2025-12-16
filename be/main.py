@@ -14,6 +14,7 @@ import requests
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from fpdf import FPDF  # Pastikan sudah pip install fpdf
 
 # MODULE LOKAL
 from db import prisma, connect_db, disconnect_db
@@ -123,16 +124,12 @@ def health(): return {"status": "ok", "db": prisma.is_connected()}
 @app.post("/rating")
 async def create_rating(data: RatingRequest, authorization: str = Header(None)):
     try:
-        # Coba validasi token (bisa JWT atau Access Token)
         token = authorization.replace("Bearer ", "").strip()
         user_email = None
-        try: user_email = get_user_email_from_token(authorization) # Coba JWT
-        except: user_email = get_user_email_from_access_token(token) # Coba Access Token
+        try: user_email = get_user_email_from_token(authorization) 
+        except: user_email = get_user_email_from_access_token(token)
         
-        if not user_email: 
-             # Fallback: Rating boleh anonymous kalau token gagal? Atau strict?
-             # Kita buat strict biar aman, tapi kalau gagal decode, pakai email dari request (kurang aman tapi jalan)
-             user_email = "anonymous@ocr.wtf" 
+        if not user_email: user_email = "anonymous@ocr.wtf" 
 
         if not prisma.is_connected(): await connect_db()
         await prisma.rating.create(data={
@@ -164,7 +161,6 @@ async def scan_document(
     authorization: str = Header(None)
 ):
     try:
-        # Validasi Token Hybrid
         token = authorization.replace("Bearer ", "").strip()
         user_email = None
         try: user_email = get_user_email_from_token(authorization)
@@ -292,19 +288,18 @@ async def delete_log(log_id: int, authorization: str = Header(None)):
         return {"status": "success"}
     except Exception as e: return {"status": "error", "message": str(e)}
 
-# 4. EXPORT ENDPOINT (SMART: DOWNLOAD / DRIVE)
+# 4. EXPORT ENDPOINT (EXCEL + PDF)
 @app.get("/export")
-async def export_excel(authorization: str = Header(None), upload_to_drive: bool = False):
+async def export_data(
+    authorization: str = Header(None), 
+    upload_to_drive: bool = False,
+    format: str = "excel" # excel / pdf
+):
     try:
-        # Validasi Hybrid (Support JWT & Access Token)
         token = authorization.replace("Bearer ", "").strip()
         user_email = None
-        try:
-             # Cek JWT dulu (Format ID Token)
-             user_email = get_user_email_from_token(authorization)
-        except:
-             # Kalau gagal, cek Access Token ke Google
-             user_email = get_user_email_from_access_token(token)
+        try: user_email = get_user_email_from_token(authorization)
+        except: user_email = get_user_email_from_access_token(token)
 
         if not user_email: return {"status": "error", "message": "Token Invalid / Expired"}
         
@@ -313,65 +308,105 @@ async def export_excel(authorization: str = Header(None), upload_to_drive: bool 
         
         if not logs: return {"status": "error", "message": "Tidak ada data."}
 
-        # Bikin File Excel di Memory
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            workbook = writer.book
-            worksheet = workbook.add_worksheet("Log Harian")
-            
-            fmt_header = workbook.add_format({'bold': True, 'bg_color': 'black', 'font_color': 'white', 'align': 'center', 'border': 1})
-            fmt_center = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
-            fmt_left = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'text_wrap': True, 'border': 1})
-            fmt_link = workbook.add_format({'font_color': 'blue', 'underline': 1, 'align': 'center', 'border': 1})
+        filename = ""
+        media_type = ""
+        file_content = b""
 
-            headers = ["NO", "TANGGAL", "JAM", "KATEGORI", "NOMOR", "PENERIMA", "RINGKASAN", "FOTO"]
-            for col, txt in enumerate(headers): worksheet.write(0, col, txt, fmt_header)
-            worksheet.set_column('G:G', 40) 
-
-            for i, l in enumerate(logs):
-                row = i + 1
-                worksheet.write(row, 0, i+1, fmt_center)
-                worksheet.write(row, 1, l.timestamp.strftime("%Y-%m-%d"), fmt_center)
-                worksheet.write(row, 2, l.timestamp.strftime("%H:%M"), fmt_center)
-                worksheet.write(row, 3, l.kategori, fmt_center)
-                worksheet.write(row, 4, l.nomorDokumen, fmt_center)
-                worksheet.write(row, 5, l.receiver, fmt_center)
-                worksheet.write(row, 6, l.summary, fmt_left)
+        # === MODE EXCEL (AUTO RAPI) ===
+        if format == "excel":
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                workbook = writer.book
+                worksheet = workbook.add_worksheet("Log Harian")
                 
-                link = l.imagePath
-                # Upload foto on demand (hanya jika pakai Access Token Drive)
-                if upload_to_drive and token and "drive" not in link and l.imagePath:
-                     try:
-                        fname = l.imagePath.split("/")[-1]
-                        fpath = os.path.join(UPLOAD_DIR, fname)
-                        if os.path.exists(fpath):
-                            res = upload_image_to_drive(token, fpath, "OCR_IMAGES")
-                            if res and res.get('web_view_link'): link = res['web_view_link']
-                     except: pass
+                # Styles
+                fmt_header = workbook.add_format({'bold': True, 'bg_color': 'black', 'font_color': 'white', 'align': 'center', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
+                fmt_center = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
+                fmt_left = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'text_wrap': True, 'border': 1})
+                fmt_link = workbook.add_format({'font_color': 'blue', 'underline': 1, 'align': 'center', 'border': 1})
 
-                if "http" in link: worksheet.write_url(row, 7, link, fmt_link, string="Lihat Foto")
-                else: worksheet.write(row, 7, "-", fmt_center)
+                headers = ["NO", "TANGGAL", "JAM", "KATEGORI", "NOMOR", "PENERIMA", "RINGKASAN", "FOTO"]
+                for col, txt in enumerate(headers): worksheet.write(0, col, txt, fmt_header)
+                
+                # Auto Width Setup
+                worksheet.set_column('A:A', 5)
+                worksheet.set_column('B:C', 12)
+                worksheet.set_column('D:F', 20)
+                worksheet.set_column('G:G', 50) # Ringkasan lebar
+                worksheet.set_column('H:H', 15)
 
-        buffer.seek(0)
-        content = buffer.getvalue()
-        filename = f"Laporan_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
+                for i, l in enumerate(logs):
+                    row = i + 1
+                    worksheet.write(row, 0, i+1, fmt_center)
+                    worksheet.write(row, 1, l.timestamp.strftime("%Y-%m-%d"), fmt_center)
+                    worksheet.write(row, 2, l.timestamp.strftime("%H:%M"), fmt_center)
+                    worksheet.write(row, 3, l.kategori, fmt_center)
+                    worksheet.write(row, 4, l.nomorDokumen, fmt_center)
+                    worksheet.write(row, 5, l.receiver, fmt_center)
+                    worksheet.write(row, 6, l.summary, fmt_left)
+                    
+                    link = l.imagePath
+                    # Logic upload on demand jika format Excel + Drive
+                    if upload_to_drive and token and "drive" not in link and l.imagePath:
+                         try:
+                            fname = l.imagePath.split("/")[-1]
+                            fpath = os.path.join(UPLOAD_DIR, fname)
+                            if os.path.exists(fpath):
+                                res = upload_image_to_drive(token, fpath, "OCR_IMAGES")
+                                if res and res.get('web_view_link'): link = res['web_view_link']
+                         except: pass
 
-        # KEPUTUSAN: Upload ke Drive atau Download Biasa?
+                    if "http" in link: worksheet.write_url(row, 7, link, fmt_link, string="Lihat Foto")
+                    else: worksheet.write(row, 7, "-", fmt_center)
+
+            buffer.seek(0)
+            file_content = buffer.getvalue()
+            filename = f"Laporan_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
+            media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+        # === MODE PDF ===
+        elif format == "pdf":
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+            
+            # Judul
+            pdf.set_font("Arial", 'B', 16)
+            pdf.cell(190, 10, txt="LAPORAN HARIAN OCR.WTF", ln=True, align='C')
+            pdf.ln(10)
+
+            # Isi
+            pdf.set_font("Arial", size=10)
+            for i, l in enumerate(logs):
+                tgl = l.timestamp.strftime("%Y-%m-%d %H:%M")
+                pdf.set_font("Arial", 'B', 10)
+                pdf.cell(0, 8, txt=f"#{i+1} | {tgl} | {l.kategori} | {l.receiver}", ln=True)
+                pdf.set_font("Arial", size=10)
+                pdf.multi_cell(0, 6, txt=f"No. Dok: {l.nomorDokumen}\nInfo: {l.summary}\nLink: {l.imagePath}")
+                pdf.ln(3)
+                pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+                pdf.ln(3)
+
+            file_content = pdf.output(dest='S').encode('latin-1')
+            filename = f"Laporan_{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
+            media_type = "application/pdf"
+
+        # === RESPONSE ===
         if upload_to_drive:
+            if format != "excel": 
+                return {"status": "error", "message": "Fitur Drive saat ini khusus Excel."}
             try:
-                # Coba upload dengan token yang ada
-                drive_res = export_to_google_drive_with_token(token, content, filename)
+                drive_res = export_to_google_drive_with_token(token, file_content, filename)
                 if drive_res and drive_res.get('web_view_link'):
                     return {"status": "success", "drive_url": drive_res.get('web_view_link')}
-                return {"status": "error", "message": "Gagal upload ke Drive (Respon kosong)."}
+                return {"status": "error", "message": "Gagal upload Drive (Empty Response)."}
             except Exception as e:
                 print(f"Drive Error: {e}")
-                return {"status": "error", "message": "Gagal ke Drive (Token Expired?)."}
+                return {"status": "error", "message": "Token Drive expired/invalid."}
         else:
-            # Download Biasa (Stream File)
             return Response(
-                content=content, 
-                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                content=file_content, 
+                media_type=media_type,
                 headers={"Content-Disposition": f"attachment; filename={filename}"}
             )
 
