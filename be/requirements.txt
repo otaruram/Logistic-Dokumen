@@ -17,4 +17,3 @@ apscheduler
 pytz
 fpdf2
 pyjwt
-
