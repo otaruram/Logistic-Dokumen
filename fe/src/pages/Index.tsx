@@ -7,10 +7,9 @@ import FileUploadZone from "@/components/dashboard/FileUploadZone";
 import ImagePreview from "@/components/dashboard/ImagePreview";
 import SignaturePad from "@/components/dashboard/SignaturePad";
 import DataTable from "@/components/dashboard/DataTable";
-import BrutalSpinner from "@/components/dashboard/BrutalSpinner";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { apiFetch } from "@/lib/api-service"; // Pastikan path ini benar
+import { apiFetch } from "@/lib/api-service";
 
 const TypewriterText = ({ text, delay = 0 }: { text: string; delay?: number }) => {
   const [displayText, setDisplayText] = useState('')
@@ -18,8 +17,8 @@ const TypewriterText = ({ text, delay = 0 }: { text: string; delay?: number }) =
   const [isStarted, setIsStarted] = useState(false)
   useEffect(() => {
     if (delay > 0) {
-      const startTimer = setTimeout(() => setIsStarted(true), delay)
-      return () => clearTimeout(startTimer)
+      const timer = setTimeout(() => setIsStarted(true), delay)
+      return () => clearTimeout(timer)
     } else setIsStarted(true)
   }, [delay])
   useEffect(() => {
@@ -46,23 +45,48 @@ const Index = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [receiver, setReceiver] = useState("");
   const [signature, setSignature] = useState<string | null>(null);
-  
-  // STATE BARU: STATUS KUNCI TANDA TANGAN
   const [isSignatureLocked, setIsSignatureLocked] = useState(false);
-  
   const [isProcessing, setIsProcessing] = useState(false);
   const [logs, setLogs] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Load Data
+  // --- FUNGSI UPDATE USER DATA (KREDIT) ---
+  const syncUserData = async (currentToken: string) => {
+    try {
+        // Panggil API Cek Kredit
+        const res = await apiFetch('/api/pricing/user/credits', {
+            headers: { "Authorization": `Bearer ${currentToken}` }
+        });
+        const json = await res.json();
+        
+        if (json.status === 'success' && json.data) {
+            const serverCredit = json.data.remainingCredits;
+            
+            // Update State & SessionStorage jika beda
+            setUser((prev: any) => {
+                if (prev.creditBalance !== serverCredit) {
+                    const updated = { ...prev, creditBalance: serverCredit };
+                    sessionStorage.setItem('user', JSON.stringify(updated));
+                    return updated;
+                }
+                return prev;
+            });
+        }
+    } catch (e) {
+        console.error("Gagal sync kredit:", e);
+    }
+  };
+
   const loadData = useCallback(async () => {
     try {
       const token = user?.credential || "";
       if (!token) return;
 
-      // 1. Load History
+      // 1. Sync Kredit (PENTING: Jalankan ini di awal)
+      await syncUserData(token);
+
+      // 2. Load History
       const response = await apiFetch('/history', { headers: { "Authorization": `Bearer ${token}` } });
       const data = await response.json();
       
@@ -79,18 +103,6 @@ const Index = () => {
           status: "SUCCESS"
         }));
         setLogs(formatted as any);
-      }
-
-      // 2. Sync Credits
-      const creditRes = await apiFetch('/api/pricing/user/credits', { headers: { "Authorization": `Bearer ${token}` } });
-      const creditData = await creditRes.json();
-      
-      if (creditData.status === 'success' && creditData.data.remainingCredits !== undefined) {
-         if (creditData.data.remainingCredits !== user.creditBalance) {
-            const updated = { ...user, creditBalance: creditData.data.remainingCredits };
-            setUser(updated);
-            sessionStorage.setItem('user', JSON.stringify(updated));
-         }
       }
     } catch (e) { console.error(e); }
   }, [user?.credential]);
@@ -110,23 +122,18 @@ const Index = () => {
     setImagePreview(null);
   }, []);
 
-  // LOGIC TANDA TANGAN BARU
   const handleSignatureConfirm = (signatureData: string | null) => {
     setSignature(signatureData);
     if (signatureData) {
-       setIsSignatureLocked(true); // Kunci
-       toast({ 
-         title: "Tanda Tangan Dikunci", 
-         description: "Klik 'Hapus' jika ingin mengubah." 
-       });
+       setIsSignatureLocked(true);
+       toast({ title: "Tanda Tangan Tersimpan", description: "Tanda tangan dikunci." });
     }
   };
 
-  const resetSignature = () => {
+  const handleResetSignature = () => {
     setSignature(null);
-    setIsSignatureLocked(false); // Buka Kunci
-    toast({ description: "Silakan tanda tangan ulang." });
-  }
+    setIsSignatureLocked(false);
+  };
 
   const handleProcess = useCallback(async () => {
     if (!selectedFile) return toast({ title: "Upload foto dulu", variant: "destructive" });
@@ -148,18 +155,18 @@ const Index = () => {
       const result = await response.json();
 
       if (result.status === "success") {
-        await loadData();
-        toast({ title: "SCAN BERHASIL", description: `Sisa Kredit: ${result.remaining_credits}` });
-
+        // Update Kredit Langsung dari Respon Scan
         if (result.remaining_credits !== undefined) {
-          const updatedUser = { ...user, creditBalance: result.remaining_credits };
-          setUser(updatedUser);
-          sessionStorage.setItem('user', JSON.stringify(updatedUser));
+             const updatedUser = { ...user, creditBalance: result.remaining_credits };
+             setUser(updatedUser);
+             sessionStorage.setItem('user', JSON.stringify(updatedUser));
         }
         
-        // Reset form tapi biarkan gambar
+        await loadData(); // Refresh Log
+        toast({ title: "SCAN BERHASIL", description: `Sisa Kredit: ${result.remaining_credits}` });
+        
         setReceiver("");
-        resetSignature();
+        handleResetSignature(); // Reset Form tapi file tetap ada (opsional)
 
       } else if (result.error_type === "insufficient_credits") {
         toast({ title: "KREDIT HABIS", description: "Tunggu reset besok.", variant: "destructive" });
@@ -199,18 +206,18 @@ const Index = () => {
   const handleLogout = () => { sessionStorage.clear(); navigate('/landing'); };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col transition-colors duration-300">
       <Header user={user} onLogout={handleLogout} onProfile={() => navigate('/profile')} onSettings={() => navigate('/settings')} />
 
       <main className="container mx-auto px-4 py-6 flex-1">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center mb-6">
-          <h2 className="text-xl font-bold mb-1"><TypewriterText text="Welcome to OCR.WTF! 🚀" /></h2>
-          <p className="text-gray-600"><TypewriterText text="Scanner Dokumen Cerdas" delay={1500} /></p>
+        <div className="bg-blue-50 dark:bg-zinc-900 border-2 border-blue-200 dark:border-zinc-700 rounded-lg p-6 text-center mb-6 shadow-md">
+          <h2 className="text-xl font-bold mb-1 dark:text-white"><TypewriterText text="Welcome to OCR.WTF! 🚀" /></h2>
+          <p className="text-gray-600 dark:text-gray-400"><TypewriterText text="Scanner Dokumen Cerdas" delay={1500} /></p>
         </div>
 
         <div className="space-y-6 mb-6">
-          <div className="brutal-card">
-            <div className="flex items-center gap-2 mb-4">
+          <div className="brutal-card bg-white dark:bg-zinc-900 border-2 border-black dark:border-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+            <div className="flex items-center gap-2 mb-4 dark:text-white">
               <Package className="w-5 h-5" />
               <h2 className="text-sm font-bold uppercase">ZONA INPUT</h2>
             </div>
@@ -222,34 +229,36 @@ const Index = () => {
           </div>
 
           {imagePreview && (
-            <div className="brutal-card animate-in fade-in slide-in-from-bottom-4">
-              <div className="flex items-center gap-2 mb-4">
+            <div className="brutal-card bg-white dark:bg-zinc-900 border-2 border-black dark:border-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] animate-in fade-in slide-in-from-bottom-4">
+              <div className="flex items-center gap-2 mb-4 dark:text-white">
                 <ClipboardCheck className="w-5 h-5" />
                 <h2 className="text-sm font-bold uppercase">VALIDASI</h2>
               </div>
               <div className="space-y-3 mb-6">
-                <label className="block text-xs font-bold uppercase">PENERIMA</label>
+                <label className="block text-xs font-bold uppercase dark:text-white">PENERIMA</label>
                 <input
                   value={receiver}
                   onChange={(e) => setReceiver(e.target.value)}
                   placeholder="Nama Penerima..."
-                  className="brutal-input w-full"
+                  className="brutal-input w-full dark:bg-zinc-800 dark:text-white dark:border-white"
                 />
               </div>
 
-              {/* Signature Pad dengan Lock Mode */}
-              <div className={isSignatureLocked ? "pointer-events-none opacity-80 relative" : ""}>
-                 <SignaturePad onSignatureChange={handleSignatureConfirm} />
-                 {isSignatureLocked && (
-                    <div className="absolute top-2 right-2 z-10 pointer-events-auto">
-                        <Button size="sm" variant="destructive" onClick={resetSignature} className="h-6 text-[10px]">
-                           UBAH TTD
-                        </Button>
-                    </div>
-                 )}
+              <div className="space-y-2">
+                 <label className="block text-xs font-bold uppercase dark:text-white">TANDA TANGAN</label>
+                 <div className={`relative border-2 border-black dark:border-white ${isSignatureLocked ? "pointer-events-none opacity-80" : ""}`}>
+                     <SignaturePad onSignatureChange={handleSignatureConfirm} />
+                     {isSignatureLocked && (
+                        <div className="absolute top-2 right-2 pointer-events-auto z-10">
+                            <Button size="sm" variant="destructive" onClick={handleResetSignature} className="h-6 text-[10px] font-bold border border-black shadow-[2px_2px_0px_0px_black]">
+                               UBAH TTD
+                            </Button>
+                        </div>
+                     )}
+                 </div>
               </div>
               
-              <Button onClick={handleProcess} disabled={isProcessing} className="brutal-button w-full h-14 mt-4">
+              <Button onClick={handleProcess} disabled={isProcessing} className="brutal-button w-full h-14 mt-4 dark:bg-white dark:text-black dark:hover:bg-gray-200">
                 {isProcessing ? "MEMPROSES..." : "SCAN & SIMPAN"}
               </Button>
             </div>
