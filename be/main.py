@@ -14,7 +14,7 @@ import requests
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fpdf import FPDF # Pastikan fpdf2 sudah ada di requirements.txt
+from fpdf import FPDF
 
 # MODULE LOKAL
 from db import prisma, connect_db, disconnect_db
@@ -254,10 +254,8 @@ async def export_data(authorization: str = Header(None), upload_to_drive: bool =
 
     except Exception as e: return {"status": "error", "message": str(e)}
 
-# 5. DELETE ACCOUNT (Tetap sama)
 @app.delete("/delete-account")
 async def delete_account(authorization: str = Header(None)):
-    # ... (Kode delete sama seperti sebelumnya) ...
     try:
         token = authorization.replace("Bearer ", "").strip()
         user_email = None
