@@ -10,7 +10,7 @@ import DataTable from "@/components/dashboard/DataTable";
 import BrutalSpinner from "@/components/dashboard/BrutalSpinner";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { apiFetch } from "@/lib/api-config";
+import { apiFetch } from "@/lib/api-service";
 
 // Komponen teks animasi
 const TypewriterText = ({ text, delay = 0 }: { text: string; delay?: number }) => {
