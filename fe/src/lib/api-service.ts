@@ -1,8 +1,5 @@
-/**
- * API Failover Service for Hybrid System
- * Primary: VPS (api-ocr.xyz) 
- * Backup: Render (logistic-dokumen.onrender.com)
- */
+// fe/src/lib/api-service.ts
+import { API_CONFIG, getBaseUrls } from './api-config';
 
 class ApiService {
   private primaryAPI: string;
@@ -11,147 +8,131 @@ class ApiService {
   private failoverTimeout: number;
 
   constructor() {
-    this.primaryAPI = import.meta.env.VITE_API_URL || 'https://api-ocr.xyz';
-    this.backupAPI = import.meta.env.VITE_BACKUP_API_URL || 'https://logistic-dokumen.onrender.com';
+    const urls = getBaseUrls();
+    this.primaryAPI = urls.primary;
+    this.backupAPI = urls.backup;
     this.currentAPI = this.primaryAPI;
-    this.failoverTimeout = 5000; // 5 seconds
+    this.failoverTimeout = API_CONFIG.timeout;
   }
 
+  // Cek kesehatan server
   async healthCheck(url: string): Promise<boolean> {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
       
+      // Cek root endpoint atau health
       const response = await fetch(`${url}/health`, { 
         method: 'GET',
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
       return response.ok;
     } catch (error) {
-      console.warn(`Health check failed for ${url}:`, error);
       return false;
     }
   }
 
+  // Pindah ke Backup
   async switchToBackup(): Promise<void> {
-    console.log('🔄 Switching to backup API:', this.backupAPI);
+    if (this.currentAPI === this.backupAPI) return; // Sudah di backup
+    
+    console.log('🔄 Switching to BACKUP API:', this.backupAPI);
     this.currentAPI = this.backupAPI;
-    
-    // Store failover state
     localStorage.setItem('api_failover', 'true');
-    localStorage.setItem('api_current', this.backupAPI);
     
-    // Dispatch event for UI notification
     window.dispatchEvent(new CustomEvent('apiFailover', { 
-      detail: { api: this.backupAPI, reason: 'Primary API unavailable' }
+      detail: { api: this.backupAPI }
     }));
   }
 
+  // Pindah ke Primary
   async switchToPrimary(): Promise<void> {
-    console.log('✅ Switching back to primary API:', this.primaryAPI);
+    if (this.currentAPI === this.primaryAPI) return; // Sudah di primary
+
+    console.log('✅ Switching back to PRIMARY API:', this.primaryAPI);
     this.currentAPI = this.primaryAPI;
-    
-    // Clear failover state
     localStorage.removeItem('api_failover');
-    localStorage.removeItem('api_current');
-    
-    // Dispatch event for UI notification
+
     window.dispatchEvent(new CustomEvent('apiRestore', { 
       detail: { api: this.primaryAPI }
     }));
   }
 
+  // Fungsi Utama Fetch
   async makeRequest(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const url = `${this.currentAPI}${endpoint}`;
-    
+    // Pastikan endpoint diawali slash
+    const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = `${this.currentAPI}${path}`;
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.failoverTimeout);
-      
+
       const response = await fetch(url, {
         ...options,
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
-      // If successful and we're on backup, try to switch back to primary
+
+      // Self-healing: Jika sukses pakai backup, coba cek primary diam-diam
       if (response.ok && this.currentAPI === this.backupAPI) {
-        const primaryHealthy = await this.healthCheck(this.primaryAPI);
-        if (primaryHealthy) {
-          await this.switchToPrimary();
-        }
+        this.checkPrimaryRestoration();
       }
-      
+
       return response;
-      
+
     } catch (error) {
-      console.error(`Request failed to ${this.currentAPI}:`, error);
-      
-      // If primary fails, switch to backup
+      console.warn(`Request failed to ${this.currentAPI}. Trying failover...`);
+
+      // Jika gagal di Primary, coba Backup
       if (this.currentAPI === this.primaryAPI) {
         const backupHealthy = await this.healthCheck(this.backupAPI);
         if (backupHealthy) {
           await this.switchToBackup();
-          // Retry request with backup API
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), this.failoverTimeout);
-          
-          const retryResponse = await fetch(`${this.currentAPI}${endpoint}`, {
-            ...options,
-            signal: controller.signal
-          });
-          
-          clearTimeout(timeoutId);
-          return retryResponse;
+          // Retry request pakai backup
+          return this.makeRequest(endpoint, options);
         }
       }
-      
-      throw error;
+
+      throw error; // Jika dua-duanya mati, lempar error
     }
   }
 
-  getCurrentAPI(): string {
-    return this.currentAPI;
+  // Cek diam-diam apakah primary sudah hidup lagi
+  private async checkPrimaryRestoration() {
+    const isHealthy = await this.healthCheck(this.primaryAPI);
+    if (isHealthy) {
+      await this.switchToPrimary();
+    }
   }
 
-  isUsingBackup(): boolean {
-    return this.currentAPI === this.backupAPI;
-  }
-
-  // Initialize on page load
+  // Init saat aplikasi load
   async initialize(): Promise<void> {
-    // Check if we were previously using backup
-    const storedAPI = localStorage.getItem('api_current');
-    if (storedAPI === this.backupAPI) {
-      this.currentAPI = this.backupAPI;
+    const isFailover = localStorage.getItem('api_failover') === 'true';
+    if (isFailover) {
+      // Cek dulu apakah primary sudah sembuh sebelum pasrah pakai backup
+      const primaryHealthy = await this.healthCheck(this.primaryAPI);
+      if (primaryHealthy) {
+        this.currentAPI = this.primaryAPI;
+        localStorage.removeItem('api_failover');
+      } else {
+        this.currentAPI = this.backupAPI;
+      }
     }
-    
-    // Health check both APIs
-    const primaryHealthy = await this.healthCheck(this.primaryAPI);
-    const backupHealthy = await this.healthCheck(this.backupAPI);
-    
-    // Use primary if healthy, otherwise backup
-    if (primaryHealthy) {
-      this.currentAPI = this.primaryAPI;
-      localStorage.removeItem('api_failover');
-    } else if (backupHealthy) {
-      this.currentAPI = this.backupAPI;
-      localStorage.setItem('api_failover', 'true');
-    }
-    
-    console.log(`🚀 API Service initialized: ${this.currentAPI}`);
-    console.log(`📊 Primary (${this.primaryAPI}): ${primaryHealthy ? '✅' : '❌'}`);
-    console.log(`📊 Backup (${this.backupAPI}): ${backupHealthy ? '✅' : '❌'}`);
+    console.log(`🚀 API Service Ready: Using ${this.currentAPI === this.primaryAPI ? 'Primary' : 'Backup'}`);
   }
 }
 
-// Global instance
 export const apiService = new ApiService();
-
-// Auto-initialize
 apiService.initialize();
+
+// 🔥 EXPORT APIFETCH (Wrapper)
+// Ini agar kamu tidak perlu ubah kodingan di Index.tsx atau komponen lain
+export const apiFetch = (endpoint: string, options?: RequestInit) => {
+  return apiService.makeRequest(endpoint, options);
+};
 
 export default apiService;
