@@ -1,8 +1,13 @@
 import { useState } from "react";
-import { Search, Trash2, CloudUpload, Pencil, Save, Clock } from "lucide-react";
+import { Search, Trash2, CloudUpload, Pencil, Save, Clock, X, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api-service";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface DataTableProps {
   logs: any[];
@@ -21,13 +26,21 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
   const [filterDay, setFilterDay] = useState("ALL");
   const [filterMonth, setFilterMonth] = useState("ALL");
   const [filterYear, setFilterYear] = useState("ALL");
-  const [filterHour, setFilterHour] = useState("ALL"); // 🔥 Filter Jam
+  
+  // 🔥 STATE WAKTU DETAIL (JAM, MENIT, DETIK)
+  const [filterHour, setFilterHour] = useState("ALL");
+  const [filterMinute, setFilterMinute] = useState("ALL");
+  const [filterSecond, setFilterSecond] = useState("ALL");
+  const [isTimeOpen, setIsTimeOpen] = useState(false);
 
   // Generator Data Dropdown
   const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
   const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
   const years = Array.from({ length: 5 }, (_, i) => (2025 - i).toString()); 
-  const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')); // Jam 00 - 23
+  
+  const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')); 
+  const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+  const seconds = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
 
   // --- LOGIKA FILTERING ---
   const filteredLogs = logs.filter((log) => {
@@ -37,18 +50,37 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
       (log.receiver || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (log.summary || "").toLowerCase().includes(searchQuery.toLowerCase());
 
-    // 2. Date & Time Parsing
+    // 2. Date Parsing
     const [y, m, d] = (log.date || "0000-00-00").split("-");
-    const logHour = log.time ? log.time.substring(0, 2) : ""; // Ambil 2 digit jam (HH)
+    
+    // 3. Time Parsing (Format HH:mm:ss)
+    const timeParts = (log.time || "00:00:00").split(":");
+    const logH = timeParts[0] || "";
+    const logM = timeParts[1] || "";
+    const logS = timeParts[2] || "";
 
-    // 3. Matching
+    // 4. Matching Logic
     const matchDay = filterDay === "ALL" || parseInt(d).toString() === filterDay;
     const matchMonth = filterMonth === "ALL" || parseInt(m).toString() === (parseInt(filterMonth) + 1).toString();
     const matchYear = filterYear === "ALL" || y === filterYear;
-    const matchHour = filterHour === "ALL" || logHour === filterHour; // 🔥 Cek Jam
 
-    return matchSearch && matchDay && matchMonth && matchYear && matchHour;
+    // 🔥 Match Waktu Detail
+    const matchHour = filterHour === "ALL" || logH === filterHour;
+    const matchMinute = filterMinute === "ALL" || logM === filterMinute;
+    const matchSecond = filterSecond === "ALL" || logS === filterSecond;
+
+    return matchSearch && matchDay && matchMonth && matchYear && matchHour && matchMinute && matchSecond;
   });
+
+  const resetTimeFilter = () => {
+    setFilterHour("ALL");
+    setFilterMinute("ALL");
+    setFilterSecond("ALL");
+    setIsTimeOpen(false);
+  };
+
+  // Cek apakah ada filter waktu aktif untuk styling tombol
+  const isTimeFilterActive = filterHour !== "ALL" || filterMinute !== "ALL" || filterSecond !== "ALL";
 
   const handleEditClick = (log: any) => { setEditingLogId(log.id); setEditingSummary(log.summary); };
   const handleSaveEdit = async () => { if (editingLogId) { await onUpdateLog(editingLogId, editingSummary); setEditingLogId(null); } };
@@ -86,7 +118,7 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
         </Button>
       </div>
 
-      {/* --- AREA FILTER (6 KOLOM: Search + Tgl + Bln + Thn + JAM) --- */}
+      {/* --- AREA FILTER (6 KOLOM) --- */}
       <div className="p-4 bg-gray-50 dark:bg-zinc-900 border-b-2 border-black dark:border-white grid grid-cols-2 md:grid-cols-6 gap-3">
         
         {/* Search */}
@@ -117,18 +149,90 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
           {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
 
-        {/* 🔥 FILTER JAM (DROPDOWN) 🔥 */}
-        <div className="relative">
-            <Clock className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 pointer-events-none" />
-            <select 
-                value={filterHour} 
-                onChange={(e) => setFilterHour(e.target.value)} 
-                className="w-full border-2 border-black dark:border-white py-1.5 pl-6 pr-1 text-xs font-bold bg-white dark:bg-zinc-800 dark:text-white focus:outline-none cursor-pointer hover:bg-yellow-50 dark:hover:bg-zinc-700"
+        {/* 🔥 FILTER WAKTU (POP-UP CARD) 🔥 */}
+        <Popover open={isTimeOpen} onOpenChange={setIsTimeOpen}>
+          <PopoverTrigger asChild>
+            <Button 
+              variant="outline" 
+              className={`w-full justify-between border-2 border-black dark:border-white h-[34px] px-2 text-xs font-bold hover:bg-yellow-50 dark:hover:bg-zinc-700 transition-colors ${isTimeFilterActive ? "bg-black text-white dark:bg-white dark:text-black" : "bg-white dark:bg-zinc-800 dark:text-white"}`}
             >
-                <option value="ALL">JAM</option>
-                {hours.map(h => <option key={h} value={h}>{h}:00</option>)}
-            </select>
-        </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-3 h-3" />
+                <span>
+                   {isTimeFilterActive ? `${filterHour}:${filterMinute}` : "JAM"}
+                </span>
+              </div>
+              {isTimeFilterActive && <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />}
+            </Button>
+          </PopoverTrigger>
+          
+          <PopoverContent className="w-72 brutal-border border-4 border-black dark:border-white shadow-[6px_6px_0px_0px_black] dark:shadow-[6px_6px_0px_0px_white] p-0 bg-white dark:bg-zinc-900" align="end">
+            
+            {/* Header Pop-up */}
+            <div className="bg-black dark:bg-white text-white dark:text-black p-3 flex justify-between items-center border-b-4 border-black dark:border-white">
+              <span className="font-bold text-xs uppercase tracking-widest flex items-center gap-2">
+                <Filter className="w-3 h-3" /> ATUR WAKTU
+              </span>
+              {isTimeFilterActive && (
+                 <button onClick={resetTimeFilter} className="text-[10px] font-bold hover:text-red-500 underline">RESET</button>
+              )}
+            </div>
+
+            {/* Body Pop-up (Grid 3 Kolom) */}
+            <div className="p-4 grid grid-cols-3 gap-3 bg-white dark:bg-zinc-900">
+               
+               {/* 1. JAM */}
+               <div className="flex flex-col gap-1">
+                 <label className="text-[10px] font-bold uppercase text-center dark:text-white">JAM</label>
+                 <select 
+                    value={filterHour} 
+                    onChange={(e) => setFilterHour(e.target.value)}
+                    className="border-2 border-black dark:border-white p-1 text-center font-bold text-sm bg-gray-50 dark:bg-zinc-800 dark:text-white focus:bg-yellow-100 dark:focus:bg-zinc-700 focus:outline-none"
+                    size={5} // Tampilan List Scroll
+                 >
+                    <option value="ALL" className="font-mono text-xs py-1">--</option>
+                    {hours.map(h => <option key={h} value={h} className="font-mono py-1">{h}</option>)}
+                 </select>
+               </div>
+
+               {/* 2. MENIT */}
+               <div className="flex flex-col gap-1">
+                 <label className="text-[10px] font-bold uppercase text-center dark:text-white">MNT</label>
+                 <select 
+                    value={filterMinute} 
+                    onChange={(e) => setFilterMinute(e.target.value)}
+                    className="border-2 border-black dark:border-white p-1 text-center font-bold text-sm bg-gray-50 dark:bg-zinc-800 dark:text-white focus:bg-yellow-100 dark:focus:bg-zinc-700 focus:outline-none"
+                    size={5}
+                 >
+                    <option value="ALL" className="font-mono text-xs py-1">--</option>
+                    {minutes.map(m => <option key={m} value={m} className="font-mono py-1">{m}</option>)}
+                 </select>
+               </div>
+
+               {/* 3. DETIK */}
+               <div className="flex flex-col gap-1">
+                 <label className="text-[10px] font-bold uppercase text-center dark:text-white">DTK</label>
+                 <select 
+                    value={filterSecond} 
+                    onChange={(e) => setFilterSecond(e.target.value)}
+                    className="border-2 border-black dark:border-white p-1 text-center font-bold text-sm bg-gray-50 dark:bg-zinc-800 dark:text-white focus:bg-yellow-100 dark:focus:bg-zinc-700 focus:outline-none"
+                    size={5}
+                 >
+                    <option value="ALL" className="font-mono text-xs py-1">--</option>
+                    {seconds.map(s => <option key={s} value={s} className="font-mono py-1">{s}</option>)}
+                 </select>
+               </div>
+            </div>
+
+            {/* Footer Pop-up */}
+            <div className="p-2 border-t-2 border-black dark:border-white bg-gray-100 dark:bg-zinc-950 text-center">
+               <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400">
+                  {isTimeFilterActive ? "Filter Aktif" : "Pilih waktu spesifik"}
+               </span>
+            </div>
+
+          </PopoverContent>
+        </Popover>
 
       </div>
 
