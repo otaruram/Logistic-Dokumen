@@ -33,17 +33,14 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
   const handleEditClick = (log: any) => { setEditingLogId(log.id); setEditingSummary(log.summary); };
   const handleSaveEdit = async () => { if (editingLogId) { await onUpdateLog(editingLogId, editingSummary); setEditingLogId(null); } };
 
-  // --- EXPORT KE DRIVE ---
   const handleDriveUpload = async () => {
     if (logs.length === 0) return toast({ title: "Data kosong", variant: "destructive" });
     const user = JSON.parse(sessionStorage.getItem('user') || '{}');
-    if (!user.isDriveEnabled) {
-      toast({ title: "Akses Ditolak", description: "Login ulang & centang izin Drive.", variant: "destructive" });
-      return;
-    }
+    if (!user.isDriveEnabled) return toast({ title: "Akses Ditolak", description: "Login ulang & centang izin Drive.", variant: "destructive" });
+    
     setIsUploading(true);
     try {
-      const response = await apiFetch('/export?upload_to_drive=true&format=excel', { // Default Excel buat drive
+      const response = await apiFetch('/export?upload_to_drive=true&format=excel', {
         headers: { "Authorization": `Bearer ${user.credential}` }
       });
       const res = await response.json();
@@ -57,7 +54,6 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
     finally { setIsUploading(false); }
   };
 
-  // --- DOWNLOAD LOKAL (EXCEL / PDF) ---
   const handleDownload = async (format: 'excel' | 'pdf') => {
     if (logs.length === 0) return toast({ title: "Data kosong", variant: "destructive" });
     setIsDownloading(true);
@@ -93,7 +89,6 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
         <h2 className="font-bold uppercase tracking-wide text-xs md:text-sm">LOG HARIAN</h2>
         
         <div className="flex gap-2">
-            {/* DROPDOWN DOWNLOAD (EXCEL / PDF) */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" disabled={isDownloading} className="bg-white text-black h-8 px-3 hover:bg-gray-200 border-2 border-transparent hover:border-white font-bold text-[10px] md:text-xs">
@@ -110,14 +105,12 @@ const DataTable = ({ logs, onDeleteLog, onUpdateLog }: DataTableProps) => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* TOMBOL DRIVE */}
             <Button variant="outline" size="sm" onClick={handleDriveUpload} disabled={isUploading} className="text-black bg-yellow-400 h-8 text-[10px] md:text-xs font-bold border-2 border-white hover:bg-yellow-500 hover:text-black">
                 {isUploading ? "..." : <><CloudUpload className="w-3 h-3 mr-2" /> DRIVE</>}
             </Button>
         </div>
       </div>
 
-      {/* Bagian Search & Table sama seperti sebelumnya, copy paste saja bagian bawah ini */}
       <div className="p-4 bg-gray-50 border-b-2 border-black">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
