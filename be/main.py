@@ -1,5 +1,4 @@
 # backend/main.py
-
 from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -26,35 +25,33 @@ load_dotenv()
 smart_ocr = None
 credit_service = None
 
-# --- LIFESPAN (STARTUP) ---
+# --- 1. LIFESPAN (STARTUP) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Starting Server...")
-    # 1. Konek Database (PENTING AGAR TIDAK ERROR QUERY ENGINE)
+    # Konek Database DULUAN biar gak error "Not connected"
     try:
         await connect_db() 
-        print("✅ Database Connected")
+        print("✅ Database Connected Successfully")
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
 
-    # 2. Init Service Lain
+    # Init Service Lain
     global smart_ocr, credit_service
     smart_ocr = SmartOCRProcessor(os.getenv('OCR_SPACE_API_KEY', 'helloworld'))
     credit_service = CreditService()
     
     yield
     
-    # 3. Shutdown
     await disconnect_db()
     print("🛑 Server Shutdown")
 
-# --- APP DEFINITION (WAJIB DI ATAS ROUTE) ---
+# --- 2. APP DEFINITION (WAJIB DI ATAS ROUTE) ---
 app = FastAPI(lifespan=lifespan)
 
 # Setup Folder Uploads
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-# Mount agar gambar bisa diakses lewat URL
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # CORS
@@ -91,6 +88,7 @@ async def extract_text_from_image(image_np):
 @app.get("/health")
 def health(): return {"status": "ok", "db": prisma.is_connected()}
 
+# Model untuk Edit Log
 class LogUpdate(BaseModel):
     summary: str
 
@@ -127,6 +125,7 @@ async def scan_document(
         # 1. Cek & Reset Kredit Harian
         if not prisma.is_connected(): await connect_db()
         
+        # Cek User ada atau tidak, sekalian reset kredit
         credits = await credit_service.get_user_credits(user_email, prisma)
         remaining_credits = credits
         
@@ -153,21 +152,24 @@ async def scan_document(
         if tipe_doc == "invoice": kategori = "INVOICE"
         elif tipe_doc == "delivery_note": kategori = "SURAT JALAN"
 
-        # 4. Simpan File (Unique Filename biar gak bentrok scan ulang)
-        timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+        # 4. Simpan File
+        timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
         clean_filename = file.filename.replace(" ", "_")
         filename = f"{timestamp_str}_{clean_filename}"
         filepath = os.path.join(UPLOAD_DIR, filename)
         with open(filepath, "wb") as f: f.write(content)
         
-        # URL Gambar (Sesuaikan domain kamu)
-        BASE_URL = os.getenv("BASE_URL", "http://localhost:8000") # Ganti jika production
+        # Generate URL Gambar (PENTING untuk Preview)
+        BASE_URL = os.getenv("BASE_URL", "http://localhost:8000") 
+        if os.getenv("ENVIRONMENT") == "production":
+             BASE_URL = "https://logistic-dokumen.onrender.com" # Sesuaikan dengan URL rendermu
+        
         image_url = f"{BASE_URL}/uploads/{filename}"
 
         # 5. Simpan ke Database
         log_id = 0
         
-        # Pastikan user ada
+        # Pastikan user record ada
         user = await prisma.user.find_unique(where={"email": user_email})
         if not user:
             await credit_service.ensure_default_credits(user_email, prisma)
@@ -180,7 +182,7 @@ async def scan_document(
             "kategori": kategori,
             "nomorDokumen": nomor_dokumen,
             "receiver": receiver.upper(),
-            "imagePath": image_url, # Pastikan ini URL lengkap http://...
+            "imagePath": image_url, 
             "summary": ocr_res.get("summary", "Ringkasan tidak tersedia"),
             "fullText": ocr_res.get("raw_text", "")
         })
@@ -227,10 +229,9 @@ async def delete_log(log_id: int, authorization: str = Header(None)):
         log = await prisma.logs.find_first(where={"id": log_id, "userId": user_email})
         if not log: raise HTTPException(404, "Log not found")
 
-        # Hapus file fisik jika ada
+        # Hapus file fisik
         if log.imagePath:
             try:
-                # Ambil nama file dari URL
                 filename = log.imagePath.split("/")[-1]
                 filepath = os.path.join(UPLOAD_DIR, filename)
                 if os.path.exists(filepath): os.remove(filepath)
@@ -248,29 +249,33 @@ async def export_excel(authorization: str = Header(None), upload_to_drive: bool 
         
         if not prisma.is_connected(): await connect_db()
         
+        # Fetch logs
         logs = await prisma.logs.find_many(where={"userId": user_email}, order={"id": "desc"})
         if not logs: return {"status": "error", "message": "Tidak ada data"}
 
-        # Buat Excel
+        # Buat Dataframe
         data = [{
-            "Tanggal": l.timestamp.strftime("%Y-%m-%d %H:%M"),
-            "Kategori": l.kategori,
-            "Nomor": l.nomorDokumen,
-            "Penerima": l.receiver,
-            "Ringkasan": l.summary,
-            "Foto": l.imagePath
+            "TANGGAL": l.timestamp.strftime("%Y-%m-%d"),
+            "JAM": l.timestamp.strftime("%H:%M"),
+            "KATEGORI": l.kategori,
+            "NOMOR DOKUMEN": l.nomorDokumen,
+            "PENERIMA": l.receiver,
+            "RINGKASAN": l.summary,
+            "LINK FOTO": l.imagePath
         } for l in logs]
 
         df = pd.DataFrame(data)
-        filename = f"Report_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
+        filename = f"Laporan_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
         
+        # Simpan ke Buffer (Memory)
         buffer = io.BytesIO()
+        # 🔥 PENTING: Engine xlsxwriter dipakai disini
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             df.to_excel(writer, index=False)
         buffer.seek(0)
         file_content = buffer.getvalue()
 
-        # Upload ke Drive (Wajib Token Valid)
+        # Upload ke Drive
         if upload_to_drive and token:
             try:
                 drive_res = export_to_google_drive_with_token(token, file_content, filename)
@@ -280,14 +285,13 @@ async def export_excel(authorization: str = Header(None), upload_to_drive: bool 
                     "folder_name": drive_res.get('folder_name')
                 }
             except Exception as e:
-                print(f"Drive Upload Error: {e}")
-                # Fallback: Kalau gagal drive, return error spesifik biar tau
-                return {"status": "error", "message": f"Gagal upload Drive: {str(e)}"}
+                print(f"Drive Error: {e}")
+                return {"status": "error", "message": f"Gagal ke Drive: {str(e)}"}
 
-        return {"status": "error", "message": "Token tidak valid"}
+        return {"status": "error", "message": "Token Google tidak valid"}
 
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": f"Export Error: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
