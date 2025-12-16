@@ -1,4 +1,4 @@
-import { Circle, LogOut, User, Settings, CreditCard } from "lucide-react";
+import { Circle, LogOut, User, Settings, CreditCard, Zap, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -8,35 +8,70 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useEffect, useState } from "react";
 
 interface HeaderProps {
   user?: {
     name: string;
     email: string;
     picture: string;
+    creditBalance?: number; // ✅ Field baru
+    credits?: number;       // ✅ Fallback field
   };
   onLogout?: () => void;
   onProfile?: () => void;
   onSettings?: () => void;
+  onViewCreditHistory?: () => void; // ✅ Prop baru untuk membuka modal
 }
 
-const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
+const Header = ({ user, onLogout, onProfile, onSettings, onViewCreditHistory }: HeaderProps) => {
+  const [animateCredit, setAnimateCredit] = useState(false);
+  
+  // 1. Ambil saldo kredit aman (fallback ke 0)
+  const creditBalance = user?.creditBalance ?? user?.credits ?? 0;
+
+  // 2. Efek animasi 'Pop' saat kredit berubah
+  useEffect(() => {
+    setAnimateCredit(true);
+    const timer = setTimeout(() => setAnimateCredit(false), 300);
+    return () => clearTimeout(timer);
+  }, [creditBalance]);
+
   return (
-    <header className="brutal-border-thin border-t-0 border-l-0 border-r-0 bg-background">
+    <header className="brutal-border-thin border-t-0 border-l-0 border-r-0 bg-background sticky top-0 z-40">
       <div className="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
+        
+        {/* LOGO AREA */}
         <h1 className="text-lg md:text-2xl font-bold tracking-tighter">
           <span className="terminal-text inline-block">OCR.WTF</span>
-          <span className="terminal-cursor"></span>
+          <span className="terminal-cursor">_</span>
         </h1>
-        
+
         <div className="flex items-center gap-3">
           {user && (
             <>
-              <div className="relative">
-                <div className="w-2.5 h-2.5 md:w-3 md:h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <div className="absolute inset-0 w-2.5 h-2.5 md:w-3 md:h-3 bg-green-500 rounded-full animate-ping"></div>
+              {/* 🔥 CREDIT BADGE (BRUTALIST STYLE) 🔥 */}
+              <div 
+                onClick={onViewCreditHistory}
+                className={`
+                  cursor-pointer flex items-center gap-2 px-3 py-1.5 
+                  brutal-border-thin bg-background
+                  transition-all duration-200
+                  ${animateCredit ? 'scale-110 bg-yellow-100' : ''}
+                  hover:bg-accent
+                `}
+                title="Klik untuk lihat riwayat"
+              >
+                <Zap className={`w-3.5 h-3.5 md:w-4 md:h-4 ${creditBalance > 0 ? 'fill-yellow-400 text-black' : 'text-red-500'}`} />
+                <div className="flex flex-col items-start leading-none">
+                  <span className="text-[8px] md:text-[10px] font-bold uppercase text-muted-foreground">CREDITS</span>
+                  <span className={`text-xs md:text-sm font-bold font-mono ${creditBalance === 0 ? 'text-destructive' : ''}`}>
+                    {creditBalance}
+                  </span>
+                </div>
               </div>
-              
+
+              {/* USER DROPDOWN */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -57,13 +92,13 @@ const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
-              
+
               <DropdownMenuContent align="end" className="brutal-border bg-background min-w-[200px]">
                 <DropdownMenuLabel className="font-bold uppercase text-xs">
                   {user.email}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-foreground/20" />
-                
+
                 {onProfile && (
                   <DropdownMenuItem 
                     onClick={onProfile}
@@ -74,6 +109,17 @@ const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
                   </DropdownMenuItem>
                 )}
                 
+                {/* ✅ MENU BARU: RIWAYAT KREDIT */}
+                {onViewCreditHistory && (
+                  <DropdownMenuItem 
+                    onClick={onViewCreditHistory}
+                    className="cursor-pointer font-bold uppercase text-xs hover:bg-primary hover:text-primary-foreground"
+                  >
+                    <History className="w-4 h-4 mr-2" />
+                    RIWAYAT KREDIT
+                  </DropdownMenuItem>
+                )}
+
                 {onSettings && (
                   <DropdownMenuItem 
                     onClick={onSettings}
@@ -83,7 +129,7 @@ const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
                     SETTINGS
                   </DropdownMenuItem>
                 )}
-                
+
                 {onLogout && (
                   <DropdownMenuItem 
                     onClick={onLogout}
@@ -95,8 +141,6 @@ const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-            
-            {/* Notification Icon - positioned after profile dropdown */}
             </>
           )}
         </div>
