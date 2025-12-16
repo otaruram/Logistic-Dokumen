@@ -1,5 +1,3 @@
-# backend/main.py
-
 from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -17,7 +15,6 @@ from dotenv import load_dotenv
 # MODULE LOKAL
 from db import prisma, connect_db, disconnect_db
 from utils import get_user_email_from_token
-# Pastikan upload_image_to_drive ada di drive_service.py
 from drive_service import export_to_google_drive_with_token, upload_image_to_drive
 from smart_ocr_processor import SmartOCRProcessor
 from pricing_service import CreditService
@@ -116,20 +113,14 @@ async def scan_document(
         remaining_credits = credits
         
         if credits < 1:
-            return {
-                "status": "error", "error_type": "insufficient_credits",
-                "message": "Kredit habis.", "remaining_credits": 0
-            }
+            return {"status": "error", "error_type": "insufficient_credits", "message": "Kredit habis.", "remaining_credits": 0}
 
         content = await file.read()
         image_np = np.array(Image.open(io.BytesIO(content)))
         ocr_res = await extract_text_from_image(image_np)
 
         doc_data = ocr_res.get("structured_data", {})
-        nomor_dokumen = (
-            doc_data.get('invoice_number') or doc_data.get('do_number') or 
-            doc_data.get('po_number') or "MANUAL CHECK"
-        )
+        nomor_dokumen = (doc_data.get('invoice_number') or doc_data.get('do_number') or doc_data.get('po_number') or "MANUAL CHECK")
         
         tipe_doc = ocr_res.get("document_type", "unknown")
         kategori = "DOKUMEN"
@@ -143,11 +134,9 @@ async def scan_document(
         with open(filepath, "wb") as f: f.write(content)
         
         BASE_URL = os.getenv("BASE_URL", "http://localhost:8000") 
-        if os.getenv("ENVIRONMENT") == "production":
-             BASE_URL = "https://logistic-dokumen.onrender.com"
+        if os.getenv("ENVIRONMENT") == "production": BASE_URL = "https://logistic-dokumen.onrender.com"
         image_url = f"{BASE_URL}/uploads/{filename}"
 
-        if not prisma.is_connected(): await connect_db()
         user = await prisma.user.find_unique(where={"email": user_email})
         if not user: await credit_service.ensure_default_credits(user_email, prisma)
 
@@ -209,7 +198,35 @@ async def delete_log(log_id: int, authorization: str = Header(None)):
         return {"status": "success"}
     except Exception as e: return {"status": "error", "message": str(e)}
 
-# 🔥 MODIFIKASI TOTAL BAGIAN EXPORT AGAR CANTIK 🔥
+# 🔥 ENDPOINT DELETE ACCOUNT (REFACTORED) 🔥
+@app.delete("/delete-account")
+async def delete_account(authorization: str = Header(None)):
+    try:
+        user_email = get_user_email_from_token(authorization)
+        if not prisma.is_connected(): await connect_db()
+
+        user = await prisma.user.find_unique(where={"email": user_email})
+        if not user: raise HTTPException(404, "User tidak ditemukan")
+
+        # 1. Hapus File Fisik
+        user_logs = await prisma.logs.find_many(where={"userId": user_email})
+        for log in user_logs:
+            if log.imagePath:
+                try:
+                    filename = log.imagePath.split("/")[-1]
+                    filepath = os.path.join(UPLOAD_DIR, filename)
+                    if os.path.exists(filepath): os.remove(filepath)
+                except: pass
+
+        # 2. Hapus Data DB
+        await prisma.credittransaction.delete_many(where={"userId": user.id})
+        await prisma.logs.delete_many(where={"userId": user_email})
+        await prisma.user.delete(where={"id": user.id})
+
+        return {"status": "success", "message": "Akun berhasil dihapus permanen."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.get("/export")
 async def export_excel(authorization: str = Header(None), upload_to_drive: bool = True):
     try:
@@ -221,113 +238,61 @@ async def export_excel(authorization: str = Header(None), upload_to_drive: bool 
         logs = await prisma.logs.find_many(where={"userId": user_email}, order={"id": "desc"})
         if not logs: return {"status": "error", "message": "Tidak ada data"}
 
-        # 1. Siapkan Buffer Excel dengan Engine XlsxWriter
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             workbook = writer.book
             worksheet = workbook.add_worksheet("Log Harian")
             
-            # --- DEFINISI STYLE (FORMAT) ---
-            # Header: Hitam, Teks Putih, Tengah, Bold
-            header_format = workbook.add_format({
-                'bold': True, 'font_color': 'white', 'bg_color': '#000000',
-                'align': 'center', 'valign': 'vcenter', 'border': 1
-            })
-            
-            # Tengah (untuk kolom biasa)
-            center_format = workbook.add_format({
-                'align': 'center', 'valign': 'vcenter', 'border': 1
-            })
-            
-            # Kiri + Wrap (untuk Ringkasan)
-            left_wrap_format = workbook.add_format({
-                'align': 'left', 'valign': 'vcenter', 'text_wrap': True, 'border': 1
-            })
-            
-            # Link (Biru, Underline, Tengah)
-            link_format = workbook.add_format({
-                'font_color': 'blue', 'underline': 1, 'align': 'center', 'valign': 'vcenter', 'border': 1
-            })
+            # Format Styles
+            header_fmt = workbook.add_format({'bold': True, 'font_color': 'white', 'bg_color': '#000000', 'align': 'center', 'valign': 'vcenter', 'border': 1})
+            center_fmt = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
+            left_fmt = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'text_wrap': True, 'border': 1})
+            link_fmt = workbook.add_format({'font_color': 'blue', 'underline': 1, 'align': 'center', 'valign': 'vcenter', 'border': 1})
 
-            # --- HEADER KOLOM ---
+            # Headers
             headers = ["NO", "TANGGAL", "JAM", "KATEGORI", "NOMOR DOKUMEN", "PENERIMA", "RINGKASAN", "FOTO"]
-            for col, text in enumerate(headers):
-                worksheet.write(0, col, text, header_format)
+            for col, text in enumerate(headers): worksheet.write(0, col, text, header_fmt)
             
-            # Atur Lebar Kolom
-            worksheet.set_column('A:A', 5)   # No
-            worksheet.set_column('B:C', 15)  # Tgl/Jam
-            worksheet.set_column('D:F', 20)  # Kategori dll
-            worksheet.set_column('G:G', 50)  # Ringkasan (Lebar)
-            worksheet.set_column('H:H', 15)  # Foto
+            worksheet.set_column('A:A', 5); worksheet.set_column('B:C', 15); worksheet.set_column('D:F', 20)
+            worksheet.set_column('G:G', 50); worksheet.set_column('H:H', 15)
 
-            # --- ISI DATA ---
             for i, log in enumerate(logs):
                 row = i + 1
+                drive_link = log.imagePath
                 
-                # Logic Upload Foto ke Drive (Agar linknya ke Drive, bukan Render)
-                drive_link = "Tidak ada foto"
-                if log.imagePath and token:
-                    # Cek apakah imagePath masih link lokal/Render
-                    if "drive.google.com" not in log.imagePath:
-                        try:
-                            # Ambil nama file dari URL
-                            fname = log.imagePath.split("/")[-1]
-                            fpath = os.path.join(UPLOAD_DIR, fname)
-                            
-                            if os.path.exists(fpath):
-                                # Upload ke Drive
-                                # Folder tujuan di Drive: "OCR_IMAGES"
-                                res = upload_image_to_drive(token, fpath, "OCR_IMAGES")
-                                if res and res.get('direct_link'):
-                                    drive_link = res['web_view_link'] # Atau direct_link
-                                else:
-                                    drive_link = log.imagePath # Fallback ke link Render
-                            else:
-                                drive_link = log.imagePath # File lokal hilang
-                        except:
-                            drive_link = log.imagePath
-                    else:
-                        drive_link = log.imagePath
+                # Logic Upload Image to Drive
+                if upload_to_drive and token and log.imagePath and "drive.google.com" not in log.imagePath:
+                    try:
+                        fname = log.imagePath.split("/")[-1]
+                        fpath = os.path.join(UPLOAD_DIR, fname)
+                        if os.path.exists(fpath):
+                            res = upload_image_to_drive(token, fpath, "OCR_IMAGES")
+                            if res and res.get('web_view_link'): drive_link = res['web_view_link']
+                    except: pass
 
-                # Tulis Data ke Cell
-                worksheet.write(row, 0, i + 1, center_format)
-                worksheet.write(row, 1, log.timestamp.strftime("%Y-%m-%d"), center_format)
-                worksheet.write(row, 2, log.timestamp.strftime("%H:%M"), center_format)
-                worksheet.write(row, 3, log.kategori, center_format)
-                worksheet.write(row, 4, log.nomorDokumen, center_format)
-                worksheet.write(row, 5, log.receiver, center_format)
+                worksheet.write(row, 0, i + 1, center_fmt)
+                worksheet.write(row, 1, log.timestamp.strftime("%Y-%m-%d"), center_fmt)
+                worksheet.write(row, 2, log.timestamp.strftime("%H:%M"), center_fmt)
+                worksheet.write(row, 3, log.kategori, center_fmt)
+                worksheet.write(row, 4, log.nomorDokumen, center_fmt)
+                worksheet.write(row, 5, log.receiver, center_fmt)
+                worksheet.write(row, 6, log.summary, left_fmt)
                 
-                # Ringkasan (Kiri & Wrap)
-                worksheet.write(row, 6, log.summary, left_wrap_format)
-                
-                # Foto (Clickable Link)
-                if "http" in drive_link:
-                    worksheet.write_url(row, 7, drive_link, link_format, string="Lihat Foto")
-                else:
-                    worksheet.write(row, 7, drive_link, center_format)
+                if "http" in drive_link: worksheet.write_url(row, 7, drive_link, link_fmt, string="Lihat Foto")
+                else: worksheet.write(row, 7, drive_link, center_fmt)
 
-        # Selesai tulis Excel
         buffer.seek(0)
         file_content = buffer.getvalue()
         filename = f"Laporan_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
 
-        # Upload File Excel-nya ke Drive
         if upload_to_drive and token:
             try:
                 drive_res = export_to_google_drive_with_token(token, file_content, filename)
-                return {
-                    "status": "success", 
-                    "drive_url": drive_res.get('web_view_link'),
-                    "folder_name": drive_res.get('folder_name')
-                }
-            except Exception as e:
-                return {"status": "error", "message": f"Gagal ke Drive: {str(e)}"}
+                return {"status": "success", "drive_url": drive_res.get('web_view_link'), "folder_name": drive_res.get('folder_name')}
+            except Exception as e: return {"status": "error", "message": f"Gagal ke Drive: {str(e)}"}
 
         return {"status": "error", "message": "Token tidak valid"}
-
-    except Exception as e:
-        return {"status": "error", "message": f"Export Error: {str(e)}"}
+    except Exception as e: return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
