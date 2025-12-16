@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { apiFetch } from '@/lib/api-service';
-import RatingDialog from '@/components/RatingDialog'; // Import Komponen Baru
+
+// 🔥 IMPORT INI HARUS SESUAI LOKASI FILE 🔥
+import RatingDialog from '@/components/RatingDialog'; 
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -45,8 +47,6 @@ export default function Profile() {
       </div>
 
       <div className="w-full max-w-lg space-y-6">
-        
-        {/* Identitas User */}
         <div className="brutal-border bg-white p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-center">
           <div className="mx-auto w-24 h-24 mb-4 relative">
             {user?.picture ? (
@@ -57,13 +57,11 @@ export default function Profile() {
           <p className="text-sm font-mono text-gray-500 bg-gray-100 inline-block px-2 py-1 rounded">{user?.email}</p>
         </div>
 
-        {/* 🔥 CARD RATING BARU 🔥 */}
         <div className="brutal-border bg-blue-50 p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-black flex items-center justify-between gap-4">
           <div>
             <h3 className="text-lg font-black uppercase">Suka Aplikasinya?</h3>
             <p className="text-xs font-mono text-gray-600">Beri rating & emoji biar Oki senang!</p>
           </div>
-          
           <RatingDialog 
             user={user} 
             triggerButton={
@@ -74,7 +72,6 @@ export default function Profile() {
           />
         </div>
 
-        {/* Zona Berbahaya */}
         <div className="brutal-border bg-red-50 p-6 shadow-[8px_8px_0px_0px_rgba(220,38,38,1)] border-red-600">
           <div className="flex items-start gap-3 mb-4">
             <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0" />
