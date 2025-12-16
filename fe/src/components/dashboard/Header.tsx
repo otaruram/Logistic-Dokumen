@@ -17,21 +17,20 @@ interface HeaderProps {
 }
 
 const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
-  // Kita langsung pakai 'user.creditBalance' dari props. 
-  // Karena Index.tsx sudah update user, ini otomatis re-render.
-  const credits = user?.creditBalance ?? 0; 
+  // Ambil data kredit langsung dari props user agar sinkron
+  const credits = user?.creditBalance ?? 0;
 
   return (
     <header className="border-b-4 border-black bg-white p-4 sticky top-0 z-50">
       <div className="container mx-auto flex justify-between items-center">
         {/* LOGO */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.href = '/'}>
           <div className="w-4 h-8 bg-black"></div>
           <h1 className="text-xl font-black tracking-tighter">OCR.WTF</h1>
         </div>
 
         <div className="flex items-center gap-4">
-          {/* CREDIT COUNTER FIX */}
+          {/* CREDIT COUNTER */}
           <div className="hidden md:flex items-center gap-2 brutal-border px-3 py-1 bg-yellow-400">
             <Zap className="w-4 h-4 text-black fill-black" />
             <div className="flex flex-col leading-none">
@@ -58,19 +57,18 @@ const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-bold leading-none">{user?.name}</p>
                   <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
-                  {/* Tampilkan kredit di menu mobile juga */}
                   <p className="md:hidden text-xs font-bold text-yellow-600 mt-1">Sisa Kredit: {credits}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-black" />
-              <DropdownMenuItem onClick={onProfile} className="cursor-pointer hover:bg-yellow-200 focus:bg-yellow-200 font-bold">
+              <DropdownMenuItem onClick={onProfile} className="cursor-pointer hover:bg-yellow-200 font-bold">
                 <User className="mr-2 h-4 w-4" /> Profile
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onSettings} className="cursor-pointer hover:bg-yellow-200 focus:bg-yellow-200 font-bold">
+              <DropdownMenuItem onClick={onSettings} className="cursor-pointer hover:bg-yellow-200 font-bold">
                 <Settings className="mr-2 h-4 w-4" /> Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-black" />
-              <DropdownMenuItem onClick={onLogout} className="cursor-pointer text-red-600 hover:bg-red-100 focus:bg-red-100 font-bold">
+              <DropdownMenuItem onClick={onLogout} className="cursor-pointer text-red-600 hover:bg-red-100 font-bold">
                 <LogOut className="mr-2 h-4 w-4" /> Logout
               </DropdownMenuItem>
             </DropdownMenuContent>
