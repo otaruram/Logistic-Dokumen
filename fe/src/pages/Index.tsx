@@ -3,43 +3,38 @@ import { apiFetch } from "@/lib/api-service";
 import Header from "@/components/dashboard/Header";
 import FileUploadZone from "@/components/dashboard/FileUploadZone";
 import DataTable from "@/components/dashboard/DataTable";
-import { toast } from "sonner"; // Pastikan import toast dari sonner
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Index() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initLoading, setInitLoading] = useState(true);
 
-  // 1. LOAD DATA SAAT PERTAMA BUKA
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Cek Sesi Lokal
         const storedUser = sessionStorage.getItem('user');
-        if (!storedUser) { navigate('/landing'); return; } // Redirect ke Landing kalau belum login
+        if (!storedUser) { navigate('/landing'); return; }
         
         const localUser = JSON.parse(storedUser);
-        
-        // 🔥 FETCH PROFILE TERBARU DARI BACKEND (BIAR DATA SINKRON)
         const profileRes = await apiFetch("/me");
         const profileJson = await profileRes.json();
         
         if (profileJson.status === "success") {
-            // Gabungkan data lokal dengan data terbaru dari server (Credit & CreatedAt)
             const updatedUser = { ...localUser, ...profileJson.data };
             setUser(updatedUser);
-            sessionStorage.setItem('user', JSON.stringify(updatedUser)); // Simpan yang baru
+            sessionStorage.setItem('user', JSON.stringify(updatedUser));
         } else {
-            setUser(localUser); // Fallback kalau server error
+            setUser(localUser);
         }
 
-        // Load History
         const historyRes = await apiFetch("/history");
         const historyData = await historyRes.json();
         if (Array.isArray(historyData)) {
-            // Format data untuk tabel
             const formattedLogs = historyData.map((item: any) => ({
                 id: item.id,
                 date: item.timestamp.split("T")[0],
@@ -53,18 +48,17 @@ export default function Index() {
         }
       } catch (error) {
         console.error("Gagal load data:", error);
+      } finally {
+        setInitLoading(false);
       }
     };
     loadData();
   }, [navigate]);
 
-  // 2. FUNGSI SCAN DOKUMEN
   const handleScan = async (file: File) => {
     if (!user) return;
-    
-    // Cek kredit dulu di frontend biar gak buang kuota upload
     if (user.creditBalance < 1) {
-        toast.error("Kredit Habis!", { description: "Silakan topup atau tunggu besok." });
+        toast.error("Kredit Habis!", { description: "Kuota harian Anda telah habis." });
         return;
     }
 
@@ -74,26 +68,18 @@ export default function Index() {
     formData.append("receiver", user.name || "User");
 
     try {
-      toast.info("Memproses...", { description: "Sedang membaca dokumen (AI OCR)..." });
-      
-      const res = await apiFetch("/scan", {
-        method: "POST",
-        body: formData,
-        timeout: 90000 // 90 Detik timeout
-      });
-
+      toast.info("Memproses Dokumen...", { description: "AI sedang membaca teks & validasi..." });
+      const res = await apiFetch("/scan", { method: "POST", body: formData, timeout: 90000 });
       const json = await res.json();
 
       if (json.status === "success") {
-        toast.success("Berhasil!", { description: "Dokumen berhasil discan." });
-
-        // 🔥 UPDATE KREDIT SECARA REALTIME (PENTING!)
+        toast.success("Selesai!", { description: "Dokumen berhasil didigitalkan." });
+        
         const newBalance = json.remaining_credits;
         const updatedUser = { ...user, creditBalance: newBalance };
         setUser(updatedUser);
         sessionStorage.setItem('user', JSON.stringify(updatedUser));
 
-        // Tambah log baru ke tabel paling atas
         const newLog = {
             id: json.data.id,
             date: new Date().toISOString().split("T")[0],
@@ -104,7 +90,6 @@ export default function Index() {
             imageUrl: json.data.imagePath
         };
         setLogs(prev => [newLog, ...prev]);
-
       } else {
         throw new Error(json.message || "Gagal memproses gambar");
       }
@@ -115,17 +100,15 @@ export default function Index() {
     }
   };
 
-  // 3. FUNGSI DELETE LOG
   const handleDeleteLog = async (id: number) => {
-    if(!confirm("Yakin hapus log ini?")) return;
+    if(!confirm("Hapus data ini?")) return;
     try {
         await apiFetch(`/logs/${id}`, { method: "DELETE" });
         setLogs(prev => prev.filter(l => l.id !== id));
-        toast.success("Terhapus", { description: "Log berhasil dihapus." });
-    } catch (e) { toast.error("Error saat menghapus"); }
+        toast.success("Data dihapus.");
+    } catch (e) { toast.error("Gagal menghapus."); }
   };
 
-  // 4. FUNGSI UPDATE LOG
   const handleUpdateLog = async (id: number, summary: string) => {
     try {
         await apiFetch(`/logs/${id}`, {
@@ -134,41 +117,61 @@ export default function Index() {
             body: JSON.stringify({ summary })
         });
         setLogs(prev => prev.map(l => l.id === id ? { ...l, summary } : l));
-        toast.success("Tersimpan", { description: "Ringkasan diperbarui." });
-    } catch (e) { toast.error("Error saat menyimpan"); }
+        toast.success("Ringkasan diperbarui.");
+    } catch (e) { toast.error("Gagal menyimpan."); }
   };
 
-  if (!user) return <div className="flex h-screen items-center justify-center font-bold animate-pulse">MEMUAT DATA...</div>;
+  if (initLoading) return <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]"><div className="animate-spin text-2xl">⏳</div></div>;
 
   return (
-    <div className="min-h-screen bg-[#F4F4F0] dark:bg-black text-black dark:text-white font-sans transition-colors duration-300">
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-zinc-950 font-sans text-[#1A1A1A] dark:text-white pb-20">
       <Header 
         user={user} 
         onLogout={() => { sessionStorage.clear(); navigate('/landing'); }} 
-        onProfile={() => console.log("Profile")} 
+        onProfile={() => navigate('/profile')} 
         onSettings={() => navigate('/settings')} 
       />
 
-      <main className="container mx-auto px-4 py-6 max-w-4xl">
-        {/* ZONA INPUT */}
-        <div className="brutal-border bg-white dark:bg-zinc-900 p-1">
-            <div className="bg-black dark:bg-zinc-800 text-white p-2 mb-4">
-                <h2 className="font-bold uppercase tracking-widest text-sm flex items-center gap-2">
-                    📦 ZONA INPUT {loading && <span className="animate-spin">⏳</span>}
-                </h2>
+      <main className="container mx-auto px-4 py-8 max-w-5xl space-y-8">
+        
+        {/* SECTION 1: WELCOME */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Halo, {user?.name?.split(" ")[0]} 👋</h1>
+                <p className="text-gray-500 dark:text-gray-400 mt-1">Siap mendigitalkan dokumen hari ini?</p>
             </div>
-            
-            <div className="p-4">
+            <div className="bg-white dark:bg-zinc-900 px-5 py-2.5 rounded-full shadow-sm border border-gray-100 dark:border-zinc-800 flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Sisa Kredit</span>
+                <span className="text-xl font-bold text-black dark:text-white">{user?.creditBalance}</span>
+            </div>
+        </div>
+
+        {/* SECTION 2: INPUT ZONE (Clean Wrapper) */}
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800">
+            <div className="flex items-center justify-between mb-6">
+                 <h2 className="font-bold text-lg">Input Dokumen</h2>
+                 {loading && <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full animate-pulse">Sedang Memproses AI...</span>}
+            </div>
+            {/* Kita bungkus komponen lama yang mungkin masih kasar */}
+            <div className="overflow-hidden rounded-2xl border border-gray-100 dark:border-zinc-800">
                 <FileUploadZone onFileSelect={handleScan} />
             </div>
         </div>
 
-        {/* TABEL DATA */}
-        <DataTable 
-            logs={logs} 
-            onDeleteLog={handleDeleteLog} 
-            onUpdateLog={handleUpdateLog} 
-        />
+        {/* SECTION 3: HISTORY TABLE (Clean Wrapper) */}
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800">
+            <div className="mb-6">
+                <h2 className="font-bold text-lg">Riwayat Digitalisasi</h2>
+                <p className="text-sm text-gray-500">Semua dokumen yang telah diproses.</p>
+            </div>
+            <div className="overflow-hidden rounded-xl">
+                 <DataTable 
+                    logs={logs} 
+                    onDeleteLog={handleDeleteLog} 
+                    onUpdateLog={handleUpdateLog} 
+                />
+            </div>
+        </div>
       </main>
     </div>
   );
