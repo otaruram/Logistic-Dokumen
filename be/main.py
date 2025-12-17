@@ -7,12 +7,13 @@ import numpy as np
 from PIL import Image
 import io
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import traceback
 import requests
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
+from apscheduler.schedulers.asyncio import AsyncIOScheduler # 🔥 SCHEDULER AKTIF
 
 # MODULE LOKAL
 from db import prisma, connect_db, disconnect_db
@@ -26,21 +27,73 @@ load_dotenv()
 
 smart_ocr = None
 credit_service = None
+scheduler = None
 
+# --- BACKGROUND TASKS (SCHEDULER) ---
+
+# 1. RESET KREDIT JAM 00:00 (Jadi 3 Setiap Hari)
+async def daily_credit_reset_task():
+    try:
+        if not prisma.is_connected(): await connect_db()
+        print("⚡ [SCHEDULER] Running Daily Credit Reset...")
+        # Reset semua user ke 3 kredit
+        await prisma.user.update_many(
+            data={"creditBalance": 3}
+        )
+        print("✅ [SCHEDULER] All users credits reset to 3.")
+    except Exception as e: print(f"❌ Credit Reset Error: {e}")
+
+# 2. HAPUS DATA BULANAN (Sesuai Tanggal Join User)
+async def monthly_data_cleanup_task():
+    try:
+        if not prisma.is_connected(): await connect_db()
+        today = datetime.now()
+        print(f"🧹 [SCHEDULER] Checking for monthly cleanup: {today.date()}")
+        
+        all_users = await prisma.user.find_many()
+        for user in all_users:
+            # Cek apakah hari ini tanggal join-nya (misal join tgl 17, skrg tgl 17)
+            if user.createdAt.day == today.day:
+                print(f"⚠️ Resetting Data for {user.email} (Monthly Cycle)")
+                # Hapus File Fisik (Opsional, biar hemat storage)
+                user_logs = await prisma.logs.find_many(where={"userId": user.email})
+                for log in user_logs:
+                    if log.imagePath:
+                        try:
+                            fname = log.imagePath.split("/")[-1]
+                            path = os.path.join(UPLOAD_DIR, fname)
+                            if os.path.exists(path): os.remove(path)
+                        except: pass
+                # Hapus Data di DB
+                await prisma.logs.delete_many(where={"userId": user.email})
+                
+    except Exception as e: print(f"❌ Cleanup Error: {e}")
+
+# --- LIFESPAN ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Starting Server...")
     try: await connect_db()
     except Exception as e: print(f"⚠️ DB Connection Warning: {e}")
 
-    global smart_ocr, credit_service
+    global smart_ocr, credit_service, scheduler
     try:
         smart_ocr = SmartOCRProcessor(os.getenv('OCR_SPACE_API_KEY', 'helloworld'))
         credit_service = CreditService()
-        print("✅ Services Ready (Scheduler Disabled)")
+        
+        # 🔥 AKTIFKAN SCHEDULER
+        scheduler = AsyncIOScheduler()
+        # Reset Kredit jam 00:00
+        scheduler.add_job(daily_credit_reset_task, "cron", hour=0, minute=0, timezone='Asia/Jakarta')
+        # Cek Hapus Data setiap jam 01:00 pagi
+        scheduler.add_job(monthly_data_cleanup_task, "cron", hour=1, minute=0, timezone='Asia/Jakarta')
+        scheduler.start()
+        print("✅ Scheduler Active (Credit & Reset)")
+        
     except Exception as e: print(f"⚠️ Service Init Warning: {e}")
     
     yield
+    if scheduler: scheduler.shutdown()
     await disconnect_db()
     print("🛑 Server Shutdown")
 
@@ -79,7 +132,7 @@ class RatingRequest(BaseModel):
 class LogUpdate(BaseModel):
     summary: str
 
-# --- ENDPOINTS DENGAN SAFEGUARD ---
+# --- ENDPOINTS ---
 
 @app.get("/health")
 def health(): return {"status": "ok", "db": prisma.is_connected()}
@@ -87,6 +140,7 @@ def health(): return {"status": "ok", "db": prisma.is_connected()}
 @app.get("/me")
 async def get_my_profile(authorization: str = Header(None)):
     try:
+        # 🔥 FIX: CEK TOKEN DENGAN KETAT
         if not authorization: return {"status": "error", "message": "Token Missing"}
         
         token = authorization.replace("Bearer ", "").strip()
@@ -97,8 +151,32 @@ async def get_my_profile(authorization: str = Header(None)):
         if not user_email: return {"status": "error", "message": "Token Invalid"}
         if not prisma.is_connected(): await connect_db()
         user = await prisma.user.find_unique(where={"email": user_email})
+        
         if user:
-            return {"status": "success", "data": {"email": user.email, "createdAt": user.createdAt.isoformat(), "creditBalance": user.creditBalance}}
+            # 🔥 LOGIKA HITUNG HARI RESET (WARNING 1 MINGGU)
+            today = datetime.now()
+            next_reset = datetime(today.year, today.month, user.createdAt.day)
+            if next_reset < today: # Jika tgl sudah lewat bulan ini, ambil bulan depan
+                 next_reset = datetime(today.year, today.month + 1 if today.month < 12 else 1, user.createdAt.day)
+            
+            days_until_reset = (next_reset - today).days
+            show_warning = days_until_reset <= 7
+            
+            return {
+                "status": "success", 
+                "data": {
+                    "email": user.email, 
+                    "name": user.name,
+                    "picture": user.picture,
+                    "tier": user.tier,
+                    "creditBalance": user.creditBalance,
+                    "resetInfo": {
+                        "daysLeft": days_until_reset,
+                        "showWarning": show_warning,
+                        "nextResetDate": next_reset.strftime("%d %B %Y")
+                    }
+                }
+            }
         return {"status": "error", "message": "User not found"}
     except Exception as e: return {"status": "error", "message": str(e)}
 
@@ -108,12 +186,7 @@ async def create_rating(data: RatingRequest, authorization: str = Header(None)):
         user_email = "anonymous@ocr.wtf"
         if authorization:
             token = authorization.replace("Bearer ", "").strip()
-            try: 
-                extracted = get_user_email_from_token(authorization)
-                if extracted: user_email = extracted
-                else:
-                    gh_email = get_user_email_from_access_token(token)
-                    if gh_email: user_email = gh_email
+            try: user_email = get_user_email_from_token(authorization) or get_user_email_from_access_token(token) or "anonymous@ocr.wtf"
             except: pass
         
         if not prisma.is_connected(): await connect_db()
@@ -121,20 +194,11 @@ async def create_rating(data: RatingRequest, authorization: str = Header(None)):
         return {"status": "success"}
     except Exception as e: return {"status": "error", "message": str(e)}
 
-@app.get("/ratings")
-async def get_ratings():
-    try:
-        if not prisma.is_connected(): await connect_db()
-        ratings = await prisma.rating.find_many(take=50, order={"createdAt": "desc"})
-        return {"status": "success", "data": ratings}
-    except: return {"status": "error", "data": []}
-
 @app.post("/scan")
 async def scan_document(file: UploadFile = File(...), receiver: str = Form(...), authorization: str = Header(None)):
     try:
-        # 🔥 SAFEGUARD: Cek Token Dulu
-        if not authorization: return {"status": "error", "message": "Login diperlukan (No Token)"}
-        
+        # 🔥 FIX: CEK TOKEN
+        if not authorization: return {"status": "error", "message": "Login diperlukan"}
         token = authorization.replace("Bearer ", "").strip()
         user_email = None
         try: user_email = get_user_email_from_token(authorization)
@@ -164,7 +228,9 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         kategori = "INVOICE" if doc_type == "invoice" else "SURAT JALAN" if doc_type == "delivery_note" else "DOKUMEN"
 
         user = await prisma.user.find_unique(where={"email": user_email})
-        if not user: await credit_service.ensure_default_credits(user_email, prisma)
+        # Handle user baru yang mungkin belum punya record lengkap
+        if not user: 
+             await prisma.user.create(data={"email": user_email, "creditBalance": 3})
 
         log = await prisma.logs.create(data={"userId": user_email, "timestamp": datetime.now(), "filename": file.filename, "kategori": kategori, "nomorDokumen": nomor_dokumen, "receiver": receiver.upper(), "imagePath": image_url, "summary": ocr_res.get("summary", ""), "fullText": ocr_res.get("raw_text", "")})
         new_bal = await credit_service.deduct_credits(user_email, 1, f"Scan #{log.id}", prisma)
@@ -263,6 +329,14 @@ async def delete_account(authorization: str = Header(None)):
         await prisma.user.delete(where={"id": user.id})
         return {"status": "success"}
     except Exception as e: return {"status": "error", "message": str(e)}
+
+@app.get("/ratings")
+async def get_ratings():
+    try:
+        if not prisma.is_connected(): await connect_db()
+        ratings = await prisma.rating.find_many(take=50, order={"createdAt": "desc"})
+        return {"status": "success", "data": ratings}
+    except: return {"status": "error", "data": []}
 
 if __name__ == "__main__":
     import uvicorn
