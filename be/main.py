@@ -13,8 +13,6 @@ import traceback
 import requests
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
-# Scheduler dimatikan sesuai request
-# from apscheduler.schedulers.asyncio import AsyncIOScheduler 
 
 # MODULE LOKAL
 from db import prisma, connect_db, disconnect_db
@@ -28,9 +26,8 @@ load_dotenv()
 
 smart_ocr = None
 credit_service = None
-# scheduler = None  <-- Matikan Scheduler
 
-# --- LIFESPAN ---
+# --- LIFESPAN MANAGER ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Starting Server...")
@@ -41,16 +38,11 @@ async def lifespan(app: FastAPI):
     try:
         smart_ocr = SmartOCRProcessor(os.getenv('OCR_SPACE_API_KEY', 'helloworld'))
         credit_service = CreditService()
-        
-        # 🔥 FITUR AUTO-RESET / HAPUS TABEL DIMATIKAN TOTAL 🔥
-        # scheduler = AsyncIOScheduler()
-        # scheduler.start()
-        print("✅ Scheduler Disabled (Data Aman)")
-        
+        # SCHEDULER DIMATIKAN TOTAL AGAR DATA AMAN
+        print("✅ Scheduler Disabled (Auto-Reset Mati)")
     except Exception as e: print(f"⚠️ Service Init Warning: {e}")
     
     yield
-    # if scheduler: scheduler.shutdown()
     await disconnect_db()
     print("🛑 Server Shutdown")
 
@@ -84,11 +76,13 @@ async def extract_text_from_image(image_np):
         return {"raw_text": "", "summary": "Gagal Baca Teks", "document_type": "error"}
     except Exception as e: return {"raw_text": str(e), "summary": "Error Sistem", "document_type": "error"}
 
-# --- MODELS & ENDPOINTS ---
+# --- MODELS ---
 class RatingRequest(BaseModel):
     stars: int; emoji: str; message: str; userName: str; userAvatar: str
 class LogUpdate(BaseModel):
     summary: str
+
+# --- ENDPOINTS ---
 
 @app.get("/health")
 def health(): return {"status": "ok", "db": prisma.is_connected()}
@@ -96,10 +90,9 @@ def health(): return {"status": "ok", "db": prisma.is_connected()}
 @app.get("/me")
 async def get_my_profile(authorization: str = Header(None)):
     try:
-        # 🔥 FIX ERROR NONETYPE: Cek apakah token ada
-        if not authorization: 
-            return {"status": "error", "message": "Token Missing"}
-
+        # 🔥 FIX: CEK AUTHORIZATION SEBELUM DIPAKAI
+        if not authorization: return {"status": "error", "message": "Token Missing"}
+        
         token = authorization.replace("Bearer ", "").strip()
         user_email = None
         try: user_email = get_user_email_from_token(authorization)
@@ -117,10 +110,16 @@ async def get_my_profile(authorization: str = Header(None)):
 async def create_rating(data: RatingRequest, authorization: str = Header(None)):
     try:
         user_email = "anonymous@ocr.wtf"
+        # 🔥 FIX: Handle Auth secara aman untuk rating
         if authorization:
             token = authorization.replace("Bearer ", "").strip()
-            try: user_email = get_user_email_from_token(authorization) 
-            except: user_email = get_user_email_from_access_token(token) or "anonymous@ocr.wtf"
+            try: 
+                extracted = get_user_email_from_token(authorization)
+                if extracted: user_email = extracted
+                else:
+                    gh_email = get_user_email_from_access_token(token)
+                    if gh_email: user_email = gh_email
+            except: pass
         
         if not prisma.is_connected(): await connect_db()
         await prisma.rating.create(data={"userId": user_email, "userName": data.userName, "userAvatar": data.userAvatar, "stars": data.stars, "emoji": data.emoji, "message": data.message})
@@ -138,14 +137,15 @@ async def get_ratings():
 @app.post("/scan")
 async def scan_document(file: UploadFile = File(...), receiver: str = Form(...), authorization: str = Header(None)):
     try:
-        # 🔥 FIX ERROR NONETYPE DI SCAN
+        # 🔥 FIX: Validasi Token Ketat
         if not authorization: return {"status": "error", "message": "Login diperlukan"}
-
         token = authorization.replace("Bearer ", "").strip()
+        
         user_email = None
         try: user_email = get_user_email_from_token(authorization)
         except: user_email = get_user_email_from_access_token(token)
-        if not user_email: return {"status": "error", "message": "Login diperlukan"}
+        
+        if not user_email: return {"status": "error", "message": "Sesi berakhir, login ulang."}
         if not prisma.is_connected(): await connect_db()
         
         credits = await credit_service.get_user_credits(user_email, prisma)
@@ -174,7 +174,9 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         log = await prisma.logs.create(data={"userId": user_email, "timestamp": datetime.now(), "filename": file.filename, "kategori": kategori, "nomorDokumen": nomor_dokumen, "receiver": receiver.upper(), "imagePath": image_url, "summary": ocr_res.get("summary", ""), "fullText": ocr_res.get("raw_text", "")})
         new_bal = await credit_service.deduct_credits(user_email, 1, f"Scan #{log.id}", prisma)
         return {"status": "success", "data": {"id": log.id, "kategori": kategori, "nomorDokumen": nomor_dokumen, "summary": ocr_res.get("summary", ""), "imagePath": image_url}, "remaining_credits": new_bal if new_bal is not None else 0}
-    except Exception as e: return {"status": "error", "message": str(e)}
+    except Exception as e: 
+        print(traceback.format_exc())
+        return {"status": "error", "message": str(e)}
 
 @app.get("/history")
 async def get_history(authorization: str = Header(None)):
