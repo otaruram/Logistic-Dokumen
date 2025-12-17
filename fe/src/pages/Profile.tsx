@@ -3,7 +3,7 @@ import { apiFetch } from "@/lib/api-service";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Calendar, Mail, ShieldAlert, Trash2, Star, Send, ArrowLeft } from "lucide-react";
+import { CreditCard, Calendar, Mail, ShieldAlert, Trash2, Star, Send, ChevronLeft, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -15,40 +15,54 @@ export default function Profile() {
   const [ratingMessage, setRatingMessage] = useState("");
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
+  // 🔥 LOGIKA UTAMA: SYNC DATA REALTIME SAAT DIBUKA
   useEffect(() => {
-    const loadData = async () => {
+    const syncUserData = async () => {
       try {
         const storedUser = sessionStorage.getItem('user');
         const localUser = storedUser ? JSON.parse(storedUser) : null;
+        
+        // Kalau gak ada login, tendang ke depan
         if (!localUser?.credential) { navigate('/landing'); return; }
 
-        // Fetch Data Terbaru (Kredit & Tanggal)
-        const res = await apiFetch("/me", { headers: { "Authorization": `Bearer ${localUser.credential}` } });
+        // Tampilkan data lama dulu biar gak blank (Optimistic UI)
+        setUser(localUser);
+
+        // 🔥 WAJIB: Minta data terbaru ke Server (Sync)
+        const res = await apiFetch("/me", { 
+            headers: { "Authorization": `Bearer ${localUser.credential}` } 
+        });
         const json = await res.json();
         
         if (json.status === "success") {
-             const merged = { ...localUser, ...json.data };
-             setUser(merged);
-             sessionStorage.setItem('user', JSON.stringify(merged));
-        } else { setUser(localUser); }
-      } catch (e) { console.error(e); } 
-      finally { setLoading(false); }
+             // Gabungkan data lama dengan data baru dari server (Kredit, Tgl Join, dll)
+             const updatedUser = { ...localUser, ...json.data };
+             setUser(updatedUser);
+             // Simpan ke HP biar halaman lain juga update
+             sessionStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+      } catch (e) { 
+        console.error("Gagal sync profile:", e);
+      } finally { 
+        setLoading(false); 
+      }
     };
-    loadData();
+
+    syncUserData();
   }, [navigate]);
 
   const handleDeleteAccount = async () => {
-    if (!confirm("PERINGATAN: Akun dan semua data akan dihapus permanen.")) return;
+    if (!confirm("YAKIN? Data akan hilang permanen.")) return;
     try {
         await apiFetch("/delete-account", { method: "DELETE", headers: { "Authorization": `Bearer ${user.credential}` } });
         sessionStorage.clear();
         navigate('/landing');
-        toast.success("Akun berhasil dihapus.");
-    } catch (e) { toast.error("Gagal menghapus akun."); }
+        toast.success("Akun dihapus.");
+    } catch (e) { toast.error("Gagal menghapus."); }
   };
 
   const handleSubmitRating = async () => {
-    if (!ratingMessage.trim()) return toast.warning("Isi pesan ulasan dulu.");
+    if (!ratingMessage.trim()) return toast.warning("Isi pesan dulu ya.");
     setIsSubmittingRating(true);
     try {
       const emojiMap = ["😡", "🙁", "😐", "🙂", "🤩"];
@@ -71,57 +85,61 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] dark:bg-zinc-950 font-sans text-[#1A1A1A] dark:text-white p-4">
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-zinc-950 font-sans text-[#1A1A1A] dark:text-white p-4 pb-20">
       
-      {/* HEADER HILANG, GANTI TOMBOL KEMBALI KE DASHBOARD */}
-      <div className="max-w-2xl mx-auto py-4">
-          <Button variant="ghost" onClick={() => navigate('/dashboard')} className="mb-6 pl-0 hover:bg-transparent hover:text-gray-500 text-base font-medium">
-            <ArrowLeft className="w-5 h-5 mr-2" /> Kembali ke Dashboard
-          </Button>
-      
-          <h1 className="text-3xl font-bold mb-8 tracking-tight">Profile & Akun</h1>
-          
+      {/* HEADER MINIMALIS DENGAN TOMBOL KEMBALI ICONIC */}
+      <div className="max-w-2xl mx-auto flex items-center gap-4 py-6">
+        <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={() => navigate('/')} 
+            className="rounded-full w-10 h-10 bg-white dark:bg-zinc-900 shadow-sm border-gray-200 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all"
+        >
+            <ChevronLeft className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+        </Button>
+        <h1 className="text-2xl font-bold tracking-tight">Profile Saya</h1>
+      </div>
+
+      <div className="max-w-2xl mx-auto space-y-6">
           {loading ? ( <div className="space-y-4"><Skeleton className="h-40 w-full rounded-3xl" /><Skeleton className="h-20 w-full rounded-3xl" /></div> ) : (
             <>
                 {/* ID CARD */}
-                <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-zinc-800 flex flex-col md:flex-row items-center gap-6">
-                    <Avatar className="h-24 w-24 border-4 border-gray-50 dark:border-zinc-800 shadow-inner"><AvatarImage src={user?.picture} /><AvatarFallback className="text-2xl">{user?.name?.charAt(0)}</AvatarFallback></Avatar>
-                    <div className="text-center md:text-left space-y-1">
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800 flex flex-col md:flex-row items-center gap-6 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-10"><Zap className="w-32 h-32" /></div>
+                    <Avatar className="h-24 w-24 border-4 border-gray-50 dark:border-zinc-800 shadow-inner z-10"><AvatarImage src={user?.picture} /><AvatarFallback className="text-2xl">{user?.name?.charAt(0)}</AvatarFallback></Avatar>
+                    <div className="text-center md:text-left space-y-1 z-10">
                         <h2 className="text-2xl font-bold">{user?.name}</h2>
                         <div className="flex items-center justify-center md:justify-start gap-2 text-gray-500 dark:text-gray-400 text-sm"><Mail className="w-4 h-4" /> {user?.email}</div>
-                        <div className="pt-2"><span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-black text-white dark:bg-white dark:text-black">{user?.tier || "FREE PLAN"}</span></div>
+                        <div className="pt-2"><span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-black text-white dark:bg-white dark:text-black tracking-wide">{user?.tier || "FREE MEMBER"}</span></div>
                     </div>
                 </div>
 
-                {/* STATS REALTIME (Kredit & Join) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800">
-                        <div className="flex items-center gap-3 mb-2 text-gray-500"><div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><CreditCard className="w-5 h-5" /></div><span className="text-sm font-semibold uppercase tracking-wider">Sisa Kredit</span></div>
-                        <p className="text-4xl font-bold">{user?.creditBalance ?? 0}</p>
+                {/* STATS REALTIME (KREDIT & JOIN DATE) */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800">
+                        <div className="flex items-center gap-2 mb-2 text-gray-500"><CreditCard className="w-4 h-4" /><span className="text-xs font-bold uppercase">Sisa Kredit</span></div>
+                        <p className="text-3xl font-bold text-black dark:text-white">{user?.creditBalance ?? 0}</p>
                     </div>
-                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800">
-                        <div className="flex items-center gap-3 mb-2 text-gray-500"><div className="p-2 bg-green-50 text-green-600 rounded-lg"><Calendar className="w-5 h-5" /></div><span className="text-sm font-semibold uppercase tracking-wider">Bergabung</span></div>
-                        <p className="text-xl font-bold">
-                            {user?.createdAt ? new Date(user.createdAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' }) : "-"}
+                    <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800">
+                        <div className="flex items-center gap-2 mb-2 text-gray-500"><Calendar className="w-4 h-4" /><span className="text-xs font-bold uppercase">Bergabung</span></div>
+                        <p className="text-sm font-bold mt-2">
+                            {user?.createdAt ? new Date(user.createdAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' }) : "-"}
                         </p>
                     </div>
                 </div>
 
-                {/* RATING FORM */}
-                <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-zinc-800 mt-6">
-                    <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-lg">Beri Ulasan Aplikasi</h3><Star className="w-5 h-5 text-yellow-400 fill-yellow-400" /></div>
-                    <div className="flex justify-center gap-2 mb-6">{[1, 2, 3, 4, 5].map((star) => (<button key={star} onClick={() => setRatingStars(star)} className="transition-transform hover:scale-110 focus:outline-none"><Star className={`w-8 h-8 ${star <= ratingStars ? "text-yellow-400 fill-yellow-400" : "text-gray-200 fill-gray-100 dark:text-zinc-700 dark:fill-zinc-800"}`} /></button>))}</div>
-                    <textarea value={ratingMessage} onChange={(e) => setRatingMessage(e.target.value)} placeholder="Ceritakan pengalaman Anda..." className="w-full p-4 rounded-xl bg-gray-50 dark:bg-zinc-800 border-none text-sm mb-4 focus:ring-2 focus:ring-black" rows={3} />
-                    <Button onClick={handleSubmitRating} disabled={isSubmittingRating} className="w-full rounded-xl font-bold bg-black text-white hover:bg-gray-800">{isSubmittingRating ? "Mengirim..." : <><Send className="w-4 h-4 mr-2" /> Kirim Ulasan</>}</Button>
+                {/* RATING SECTION */}
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800">
+                    <div className="flex items-center justify-between mb-4"><h3 className="font-bold">Beri Ulasan</h3><Star className="w-5 h-5 text-yellow-400 fill-yellow-400" /></div>
+                    <div className="flex justify-center gap-3 mb-6">{[1, 2, 3, 4, 5].map((star) => (<button key={star} onClick={() => setRatingStars(star)} className="transition-transform hover:scale-110 active:scale-95 focus:outline-none"><Star className={`w-8 h-8 ${star <= ratingStars ? "text-yellow-400 fill-yellow-400" : "text-gray-200 fill-gray-100 dark:text-zinc-700 dark:fill-zinc-800"}`} /></button>))}</div>
+                    <textarea value={ratingMessage} onChange={(e) => setRatingMessage(e.target.value)} placeholder="Gimana pengalamanmu?" className="w-full p-4 rounded-xl bg-gray-50 dark:bg-zinc-800 border-none text-sm mb-4 outline-none focus:ring-1 focus:ring-black" rows={2} />
+                    <Button onClick={handleSubmitRating} disabled={isSubmittingRating} className="w-full rounded-xl font-bold h-12 bg-black text-white hover:bg-gray-800">{isSubmittingRating ? "Mengirim..." : <><Send className="w-4 h-4 mr-2" /> Kirim</>}</Button>
                 </div>
 
-                {/* HAPUS AKUN */}
-                <div className="pt-8 mt-6 border-t border-gray-200 dark:border-zinc-800">
-                    <h3 className="text-sm font-bold text-red-600 uppercase mb-4 flex items-center gap-2"><ShieldAlert className="w-4 h-4" /> Zona Bahaya</h3>
-                    <div className="flex justify-between items-center bg-red-50 dark:bg-red-900/10 p-4 rounded-xl border border-red-100 dark:border-red-900/20">
-                        <div className="text-sm text-red-800 dark:text-red-200"><p className="font-bold">Hapus Akun</p></div>
-                        <Button variant="destructive" size="sm" onClick={handleDeleteAccount}><Trash2 className="w-4 h-4 mr-2" /> Hapus</Button>
-                    </div>
+                {/* DANGER ZONE */}
+                <div className="flex justify-between items-center bg-red-50 dark:bg-red-900/10 p-5 rounded-2xl border border-red-100 dark:border-red-900/20">
+                    <div className="text-sm text-red-800 dark:text-red-200"><p className="font-bold">Hapus Akun</p><p className="text-xs opacity-70">Aksi ini tidak bisa dibatalkan.</p></div>
+                    <Button variant="destructive" size="sm" onClick={handleDeleteAccount} className="rounded-lg"><Trash2 className="w-4 h-4" /></Button>
                 </div>
             </>
           )}
