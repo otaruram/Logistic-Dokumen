@@ -7,8 +7,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Settings, LogOut, User as UserIcon, ChevronDown } from "lucide-react";
-import NotificationBell from "./NotificationBell"; // Pastikan path ini benar
+import { Settings, LogOut, User as UserIcon, ChevronDown, Zap } from "lucide-react";
 
 interface HeaderProps {
   user: any;
@@ -22,27 +21,19 @@ const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
     <header className="sticky top-0 z-40 w-full bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-gray-200 dark:border-zinc-800">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         
-        {/* Kiri: Logo Brand Simple */}
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
-             <span className="text-white dark:text-black font-bold text-sm">SD</span>
-          </div>
-          <span className="font-bold text-lg tracking-tight text-[#1A1A1A] dark:text-white hidden md:block">
-            SmartDoc Pipeline
-          </span>
+        {/* KIRI ATAS: KREDIT REALTIME */}
+        <div className="flex items-center gap-2 bg-yellow-400/10 px-3 py-1.5 rounded-full border border-yellow-400/20">
+            <div className="p-1 bg-yellow-400 rounded-full">
+                <Zap className="w-3 h-3 text-black fill-black" />
+            </div>
+            <div className="flex flex-col leading-none">
+                <span className="text-[10px] font-bold text-yellow-600 dark:text-yellow-400 uppercase">Sisa Kredit</span>
+                <span className="text-sm font-black text-black dark:text-white">{user?.creditBalance ?? 0}</span>
+            </div>
         </div>
 
-        {/* Kanan: Actions */}
+        {/* KANAN: PROFILE SAJA (Tanpa Bell) */}
         <div className="flex items-center gap-4">
-          
-          {/* Notification Bell (Pastikan komponen ini stylingnya juga dibersihkan nanti) */}
-          <div className="relative">
-             <NotificationBell user={user} />
-          </div>
-
-          <div className="h-6 w-px bg-gray-200 dark:bg-zinc-700 mx-1"></div>
-
-          {/* User Profile Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-2 focus:outline-none group">
               <div className="text-right hidden sm:block">
