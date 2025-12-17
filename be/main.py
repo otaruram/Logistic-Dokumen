@@ -9,11 +9,10 @@ import io
 import pandas as pd
 from datetime import datetime, timedelta
 import os
-import traceback
 import requests
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
-from apscheduler.schedulers.asyncio import AsyncIOScheduler # 🔥 SCHEDULER AKTIF
+from apscheduler.schedulers.asyncio import AsyncIOScheduler 
 
 # MODULE LOKAL
 from db import prisma, connect_db, disconnect_db
@@ -36,10 +35,7 @@ async def daily_credit_reset_task():
     try:
         if not prisma.is_connected(): await connect_db()
         print("⚡ [SCHEDULER] Running Daily Credit Reset...")
-        # Reset semua user ke 3 kredit
-        await prisma.user.update_many(
-            data={"creditBalance": 3}
-        )
+        await prisma.user.update_many(data={"creditBalance": 3})
         print("✅ [SCHEDULER] All users credits reset to 3.")
     except Exception as e: print(f"❌ Credit Reset Error: {e}")
 
@@ -52,10 +48,10 @@ async def monthly_data_cleanup_task():
         
         all_users = await prisma.user.find_many()
         for user in all_users:
-            # Cek apakah hari ini tanggal join-nya (misal join tgl 17, skrg tgl 17)
+            # Cek apakah hari ini tanggal join-nya
             if user.createdAt.day == today.day:
-                print(f"⚠️ Resetting Data for {user.email} (Monthly Cycle)")
-                # Hapus File Fisik (Opsional, biar hemat storage)
+                print(f"⚠️ Resetting Data for {user.email}")
+                # Hapus File Fisik
                 user_logs = await prisma.logs.find_many(where={"userId": user.email})
                 for log in user_logs:
                     if log.imagePath:
@@ -64,12 +60,10 @@ async def monthly_data_cleanup_task():
                             path = os.path.join(UPLOAD_DIR, fname)
                             if os.path.exists(path): os.remove(path)
                         except: pass
-                # Hapus Data di DB
+                # Hapus Data DB
                 await prisma.logs.delete_many(where={"userId": user.email})
-                
     except Exception as e: print(f"❌ Cleanup Error: {e}")
 
-# --- LIFESPAN ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Starting Server...")
@@ -81,15 +75,12 @@ async def lifespan(app: FastAPI):
         smart_ocr = SmartOCRProcessor(os.getenv('OCR_SPACE_API_KEY', 'helloworld'))
         credit_service = CreditService()
         
-        # 🔥 AKTIFKAN SCHEDULER
+        # 🔥 AKTIFKAN SCHEDULER (Reset Kredit & Data)
         scheduler = AsyncIOScheduler()
-        # Reset Kredit jam 00:00
         scheduler.add_job(daily_credit_reset_task, "cron", hour=0, minute=0, timezone='Asia/Jakarta')
-        # Cek Hapus Data setiap jam 01:00 pagi
         scheduler.add_job(monthly_data_cleanup_task, "cron", hour=1, minute=0, timezone='Asia/Jakarta')
         scheduler.start()
-        print("✅ Scheduler Active (Credit & Reset)")
-        
+        print("✅ Scheduler Active")
     except Exception as e: print(f"⚠️ Service Init Warning: {e}")
     
     yield
@@ -140,9 +131,7 @@ def health(): return {"status": "ok", "db": prisma.is_connected()}
 @app.get("/me")
 async def get_my_profile(authorization: str = Header(None)):
     try:
-        # 🔥 FIX: CEK TOKEN DENGAN KETAT
         if not authorization: return {"status": "error", "message": "Token Missing"}
-        
         token = authorization.replace("Bearer ", "").strip()
         user_email = None
         try: user_email = get_user_email_from_token(authorization)
@@ -153,23 +142,25 @@ async def get_my_profile(authorization: str = Header(None)):
         user = await prisma.user.find_unique(where={"email": user_email})
         
         if user:
-            # 🔥 LOGIKA HITUNG HARI RESET (WARNING 1 MINGGU)
+            # 🔥 LOGIKA HITUNG RESET (H-7 Warning)
             today = datetime.now()
+            # Cari tanggal reset bulan ini/depan
             next_reset = datetime(today.year, today.month, user.createdAt.day)
-            if next_reset < today: # Jika tgl sudah lewat bulan ini, ambil bulan depan
+            if next_reset < today: 
                  next_reset = datetime(today.year, today.month + 1 if today.month < 12 else 1, user.createdAt.day)
             
             days_until_reset = (next_reset - today).days
-            show_warning = days_until_reset <= 7
+            show_warning = days_until_reset <= 7 # Muncul warning jika <= 7 hari
             
             return {
                 "status": "success", 
                 "data": {
                     "email": user.email, 
-                    "name": user.name,
-                    "picture": user.picture,
-                    "tier": user.tier,
+                    "name": user.name, 
+                    "picture": user.picture, 
+                    "tier": user.tier, 
                     "creditBalance": user.creditBalance,
+                    "createdAt": user.createdAt.isoformat(),
                     "resetInfo": {
                         "daysLeft": days_until_reset,
                         "showWarning": show_warning,
@@ -197,7 +188,6 @@ async def create_rating(data: RatingRequest, authorization: str = Header(None)):
 @app.post("/scan")
 async def scan_document(file: UploadFile = File(...), receiver: str = Form(...), authorization: str = Header(None)):
     try:
-        # 🔥 FIX: CEK TOKEN
         if not authorization: return {"status": "error", "message": "Login diperlukan"}
         token = authorization.replace("Bearer ", "").strip()
         user_email = None
@@ -228,9 +218,7 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         kategori = "INVOICE" if doc_type == "invoice" else "SURAT JALAN" if doc_type == "delivery_note" else "DOKUMEN"
 
         user = await prisma.user.find_unique(where={"email": user_email})
-        # Handle user baru yang mungkin belum punya record lengkap
-        if not user: 
-             await prisma.user.create(data={"email": user_email, "creditBalance": 3})
+        if not user: await prisma.user.create(data={"email": user_email, "creditBalance": 3})
 
         log = await prisma.logs.create(data={"userId": user_email, "timestamp": datetime.now(), "filename": file.filename, "kategori": kategori, "nomorDokumen": nomor_dokumen, "receiver": receiver.upper(), "imagePath": image_url, "summary": ocr_res.get("summary", ""), "fullText": ocr_res.get("raw_text", "")})
         new_bal = await credit_service.deduct_credits(user_email, 1, f"Scan #{log.id}", prisma)
