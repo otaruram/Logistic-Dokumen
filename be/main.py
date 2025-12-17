@@ -1,3 +1,4 @@
+# --- COPY SEMUA ISI CODE INI KE FILE be/main.py ---
 from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -26,21 +27,18 @@ smart_ocr = None
 credit_service = None
 scheduler = None
 
-# --- BACKGROUND TASKS ---
 async def daily_credit_reset_task():
     try:
         if not prisma.is_connected(): await connect_db()
-        print("⚡ [SCHEDULER] Global Credit Reset...")
-        # Reset semua user ke 3 kredit & update tanggal reset
         await prisma.user.update_many(data={"creditBalance": 3, "lastCreditReset": datetime.now()})
+        print("✅ Global Credit Reset Done.")
     except Exception as e: print(f"❌ Credit Reset Error: {e}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Starting Server...")
     try: await connect_db()
-    except Exception as e: print(f"⚠️ DB Connection Warning: {e}")
-
+    except Exception as e: print(f"⚠️ DB Warning: {e}")
     global smart_ocr, credit_service, scheduler
     try:
         smart_ocr = SmartOCRProcessor(os.getenv('OCR_SPACE_API_KEY', 'helloworld'))
@@ -48,13 +46,10 @@ async def lifespan(app: FastAPI):
         scheduler = AsyncIOScheduler()
         scheduler.add_job(daily_credit_reset_task, "cron", hour=0, minute=0, timezone='Asia/Jakarta')
         scheduler.start()
-        print("✅ Scheduler Active")
-    except Exception as e: print(f"⚠️ Service Init Warning: {e}")
-    
+    except: pass
     yield
     if scheduler: scheduler.shutdown()
     await disconnect_db()
-    print("🛑 Server Shutdown")
 
 app = FastAPI(lifespan=lifespan)
 UPLOAD_DIR = "uploads"
@@ -66,7 +61,6 @@ app.add_middleware(
 )
 app.include_router(pricing_router, prefix="/api/pricing")
 
-# --- HELPER ---
 def get_user_email_from_access_token(access_token):
     try:
         res = requests.get('https://www.googleapis.com/oauth2/v3/userinfo', headers={'Authorization': f'Bearer {access_token}'})
@@ -83,18 +77,16 @@ async def extract_text_from_image(image_np):
                 structured = smart_ocr.extract_structured_data(text, doc_type)
                 summary = smart_ocr.generate_smart_summary(text, structured, doc_type)
                 return {"raw_text": text, "summary": summary, "document_type": doc_type, "structured_data": structured}
-        return {"raw_text": "", "summary": "Gagal Baca Teks", "document_type": "error"}
-    except Exception as e: return {"raw_text": str(e), "summary": "Error Sistem", "document_type": "error"}
+        return {"raw_text": "", "summary": "Gagal Baca", "document_type": "error"}
+    except: return {"raw_text": "", "summary": "Error", "document_type": "error"}
 
 class RatingRequest(BaseModel):
     stars: int; emoji: str; message: str; userName: str; userAvatar: str
 class LogUpdate(BaseModel):
     summary: str
 
-# --- ENDPOINTS ---
-
 @app.get("/health")
-def health(): return {"status": "ok", "db": prisma.is_connected()}
+def health(): return {"status": "ok"}
 
 @app.get("/me")
 async def get_my_profile(authorization: str = Header(None)):
@@ -105,32 +97,46 @@ async def get_my_profile(authorization: str = Header(None)):
         try: user_email = get_user_email_from_token(authorization)
         except: user_email = get_user_email_from_access_token(token)
         
-        if not user_email: return {"status": "error", "message": "Token Invalid"}
+        if not user_email: return {"status": "error", "message": "Invalid Token"}
         if not prisma.is_connected(): await connect_db()
+        
         user = await prisma.user.find_unique(where={"email": user_email})
         
+        # 🔥 AUTO-FIX LOGIC: Kalau User Baru/Lama tapi kredit 0/tanggal kosong
         if user:
-            # 🔥 LOGIKA PINTAR: AUTO-REFILL KREDIT JIKA HARI SUDAH BERGANTI 🔥
-            # Ini memastikan user dapat kredit meskipun scheduler mati
-            now = datetime.now()
-            if user.lastCreditReset.date() < now.date():
-                user = await prisma.user.update(
-                    where={"email": user_email},
-                    data={"creditBalance": 3, "lastCreditReset": now}
-                )
+            updates = {}
+            # 1. Fix Kredit 0 -> Jadi 3
+            if user.creditBalance == 0:
+                updates["creditBalance"] = 3
+            # 2. Fix Tanggal Join Kosong -> Isi Sekarang
+            if not user.createdAt:
+                updates["createdAt"] = datetime.now()
+            
+            # Cek Reset Harian Normal
+            if user.lastCreditReset.date() < datetime.now().date():
+                updates["creditBalance"] = 3
+                updates["lastCreditReset"] = datetime.now()
+            
+            # Terapkan Update jika ada
+            if updates:
+                user = await prisma.user.update(where={"email": user_email}, data=updates)
 
-            # Hitung Reset Bulanan (Warning H-7)
-            next_reset = datetime(now.year, now.month, user.createdAt.day)
-            if next_reset < now: 
-                 next_reset = datetime(now.year, now.month + 1 if now.month < 12 else 1, user.createdAt.day)
-            days_until_reset = (next_reset - now).days
+            # Hitung H-7 Reset
+            today = datetime.now()
+            reset_day = user.createdAt.day if user.createdAt else 1
+            next_reset = datetime(today.year, today.month, reset_day)
+            if next_reset < today: 
+                 next_reset = datetime(today.year, today.month + 1 if today.month < 12 else 1, reset_day)
+            
+            days_left = (next_reset - today).days
             
             return {
                 "status": "success", 
                 "data": {
                     "email": user.email, "name": user.name, "picture": user.picture, 
                     "tier": user.tier, "creditBalance": user.creditBalance,
-                    "resetInfo": { "daysLeft": days_until_reset, "showWarning": days_until_reset <= 7, "nextResetDate": next_reset.strftime("%d %B %Y") }
+                    "createdAt": user.createdAt.isoformat(),
+                    "resetInfo": { "daysLeft": days_left, "showWarning": days_left <= 7, "nextResetDate": next_reset.strftime("%d %B %Y") }
                 }
             }
         return {"status": "error", "message": "User not found"}
@@ -139,6 +145,7 @@ async def get_my_profile(authorization: str = Header(None)):
 @app.post("/rating")
 async def create_rating(data: RatingRequest, authorization: str = Header(None)):
     try:
+        # Terima rating anonymous jika tidak login, atau pakai data dari FE
         user_email = "anonymous@ocr.wtf"
         if authorization:
             token = authorization.replace("Bearer ", "").strip()
@@ -146,10 +153,11 @@ async def create_rating(data: RatingRequest, authorization: str = Header(None)):
             except: pass
         
         if not prisma.is_connected(): await connect_db()
+        # 🔥 SIMPAN NAMA & AVATAR DARI FRONTEND (JANGAN DARI DB USER)
         await prisma.rating.create(data={
             "userId": user_email, 
-            "userName": data.userName, # Pastikan FE kirim nama asli
-            "userAvatar": data.userAvatar, # Pastikan FE kirim foto asli
+            "userName": data.userName, 
+            "userAvatar": data.userAvatar, 
             "stars": data.stars, "emoji": data.emoji, "message": data.message
         })
         return {"status": "success"}
@@ -172,16 +180,14 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         try: user_email = get_user_email_from_token(authorization)
         except: user_email = get_user_email_from_access_token(token)
         
-        if not user_email: return {"status": "error", "message": "Login Invalid"}
+        if not user_email: return {"status": "error", "message": "Invalid Token"}
         if not prisma.is_connected(): await connect_db()
         
-        # Cek Kredit
         user = await prisma.user.find_unique(where={"email": user_email})
-        # Auto-create user kalau belum ada
         if not user: 
             user = await prisma.user.create(data={"email": user_email, "creditBalance": 3})
         
-        # Auto-reset kredit di endpoint scan juga (double safety)
+        # Auto-Reset Logic
         if user.lastCreditReset.date() < datetime.now().date():
              user = await prisma.user.update(where={"email": user_email}, data={"creditBalance": 3, "lastCreditReset": datetime.now()})
 
@@ -206,7 +212,6 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
 
         log = await prisma.logs.create(data={"userId": user_email, "timestamp": datetime.now(), "filename": file.filename, "kategori": kategori, "nomorDokumen": nomor_dokumen, "receiver": receiver.upper(), "imagePath": image_url, "summary": ocr_res.get("summary", ""), "fullText": ocr_res.get("raw_text", "")})
         
-        # Kurangi Kredit
         updated_user = await prisma.user.update(where={"email": user_email}, data={"creditBalance": user.creditBalance - 1})
         
         return {"status": "success", "data": {"id": log.id, "kategori": kategori, "nomorDokumen": nomor_dokumen, "summary": ocr_res.get("summary", ""), "imagePath": image_url}, "remaining_credits": updated_user.creditBalance}
