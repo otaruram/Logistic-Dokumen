@@ -15,12 +15,9 @@ model User {
   picture         String?
   
   tier            String   @default("FREE")
-  creditBalance   Int      @default(3)
-  
-  // 🔥 KOLOM YANG HILANG TADI 🔥
+  creditBalance   Int      @default(3)      // User baru otomatis dapet 3
   lastCreditReset DateTime @default(now()) 
-  
-  createdAt       DateTime @default(now())
+  createdAt       DateTime @default(now())  // Patokan reset data bulanan
 
   logs            Logs[]
   ratings         Rating[]
@@ -59,7 +56,7 @@ model CreditTransaction {
   id        Int      @id @default(autoincrement())
   userId    String
   amount    Int
-  type      String   // "DEDUCT" | "RESET" | "TOPUP"
+  type      String   
   reason    String?
   timestamp DateTime @default(now())
 
