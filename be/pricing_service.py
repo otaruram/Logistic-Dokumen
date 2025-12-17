@@ -1,112 +1,77 @@
 from datetime import datetime
-from typing import Optional
-import logging
+from prisma import Prisma
 
 class CreditService:
-    DAILY_CREDIT_LIMIT = 3
+    DAILY_LIMIT = 3
 
     @staticmethod
-    async def ensure_default_credits(user_email: str, prisma):
-        """Pastikan user punya kredit. Reset hanya jika tanggal terakhir reset < hari ini."""
+    async def ensure_daily_credits(user_email: str, prisma: Prisma):
+        """
+        Cek apakah user perlu di-reset kreditnya hari ini.
+        Menggunakan konsep 'Lazy Reset': Hanya reset saat user aktif.
+        """
         try:
-            if not prisma: return False
-            
-            # Gunakan 'now()' yang konsisten untuk perbandingan
-            now = datetime.now()
-            today_date = now.date()
-
+            # 1. Ambil data user
             user = await prisma.user.find_unique(where={"email": user_email})
+            now = datetime.now()
 
+            # Jika user belum ada, return None (biar di-handle main.py buat create baru)
             if not user:
-                # USER BARU: Buat dengan saldo 3
-                await prisma.user.create(
+                return None
+
+            # 2. Logika Reset:
+            # - Jika lastCreditReset kosong (user lama) ATAU
+            # - Jika tanggal terakhir reset < hari ini
+            last_reset = user.lastCreditReset
+            should_reset = False
+
+            if not last_reset:
+                should_reset = True
+            elif last_reset.date() < now.date():
+                should_reset = True
+
+            # 3. Eksekusi Reset (HANYA JIKA SALDO DI BAWAH LIMIT)
+            # Ini fitur safety: Kalau user punya 100 kredit (hasil beli), jangan di-reset jadi 3!
+            if should_reset:
+                new_balance = user.creditBalance
+                
+                # Hanya top-up ke 3 jika saldo habis/sedikit. 
+                # Jika saldo > 3 (misal user Premium), biarkan saja.
+                if user.creditBalance < CreditService.DAILY_LIMIT:
+                    new_balance = CreditService.DAILY_LIMIT
+                
+                await prisma.user.update(
+                    where={"email": user_email},
                     data={
-                        "email": user_email,
-                        "creditBalance": CreditService.DAILY_CREDIT_LIMIT,
-                        "tier": "starter",
+                        "creditBalance": new_balance,
                         "lastCreditReset": now
                     }
                 )
-                return True
-            else:
-                # USER LAMA: Cek tanggal reset terakhir
-                should_reset = False
-                
-                if not user.lastCreditReset:
-                    # Jika data tanggal kosong, wajib reset
-                    should_reset = True
-                else:
-                    # Bandingkan tanggal saja (abaikan jam)
-                    last_reset_date = user.lastCreditReset.date()
-                    # Reset CUMA jika last_reset_date < hari ini (kemarin/lusa)
-                    if last_reset_date < today_date:
-                        should_reset = True
-                
-                if should_reset:
-                    print(f"🔄 DAILY RESET: {user_email} kembali ke {CreditService.DAILY_CREDIT_LIMIT}")
-                    await prisma.user.update(
-                        where={"email": user_email},
-                        data={
-                            "creditBalance": CreditService.DAILY_CREDIT_LIMIT, 
-                            "lastCreditReset": now
-                        }
-                    )
-                
-                return True
+                return new_balance
+            
+            return user.creditBalance
+
         except Exception as e:
-            print(f"❌ Error ensuring credits: {e}")
-            return False
+            print(f"⚠️ Error ensuring credits: {e}")
+            return 0
 
     @staticmethod
-    async def get_user_credits(user_email: str, prisma) -> int:
+    async def deduct_credit(user_email: str, prisma: Prisma) -> bool:
+        """Mengurangi 1 kredit secara transaksional"""
         try:
-            if not prisma: return 3
-            # Pastikan logic reset jalan dulu
-            await CreditService.ensure_default_credits(user_email, prisma)
+            # Pastikan saldo update dulu sebelum dipotong
+            await CreditService.ensure_daily_credits(user_email, prisma)
             
-            # Ambil data terbaru setelah potensi reset
-            user = await prisma.user.find_unique(where={"email": user_email})
-            return user.creditBalance if user else 3
-        except Exception:
-            return 3
-
-    @staticmethod
-    async def deduct_credits(user_email: str, amount: int, description: str, prisma) -> Optional[int]:
-        try:
-            if not prisma: return 3
-
-            # 1. Cek User & Reset Harian (PENTING)
-            await CreditService.ensure_default_credits(user_email, prisma)
             user = await prisma.user.find_unique(where={"email": user_email})
             
-            if not user: return None
+            if not user or user.creditBalance < 1:
+                return False
             
-            # 2. Validasi Saldo
-            if user.creditBalance < amount:
-                print(f"⛔ SALDO KURANG: User {user_email} punya {user.creditBalance}")
-                return None
-
-            # 3. Potong Saldo
-            new_balance = user.creditBalance - amount
             await prisma.user.update(
-                where={"id": user.id},
-                data={"creditBalance": new_balance}
+                where={"email": user_email},
+                data={"creditBalance": user.creditBalance - 1}
             )
-
-            # 4. Catat Log Transaksi
-            try:
-                await prisma.credittransaction.create(
-                    data={
-                        "userId": user.id,
-                        "amount": -amount,
-                        "description": description,
-                        "timestamp": datetime.now()
-                    }
-                )
-            except Exception: pass
-
-            return new_balance
-
+            return True
         except Exception as e:
-            print(f"Error deduct: {e}")
-            return None
+            print(f"❌ Deduct Error: {e}")
+            return False
