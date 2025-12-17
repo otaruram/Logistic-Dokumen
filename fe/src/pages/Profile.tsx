@@ -1,116 +1,131 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trash2, User as UserIcon, AlertTriangle, Star } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { apiFetch } from '@/lib/api-service';
-import RatingDialog from '@/components/RatingDialog';
+import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api-service";
+import Header from "@/components/dashboard/Header";
+import { useNavigate } from "react-router-dom";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { CreditCard, Calendar, Mail, ShieldAlert, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Profile() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const userStr = sessionStorage.getItem('user');
-    if (userStr) setUser(JSON.parse(userStr));
-  }, []);
+    const loadData = async () => {
+      try {
+        const storedUser = sessionStorage.getItem('user');
+        if (!storedUser) { navigate('/landing'); return; }
+        
+        // Fetch fresh data
+        const res = await apiFetch("/me");
+        const json = await res.json();
+        const localData = JSON.parse(storedUser);
+        
+        if (json.status === "success") {
+             const merged = { ...localData, ...json.data };
+             setUser(merged);
+             sessionStorage.setItem('user', JSON.stringify(merged));
+        } else {
+             setUser(localData);
+        }
+      } catch (e) { console.error(e); } 
+      finally { setLoading(false); }
+    };
+    loadData();
+  }, [navigate]);
 
   const handleDeleteAccount = async () => {
-    setIsDeleting(true);
+    if (!confirm("PERINGATAN: Akun dan semua data akan dihapus permanen. Lanjutkan?")) return;
     try {
-      const userStr = sessionStorage.getItem('user');
-      const token = userStr ? JSON.parse(userStr).credential : '';
-      const response = await apiFetch('/delete-account', {
-        method: 'DELETE',
-        headers: { "Authorization": `Bearer ${token}` },
-      });
-      if (response.ok) {
-        toast.success('Akun dihapus.');
-        sessionStorage.clear(); localStorage.clear();
-        navigate('/landing');
-      } else { toast.error('Gagal menghapus akun'); }
-    } catch { toast.error('Koneksi error'); }
-    finally { setIsDeleting(false); setShowDeleteDialog(false); }
+        const res = await apiFetch("/delete-account", { method: "DELETE" });
+        const json = await res.json();
+        if (json.status === "success") {
+            sessionStorage.clear();
+            navigate('/landing');
+            toast.success("Akun berhasil dihapus. Sampai jumpa.");
+        } else {
+            toast.error("Gagal menghapus akun.");
+        }
+    } catch (e) { toast.error("Terjadi kesalahan."); }
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 flex flex-col items-center">
-      {/* Tombol Kembali yang Rapi */}
-      <div className="w-full max-w-lg mb-6 flex justify-start">
-        <Button onClick={() => navigate('/')} variant="outline" className="brutal-border-thin bg-white px-4 py-2 font-mono text-xs font-bold gap-2 hover:bg-yellow-200 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all shadow-[4px_4px_0px_0px_black]">
-          <ArrowLeft className="w-4 h-4" /> KEMBALI
-        </Button>
-      </div>
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-zinc-950 font-sans text-[#1A1A1A] dark:text-white">
+      <Header user={user} onLogout={() => { sessionStorage.clear(); navigate('/landing'); }} onProfile={() => {}} onSettings={() => navigate('/settings')} />
 
-      <div className="w-full max-w-lg space-y-6">
+      <main className="container mx-auto px-4 py-12 max-w-2xl">
+        <h1 className="text-3xl font-bold mb-8 tracking-tight">Profile & Akun</h1>
 
-        {/* Identitas User */}
-        <div className="brutal-border bg-white p-6 md:p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-center">
-          <div className="mx-auto w-20 h-20 md:w-24 md:h-24 mb-4 relative">
-            {user?.picture ? (
-              <img src={user.picture} alt={user.name} className="w-full h-full rounded-full brutal-border object-cover" />
-            ) : <UserIcon className="w-10 h-10 text-gray-400" />}
-          </div>
-          <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight mb-1 break-words leading-tight">
-            {user?.name || 'Pengguna'}
-          </h1>
-          <p className="text-xs md:text-sm font-mono text-gray-500 bg-gray-100 inline-block px-2 py-1 rounded break-all">
-            {user?.email}
-          </p>
-        </div>
-
-        {/* 🔥 CARD RATING (MOBILE FRIENDLY FIX) 🔥 */}
-        <div className="brutal-border bg-blue-50 p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-black flex flex-col md:flex-row items-center md:justify-between gap-4 text-center md:text-left">
-          <div className="w-full md:w-auto">
-            <h3 className="text-lg font-black uppercase leading-none mb-1">SUKA APLIKASINYA?</h3>
-            <p className="text-xs font-mono text-gray-600">Beri rating & emoji biar Oki senang!</p>
-          </div>
-          
-          {/* Tombol Full Width di HP */}
-          <div className="w-full md:w-auto">
-            <RatingDialog 
-              user={user} 
-              triggerButton={
-                <Button className="w-full md:w-auto bg-yellow-400 text-black hover:bg-yellow-500 border-2 border-black font-bold uppercase shadow-[4px_4px_0px_0px_black] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all py-6 md:py-4">
-                  <Star className="w-5 h-5 mr-2" /> NILAI SEKARANG
-                </Button>
-              }
-            />
-          </div>
-        </div>
-
-        {/* Zona Berbahaya */}
-        <div className="brutal-border bg-red-50 p-6 shadow-[8px_8px_0px_0px_rgba(220,38,38,1)] border-red-600">
-          <div className="flex items-start gap-3 mb-4">
-            <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
-            <div>
-              <h3 className="text-lg font-black text-red-600 uppercase mb-1">Hapus Akun</h3>
-              <p className="text-sm text-red-800 leading-snug">Menghapus akun akan menghapus seluruh data permanen.</p>
+        {loading ? (
+            <div className="space-y-4">
+                <Skeleton className="h-40 w-full rounded-3xl" />
+                <Skeleton className="h-20 w-full rounded-3xl" />
             </div>
-          </div>
-          <Button onClick={() => setShowDeleteDialog(true)} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold uppercase border-2 border-red-900 h-12 shadow-[4px_4px_0px_0px_#7f1d1d] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all">
-            <Trash2 className="w-4 h-4 mr-2" /> Hapus Akun Sekarang
-          </Button>
-        </div>
-      </div>
+        ) : (
+            <div className="space-y-6">
+                {/* ID CARD */}
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-zinc-800 flex flex-col md:flex-row items-center gap-6">
+                    <Avatar className="h-24 w-24 border-4 border-gray-50 dark:border-zinc-800 shadow-inner">
+                        <AvatarImage src={user?.picture} />
+                        <AvatarFallback className="text-2xl">{user?.name?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="text-center md:text-left space-y-1">
+                        <h2 className="text-2xl font-bold">{user?.name}</h2>
+                        <div className="flex items-center justify-center md:justify-start gap-2 text-gray-500 dark:text-gray-400 text-sm">
+                            <Mail className="w-4 h-4" /> {user?.email}
+                        </div>
+                        <div className="pt-2">
+                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-black text-white dark:bg-white dark:text-black">
+                                {user?.tier || "FREE PLAN"}
+                             </span>
+                        </div>
+                    </div>
+                </div>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="brutal-border bg-white rounded-none border-2 border-black w-[90%] max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-black uppercase text-red-600">Yakin Hapus?</AlertDialogTitle>
-            <AlertDialogDescription>Data tidak bisa kembali.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-4 flex-col gap-2 space-y-2 md:space-y-0">
-            <AlertDialogCancel className="brutal-border-thin rounded-none font-bold w-full md:w-auto">BATAL</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteAccount} disabled={isDeleting} className="bg-red-600 text-white rounded-none font-bold border-2 border-black shadow-[4px_4px_0px_0px_black] w-full md:w-auto">
-              {isDeleting ? 'MENGHAPUS...' : 'YA, MUSNAHKAN'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+                {/* STATS GRID */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800">
+                        <div className="flex items-center gap-3 mb-2 text-gray-500">
+                            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><CreditCard className="w-5 h-5" /></div>
+                            <span className="text-sm font-semibold uppercase tracking-wider">Sisa Kredit</span>
+                        </div>
+                        <p className="text-4xl font-bold">{user?.creditBalance}</p>
+                        <p className="text-xs text-gray-400 mt-2">Diperbarui setiap hari jam 00:00</p>
+                    </div>
+
+                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800">
+                        <div className="flex items-center gap-3 mb-2 text-gray-500">
+                            <div className="p-2 bg-green-50 text-green-600 rounded-lg"><Calendar className="w-5 h-5" /></div>
+                            <span className="text-sm font-semibold uppercase tracking-wider">Bergabung Sejak</span>
+                        </div>
+                        <p className="text-xl font-bold">
+                            {user?.createdAt ? new Date(user.createdAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' }) : "-"}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-2">Member setia SmartDoc</p>
+                    </div>
+                </div>
+
+                {/* DANGER ZONE */}
+                <div className="mt-12 pt-8 border-t border-gray-200 dark:border-zinc-800">
+                    <h3 className="text-sm font-bold text-red-600 uppercase mb-4 flex items-center gap-2">
+                        <ShieldAlert className="w-4 h-4" /> Zona Bahaya
+                    </h3>
+                    <div className="flex justify-between items-center bg-red-50 dark:bg-red-900/10 p-4 rounded-xl border border-red-100 dark:border-red-900/20">
+                        <div className="text-sm text-red-800 dark:text-red-200">
+                            <p className="font-bold">Hapus Akun Permanen</p>
+                            <p className="opacity-70">Tindakan ini tidak dapat dibatalkan.</p>
+                        </div>
+                        <Button variant="destructive" size="sm" onClick={handleDeleteAccount}>
+                            <Trash2 className="w-4 h-4 mr-2" /> Hapus
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        )}
+      </main>
     </div>
   );
 }
