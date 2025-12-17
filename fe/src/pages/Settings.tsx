@@ -33,16 +33,16 @@ export default function Settings() {
         sessionStorage.clear();
         navigate('/landing');
         toast.success("Akun berhasil dihapus.");
-    } catch (e) { toast.error("Terjadi kesalahan."); }
+    } catch (e) { toast.error("Gagal menghapus."); }
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] dark:bg-zinc-950 font-sans text-[#1A1A1A] dark:text-white">
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-zinc-950 font-sans text-[#1A1A1A] dark:text-white p-4">
       
-      {/* 🔥 TOMBOL KEMBALI & TANPA HEADER */}
-      <div className="container mx-auto px-4 py-6 max-w-2xl">
-        <Button variant="ghost" onClick={() => navigate('/dashboard')} className="mb-4 pl-0 hover:bg-transparent hover:text-gray-500">
-            <ArrowLeft className="w-4 h-4 mr-2" /> Kembali ke Dashboard
+      {/* TOMBOL KEMBALI KE DASHBOARD */}
+      <div className="max-w-2xl mx-auto py-4">
+        <Button variant="ghost" onClick={() => navigate('/dashboard')} className="mb-6 pl-0 hover:bg-transparent hover:text-gray-500 text-base font-medium">
+            <ArrowLeft className="w-5 h-5 mr-2" /> Kembali ke Dashboard
         </Button>
 
         <h1 className="text-3xl font-bold mb-8">Pengaturan</h1>
