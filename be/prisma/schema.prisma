@@ -14,11 +14,13 @@ model User {
   name            String?
   picture         String?
   
+  // 🔥 FITUR KREDIT & RESET
   tier            String   @default("FREE")
-  creditBalance   Int      @default(3)      // User baru otomatis dapet 3
+  creditBalance   Int      @default(3)      // Default 3 kredit saat daftar
   lastCreditReset DateTime @default(now()) 
-  createdAt       DateTime @default(now())  // Patokan reset data bulanan
+  createdAt       DateTime @default(now())  // Patokan untuk Hapus Data Bulanan (H-7 Warning)
 
+  // RELASI
   logs            Logs[]
   ratings         Rating[]
   transactions    CreditTransaction[]
@@ -52,11 +54,12 @@ model Rating {
   user       User     @relation(fields: [userId], references: [email])
 }
 
+// Opsional: Untuk mencatat riwayat keluar masuk kredit
 model CreditTransaction {
   id        Int      @id @default(autoincrement())
   userId    String
   amount    Int
-  type      String   
+  type      String   // Contoh: "DEDUCT" (Berkurang) atau "RESET" (Harian)
   reason    String?
   timestamp DateTime @default(now())
 
