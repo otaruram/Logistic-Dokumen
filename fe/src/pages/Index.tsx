@@ -13,20 +13,19 @@ export default function Index() {
   const [loading, setLoading] = useState(false);
   const [initLoading, setInitLoading] = useState(true);
 
-  // Sync Profile Function
+  // FETCH PROFILE & DATA
   const fetchUserProfile = async () => {
     try {
         const storedUser = sessionStorage.getItem('user');
         const localUser = storedUser ? JSON.parse(storedUser) : null;
-        
-        // Panggil backend dengan token user
         const token = localUser?.credential;
-        if (!token) { navigate('/landing'); return; }
-
-        const profileRes = await apiFetch("/me", { 
-            headers: { "Authorization": `Bearer ${token}` } // 🔥 PASTIKAN TOKEN DIKIRIM
-        });
         
+        if (!token) { navigate('/login'); return; }
+
+        // Fetch User Info (Credit, Name, dll)
+        const profileRes = await apiFetch("/me", { 
+            headers: { "Authorization": `Bearer ${token}` } 
+        });
         const profileJson = await profileRes.json();
         
         if (profileJson.status === "success") {
@@ -34,55 +33,44 @@ export default function Index() {
             setUser(updatedUser);
             sessionStorage.setItem('user', JSON.stringify(updatedUser));
         } else if (localUser) {
-            setUser(localUser); // Fallback
+            setUser(localUser);
         } else {
             navigate('/landing');
         }
+
+        // Fetch Logs (History)
+        const historyRes = await apiFetch("/history", {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const historyData = await historyRes.json();
+        if (Array.isArray(historyData)) {
+            const formattedLogs = historyData.map((item: any) => ({
+                id: item.id,
+                date: item.timestamp.split("T")[0],
+                time: new Date(item.timestamp).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }),
+                docType: item.kategori,
+                summary: item.summary,
+                receiver: item.receiver,
+                imageUrl: item.imagePath
+            }));
+            setLogs(formattedLogs);
+        }
+
     } catch (e) {
-        console.error("Gagal sync profile:", e);
+        console.error("Gagal sync data (mungkin DB mati):", e);
+    } finally {
+        setInitLoading(false);
     }
   };
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        await fetchUserProfile(); // Load User
-
-        // Load History
-        const userSession = JSON.parse(sessionStorage.getItem('user') || '{}');
-        const token = userSession.credential;
-        
-        if (token) {
-            const historyRes = await apiFetch("/history", {
-                headers: { "Authorization": `Bearer ${token}` } // 🔥 TOKEN LAGI
-            });
-            const historyData = await historyRes.json();
-            if (Array.isArray(historyData)) {
-                const formattedLogs = historyData.map((item: any) => ({
-                    id: item.id,
-                    date: item.timestamp.split("T")[0],
-                    time: new Date(item.timestamp).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }),
-                    docType: item.kategori,
-                    summary: item.summary,
-                    receiver: item.receiver,
-                    imageUrl: item.imagePath
-                }));
-                setLogs(formattedLogs);
-            }
-        }
-      } catch (error) {
-        console.error("Gagal load data:", error);
-      } finally {
-        setInitLoading(false);
-      }
-    };
-    loadData();
+    fetchUserProfile();
   }, [navigate]);
 
   const handleScan = async (file: File) => {
     if (!user) return;
     if (user.creditBalance < 1) {
-        toast.error("Kredit Habis!", { description: "Kuota harian Anda telah habis." });
+        toast.error("Kredit Habis!", { description: "Tunggu besok ya, reset jam 00:00." });
         return;
     }
 
@@ -97,16 +85,16 @@ export default function Index() {
       const res = await apiFetch("/scan", {
         method: "POST",
         body: formData,
-        headers: { "Authorization": `Bearer ${user.credential}` }, // 🔥 WAJIB ADA
+        headers: { "Authorization": `Bearer ${user.credential}` },
         timeout: 90000 
       });
 
       const json = await res.json();
 
       if (json.status === "success") {
-        toast.success("Selesai!", { description: "Berhasil." });
+        toast.success("Berhasil!");
         
-        // 🔥 REALTIME UPDATE CREDIT
+        // REALTIME UPDATE CREDIT
         const newBalance = json.remaining_credits;
         setUser((prevUser: any) => {
             const updated = { ...prevUser, creditBalance: newBalance };
@@ -114,7 +102,7 @@ export default function Index() {
             return updated;
         });
 
-        // Add Log
+        // UPDATE LOGS DI TABEL
         const newLog = {
             id: json.data.id,
             date: new Date().toISOString().split("T")[0],
@@ -174,38 +162,41 @@ export default function Index() {
         onSettings={() => navigate('/settings')} 
       />
 
-      {/* CONTAINER LEBAR (Fix Tampilan Ancur) */}
-      <main className="container mx-auto px-4 py-8 max-w-5xl space-y-8">
+      {/* 🔥 FIX LAYOUT: Flex Column biar numpuk ke bawah di HP */}
+      <main className="container mx-auto px-4 py-6 max-w-5xl flex flex-col gap-6">
         
-        {/* SECTION 1: WELCOME (Tanpa Kredit, Tanpa Logo SD) */}
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight">Halo, {user?.name?.split(" ")[0]} 👋</h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">Siap mendigitalkan dokumen hari ini?</p>
+        {/* SECTION 1: WELCOME */}
+        <div className="w-full text-left">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Halo, {user?.name?.split(" ")[0]} 👋</h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Siap mendigitalkan dokumen?</p>
         </div>
 
-        {/* SECTION 2: INPUT ZONE */}
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800">
-            <div className="flex items-center justify-between mb-6">
+        {/* SECTION 2: INPUT ZONE (Card Putih Lebar) */}
+        <div className="w-full bg-white dark:bg-zinc-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-zinc-800">
+            <div className="flex items-center justify-between mb-4">
                  <h2 className="font-bold text-lg">Input Dokumen</h2>
-                 {loading && <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full animate-pulse">Sedang Memproses AI...</span>}
+                 {loading && <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full animate-pulse">Memproses...</span>}
             </div>
-            <div className="overflow-hidden rounded-2xl border border-gray-100 dark:border-zinc-800">
+            {/* Wrapper Upload Zone */}
+            <div className="w-full">
                 <FileUploadZone onFileSelect={handleScan} />
             </div>
         </div>
 
-        {/* SECTION 3: DATA TABLE */}
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800">
-            <div className="mb-6">
+        {/* SECTION 3: DATA TABLE (Fix Scroll) */}
+        <div className="w-full bg-white dark:bg-zinc-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-zinc-800">
+            <div className="mb-4">
                 <h2 className="font-bold text-lg">Riwayat Digitalisasi</h2>
             </div>
-            {/* Overflow Auto agar tabel tidak hancur di HP */}
-            <div className="overflow-x-auto rounded-xl">
-                 <DataTable 
-                    logs={logs} 
-                    onDeleteLog={handleDeleteLog} 
-                    onUpdateLog={handleUpdateLog} 
-                />
+            {/* Wrapper Scroll Horizontal untuk HP */}
+            <div className="w-full overflow-x-auto">
+                 <div className="min-w-[600px]"> {/* Paksa lebar min agar tabel tidak gepeng */}
+                    <DataTable 
+                        logs={logs} 
+                        onDeleteLog={handleDeleteLog} 
+                        onUpdateLog={handleUpdateLog} 
+                    />
+                 </div>
             </div>
         </div>
       </main>
