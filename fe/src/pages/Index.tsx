@@ -13,13 +13,20 @@ export default function Index() {
   const [loading, setLoading] = useState(false);
   const [initLoading, setInitLoading] = useState(true);
 
-  // Fungsi Fetch Profile (Dipisah agar bisa dipanggil ulang)
+  // Sync Profile Function
   const fetchUserProfile = async () => {
     try {
         const storedUser = sessionStorage.getItem('user');
         const localUser = storedUser ? JSON.parse(storedUser) : null;
+        
+        // Panggil backend dengan token user
+        const token = localUser?.credential;
+        if (!token) { navigate('/landing'); return; }
 
-        const profileRes = await apiFetch("/me");
+        const profileRes = await apiFetch("/me", { 
+            headers: { "Authorization": `Bearer ${token}` } // 🔥 PASTIKAN TOKEN DIKIRIM
+        });
+        
         const profileJson = await profileRes.json();
         
         if (profileJson.status === "success") {
@@ -27,7 +34,7 @@ export default function Index() {
             setUser(updatedUser);
             sessionStorage.setItem('user', JSON.stringify(updatedUser));
         } else if (localUser) {
-            setUser(localUser);
+            setUser(localUser); // Fallback
         } else {
             navigate('/landing');
         }
@@ -42,19 +49,26 @@ export default function Index() {
         await fetchUserProfile(); // Load User
 
         // Load History
-        const historyRes = await apiFetch("/history");
-        const historyData = await historyRes.json();
-        if (Array.isArray(historyData)) {
-            const formattedLogs = historyData.map((item: any) => ({
-                id: item.id,
-                date: item.timestamp.split("T")[0],
-                time: new Date(item.timestamp).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                docType: item.kategori,
-                summary: item.summary,
-                receiver: item.receiver,
-                imageUrl: item.imagePath
-            }));
-            setLogs(formattedLogs);
+        const userSession = JSON.parse(sessionStorage.getItem('user') || '{}');
+        const token = userSession.credential;
+        
+        if (token) {
+            const historyRes = await apiFetch("/history", {
+                headers: { "Authorization": `Bearer ${token}` } // 🔥 TOKEN LAGI
+            });
+            const historyData = await historyRes.json();
+            if (Array.isArray(historyData)) {
+                const formattedLogs = historyData.map((item: any) => ({
+                    id: item.id,
+                    date: item.timestamp.split("T")[0],
+                    time: new Date(item.timestamp).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }),
+                    docType: item.kategori,
+                    summary: item.summary,
+                    receiver: item.receiver,
+                    imageUrl: item.imagePath
+                }));
+                setLogs(formattedLogs);
+            }
         }
       } catch (error) {
         console.error("Gagal load data:", error);
@@ -78,34 +92,33 @@ export default function Index() {
     formData.append("receiver", user.name || "User");
 
     try {
-      toast.info("Memproses Dokumen...", { description: "AI sedang membaca teks & validasi..." });
+      toast.info("Memproses...", { description: "AI sedang membaca dokumen..." });
       
       const res = await apiFetch("/scan", {
         method: "POST",
         body: formData,
+        headers: { "Authorization": `Bearer ${user.credential}` }, // 🔥 WAJIB ADA
         timeout: 90000 
       });
 
       const json = await res.json();
 
       if (json.status === "success") {
-        toast.success("Selesai!", { description: "Dokumen berhasil didigitalkan." });
+        toast.success("Selesai!", { description: "Berhasil." });
         
-        // 🔥 UPDATE USER STATE SECARA LANGSUNG (REALTIME UPDATE)
+        // 🔥 REALTIME UPDATE CREDIT
         const newBalance = json.remaining_credits;
-        
-        // Kita update state 'user' dengan balance baru
         setUser((prevUser: any) => {
             const updated = { ...prevUser, creditBalance: newBalance };
-            sessionStorage.setItem('user', JSON.stringify(updated)); // Update Storage juga
+            sessionStorage.setItem('user', JSON.stringify(updated));
             return updated;
         });
 
-        // Update Tabel Log
+        // Add Log
         const newLog = {
             id: json.data.id,
             date: new Date().toISOString().split("T")[0],
-            time: new Date().toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            time: new Date().toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }),
             docType: json.data.kategori,
             summary: json.data.summary,
             receiver: user.name,
@@ -126,7 +139,10 @@ export default function Index() {
   const handleDeleteLog = async (id: number) => {
     if(!confirm("Hapus data ini?")) return;
     try {
-        await apiFetch(`/logs/${id}`, { method: "DELETE" });
+        await apiFetch(`/logs/${id}`, { 
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${user.credential}` }
+        });
         setLogs(prev => prev.filter(l => l.id !== id));
         toast.success("Data dihapus.");
     } catch (e) { toast.error("Gagal menghapus."); }
@@ -136,11 +152,14 @@ export default function Index() {
     try {
         await apiFetch(`/logs/${id}`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${user.credential}`
+            },
             body: JSON.stringify({ summary })
         });
         setLogs(prev => prev.map(l => l.id === id ? { ...l, summary } : l));
-        toast.success("Ringkasan diperbarui.");
+        toast.success("Tersimpan.");
     } catch (e) { toast.error("Gagal menyimpan."); }
   };
 
@@ -148,8 +167,6 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] dark:bg-zinc-950 font-sans text-[#1A1A1A] dark:text-white pb-20">
-      
-      {/* HEADER dengan Realtime Credit di Kiri Atas */}
       <Header 
         user={user} 
         onLogout={() => { sessionStorage.clear(); navigate('/landing'); }} 
@@ -157,9 +174,10 @@ export default function Index() {
         onSettings={() => navigate('/settings')} 
       />
 
+      {/* CONTAINER LEBAR (Fix Tampilan Ancur) */}
       <main className="container mx-auto px-4 py-8 max-w-5xl space-y-8">
         
-        {/* SECTION 1: WELCOME (Hapus Tulisan Sisa Kredit Disini) */}
+        {/* SECTION 1: WELCOME (Tanpa Kredit, Tanpa Logo SD) */}
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Halo, {user?.name?.split(" ")[0]} 👋</h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1">Siap mendigitalkan dokumen hari ini?</p>
@@ -176,13 +194,13 @@ export default function Index() {
             </div>
         </div>
 
-        {/* SECTION 3: HISTORY TABLE */}
+        {/* SECTION 3: DATA TABLE */}
         <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800">
             <div className="mb-6">
                 <h2 className="font-bold text-lg">Riwayat Digitalisasi</h2>
-                <p className="text-sm text-gray-500">Semua dokumen yang telah diproses.</p>
             </div>
-            <div className="overflow-hidden rounded-xl">
+            {/* Overflow Auto agar tabel tidak hancur di HP */}
+            <div className="overflow-x-auto rounded-xl">
                  <DataTable 
                     logs={logs} 
                     onDeleteLog={handleDeleteLog} 
