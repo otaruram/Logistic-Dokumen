@@ -18,21 +18,18 @@ interface HeaderProps {
 
 const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-gray-200 dark:border-zinc-800">
+    <header className="sticky top-0 z-40 w-full bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md border-b border-gray-100 dark:border-zinc-800">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         
-        {/* KIRI ATAS: KREDIT REALTIME */}
-        <div className="flex items-center gap-2 bg-yellow-400/10 px-3 py-1.5 rounded-full border border-yellow-400/20">
-            <div className="p-1 bg-yellow-400 rounded-full">
-                <Zap className="w-3 h-3 text-black fill-black" />
-            </div>
-            <div className="flex flex-col leading-none">
-                <span className="text-[10px] font-bold text-yellow-600 dark:text-yellow-400 uppercase">Sisa Kredit</span>
-                <span className="text-sm font-black text-black dark:text-white">{user?.creditBalance ?? 0}</span>
+        {/* KIRI ATAS: KREDIT (PENGGANTI LOGO SD) */}
+        <div className="flex items-center gap-3">
+            <div className="bg-yellow-400 text-black px-3 py-1.5 rounded-full font-bold text-xs flex items-center gap-2 shadow-sm">
+                <Zap className="w-3.5 h-3.5 fill-black" />
+                <span className="uppercase tracking-wider">KREDIT: {user?.creditBalance ?? 0}</span>
             </div>
         </div>
 
-        {/* KANAN: PROFILE SAJA (Tanpa Bell) */}
+        {/* KANAN: PROFILE SAJA (LONCENG DIHAPUS) */}
         <div className="flex items-center gap-4">
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-2 focus:outline-none group">
@@ -47,17 +44,17 @@ const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
               <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
             </DropdownMenuTrigger>
             
-            <DropdownMenuContent align="end" className="w-56 rounded-xl shadow-xl border-gray-100 dark:border-zinc-800 p-2">
+            <DropdownMenuContent align="end" className="w-56 rounded-xl shadow-xl border-gray-100 dark:border-zinc-800 p-2 bg-white dark:bg-zinc-900">
               <DropdownMenuLabel className="text-gray-500 font-normal text-xs uppercase tracking-wider">Akun Saya</DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-gray-100" />
-              <DropdownMenuItem onClick={onProfile} className="cursor-pointer rounded-lg focus:bg-gray-50 dark:focus:bg-zinc-800">
+              <DropdownMenuSeparator className="bg-gray-100 dark:bg-zinc-800" />
+              <DropdownMenuItem onClick={onProfile} className="cursor-pointer rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800">
                 <UserIcon className="mr-2 h-4 w-4" /> Profile
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onSettings} className="cursor-pointer rounded-lg focus:bg-gray-50 dark:focus:bg-zinc-800">
+              <DropdownMenuItem onClick={onSettings} className="cursor-pointer rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800">
                 <Settings className="mr-2 h-4 w-4" /> Settings
               </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-gray-100" />
-              <DropdownMenuItem onClick={onLogout} className="cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-700 rounded-lg">
+              <DropdownMenuSeparator className="bg-gray-100 dark:bg-zinc-800" />
+              <DropdownMenuItem onClick={onLogout} className="cursor-pointer text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg">
                 <LogOut className="mr-2 h-4 w-4" /> Logout
               </DropdownMenuItem>
             </DropdownMenuContent>
