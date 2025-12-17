@@ -12,69 +12,84 @@ import requests
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
-# Import module sendiri
+# --- IMPORT MODULE SENDIRI (Pastikan file-file ini ada) ---
 from db import prisma, connect_db, disconnect_db
 from utils import get_user_email_from_token
-from drive_service import export_to_google_drive_with_token
 from smart_ocr_processor import SmartOCRProcessor
 from pricing_service import CreditService
 
 load_dotenv()
 
-# Global Variables
+# --- GLOBAL VARIABLES ---
 smart_ocr = None
+UPLOAD_DIR = "uploads"
 
+# --- LIFESPAN (Startup & Shutdown) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Server Starting...")
+    
+    # 1. Konek Database
     await connect_db()
     
+    # 2. Init OCR Engine
     global smart_ocr
     try:
-        # Inisialisasi OCR Engine
-        smart_ocr = SmartOCRProcessor(os.getenv('OCR_SPACE_API_KEY', 'helloworld'))
+        api_key = os.getenv('OCR_SPACE_API_KEY', 'helloworld')
+        smart_ocr = SmartOCRProcessor(api_key)
         print("✅ OCR Engine Ready")
     except Exception as e:
         print(f"⚠️ OCR Init Warning: {e}")
         
     yield
+    
     print("🛑 Server Shutting Down...")
     await disconnect_db()
 
 app = FastAPI(lifespan=lifespan)
 
-# Setup Upload Folder
-UPLOAD_DIR = "uploads"
+# --- STATIC FILES (Untuk Gambar Hasil Scan) ---
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
-# CORS Setup (PENTING: Ganti allow_origins dengan domain frontendmu saat production)
+# --- CORS SETUP ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Ganti ["https://vibely-frontend.onrender.com"] biar aman
+    allow_origins=["*"], # Saat production nanti ganti dengan domain frontendmu
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # --- HELPER FUNCTIONS ---
+
 def get_user_email_hybrid(authorization: str):
-    """Helper biar gak nulis try-except token berulang-ulang"""
+    """
+    STRICT MODE: Mengambil email dari token.
+    Jika gagal/expired, return None. JANGAN return anonymous.
+    """
     if not authorization: return None
+    
+    token = authorization.replace("Bearer ", "").strip()
+    
+    # 1. Coba Validasi via Google API (Paling Aman)
+    try:
+        res = requests.get('https://www.googleapis.com/oauth2/v3/userinfo', 
+                         headers={'Authorization': f'Bearer {token}'}, timeout=3)
+        if res.status_code == 200: 
+            data = res.json()
+            if 'email' in data: return data['email']
+    except: pass
+    
+    # 2. Coba Validasi via Decode JWT (Backup)
     try:
         return get_user_email_from_token(authorization)
-    except:
-        # Fallback manual request ke Google jika utils gagal
-        token = authorization.replace("Bearer ", "").strip()
-        try:
-            res = requests.get('https://www.googleapis.com/oauth2/v3/userinfo', 
-                             headers={'Authorization': f'Bearer {token}'}, timeout=3)
-            if res.status_code == 200: return res.json().get('email')
-        except: pass
+    except: pass
+
     return None
 
 async def extract_text_from_image(image_np):
-    """Wrapper untuk OCR"""
+    """Wrapper untuk OCR Processor"""
     try:
         if smart_ocr:
             text = await smart_ocr.enhanced_ocr_extract(image_np)
@@ -82,28 +97,43 @@ async def extract_text_from_image(image_np):
                 doc_type = smart_ocr.detect_document_type(text)
                 structured = smart_ocr.extract_structured_data(text, doc_type)
                 summary = smart_ocr.generate_smart_summary(text, structured, doc_type)
-                return {"raw_text": text, "summary": summary, "document_type": doc_type, "structured_data": structured}
+                return {
+                    "raw_text": text, 
+                    "summary": summary, 
+                    "document_type": doc_type, 
+                    "structured_data": structured
+                }
     except Exception as e:
         print(f"OCR Error: {e}")
     return {"raw_text": "", "summary": "Gagal Baca / Error", "document_type": "error"}
 
+# --- DATA MODELS ---
+class RatingRequest(BaseModel):
+    stars: int; emoji: str; message: str; userName: str; userAvatar: str
+class LogUpdate(BaseModel):
+    summary: str
+
 # --- ENDPOINTS ---
 
 @app.get("/health")
-def health(): return {"status": "ok", "env": os.getenv("ENVIRONMENT", "dev")}
+def health():
+    # Info server berjalan di mana
+    env_loc = "VPS/Local" if os.getenv("API_BASE_URL") else "Render/Serverless"
+    return {"status": "ok", "environment": env_loc}
 
 @app.get("/me")
 async def get_my_profile(authorization: str = Header(None)):
     try:
         user_email = get_user_email_hybrid(authorization)
-        if not user_email: return {"status": "error", "message": "Invalid Token"}
+        if not user_email: 
+            raise HTTPException(status_code=401, detail="Sesi habis. Login ulang.")
 
-        # 🔥 PANGGIL SERVICE: Auto-check reset credit pas user buka profile
+        # 🔥 LAZY RESET: Cek apakah kredit perlu direset HARI INI
         await CreditService.ensure_daily_credits(user_email, prisma)
 
         user = await prisma.user.find_unique(where={"email": user_email})
         
-        # Handle User Baru (First Login)
+        # Auto-Create User jika baru pertama kali login
         if not user:
             user = await prisma.user.create(data={
                 "email": user_email, 
@@ -113,26 +143,30 @@ async def get_my_profile(authorization: str = Header(None)):
                 "lastCreditReset": datetime.now()
             })
 
-        # Hitung Info Reset (untuk Frontend)
         return {
             "status": "success", 
             "data": {
                 "email": user.email,
+                "name": getattr(user, 'name', 'User'),
+                "picture": getattr(user, 'picture', ''),
                 "tier": getattr(user, 'tier', 'free'),
                 "creditBalance": user.creditBalance,
+                "createdAt": user.createdAt.isoformat() if user.createdAt else datetime.now().isoformat(),
                 "resetInfo": { "nextReset": "Tomorrow 00:00" } 
             }
         }
+    except HTTPException as he: raise he
     except Exception as e: return {"status": "error", "message": str(e)}
 
 @app.post("/scan")
 async def scan_document(file: UploadFile = File(...), receiver: str = Form(...), authorization: str = Header(None)):
     try:
-        # 1. Auth Check
+        # 1. AUTH CHECK (STRICT)
         user_email = get_user_email_hybrid(authorization)
-        if not user_email: return {"status": "error", "message": "Login diperlukan"}
+        if not user_email: 
+            raise HTTPException(status_code=401, detail="Sesi tidak valid.")
 
-        # 2. Credit Check & Deduct (Atomic)
+        # 2. CREDIT DEDUCT (ATOMIC)
         # Service ini mengembalikan False jika saldo < 1
         success_deduct = await CreditService.deduct_credit(user_email, prisma)
         
@@ -144,26 +178,34 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
                 "remaining_credits": 0
             }
 
-        # 3. Process Image
+        # 3. SAVE FILE
         content = await file.read()
         image_np = np.array(Image.open(io.BytesIO(content)))
         
-        # Save File
         timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
         clean_name = "".join(x for x in file.filename if x.isalnum() or x in "._- ")
         filename = f"{timestamp_str}_{clean_name}"
         filepath = os.path.join(UPLOAD_DIR, filename)
         with open(filepath, "wb") as f: f.write(content)
 
-        # Generate URL
-        # Ganti BASE_URL sesuai domain VPS nanti
-        BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
-        image_url = f"{BASE_URL}/uploads/{filename}"
+        # 4. SMART URL GENERATION (Render vs VPS vs Local)
+        # Prioritas 1: Settingan Manual (.env - biasanya buat VPS)
+        base_url = os.getenv("API_BASE_URL")
+        
+        # Prioritas 2: Auto-detect Render (Render punya env var RENDER_EXTERNAL_URL)
+        if not base_url:
+            base_url = os.getenv("RENDER_EXTERNAL_URL")
+            
+        # Prioritas 3: Localhost (Laptop)
+        if not base_url:
+            base_url = "http://localhost:8000"
 
-        # 4. OCR Process
+        image_url = f"{base_url}/uploads/{filename}"
+
+        # 5. OCR PROCESS
         ocr_res = await extract_text_from_image(image_np)
         
-        # 5. Save Log to DB
+        # 6. SAVE LOG TO DB
         doc_data = ocr_res.get("structured_data", {})
         nomor_dokumen = doc_data.get('invoice_number') or doc_data.get('do_number') or "MANUAL CHECK"
         
@@ -179,7 +221,7 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
             "fullText": ocr_res.get("raw_text", "")
         })
 
-        # Ambil sisa kredit terbaru buat update UI
+        # Ambil saldo terbaru user
         updated_user = await prisma.user.find_unique(where={"email": user_email})
 
         return {
@@ -194,9 +236,10 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
             "remaining_credits": updated_user.creditBalance
         }
 
+    except HTTPException as he: raise he
     except Exception as e: 
         print(f"Scan Error: {e}")
-        return {"status": "error", "message": "Terjadi kesalahan server."}
+        return {"status": "error", "message": "Gagal memproses gambar."}
 
 @app.get("/history")
 async def get_history(authorization: str = Header(None)):
@@ -206,7 +249,6 @@ async def get_history(authorization: str = Header(None)):
         
         logs = await prisma.logs.find_many(where={"userId": user_email}, order={"id": "desc"})
         
-        # Mapping response biar rapi
         return [{
             "id": l.id, 
             "timestamp": l.timestamp.isoformat(), 
@@ -218,8 +260,49 @@ async def get_history(authorization: str = Header(None)):
         } for l in logs]
     except: return []
 
-# Endpoint Rating, Delete, Update Log, Export bisa dicopy dari kode lamamu (sudah aman)
-# ... (Paste endpoint sisanya di sini) ...
+@app.post("/rating")
+async def create_rating(data: RatingRequest, authorization: str = Header(None)):
+    try:
+        user_email = get_user_email_hybrid(authorization) or "anonymous"
+        await prisma.rating.create(data={
+            "userId": user_email, 
+            "userName": data.userName, 
+            "userAvatar": data.userAvatar, 
+            "stars": data.stars, 
+            "emoji": data.emoji, 
+            "message": data.message
+        })
+        return {"status": "success"}
+    except Exception as e: return {"status": "error", "message": str(e)}
+
+@app.put("/logs/{log_id}")
+async def update_log(log_id: int, log_data: LogUpdate):
+    try:
+        await prisma.logs.update(where={"id": log_id}, data={"summary": log_data.summary})
+        return {"status": "success"}
+    except Exception as e: return {"status": "error", "message": str(e)}
+
+@app.delete("/logs/{log_id}")
+async def delete_log(log_id: int):
+    try:
+        await prisma.logs.delete(where={"id": log_id})
+        return {"status": "success"}
+    except Exception as e: return {"status": "error", "message": str(e)}
+
+@app.delete("/delete-account")
+async def delete_account(authorization: str = Header(None)):
+    try:
+        user_email = get_user_email_hybrid(authorization)
+        if not user_email: return {"status": "error"}
+        
+        user = await prisma.user.find_unique(where={"email": user_email})
+        if not user: raise HTTPException(404, "User not found")
+        
+        # Hapus logs & user
+        await prisma.logs.delete_many(where={"userId": user_email})
+        await prisma.user.delete(where={"id": user.id})
+        return {"status": "success"}
+    except Exception as e: return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
