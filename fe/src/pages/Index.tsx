@@ -13,6 +13,18 @@ export default function Index() {
   const [loading, setLoading] = useState(false);
   const [initLoading, setInitLoading] = useState(true);
 
+  // --- 1. FITUR ANTI KELUAR (BACK BUTTON GUARD) ---
+  useEffect(() => {
+    // Mencegah tombol Back di HP/Browser keluar dari aplikasi
+    const preventBack = () => {
+      window.history.pushState(null, "", window.location.href);
+    };
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", preventBack);
+    return () => window.removeEventListener("popstate", preventBack);
+  }, []);
+
+  // --- FETCH DATA ---
   const fetchUserProfile = async () => {
     try {
         const storedUser = sessionStorage.getItem('user');
@@ -21,10 +33,11 @@ export default function Index() {
         
         if (!token) { navigate('/login'); return; }
 
-        // Set data lokal dulu biar UI langsung muncul (Gak blank putih)
+        // Set User sementara, TAPI KREDIT JANGAN 0 DULU (Biar gk bikin panik)
+        // Kita pakai null dulu biar UI menampilkan Loading/Skeleton
         setUser(localUser);
 
-        // Sync Backend
+        // Fetch User Info Terbaru dari Server
         const profileRes = await apiFetch("/me", { 
             headers: { "Authorization": `Bearer ${token}` } 
         });
@@ -38,7 +51,7 @@ export default function Index() {
             }
         } 
 
-        // Sync History
+        // Fetch History
         const historyRes = await apiFetch("/history", {
             headers: { "Authorization": `Bearer ${token}` }
         });
@@ -58,23 +71,18 @@ export default function Index() {
             }
         }
     } catch (e) {
-        console.error("Koneksi Error:", e);
-        // Kita diamkan saja errornya, jangan navigate ke landing page
-        // Biarkan user tetap di dashboard walau data belum sync
+        console.error("Sync Error:", e);
     } finally {
         setInitLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchUserProfile();
-  }, []);
+  useEffect(() => { fetchUserProfile(); }, []);
 
   const handleScan = async (file: File) => {
     if (!user) return;
-    // Cek kredit di sisi client dulu
-    if (user.creditBalance !== undefined && user.creditBalance < 1) {
-        toast.error("Kredit Habis!", { description: "Kuota harian reset jam 00:00." });
+    if (user.creditBalance < 1) {
+        toast.error("Kredit Habis!", { description: "Reset otomatis jam 00:00." });
         return;
     }
 
@@ -84,7 +92,7 @@ export default function Index() {
     formData.append("receiver", user.name || "User");
 
     try {
-      toast.info("Memproses...", { description: "Mohon tunggu sebentar..." });
+      toast.info("Sedang Memproses...", { description: "AI sedang membaca dokumen..." });
       
       const res = await apiFetch("/scan", {
         method: "POST",
@@ -106,7 +114,6 @@ export default function Index() {
             return updated;
         });
 
-        // Update Tabel
         const newLog = {
             id: json.data.id,
             date: new Date().toISOString().split("T")[0],
@@ -122,7 +129,7 @@ export default function Index() {
         throw new Error(json.message || "Gagal memproses.");
       }
     } catch (error: any) {
-      toast.error("Gagal", { description: error.message || "Cek koneksi internet." });
+      toast.error("Gagal", { description: error.message });
     } finally {
       setLoading(false);
     }
@@ -144,10 +151,7 @@ export default function Index() {
     try {
         await apiFetch(`/logs/${id}`, {
             method: "PUT",
-            headers: { 
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${user.credential}`
-            },
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${user.credential}` },
             body: JSON.stringify({ summary })
         });
         setLogs(prev => prev.map(l => l.id === id ? { ...l, summary } : l));
@@ -167,7 +171,6 @@ export default function Index() {
       />
 
       <main className="container mx-auto px-4 py-6 max-w-5xl flex flex-col gap-6">
-        
         <div className="w-full text-left">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Halo, {user?.name?.split(" ")[0]} 👋</h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Siap mendigitalkan dokumen?</p>
@@ -184,17 +187,9 @@ export default function Index() {
         </div>
 
         <div className="w-full bg-white dark:bg-zinc-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-zinc-800">
-            <div className="mb-4">
-                <h2 className="font-bold text-lg">Riwayat Digitalisasi</h2>
-            </div>
+            <div className="mb-4"><h2 className="font-bold text-lg">Riwayat Digitalisasi</h2></div>
             <div className="w-full overflow-x-auto">
-                 <div className="min-w-[600px]">
-                    <DataTable 
-                        logs={logs} 
-                        onDeleteLog={handleDeleteLog} 
-                        onUpdateLog={handleUpdateLog} 
-                    />
-                 </div>
+                 <div className="min-w-[600px]"><DataTable logs={logs} onDeleteLog={handleDeleteLog} onUpdateLog={handleUpdateLog} /></div>
             </div>
         </div>
       </main>
