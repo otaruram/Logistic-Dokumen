@@ -12,16 +12,21 @@ export default function Settings() {
   const [theme, setTheme] = useState("light");
 
   useEffect(() => {
-    const storedUser = sessionStorage.getItem('user');
+    // 🔥 GANTI KE localStorage
+    const storedUser = localStorage.getItem('user');
     if (storedUser) setUser(JSON.parse(storedUser));
-    const savedTheme = sessionStorage.getItem('theme') || 'light';
+
+    // Cek Tema
+    const savedTheme = localStorage.getItem('theme') || 'light';
     setTheme(savedTheme);
   }, []);
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
-    sessionStorage.setItem('theme', newTheme);
+    // 🔥 Simpan tema di localStorage biar awet
+    localStorage.setItem('theme', newTheme);
+    
     if (newTheme === 'dark') document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
   };
@@ -30,7 +35,9 @@ export default function Settings() {
     if (!confirm("YAKIN? Data akan hilang permanen.")) return;
     try {
         await apiFetch("/delete-account", { method: "DELETE", headers: { "Authorization": `Bearer ${user.credential}` } });
-        sessionStorage.clear();
+        
+        // 🔥 BERSIHKAN localStorage SAAT HAPUS AKUN
+        localStorage.clear();
         navigate('/landing');
         toast.success("Akun dihapus.");
     } catch (e) { toast.error("Gagal menghapus."); }
@@ -39,7 +46,6 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-[#F8F9FA] dark:bg-zinc-950 font-sans text-[#1A1A1A] dark:text-white p-4">
       
-      {/* HEADER MINIMALIS + ICONIC BACK BUTTON */}
       <div className="max-w-2xl mx-auto flex items-center gap-4 py-6">
         <Button 
             variant="outline" 
@@ -64,8 +70,16 @@ export default function Settings() {
             <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">Penyimpanan</h2>
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3"><div className="p-2 bg-blue-50 text-blue-600 rounded-xl"><HardDrive className="w-5 h-5" /></div><div><p className="font-bold text-sm">Google Drive</p><p className="text-xs text-gray-500">Backup otomatis aktif.</p></div></div>
-                    <span className="text-[10px] font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100">TERHUBUNG</span>
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-50 text-blue-600 rounded-xl"><HardDrive className="w-5 h-5" /></div>
+                        <div><p className="font-bold text-sm">Google Drive</p><p className="text-xs text-gray-500">Penyimpanan cloud.</p></div>
+                    </div>
+                    {/* Cek status Drive dari user data */}
+                    {user?.isDriveEnabled ? (
+                        <span className="text-[10px] font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100">TERHUBUNG</span>
+                    ) : (
+                        <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full border border-gray-200">TIDAK AKTIF</span>
+                    )}
                 </div>
             </div>
 
