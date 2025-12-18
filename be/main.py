@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
 # --- IMPORT MODULE SENDIRI ---
+# Pastikan file-file ini ada di folder yang sama
 from db import prisma, connect_db, disconnect_db
 from utils import get_user_email_from_token
 from smart_ocr_processor import SmartOCRProcessor
@@ -52,7 +53,7 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 # --- CORS SETUP ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Saat production bisa diganti domain spesifik
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -84,7 +85,7 @@ def get_user_email_hybrid(authorization: str):
     if user_info and 'email' in user_info:
         return user_info['email']
         
-    # 2. Cek JWT Utils (Backup)
+    # 2. Cek JWT Utils
     try: return get_user_email_from_token(authorization)
     except: pass
     
@@ -136,7 +137,7 @@ async def get_my_profile(authorization: str = Header(None)):
         # 2. Ambil User DB
         user = await prisma.user.find_unique(where={"email": user_email})
 
-        # 3. SYNC PROFIL GOOGLE (Nama & Foto)
+        # 3. Sync Profil Google (Agar Nama tidak NULL)
         google_info = get_google_user_info(token)
         updates = {}
         if google_info:
@@ -159,45 +160,53 @@ async def get_my_profile(authorization: str = Header(None)):
         elif updates:
             user = await prisma.user.update(where={"email": user_email}, data=updates)
 
-        # 🔥 5. LOGIKA NOTIFIKASI RESET DATA (REVISI FINAL) 🔥
-        today = datetime.now()
-        join_date = user.createdAt
-        
-        # Ambil tanggal (hari) join user
-        reset_day = join_date.day
-        
-        # Coba tetapkan tanggal reset di BULAN INI
+        # 🔥 5. LOGIKA NOTIFIKASI RESET DATA (ANTI-CRASH) 🔥
+        # Logika ini menjamin Backend selalu mengirim tanggal valid, tidak pernah error 500
         try:
-            candidate_this_month = today.replace(day=reset_day)
-        except ValueError:
-            # Handle tanggal 30/31 di bulan Februari dsb
-            import calendar
-            last_day = calendar.monthrange(today.year, today.month)[1]
-            candidate_this_month = today.replace(day=last_day)
+            today = datetime.now()
+            join_date = user.createdAt if user.createdAt else today
             
-        # LOGIKA CERDAS:
-        # Jika hari ini <= Tanggal Reset Bulan Ini, maka Target = Bulan Ini.
-        # Jika hari ini > Tanggal Reset Bulan Ini, maka Target = Bulan Depan.
-        
-        if today.date() <= candidate_this_month.date():
-            next_reset_date = candidate_this_month
-        else:
-            # Pindah ke bulan depan
-            next_month_year = today.year + (1 if today.month == 12 else 0)
-            next_month = 1 if today.month == 12 else today.month + 1
+            # Ambil tanggal (hari) join user
+            reset_day = join_date.day
+            
+            # Coba tetapkan target reset bulan ini
             try:
-                next_reset_date = today.replace(year=next_month_year, month=next_month, day=reset_day)
+                candidate_this_month = today.replace(day=reset_day)
             except ValueError:
-                import calendar
-                last_day = calendar.monthrange(next_month_year, next_month)[1]
-                next_reset_date = today.replace(year=next_month_year, month=next_month, day=last_day)
+                # Handle jika tgl 30/31 tidak ada di bulan ini (misal Februari)
+                # Fallback: Geser ke tanggal 1 bulan depan biar aman
+                if today.month == 12:
+                    candidate_this_month = today.replace(year=today.year+1, month=1, day=1)
+                else:
+                    candidate_this_month = today.replace(month=today.month+1, day=1)
+            
+            # Tentukan Next Reset
+            if today.date() <= candidate_this_month.date():
+                next_reset_date = candidate_this_month
+            else:
+                # Pindah ke bulan depan
+                next_month = 1 if today.month == 12 else today.month + 1
+                next_year = today.year + (1 if today.month == 12 else 0)
+                
+                try:
+                    next_reset_date = today.replace(year=next_year, month=next_month, day=reset_day)
+                except ValueError:
+                    # Fallback akhir bulan (tanggal 28) jika tanggal reset tidak valid di bulan depan
+                    next_reset_date = today.replace(year=next_year, month=next_month, day=28)
 
-        # Hitung Sisa Hari
-        days_left = (next_reset_date - today).days
-        if days_left < 0: days_left = 0 # Safety net
-        
-        # Trigger Notifikasi Header (Merah) jika <= 7 hari
-        show_warning = days_left <= 7
+            days_left = (next_reset_date - today).days
+            if days_left < 0: days_left = 0 # Safety net
+            
+            show_warning = days_left <= 7
+            next_reset_str = next_reset_date.strftime("%d %B %Y")
+            
+        except Exception as calc_error:
+            # SAFETY NET: Jika matematika tanggal gagal total, pakai default aman
+            # Ini mencegah Frontend menerima data kosong (strip -)
+            print(f"Date Calculation Error: {calc_error}")
+            days_left = 30
+            show_warning = False
+            next_reset_str = "Setiap Bulan"
 
         return {
             "status": "success", 
@@ -211,7 +220,7 @@ async def get_my_profile(authorization: str = Header(None)):
                 "resetInfo": { 
                     "daysLeft": days_left,
                     "showWarning": show_warning,
-                    "nextResetDate": next_reset_date.strftime("%d %B %Y")
+                    "nextResetDate": next_reset_str
                 } 
             }
         }
@@ -246,10 +255,10 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         filepath = os.path.join(UPLOAD_DIR, filename)
         with open(filepath, "wb") as f: f.write(content)
 
-        # 4. Smart URL Generation
-        base_url = os.getenv("API_BASE_URL") # Prioritas 1: VPS .env
-        if not base_url: base_url = os.getenv("RENDER_EXTERNAL_URL") # Prioritas 2: Render Auto Env
-        if not base_url: base_url = "http://localhost:8000" # Prioritas 3: Localhost
+        # 4. Smart URL
+        base_url = os.getenv("API_BASE_URL") # VPS
+        if not base_url: base_url = os.getenv("RENDER_EXTERNAL_URL") # Render
+        if not base_url: base_url = "http://localhost:8000" # Local
         
         image_url = f"{base_url}/uploads/{filename}"
 
@@ -289,6 +298,7 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
     except HTTPException as he: raise he
     except Exception as e: 
         print(f"Scan Error: {e}")
+        # Return JSON Error agar frontend tidak crash null
         return {"status": "error", "message": f"Server Error: {str(e)}"}
 
 @app.get("/history")
