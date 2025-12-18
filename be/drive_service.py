@@ -4,15 +4,15 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
-# SCOPES Service Account
+# Scopes agar bot bisa upload file
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
 def get_drive_service():
     try:
-        # Ambil JSON dari Env Variable (Pastikan sudah diset di Render)
+        # Ambil Kredensial dari Environment Variable
         creds_json = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
         if not creds_json:
-            print("❌ GOOGLE_SERVICE_ACCOUNT_JSON belum disetting.")
+            print("❌ Error: GOOGLE_SERVICE_ACCOUNT_JSON belum disetting di Render.")
             return None
 
         creds_dict = json.loads(creds_json)
@@ -34,14 +34,16 @@ def export_excel_to_drive(file_obj, filename):
             'mimeType': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         }
         
+        # Upload Stream (tanpa simpan ke disk server)
         media = MediaIoBaseUpload(file_obj, 
                                 mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                                 resumable=True)
 
-        # Upload
+        # Eksekusi Upload
         file = service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute()
         
-        # Set Public Reader (Supaya user bisa download)
+        # SET PERMISSION: PUBLIC READER
+        # Agar user yang klik link bisa langsung lihat/download
         try:
             service.permissions().create(
                 fileId=file.get('id'),
@@ -49,8 +51,9 @@ def export_excel_to_drive(file_obj, filename):
             ).execute()
         except: pass
 
+        print(f"✅ Upload Sukses: {file.get('webViewLink')}")
         return {'file_id': file.get('id'), 'web_view_link': file.get('webViewLink')}
 
     except Exception as e:
-        print(f"❌ Upload Error: {str(e)}")
+        print(f"❌ Upload Gagal: {str(e)}")
         return None
