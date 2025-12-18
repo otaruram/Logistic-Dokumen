@@ -113,7 +113,7 @@ async def get_my_profile(authorization: str = Header(None)):
             if not user or not user.name or user.name == "User": updates["name"] = google_info.get("name", "User")
             if not user or not user.picture: updates["picture"] = google_info.get("picture", "")
 
-        # Buat User Baru (Reset Kredit = 3)
+        # Buat User Baru
         if not user:
             user = await prisma.user.create(data={
                 "email": user_email, 
@@ -184,23 +184,19 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         filepath = os.path.join(UPLOAD_DIR, filename)
         with open(filepath, "wb") as f: f.write(content)
 
-        # 3. 🔥 SETUP URL (FIX BROKEN IMAGE) 🔥
-        # Prioritas: ENV > Render > Localhost
+        # 3. Setup URL
         base_url = os.getenv("API_BASE_URL") 
         if not base_url: base_url = os.getenv("RENDER_EXTERNAL_URL")
         if not base_url: base_url = "http://localhost:8000"
-        
-        final_url = f"{base_url}/uploads/{filename}" # Default URL Lokal
+        final_url = f"{base_url}/uploads/{filename}"
 
-        # 4. 🔥 UPLOAD KE GOOGLE DRIVE 🔥
-        # Ini akan mencoba upload. Jika berhasil, 'final_url' diganti link Drive.
+        # 4. Upload ke Google Drive
         drive_res = upload_image_to_drive(raw_token, filepath)
-        
         if drive_res and drive_res.get('direct_link'):
             final_url = drive_res.get('direct_link')
             print(f"✅ GDrive Upload Success: {final_url}")
         else:
-            print(f"⚠️ GDrive Skipped/Failed. Using Local: {final_url}")
+            print(f"⚠️ GDrive Skipped/Failed (Check Token Scope). Using Local: {final_url}")
 
         # 5. OCR Process
         ocr_res = await extract_text_from_image(image_np)
@@ -214,7 +210,6 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
             "imagePath": final_url, "summary": ocr_res.get("summary", ""), "fullText": ocr_res.get("raw_text", "")
         })
 
-        # 7. Potong Kredit (Hanya jika sukses)
         updated = await prisma.user.update(where={"email": user_email}, data={"creditBalance": {"decrement": 1}})
 
         return {
@@ -227,15 +222,16 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         print(f"Scan Error: {e}")
         return {"status": "error", "message": f"Gagal Scan: {str(e)}"}
 
+# 🔥🔥 PERBAIKAN UTAMA DI SINI (EXPORT EXCEL) 🔥🔥
 @app.post("/export-excel")
 async def export_excel(authorization: str = Header(None)):
     try:
         user_email = get_user_email_hybrid(authorization)
-        if not user_email: raise HTTPException(401, "Invalid")
+        if not user_email: raise HTTPException(401, "Invalid Session")
         raw_token = authorization.replace("Bearer ", "").strip()
 
         logs = await prisma.logs.find_many(where={"userId": user_email}, order={"timestamp": "desc"})
-        if not logs: return {"status": "error", "message": "Data kosong."}
+        if not logs: return {"status": "error", "message": "Tidak ada data untuk diexport."}
 
         data_list = []
         for l in logs:
@@ -247,16 +243,27 @@ async def export_excel(authorization: str = Header(None)):
         
         df = pd.DataFrame(data_list)
         output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False)
+        
+        # 🔥 Coba write Excel, tangkap error jika library openpyxl hilang
+        try:
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df.to_excel(writer, index=False)
+        except ModuleNotFoundError:
+             return {"status": "error", "message": "Server Error: Library 'openpyxl' belum terinstall. Mohon hubungi admin."}
+        
         output.seek(0)
         
+        # Upload ke Drive
         drive_res = export_excel_to_drive(raw_token, output, f"Report_{datetime.now().strftime('%Y%m%d')}.xlsx")
         
-        if drive_res: return {"status": "success", "message": "Export Berhasil!", "link": drive_res.get('web_view_link')}
-        else: return {"status": "error", "message": "Gagal Upload ke Drive."}
+        if drive_res: 
+            return {"status": "success", "message": "Export Berhasil!", "link": drive_res.get('web_view_link')}
+        else: 
+            # Jika ini muncul, berarti Token valid tapi TIDAK PUNYA IZIN DRIVE
+            return {"status": "error", "message": "Gagal Upload ke Drive. Pastikan Anda Login ulang dan mengizinkan akses Drive."}
 
-    except Exception as e: return {"status": "error", "message": str(e)}
+    except Exception as e: 
+        return {"status": "error", "message": f"System Error: {str(e)}"}
 
 @app.get("/ratings")
 async def get_ratings():
