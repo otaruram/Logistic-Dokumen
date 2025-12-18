@@ -1,11 +1,10 @@
-import { LogOut, User as UserIcon, Settings, Trash2, Bell, Zap } from "lucide-react";
+import { LogOut, User as UserIcon, Settings, Trash2, Zap, CalendarClock } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/lib/api-service";
 import { toast } from "sonner";
 
@@ -30,60 +29,59 @@ export default function Header({ user, onLogout, onProfile, onSettings }: Header
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-white/80 backdrop-blur-md px-6 shadow-sm dark:bg-zinc-950/80 dark:border-zinc-800">
+    <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-white/80 backdrop-blur-md px-4 md:px-6 shadow-sm dark:bg-zinc-950/80 dark:border-zinc-800 font-sans">
       
-      {/* BAGIAN KIRI: FOKUS KE KREDIT (PENGGANTI BRAND) */}
+      {/* KIRI: BADGE KREDIT REALTIME */}
       <div className="flex items-center gap-3">
-         <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-4 py-1.5 rounded-full border border-blue-100 dark:border-blue-800 transition-all hover:shadow-md">
-            <Zap className="w-5 h-5 text-blue-600 fill-blue-600 animate-pulse" />
+         <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 md:px-4 rounded-full border border-blue-100 dark:border-blue-800 transition-all hover:shadow-md cursor-default">
+            <Zap className="w-4 h-4 md:w-5 md:h-5 text-blue-600 fill-blue-600 animate-pulse" />
             <div className="flex flex-col">
-                <span className="text-[10px] uppercase font-bold text-slate-400 leading-none">Sisa Kredit</span>
-                <span className="text-lg font-extrabold text-blue-700 dark:text-blue-400 leading-none">
+                <span className="text-[9px] md:text-[10px] uppercase font-bold text-slate-400 leading-none">Sisa Kredit</span>
+                <span className="text-base md:text-lg font-extrabold text-blue-700 dark:text-blue-400 leading-none">
                     {user?.creditBalance ?? 0}
                 </span>
             </div>
          </div>
-         {/* Info Reset Kecil di sebelahnya */}
-         {user?.resetInfo && (
-            <span className="hidden md:inline-block text-[10px] text-gray-400 bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded-md">
-               Reset: {user.resetInfo.nextResetDate}
-            </span>
-         )}
       </div>
       
+      {/* KANAN: PROFIL DROPDOWN */}
       <div className="ml-auto flex items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800">
-              <Avatar className="h-9 w-9 border-2 border-white shadow-sm">
+            <Button variant="ghost" className="relative h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+              <Avatar className="h-8 w-8 md:h-9 md:w-9 border-2 border-white shadow-sm transition-transform active:scale-95">
                 <AvatarImage src={user?.picture} alt={user?.name} />
-                <AvatarFallback className="bg-blue-600 text-white font-bold">U</AvatarFallback>
+                <AvatarFallback className="bg-blue-600 text-white font-bold font-sans">U</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64 p-2">
-            <DropdownMenuLabel className="font-normal">
+          <DropdownMenuContent align="end" className="w-60 md:w-64 p-2 font-sans">
+            
+            {/* INFO RESET KREDIT SIMPEL (MUNBUL SAAT DISENTUH) */}
+            {user?.resetInfo && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-md mb-2 flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300">
+                    <CalendarClock className="w-3 h-3" />
+                    <span className="font-medium">Reset Kredit: {user.resetInfo.nextResetDate}</span>
+                </div>
+            )}
+
+            <DropdownMenuLabel className="font-normal p-0">
                 <div className="flex flex-col space-y-1 bg-slate-50 dark:bg-zinc-900 p-3 rounded-md mb-2">
-                    <p className="text-sm font-bold leading-none">{user?.name}</p>
+                    <p className="text-sm font-bold leading-none truncate">{user?.name}</p>
                     <p className="text-xs leading-none text-muted-foreground truncate">{user?.email}</p>
                 </div>
             </DropdownMenuLabel>
             
-            {/* FITUR NOTIFIKASI DISINI */}
-            <DropdownMenuItem className="cursor-pointer">
-                <Bell className="mr-2 h-4 w-4 text-slate-500"/> 
-                <span>Notifikasi</span>
-                <Badge variant="secondary" className="ml-auto text-[10px] h-5">Baru</Badge>
-            </DropdownMenuItem>
+            {/* NOTIFIKASI DIHILANGKAN */}
             
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onProfile}><UserIcon className="mr-2 h-4 w-4"/> Profile</DropdownMenuItem>
-            <DropdownMenuItem onClick={onSettings}><Settings className="mr-2 h-4 w-4"/> Settings</DropdownMenuItem>
+            <DropdownMenuItem onClick={onProfile} className="cursor-pointer"><UserIcon className="mr-2 h-4 w-4"/> Profile</DropdownMenuItem>
+            <DropdownMenuItem onClick={onSettings} className="cursor-pointer"><Settings className="mr-2 h-4 w-4"/> Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleDeleteAccount} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20">
+            <DropdownMenuItem onClick={handleDeleteAccount} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20 cursor-pointer">
                 <Trash2 className="mr-2 h-4 w-4"/> Hapus Akun
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onLogout}><LogOut className="mr-2 h-4 w-4"/> Log out</DropdownMenuItem>
+            <DropdownMenuItem onClick={onLogout} className="cursor-pointer"><LogOut className="mr-2 h-4 w-4"/> Log out</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
