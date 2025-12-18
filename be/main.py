@@ -6,24 +6,24 @@ import numpy as np
 from PIL import Image
 import io
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 import requests
 import pytz 
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
-# --- IMPORTS LOKAL ---
+# IMPORTS
 from db import prisma, connect_db, disconnect_db
 from utils import get_user_email_from_token
 from smart_ocr_processor import SmartOCRProcessor
-from pricing_service import CreditService # Pastikan isinya Logic Daily
-from drive_service import export_excel_to_drive # Pastikan isinya Logic Service Account
+from pricing_service import CreditService
+from drive_service import export_excel_to_drive
 from imagekit_service import upload_to_imagekit, delete_from_imagekit_by_url
 
 load_dotenv()
 
-# --- CONFIG ---
+# CONFIG
 smart_ocr = None
 UPLOAD_DIR = "uploads"
 WIB = pytz.timezone('Asia/Jakarta')
@@ -68,7 +68,6 @@ def get_user_email_hybrid(authorization: str):
 # --- MODELS ---
 class RatingRequest(BaseModel):
     stars: int; emoji: str; message: str; userName: str = "Anonymous"; userAvatar: str = ""
-
 class LogUpdate(BaseModel):
     summary: str
 
@@ -84,53 +83,30 @@ async def get_my_profile(authorization: str = Header(None)):
         user_email = get_user_email_hybrid(authorization)
         if not user_email: raise HTTPException(401, "Sesi habis/invalid")
 
-        # 1. RESET KREDIT HARIAN (Sesuai Request: Kredit reset tiap hari)
+        # 1. CEK RESET HARIAN SEBELUM AMBIL DATA
         await CreditService.ensure_daily_credits(user_email, prisma)
 
         user = await prisma.user.find_unique(where={"email": user_email})
 
-        # Auto-create user
+        # Logic User Baru (FIX: Kredit mulai dari 3, bukan 50)
         if not user:
             google_info = get_google_user_info(token)
             user = await prisma.user.create(data={
                 "email": user_email, 
                 "name": google_info.get("name", "User") if google_info else "User",
                 "picture": google_info.get("picture", "") if google_info else "",
-                "creditBalance": 3, # Default Daily
+                "creditBalance": 3, # <--- KEMBALI KE 3
                 "tier": "free",
                 "createdAt": datetime.now(),
                 "lastCreditReset": datetime.now()
             })
 
-        # 2. LOGIKA HITUNG MUNDUR DATA LOG (BULANAN)
-        # Kredit boleh harian, tapi User harus tau kapan Data Log dibersihkan (Tiap tanggal 1)
-        now = datetime.now(WIB)
-        
-        # Target: Tanggal 1 Bulan Depan
-        if now.month == 12:
-            next_data_reset = datetime(now.year + 1, 1, 1, tzinfo=WIB)
-        else:
-            next_data_reset = datetime(now.year, now.month + 1, 1, tzinfo=WIB)
-            
-        # Hitung sisa hari
-        days_left = (next_data_reset - now).days
-        
-        # Format Tanggal Cantik
-        months_id = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
-        reset_str = f"1 {months_id[next_data_reset.month]} {next_data_reset.year}"
-
+        # Hapus logic resetInfo bulanan yang ribet. Kembalikan ke simpel.
         return {
             "status": "success", 
             "data": {
                 "email": user.email, "name": user.name, "picture": user.picture,
-                "creditBalance": user.creditBalance,
-                
-                # INI PENTING: Info Reset Data untuk Notifikasi Header
-                "resetInfo": { 
-                    "nextResetDate": reset_str, 
-                    "daysLeft": days_left,
-                    "type": "DataLog" 
-                }
+                "creditBalance": user.creditBalance
             }
         }
     except Exception as e: return {"status": "error", "message": str(e)}
@@ -142,10 +118,16 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         user_email = get_user_email_hybrid(authorization)
         if not user_email: raise HTTPException(401, "Unauthorized")
 
-        user = await prisma.user.find_unique(where={"email": user_email})
-        if not user or user.creditBalance < 1:
-             return {"status": "error", "error_type": "insufficient_credits", "message": "Kredit harian habis. Kembali lagi besok!"}
+        # Pastikan kredit dicek/reset dulu sebelum transaksi
+        await CreditService.ensure_daily_credits(user_email, prisma)
 
+        user = await prisma.user.find_unique(where={"email": user_email})
+        
+        # Validasi Kredit
+        if not user or user.creditBalance < 1:
+             return {"status": "error", "error_type": "insufficient_credits", "message": "Kredit harian habis (Limit: 3/hari)."}
+
+        # Proses Scan
         content = await file.read()
         image_np = np.array(Image.open(io.BytesIO(content)))
         filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
@@ -153,7 +135,7 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         with open(filepath, "wb") as f: f.write(content)
 
         image_url = upload_to_imagekit(filepath, filename)
-        if not image_url: raise Exception("Gagal upload gambar.")
+        if not image_url: raise Exception("Gagal upload gambar ke server.")
 
         async def extract_text_from_image(img):
             if smart_ocr:
@@ -174,7 +156,9 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
             "imagePath": image_url, "summary": ocr_res.get("summary", ""), "fullText": ocr_res.get("raw_text", "")
         })
 
+        # Potong Saldo
         updated = await prisma.user.update(where={"email": user_email}, data={"creditBalance": {"decrement": 1}})
+        
         if filepath and os.path.exists(filepath): os.remove(filepath)
 
         return {
@@ -186,7 +170,7 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         if filepath and os.path.exists(filepath): os.remove(filepath)
         return {"status": "error", "message": f"Scan Gagal: {str(e)}"}
 
-# 🔥 EXPORT DENGAN FORMAT EXCEL RAPI (XLSXWRITER) 🔥
+# --- EXPORT EXCEL (FITUR DRIVE TETAP ADA) ---
 @app.post("/export-excel")
 async def export_excel(authorization: str = Header(None)):
     try:
@@ -208,7 +192,6 @@ async def export_excel(authorization: str = Header(None)):
         df = pd.DataFrame(data_list)
         output = io.BytesIO()
         
-        # Styling Excel Professional
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             sheet_name = 'Laporan OCR'
             df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -227,7 +210,7 @@ async def export_excel(authorization: str = Header(None)):
         output.seek(0)
         filename = f"Laporan_OCR_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
         
-        # Upload ke Drive Bot
+        # Upload ke Drive Bot (Fitur Drive tetap dipertahankan)
         drive_res = export_excel_to_drive(output, filename)
         
         if drive_res: 
@@ -237,7 +220,7 @@ async def export_excel(authorization: str = Header(None)):
             
     except Exception as e: return {"status": "error", "message": str(e)}
 
-# --- LOGS & DELETE ---
+# --- ENDPOINTS LAINNYA ---
 @app.get("/history")
 async def get_history(authorization: str = Header(None)):
     try:
@@ -266,7 +249,7 @@ async def create_rating(data: RatingRequest, authorization: str = Header(None)):
             "stars": data.stars, "emoji": data.emoji, "message": data.message, "createdAt": datetime.now()
         })
         return {"status": "success"}
-    except Exception as e: return {"status": "error", "message": str(e)}
+    except: return {"status": "error"}
 
 @app.get("/ratings")
 async def get_ratings():
