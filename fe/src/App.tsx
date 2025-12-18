@@ -10,7 +10,6 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
-import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -22,13 +21,13 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* Rute Umum */}
+          {/* Halaman Public */}
           <Route path="/landing" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
 
-          {/* 🔥 PERBAIKAN 1: Tambahkan rute /dashboard secara eksplisit */}
+          {/* 🔥 PERBAIKAN UTAMA: Tambahkan Rute Dashboard di sini */}
           <Route 
             path="/dashboard" 
             element={
@@ -38,7 +37,7 @@ const App = () => (
             } 
           />
 
-          {/* Rute Root: Arahkan ke dashboard jika login, atau landing jika belum */}
+          {/* Rute Root: Kalau buka '/', lempar ke dashboard */}
           <Route 
             path="/" 
             element={
@@ -48,6 +47,7 @@ const App = () => (
             } 
           />
 
+          {/* Halaman Protected Lainnya */}
           <Route 
             path="/profile" 
             element={
@@ -65,7 +65,7 @@ const App = () => (
             } 
           />
           
-          {/* Catch-All: Lempar ke Landing */}
+          {/* Catch-All: Kalau nyasar, balikin ke Landing */}
           <Route path="*" element={<Landing />} />
         </Routes>
       </BrowserRouter>
