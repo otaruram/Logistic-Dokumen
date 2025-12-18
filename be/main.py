@@ -9,19 +9,22 @@ import pandas as pd
 from datetime import datetime
 import os
 import requests
+import calendar # Wajib import ini untuk hitungan bulan
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
-# --- IMPORTS ---
+# --- IMPORTS MODULE SENDIRI ---
 from db import prisma, connect_db, disconnect_db
 from utils import get_user_email_from_token
 from smart_ocr_processor import SmartOCRProcessor
 from pricing_service import CreditService
+
+# 🔥 IMPORT DRIVE SERVICE (Pastikan file drive_service.py sudah ada) 🔥
 from drive_service import upload_image_to_drive, export_excel_to_drive
 
 load_dotenv()
 
-# --- SETUP ---
+# --- SETUP GLOBAL ---
 smart_ocr = None
 UPLOAD_DIR = "uploads"
 
@@ -51,7 +54,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- HELPER ---
+# --- HELPER FUNCTIONS ---
 def get_google_user_info(token: str):
     try:
         res = requests.get('https://www.googleapis.com/oauth2/v3/userinfo', headers={'Authorization': f'Bearer {token}'}, timeout=5)
@@ -77,53 +80,48 @@ async def extract_text_from_image(image_np):
                 summary = smart_ocr.generate_smart_summary(text, structured, doc_type)
                 return { "raw_text": text, "summary": summary, "document_type": doc_type, "structured_data": structured }
     except: pass
-    raise Exception("Gagal membaca teks.")
+    raise Exception("Gagal membaca teks dari gambar.")
 
 # --- MODELS ---
 class RatingRequest(BaseModel):
-    stars: int
-    emoji: str
-    message: str
-    userName: str
-    userAvatar: str
-
+    stars: int; emoji: str; message: str; userName: str; userAvatar: str
 class LogUpdate(BaseModel):
     summary: str
 
 # --- ENDPOINTS ---
+
+@app.get("/health")
+def health(): return {"status": "ok", "env": os.getenv("ENVIRONMENT", "dev")}
 
 @app.get("/me")
 async def get_my_profile(authorization: str = Header(None)):
     try:
         token = authorization.replace("Bearer ", "").strip() if authorization else ""
         user_email = get_user_email_hybrid(authorization)
-        if not user_email: raise HTTPException(401, "Sesi habis")
+        if not user_email: raise HTTPException(401, "Sesi habis/invalid")
 
-        # 1. Cari User dulu di DB
+        # 1. Cari User di DB
         user = await prisma.user.find_unique(where={"email": user_email})
 
-        # 2. 🔥 PERBAIKAN LOGIKA KREDIT 🔥
-        # Hanya jalankan cek reset harian JIKA USER SUDAH ADA
+        # 2. Cek Kredit Harian (Hanya jika user sudah ada)
         if user:
             await CreditService.ensure_daily_credits(user_email, prisma)
-            # Refresh data user setelah update kredit
             user = await prisma.user.find_unique(where={"email": user_email})
 
-        # 3. Ambil data Google terbaru
+        # 3. Sync Data Google
         google_info = get_google_user_info(token)
         updates = {}
         if google_info:
             if not user or not user.name or user.name == "User": updates["name"] = google_info.get("name", "User")
             if not user or not user.picture: updates["picture"] = google_info.get("picture", "")
 
-        # 4. Handle User Baru / Re-Register
+        # 4. Handle User Baru (Reset Kredit Awal = 3)
         if not user:
-            print(f"🆕 User Baru/Reset Dibuat: {user_email}")
             user = await prisma.user.create(data={
                 "email": user_email, 
                 "name": google_info.get("name", "User") if google_info else "User",
                 "picture": google_info.get("picture", "") if google_info else "",
-                "creditBalance": 3, # 🔥 PASTI 3 UNTUK USER BARU
+                "creditBalance": 3, # 🔥 Default saldo awal
                 "tier": "free",
                 "createdAt": datetime.now(),
                 "lastCreditReset": datetime.now()
@@ -131,31 +129,47 @@ async def get_my_profile(authorization: str = Header(None)):
         elif updates:
             user = await prisma.user.update(where={"email": user_email}, data=updates)
 
-        # 5. Logika Reset Data (Safe Mode)
+        # 5. 🔥 LOGIKA HITUNGAN 1 BULAN (RESET DATA TABLE) 🔥
         try:
             today = datetime.now()
             join_date = user.createdAt if user.createdAt else today
+            
+            # Tanggal target adalah tanggal yang sama dengan tanggal join (misal tgl 20)
             reset_day = join_date.day
             
-            # Cari tanggal reset bulan ini
-            try: candidate = today.replace(day=reset_day)
-            except: 
-                import calendar
-                last_day = calendar.monthrange(today.year, today.month)[1]
-                candidate = today.replace(day=last_day)
+            # Coba set tanggal reset di BULAN INI
+            try:
+                candidate_this_month = today.replace(day=reset_day)
+            except ValueError:
+                # Handle error: misal hari ini Februari (28 hari), tapi join tgl 30.
+                # Maka targetnya adalah akhir bulan ini.
+                last_day_this_month = calendar.monthrange(today.year, today.month)[1]
+                candidate_this_month = today.replace(day=last_day_this_month)
             
-            if today.date() <= candidate.date(): next_reset = candidate
+            # Bandingkan: Apakah tanggal reset bulan ini SUDAH LEWAT?
+            if today.date() < candidate_this_month.date():
+                # Belum lewat, berarti reset berikutnya adalah tgl tersebut di bulan ini
+                next_reset_date = candidate_this_month
             else:
-                next_m = 1 if today.month == 12 else today.month + 1
-                next_y = today.year + (1 if today.month == 12 else 0)
-                try: next_reset = today.replace(year=next_y, month=next_m, day=reset_day)
-                except: next_reset = today.replace(year=next_y, month=next_m, day=28)
-            
-            days_left = (next_reset - today).days
+                # Sudah lewat, berarti reset berikutnya adalah BULAN DEPAN
+                next_month = 1 if today.month == 12 else today.month + 1
+                next_year = today.year + (1 if today.month == 12 else 0)
+                
+                try:
+                    next_reset_date = today.replace(year=next_year, month=next_month, day=reset_day)
+                except ValueError:
+                    # Handle error: misal bulan depan Februari, join tgl 30.
+                    last_day_next_month = calendar.monthrange(next_year, next_month)[1]
+                    next_reset_date = today.replace(year=next_year, month=next_month, day=last_day_next_month)
+
+            days_left = (next_reset_date - today).days
             if days_left < 0: days_left = 0
+            
             show_warning = days_left <= 7
-            next_reset_str = next_reset.strftime("%d %B %Y")
-        except:
+            next_reset_str = next_reset_date.strftime("%d %B %Y")
+            
+        except Exception as e:
+            print(f"Date Calc Error: {e}")
             days_left = 30; show_warning = False; next_reset_str = "Setiap Bulan"
 
         return {
@@ -167,6 +181,7 @@ async def get_my_profile(authorization: str = Header(None)):
                 "resetInfo": { "daysLeft": days_left, "showWarning": show_warning, "nextResetDate": next_reset_str }
             }
         }
+    except HTTPException as he: raise he
     except Exception as e: return {"status": "error", "message": str(e)}
 
 @app.post("/scan")
@@ -176,32 +191,32 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         if not user_email: raise HTTPException(401, "Sesi invalid")
         raw_token = authorization.replace("Bearer ", "").strip()
 
-        # Cek Kredit
+        # 1. Cek Saldo (JANGAN POTONG DULU)
         user = await prisma.user.find_unique(where={"email": user_email})
         if not user or user.creditBalance < 1:
-             return {"status": "error", "message": "Kredit habis.", "remaining_credits": 0}
+             return {"status": "error", "error_type": "insufficient_credits", "message": "Kredit habis. Reset besok.", "remaining_credits": 0}
 
-        # Simpan Lokal
+        # 2. Simpan Lokal
         content = await file.read()
         image_np = np.array(Image.open(io.BytesIO(content)))
-        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"{ts}_{file.filename}"
+        filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
         filepath = os.path.join(UPLOAD_DIR, filename)
         with open(filepath, "wb") as f: f.write(content)
 
-        # Upload Drive
-        drive_res = upload_image_to_drive(raw_token, filepath)
-        
+        # 3. Setup Link
         base_url = os.getenv("API_BASE_URL") or os.getenv("RENDER_EXTERNAL_URL") or "http://localhost:8000"
-        final_url = f"{base_url}/uploads/{filename}"
-        
+        final_url = f"{base_url}/uploads/{filename}" # Default lokal
+
+        # 4. Upload GDrive
+        drive_res = upload_image_to_drive(raw_token, filepath)
         if drive_res:
+            # Pakai link drive jika sukses
             final_url = drive_res.get('direct_link') or drive_res.get('web_view_link')
 
-        # OCR
+        # 5. Proses OCR AI
         ocr_res = await extract_text_from_image(image_np)
         
-        # Simpan Log
+        # 6. Simpan Log Database
         doc_data = ocr_res.get("structured_data", {})
         log = await prisma.logs.create(data={
             "userId": user_email, "timestamp": datetime.now(), 
@@ -210,12 +225,18 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
             "imagePath": final_url, "summary": ocr_res.get("summary", ""), "fullText": ocr_res.get("raw_text", "")
         })
 
-        # Potong Kredit
+        # 7. 🔥 POTONG KREDIT (Hanya jika sampai sini sukses) 🔥
         updated = await prisma.user.update(where={"email": user_email}, data={"creditBalance": {"decrement": 1}})
 
-        return {"status": "success", "data": { "id": log.id, "kategori": log.kategori, "nomorDokumen": log.nomorDokumen, "summary": log.summary, "imagePath": final_url }, "remaining_credits": updated.creditBalance}
+        return {
+            "status": "success", 
+            "data": { "id": log.id, "kategori": log.kategori, "nomorDokumen": log.nomorDokumen, "summary": log.summary, "imagePath": final_url }, 
+            "remaining_credits": updated.creditBalance
+        }
 
-    except Exception as e: return {"status": "error", "message": f"Gagal: {str(e)}"}
+    except Exception as e:
+        print(f"Scan Error: {e}")
+        return {"status": "error", "message": f"Gagal Scan: {str(e)}"}
 
 @app.post("/export-excel")
 async def export_excel(authorization: str = Header(None)):
@@ -239,18 +260,18 @@ async def export_excel(authorization: str = Header(None)):
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df.to_excel(writer, index=False)
+        output.seek(0) # Reset pointer
         
         drive_res = export_excel_to_drive(raw_token, output, f"Report_{datetime.now().strftime('%Y%m%d')}.xlsx")
         
         if drive_res: return {"status": "success", "message": "Export Berhasil!", "link": drive_res.get('web_view_link')}
-        else: return {"status": "error", "message": "Gagal Upload ke Drive."}
+        else: return {"status": "error", "message": "Gagal Upload ke Drive (Cek Permission)."}
 
     except Exception as e: return {"status": "error", "message": str(e)}
 
 @app.get("/ratings")
 async def get_ratings():
     try:
-        # 🔥 FIX: Ambil review terbaru
         ratings = await prisma.rating.find_many(take=20, order={"createdAt": "desc"})
         return {"status": "success", "data": ratings}
     except Exception as e: return {"status": "error", "data": [], "message": str(e)}
@@ -259,15 +280,9 @@ async def get_ratings():
 async def create_rating(data: RatingRequest, authorization: str = Header(None)):
     try:
         user_email = get_user_email_hybrid(authorization) or "anonymous"
-        # 🔥 FIX: Simpan Review ke DB
         await prisma.rating.create(data={
-            "userId": user_email, 
-            "userName": data.userName, 
-            "userAvatar": data.userAvatar, 
-            "stars": data.stars, 
-            "emoji": data.emoji, 
-            "message": data.message,
-            "createdAt": datetime.now()
+            "userId": user_email, "userName": data.userName, "userAvatar": data.userAvatar, 
+            "stars": data.stars, "emoji": data.emoji, "message": data.message, "createdAt": datetime.now()
         })
         return {"status": "success"}
     except Exception as e: return {"status": "error", "message": str(e)}
@@ -297,9 +312,10 @@ async def delete_account(authorization: str = Header(None)):
         user_email = get_user_email_hybrid(authorization)
         if not user_email: return {"status": "error"}
         
-        # 🔥 HAPUS TOTAL BIAR JADI USER BARU 🔥
+        # Hapus data terkait dulu agar tidak foreign key error
         await prisma.logs.delete_many(where={"userId": user_email})
         await prisma.rating.delete_many(where={"userId": user_email})
+        # Terakhir hapus usernya
         await prisma.user.delete(where={"email": user_email})
         return {"status": "success"}
     except Exception as e: return {"status": "error", "message": str(e)}
