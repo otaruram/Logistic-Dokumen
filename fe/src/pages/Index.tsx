@@ -13,45 +13,50 @@ export default function Index() {
   const [loading, setLoading] = useState(false);
   const [initLoading, setInitLoading] = useState(true);
 
-  // --- 1. SETUP & FETCH DATA (FIXED: localStorage) ---
+  // --- 1. SETUP & FETCH DATA ---
   const fetchUserProfile = async () => {
     try {
-        // 🔥 GANTI KE localStorage (Biar login awet di tab baru)
         const storedUser = localStorage.getItem('user');
         
-        if (!storedUser) { navigate('/landing'); return; }
+        // Cek ketat: Kalau kosong, tendang ke landing
+        if (!storedUser) { 
+            navigate('/landing'); 
+            return; 
+        }
 
         const localUser = JSON.parse(storedUser);
         const token = localUser?.credential;
         
         if (!token) { navigate('/landing'); return; }
 
-        // Set UI awal (Optimistic)
         setUser(localUser);
 
-        // 🔥 FETCH DATA REALTIME DARI SERVER
+        // Fetch Data Terbaru
         const profileRes = await apiFetch("/me", { 
             headers: { "Authorization": `Bearer ${token}` } 
         });
         
+        // 🔥 TAMBAHAN SECURITY: Kalau token expired (401), logout otomatis
+        if (profileRes.status === 401) {
+            localStorage.clear();
+            navigate('/landing');
+            return;
+        }
+
         if (profileRes.ok) {
             const profileJson = await profileRes.json();
-            // Cek validitas response
             if (profileJson && profileJson.status === "success") {
-                // Update data lokal dengan data server
                 const updatedUser = { 
                     ...localUser, 
                     ...profileJson.data,
                     creditBalance: profileJson.data.creditBalance 
                 };
-                
-                // Simpan ke State & Storage
                 setUser(updatedUser);
                 localStorage.setItem('user', JSON.stringify(updatedUser));
             }
         } 
 
-        // Fetch History Log
+        // Fetch History
         const historyRes = await apiFetch("/history", {
             headers: { "Authorization": `Bearer ${token}` }
         });
@@ -79,7 +84,7 @@ export default function Index() {
 
   useEffect(() => { fetchUserProfile(); }, []);
 
-  // --- 2. LOGIKA SCAN (ANTI NULL & CRASH) ---
+  // --- 2. LOGIKA SCAN ---
   const handleScan = async (file: File) => {
     if (!user) return;
     if (user.creditBalance < 1) {
@@ -102,32 +107,21 @@ export default function Index() {
         timeout: 90000 
       });
 
-      // 🔥 CEK HTTP STATUS
-      if (!res.ok) {
-         throw new Error(`Gagal memproses (Status: ${res.status})`);
-      }
+      if (!res.ok) throw new Error(`Gagal memproses (Status: ${res.status})`);
 
-      // 🔥 PARSE JSON DENGAN AMAN
       let json;
-      try {
-          json = await res.json();
-      } catch (parseError) {
-          throw new Error("Respon server tidak valid.");
-      }
+      try { json = await res.json(); } catch { throw new Error("Respon server error."); }
 
-      // 🔥 CEK ISI JSON
       if (json && json.status === "success") {
         toast.success("Berhasil!");
         
-        // Update Kredit Realtime
         const newBalance = json.remaining_credits;
         setUser((prevUser: any) => {
             const updated = { ...prevUser, creditBalance: newBalance };
-            localStorage.setItem('user', JSON.stringify(updated)); // Sync Storage
+            localStorage.setItem('user', JSON.stringify(updated));
             return updated;
         });
 
-        // Update Tabel Log
         if (json.data) {
             const newLog = {
                 id: json.data.id,
@@ -140,19 +134,17 @@ export default function Index() {
             };
             setLogs(prev => [newLog, ...prev]);
         }
-
       } else {
-        throw new Error(json?.message || "Terjadi kesalahan pada server.");
+        throw new Error(json?.message || "Gagal memproses data.");
       }
     } catch (error: any) {
-      console.error("Scan Error:", error);
       toast.error("Gagal", { description: error.message });
     } finally {
       setLoading(false);
     }
   };
 
-  // --- 3. HELPER FUNCTIONS ---
+  // Helper Functions
   const handleDeleteLog = async (id: number) => {
     if(!confirm("Hapus data ini?")) return;
     try {
@@ -183,10 +175,7 @@ export default function Index() {
     <div className="min-h-screen bg-[#F8F9FA] dark:bg-zinc-950 font-sans text-[#1A1A1A] dark:text-white pb-20">
       <Header 
         user={user} 
-        onLogout={() => { 
-            localStorage.clear(); // Bersihkan localStorage saat logout
-            navigate('/landing'); 
-        }} 
+        onLogout={() => { localStorage.clear(); navigate('/landing'); }} 
         onProfile={() => navigate('/profile')} 
         onSettings={() => navigate('/settings')} 
       />
