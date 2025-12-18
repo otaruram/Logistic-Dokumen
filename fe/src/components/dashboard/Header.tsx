@@ -1,8 +1,21 @@
 import { 
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Settings, LogOut, User as UserIcon, ChevronDown, Zap, AlertTriangle, CalendarClock } from "lucide-react";
+import { 
+  Settings, 
+  LogOut, 
+  User as UserIcon, 
+  ChevronDown, 
+  Zap, 
+  AlertTriangle, 
+  CalendarClock,
+  Bell
+} from "lucide-react";
 
 interface HeaderProps {
   user: any;
@@ -12,74 +25,114 @@ interface HeaderProps {
 }
 
 const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
+  // Ambil data notifikasi dari user (dikirim dari backend /me)
   const resetInfo = user?.resetInfo;
-  const showWarning = resetInfo?.showWarning;
-  const daysLeft = resetInfo?.daysLeft;
-  const resetDate = resetInfo?.nextResetDate;
+  const showWarning = resetInfo?.showWarning ?? false;
+  const daysLeft = resetInfo?.daysLeft ?? 30;
+  const resetDate = resetInfo?.nextResetDate ?? "-";
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md border-b border-gray-100 dark:border-zinc-800">
+    <header className="sticky top-0 z-40 w-full bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-gray-100 dark:border-zinc-800 transition-all">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         
-        {/* KIRI ATAS: KREDIT */}
-        <div className="flex items-center gap-3">
-            <div className="bg-yellow-400 text-black px-3 py-1.5 rounded-full font-bold text-xs flex items-center gap-2 shadow-sm">
+        {/* KIRI: LOGO & KREDIT */}
+        <div className="flex items-center gap-4">
+            {/* Logo Text Mobile/Desktop */}
+            <span className="font-black text-lg tracking-tight hidden sm:block">SMARTDOC</span>
+            
+            {/* Badge Kredit */}
+            <div className="bg-yellow-400 text-black px-3 py-1.5 rounded-full font-bold text-xs flex items-center gap-2 shadow-sm transform active:scale-95 transition-transform">
                 <Zap className="w-3.5 h-3.5 fill-black" />
                 <span className="uppercase tracking-wider">KREDIT: {user?.creditBalance ?? 0}</span>
             </div>
         </div>
 
-        {/* KANAN: PROFILE DROPDOWN + NOTIFIKASI */}
-        <div className="flex items-center gap-4">
+        {/* KANAN: MENU & NOTIFIKASI */}
+        <div className="flex items-center gap-3">
+          
+          {/* ICON LONCENG (Hanya muncul titik merah jika warning) */}
+          <div className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors">
+            <Bell className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            {showWarning && (
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse"></span>
+            )}
+          </div>
+
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-2 focus:outline-none group">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-semibold text-[#1A1A1A] dark:text-white leading-none">{user?.name || "User"}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{user?.tier || "Free Plan"}</p>
+            <DropdownMenuTrigger className="flex items-center gap-2 focus:outline-none group p-1 pr-3 rounded-full border border-transparent hover:border-gray-200 dark:hover:border-zinc-800 hover:bg-white dark:hover:bg-zinc-900 transition-all">
+              <Avatar className="h-8 w-8 border border-gray-200 dark:border-zinc-700">
+                  <AvatarImage src={user?.picture} />
+                  <AvatarFallback className="bg-gray-100 dark:bg-zinc-800 text-xs font-bold">
+                    {user?.name?.charAt(0) || "U"}
+                  </AvatarFallback>
+              </Avatar>
+              
+              <div className="text-left hidden sm:block">
+                <p className="text-xs font-bold text-[#1A1A1A] dark:text-white leading-none max-w-[100px] truncate">
+                  {user?.name || "User"}
+                </p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 capitalize">
+                  {user?.tier || "Free Plan"}
+                </p>
               </div>
-              <div className="relative">
-                <Avatar className="h-9 w-9 border border-gray-200 dark:border-zinc-700 transition-all group-hover:ring-2 group-hover:ring-gray-100">
-                    <AvatarImage src={user?.picture} />
-                    <AvatarFallback className="bg-gray-100 dark:bg-zinc-800 text-xs">{user?.name?.charAt(0) || "U"}</AvatarFallback>
-                </Avatar>
-                {showWarning && (
-                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white"></span>
-                    </span>
-                )}
-              </div>
-              <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
+              <ChevronDown className="w-3 h-3 text-gray-400 group-hover:text-gray-600 transition-colors" />
             </DropdownMenuTrigger>
             
-            <DropdownMenuContent align="end" className="w-64 rounded-xl shadow-xl border-gray-100 dark:border-zinc-800 p-2 bg-white dark:bg-zinc-900">
-              {/* NOTIFIKASI RESET */}
+            <DropdownMenuContent align="end" className="w-72 rounded-2xl shadow-xl border-gray-100 dark:border-zinc-800 p-2 bg-white dark:bg-zinc-900 mt-2">
+              
+              {/* HEADER DROPDOWN */}
+              <div className="px-2 py-2 mb-1">
+                <p className="font-bold text-sm">Status Akun</p>
+              </div>
+
+              {/* KARTU NOTIFIKASI RESET (DINAMIS) */}
               {showWarning ? (
-                  <div className="mb-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-900/30">
-                      <div className="flex items-start gap-2">
-                          <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5" />
+                  <div className="mb-2 mx-1 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-900/30">
+                      <div className="flex items-start gap-3">
+                          <div className="p-2 bg-red-100 dark:bg-red-800/30 rounded-lg">
+                            <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                          </div>
                           <div>
-                              <p className="text-xs font-bold text-red-700 dark:text-red-400 uppercase">Warning Data Reset</p>
-                              <p className="text-[10px] text-red-600 dark:text-red-300 mt-1 leading-tight">
-                                  Reset otomatis dalam <b>{daysLeft} hari</b> ({resetDate}).<br/>Silakan export data Anda.
+                              <p className="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wide">Warning Reset</p>
+                              <p className="text-[10px] text-red-600 dark:text-red-300 mt-1 leading-relaxed">
+                                  Data akan di-reset dalam <b>{daysLeft} hari</b> ({resetDate}).<br/>
+                                  Segera export data Anda ke Excel/Drive.
                               </p>
                           </div>
                       </div>
                   </div>
               ) : (
-                  <div className="mb-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-100 dark:border-green-900/30 flex items-center gap-2">
-                      <CalendarClock className="w-4 h-4 text-green-600" />
-                      <div>
-                          <p className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">Data Aman</p>
-                          <p className="text-[10px] text-green-600 dark:text-green-300">Reset: {resetDate || "-"}</p>
+                  <div className="mb-2 mx-1 p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-900/30">
+                      <div className="flex items-center gap-3">
+                          <div className="p-2 bg-green-100 dark:bg-green-800/30 rounded-lg">
+                            <CalendarClock className="w-4 h-4 text-green-600 dark:text-green-400" />
+                          </div>
+                          <div>
+                              <p className="text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-wide">Data Aman</p>
+                              <p className="text-[10px] text-green-600 dark:text-green-300 mt-0.5">
+                                Reset berikutnya: <br/><b>{resetDate}</b>
+                              </p>
+                          </div>
                       </div>
                   </div>
               )}
-              <DropdownMenuSeparator className="bg-gray-100 dark:bg-zinc-800" />
-              <DropdownMenuItem onClick={onProfile} className="cursor-pointer rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800"><UserIcon className="mr-2 h-4 w-4" /> Profile</DropdownMenuItem>
-              <DropdownMenuItem onClick={onSettings} className="cursor-pointer rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800"><Settings className="mr-2 h-4 w-4" /> Settings</DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-gray-100 dark:bg-zinc-800" />
-              <DropdownMenuItem onClick={onLogout} className="cursor-pointer text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg"><LogOut className="mr-2 h-4 w-4" /> Logout</DropdownMenuItem>
+
+              <DropdownMenuSeparator className="bg-gray-100 dark:bg-zinc-800 my-2" />
+              
+              <DropdownMenuItem onClick={onProfile} className="cursor-pointer rounded-lg px-3 py-2.5 focus:bg-gray-50 dark:focus:bg-zinc-800 font-medium text-sm">
+                <UserIcon className="mr-3 h-4 w-4 text-gray-500" /> Profile Saya
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem onClick={onSettings} className="cursor-pointer rounded-lg px-3 py-2.5 focus:bg-gray-50 dark:focus:bg-zinc-800 font-medium text-sm">
+                <Settings className="mr-3 h-4 w-4 text-gray-500" /> Pengaturan
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator className="bg-gray-100 dark:bg-zinc-800 my-2" />
+              
+              <DropdownMenuItem onClick={onLogout} className="cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-900/20 rounded-lg px-3 py-2.5 font-bold text-sm">
+                <LogOut className="mr-3 h-4 w-4" /> Keluar Aplikasi
+              </DropdownMenuItem>
+
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -87,4 +140,5 @@ const Header = ({ user, onLogout, onProfile, onSettings }: HeaderProps) => {
     </header>
   );
 };
+
 export default Header;
