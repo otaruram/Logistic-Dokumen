@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 // Asumsi fungsi ini ada di file utils/events.ts atau satu file
-import { triggerCreditUpdate, triggerCreditUsage, showCreditWarning } from "@/utils/events"; 
+import { triggerCreditUpdate, triggerCreditUsage, showCreditWarning } from "@/events"; 
 
 export default function Index() {
   const navigate = useNavigate();
