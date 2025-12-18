@@ -12,29 +12,24 @@ export default function Landing() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 🔥 AUTO REDIRECT: Cek localStorage
+    // 🔥 AUTO REDIRECT: Cek user
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
         try {
             const user = JSON.parse(storedUser);
             if (user.credential) {
-                // Langsung lempar ke dashboard
+                // Lempar ke dashboard
                 navigate('/dashboard', { replace: true });
                 return;
             }
-        } catch (e) {
-            localStorage.clear();
-        }
+        } catch (e) { localStorage.clear(); }
     }
 
-    // Fetch rating hanya jika user belum login
     const fetchRatings = async () => {
       try {
         const res = await apiFetch("/ratings");
         const json = await res.json();
-        if (json.status === "success") {
-            setRatings(json.data);
-        }
+        if (json.status === "success") setRatings(json.data);
       } catch (e) { console.error(e); } finally { setIsLoading(false); }
     };
     fetchRatings();
@@ -54,7 +49,6 @@ export default function Landing() {
         <Button onClick={handleLogin} className="bg-black hover:bg-gray-800 text-white h-14 px-8 rounded-full text-lg font-bold flex items-center gap-2 shadow-lg mb-8">MULAI SCAN DOKUMEN <ArrowRight className="w-5 h-5" /></Button>
       </section>
 
-      {/* RATING SECTION */}
       <section className="container mx-auto px-4 py-24 bg-white dark:bg-zinc-900 border-y border-gray-100 dark:border-zinc-800">
         <h2 className="text-2xl font-bold text-center mb-12">Kata Mereka yang Terbantu</h2>
         {isLoading ? ( <div className="grid grid-cols-1 md:grid-cols-3 gap-6"><Skeleton className="h-40 w-full rounded-2xl" /></div> ) : ratings.length > 0 ? (
