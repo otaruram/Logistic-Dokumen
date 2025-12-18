@@ -5,15 +5,12 @@ import FileUploadZone from "@/components/dashboard/FileUploadZone";
 import DataTable from "@/components/dashboard/DataTable";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { FileSpreadsheet, Loader2 } from "lucide-react"; // Icon baru
-import { Button } from "@/components/ui/button";
 
 export default function Index() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [exporting, setExporting] = useState(false); // Loading state untuk export
   const [initLoading, setInitLoading] = useState(true);
 
   // --- 1. SETUP & FETCH DATA ---
@@ -48,7 +45,7 @@ export default function Index() {
                     ...localUser, 
                     ...profileJson.data,
                     creditBalance: profileJson.data.creditBalance,
-                    resetInfo: profileJson.data.resetInfo // Penting untuk notifikasi header
+                    resetInfo: profileJson.data.resetInfo 
                 };
                 setUser(updatedUser);
                 localStorage.setItem('user', JSON.stringify(updatedUser));
@@ -145,43 +142,6 @@ export default function Index() {
     }
   };
 
-  // 🔥 3. LOGIKA EXPORT EXCEL (BARU) 🔥
-  const handleExport = async () => {
-    if (logs.length === 0) {
-        toast.error("Belum ada data untuk diexport.");
-        return;
-    }
-    
-    setExporting(true);
-    toast.info("Membuat Laporan Excel...", { description: "Mohon tunggu sebentar." });
-
-    try {
-        const res = await apiFetch("/export-excel", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${user.credential}` }
-        });
-
-        const json = await res.json();
-        
-        if (json.status === "success") {
-            toast.success("Export Berhasil!", {
-                description: "File tersimpan di Google Drive.",
-                action: {
-                    label: "Buka File",
-                    onClick: () => window.open(json.link, "_blank") // Buka link GDrive
-                },
-                duration: 5000,
-            });
-        } else {
-            toast.error("Gagal Export", { description: json.message });
-        }
-    } catch (e) {
-        toast.error("Error", { description: "Gagal terhubung ke server." });
-    } finally {
-        setExporting(false);
-    }
-  };
-
   // --- HELPER LAINNYA ---
   const handleDeleteLog = async (id: number) => {
     if(!confirm("Hapus data ini?")) return;
@@ -235,24 +195,11 @@ export default function Index() {
             </div>
         </div>
 
-        {/* RIWAYAT & EXPORT */}
+        {/* RIWAYAT TANPA TOMBOL EXPORT */}
         <div className="w-full bg-white dark:bg-zinc-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-zinc-800">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                 <h2 className="font-bold text-lg">Riwayat Digitalisasi</h2>
-                
-                {/* 🔥 TOMBOL EXPORT EXCEL 🔥 */}
-                <Button 
-                    onClick={handleExport} 
-                    disabled={exporting || logs.length === 0}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold rounded-full text-xs px-4"
-                >
-                    {exporting ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                        <FileSpreadsheet className="w-4 h-4 mr-2" />
-                    )}
-                    {exporting ? "MENGEKSPOR..." : "EXPORT KE EXCEL"}
-                </Button>
+                {/* Tombol Export sudah dihapus */}
             </div>
 
             <div className="w-full overflow-x-auto">
