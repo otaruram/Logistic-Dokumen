@@ -1,76 +1,104 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowRight, Star } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { apiFetch } from "@/lib/api-service";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { apiFetch } from "@/lib/api-service"; // Pastikan import ini ada
 
 export default function Landing() {
   const navigate = useNavigate();
   const [ratings, setRatings] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
+  // FETCH RATINGS OTOMATIS SAAT BUKA HALAMAN
   useEffect(() => {
-    // 🔥 AUTO REDIRECT: Cek user
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-        try {
-            const user = JSON.parse(storedUser);
-            if (user.credential) {
-                // Lempar ke dashboard
-                navigate('/dashboard', { replace: true });
-                return;
-            }
-        } catch (e) { localStorage.clear(); }
-    }
-
     const fetchRatings = async () => {
       try {
         const res = await apiFetch("/ratings");
-        const json = await res.json();
-        if (json.status === "success") setRatings(json.data);
-      } catch (e) { console.error(e); } finally { setIsLoading(false); }
+        if (res.ok) {
+            const json = await res.json();
+            if(json.status === "success" && Array.isArray(json.data)) {
+                setRatings(json.data);
+            }
+        }
+      } catch (e) { 
+        console.error("Gagal load rating", e); 
+      }
     };
     fetchRatings();
-  }, [navigate]);
-
-  const handleLogin = () => navigate('/login');
+  }, []);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] dark:bg-zinc-950 text-[#1A1A1A] dark:text-white font-sans overflow-x-hidden">
-      <nav className="flex justify-between items-center p-6 container mx-auto">
-        <h1 className="text-xl font-bold tracking-tight">SmartDoc Pipeline</h1>
-        <Button onClick={handleLogin} variant="outline" className="rounded-full border-gray-300">Masuk / Daftar</Button>
-      </nav>
+    <div className="flex flex-col min-h-screen bg-white dark:bg-zinc-950 font-sans text-slate-900 dark:text-slate-50">
+      {/* NAVBAR */}
+      <header className="px-6 py-4 flex items-center justify-between border-b dark:border-zinc-800 sticky top-0 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md z-50">
+        <div className="flex items-center gap-2 font-bold text-xl tracking-tight cursor-pointer" onClick={() => navigate("/")}>
+          <span className="text-blue-600">OCR</span>.wtf
+        </div>
+        <div className="flex gap-4">
+           <Button variant="ghost" onClick={() => navigate("/login")}>Masuk</Button>
+           <Button onClick={() => navigate("/login")}>Coba Gratis</Button>
+        </div>
+      </header>
 
-      <section className="container mx-auto px-4 py-24 flex flex-col items-center text-center max-w-4xl">
-        <h1 className="text-5xl md:text-7xl font-extrabold leading-tight tracking-tight mb-8">Digitalisasi Dokumen Logistik dalam Detik.</h1>
-        <Button onClick={handleLogin} className="bg-black hover:bg-gray-800 text-white h-14 px-8 rounded-full text-lg font-bold flex items-center gap-2 shadow-lg mb-8">MULAI SCAN DOKUMEN <ArrowRight className="w-5 h-5" /></Button>
-      </section>
+      {/* HERO SECTION */}
+      <main className="flex-1">
+        <section className="py-20 px-6 text-center max-w-4xl mx-auto">
+           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6">
+             Ubah Tumpukan Kertas <br/> Jadi <span className="text-blue-600">Data Digital</span>
+           </h1>
+           <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
+             Scan struk, faktur, dan dokumen dalam hitungan detik menggunakan AI. <br/>
+             Export ke Excel langsung, tanpa ribet ketik manual.
+           </p>
+           <div className="flex flex-col sm:flex-row gap-4 justify-center">
+             <Button size="lg" className="h-12 px-8 text-lg rounded-full" onClick={() => navigate("/login")}>
+               Mulai Scanning Sekarang 🚀
+             </Button>
+           </div>
+        </section>
 
-      <section className="container mx-auto px-4 py-24 bg-white dark:bg-zinc-900 border-y border-gray-100 dark:border-zinc-800">
-        <h2 className="text-2xl font-bold text-center mb-12">Kata Mereka yang Terbantu</h2>
-        {isLoading ? ( <div className="grid grid-cols-1 md:grid-cols-3 gap-6"><Skeleton className="h-40 w-full rounded-2xl" /></div> ) : ratings.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {ratings.map((rating) => (
-              <div key={rating.id} className="bg-[#F8F9FA] dark:bg-zinc-950 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800">
-                 <div className="flex mb-4">{[...Array(5)].map((_, i) => (<Star key={i} className={`w-4 h-4 ${i < rating.stars ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}`} />))}</div>
-                 <p className="text-gray-600 dark:text-gray-400 italic mb-6 text-sm">"{rating.message}"</p>
-                 <div className="flex items-center gap-3">
-                    <Avatar className="w-8 h-8 border border-gray-200">
-                        <AvatarImage src={rating.userAvatar} />
-                        <AvatarFallback>{rating.userName?.charAt(0) || "U"}</AvatarFallback>
-                    </Avatar>
-                    <span className="font-bold text-sm">{rating.userName || "Pengguna"}</span>
-                 </div>
+        {/* TESTIMONI SECTION (FIX ISSUE NO 2) */}
+        <section className="py-20 bg-slate-50 dark:bg-zinc-900/50">
+          <div className="container mx-auto px-6">
+            <h2 className="text-3xl font-bold text-center mb-12">Kata Pengguna</h2>
+            
+            {ratings.length === 0 ? (
+              <div className="text-center text-gray-500 py-10 border-2 border-dashed rounded-xl">
+                 Belum ada ulasan. Jadilah yang pertama mencoba!
               </div>
-            ))}
+            ) : (
+              <div className="grid md:grid-cols-3 gap-6">
+                {ratings.map((rate, i) => (
+                  <div key={i} className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 transition hover:-translate-y-1">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-3xl">{rate.emoji || "😀"}</span>
+                      <div className="flex text-yellow-400 text-sm">
+                        {[...Array(rate.stars || 5)].map((_, j) => (
+                          <span key={j}>★</span>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-300 mb-6 italic text-sm leading-relaxed">
+                      "{rate.message}"
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xs font-bold overflow-hidden text-blue-700 dark:text-blue-200">
+                          {rate.userAvatar ? <img src={rate.userAvatar} alt="user" className="w-full h-full object-cover"/> : rate.userName ? rate.userName[0].toUpperCase() : "U"}
+                      </div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                        {rate.userName || "User"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        ) : <p className="text-center text-gray-500">Belum ada review.</p>}
-      </section>
-      
-      <footer className="py-8 text-center text-xs text-gray-400">© 2025 SmartDoc Pipeline.</footer>
+        </section>
+      </main>
+
+      {/* FOOTER */}
+      <footer className="py-8 text-center text-sm text-slate-500 border-t dark:border-zinc-800">
+        © 2025 OCR.wtf - Powered by AI
+      </footer>
     </div>
   );
 }
