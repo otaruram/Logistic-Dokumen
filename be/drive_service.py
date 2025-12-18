@@ -1,5 +1,5 @@
 """
-Google Drive Service Module - Enhanced Error Handling & Fixes
+Google Drive Service Module - Stabilized for Frontend Tokens
 """
 import os
 import io
@@ -13,23 +13,25 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 def get_drive_service_with_token(access_token):
-    """Initialize Drive service with OAuth token (No Refresh)"""
+    """Initialize Drive service with OAuth token (No Refresh logic enforced)"""
     try:
         if not access_token:
-            print("❌ Error: No access token provided")
+            print("❌ GDrive Error: Token kosong.")
             return None
 
-        # Create credentials wrapper
+        # 🔥 KONFIGURASI PENTING: Matikan auto-refresh token
+        # Token dari frontend (React) adalah 'short-lived', backend tidak boleh me-refreshnya.
         credentials = Credentials(token=access_token)
-        
-        # Monkey patch: Matikan refresh otomatis karena kita cuma punya access token dari FE
-        credentials.refresh = lambda request: None 
-        credentials.expiry = None
+        credentials.refresh_token = None # Tidak ada refresh token
+        credentials.token_uri = None     # Tidak perlu URL token
+        credentials.client_id = None
+        credentials.client_secret = None
+        credentials.expiry = None        # Anggap valid terus selama proses ini
 
         service = build('drive', 'v3', credentials=credentials, cache_discovery=False, static_discovery=False)
         return service
     except Exception as e:
-        print(f"❌ Failed to init Drive service: {e}")
+        print(f"❌ GDrive Init Failed: {e}")
         return None
 
 def find_folder_by_name(service, folder_name):
@@ -39,16 +41,18 @@ def find_folder_by_name(service, folder_name):
         folders = results.get('files', [])
         return folders[0]['id'] if folders else None
     except Exception as e:
-        print(f"⚠️ Error finding folder: {e}")
+        # Jangan print error mencolok jika folder belum ada, cukup return None
         return None
 
 def create_folder(service, folder_name):
     try:
         file_metadata = {'name': folder_name, 'mimeType': 'application/vnd.google-apps.folder'}
         folder = service.files().create(body=file_metadata, fields='id').execute()
+        print(f"📂 Folder GDrive Dibuat: {folder_name}")
         return folder.get('id')
     except Exception as e:
-        raise e
+        print(f"⚠️ Gagal buat folder: {e}")
+        return None
 
 def find_or_create_folder(service, folder_name):
     folder_id = find_folder_by_name(service, folder_name)
@@ -56,79 +60,51 @@ def find_or_create_folder(service, folder_name):
         folder_id = create_folder(service, folder_name)
     return folder_id
 
-def upload_file_to_drive(service, file_content, file_name, mime_type, folder_id=None, convert_to_sheets=False):
-    try:
-        file_metadata = {'name': file_name}
-        if folder_id:
-            file_metadata['parents'] = [folder_id]
-        
-        if convert_to_sheets and 'spreadsheet' in mime_type:
-            file_metadata['mimeType'] = 'application/vnd.google-apps.spreadsheet'
-
-        # FIX: Reset pointer file ke awal (PENTING biar file gak 0 byte)
-        if hasattr(file_content, 'seek'):
-            file_content.seek(0)
-            
-        media = MediaIoBaseUpload(io.BytesIO(file_content), mimetype=mime_type, resumable=True)
-        
-        file = service.files().create(
-            body=file_metadata, 
-            media_body=media, 
-            fields='id, name, webViewLink'
-        ).execute()
-        
-        return {
-            'file_id': file.get('id'),
-            'web_view_link': file.get('webViewLink'),
-            # Buat direct link untuk image tag
-            'direct_link': f"https://drive.google.com/uc?export=view&id={file.get('id')}"
-        }
-    except Exception as e:
-        print(f"❌ Upload failed: {e}")
-        return None
-
 def upload_image_to_drive(access_token, image_path, folder_name="LOGISTIC_SCANS"):
-    """Upload gambar fisik ke Drive dan return direct link"""
+    """
+    Fungsi Utama: Upload gambar ke Drive.
+    Return: Dict berisi link, atau None jika gagal.
+    """
     try:
         service = get_drive_service_with_token(access_token)
         if not service: return None
 
+        # Cek folder
         folder_id = find_or_create_folder(service, folder_name)
-
-        # Baca file dari disk
-        with open(image_path, 'rb') as f:
-            image_content = f.read()
 
         file_name = os.path.basename(image_path)
+        # Deteksi MIME Type sederhana
         mime_type = 'image/png' if file_name.lower().endswith('.png') else 'image/jpeg'
 
-        result = upload_file_to_drive(service, image_content, file_name, mime_type, folder_id, False)
+        file_metadata = {'name': file_name}
+        if folder_id:
+            file_metadata['parents'] = [folder_id]
+
+        media = MediaIoBaseUpload(open(image_path, 'rb'), mimetype=mime_type, resumable=True)
+
+        print(f"🚀 Mengupload {file_name} ke GDrive...")
+        file = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id, webViewLink, webContentLink'
+        ).execute()
+
+        file_id = file.get('id')
+        # Link untuk melihat file (WebView)
+        web_view_link = file.get('webViewLink')
         
-        if result:
-            print(f"✅ Image uploaded to Drive: {file_name}")
-            return result
-        return None
+        # Link Direct (Kadang diblokir Google jika traffic tinggi, tapi layak dicoba)
+        direct_link = f"https://drive.google.com/uc?export=view&id={file_id}"
+
+        print(f"✅ Upload GDrive Sukses! ID: {file_id}")
+        
+        return {
+            'file_id': file_id,
+            'web_view_link': web_view_link,
+            'direct_link': direct_link
+        }
 
     except Exception as e:
-        print(f"❌ Image Upload Error: {e}")
+        # Tangkap error spesifik agar tidak crash server
+        print(f"❌ GDrive Upload Error: {e}")
         return None
-
-def export_to_google_drive_with_token(access_token, file_content, file_name, convert_to_sheets=True):
-    """Export Excel Report"""
-    try:
-        service = get_drive_service_with_token(access_token)
-        if not service: return {"status": "error", "message": "Invalid Token"}
-
-        folder_name = os.getenv('GOOGLE_DRIVE_FOLDER_NAME', 'LOGISTIC.AI Reports')
-        folder_id = find_or_create_folder(service, folder_name)
-        
-        mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        result = upload_file_to_drive(service, file_content, file_name, mime_type, folder_id, convert_to_sheets)
-        
-        if result:
-            result['folder_name'] = folder_name
-            return result
-        return {"status": "error", "message": "Upload failed"}
-        
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
