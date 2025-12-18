@@ -1,7 +1,6 @@
 from datetime import datetime
 import pytz
 
-# Timezone Jakarta
 WIB = pytz.timezone('Asia/Jakarta')
 
 class CreditService:
@@ -10,8 +9,9 @@ class CreditService:
     @staticmethod
     async def ensure_daily_credits(user_email: str, prisma):
         """
-        Logika Reset Harian Sederhana:
-        Jika hari ini beda tanggal dengan terakhir reset, kembalikan saldo ke 3.
+        LOGIKA HARIAN (PASTI 3):
+        Cek tanggal hari ini vs tanggal reset terakhir.
+        Jika beda hari -> ISI ULANG JADI 3.
         """
         user = await prisma.user.find_unique(where={"email": user_email})
         if not user: return
@@ -23,18 +23,18 @@ class CreditService:
         
         should_reset = False
 
-        # Jika user baru (belum pernah reset)
+        # 1. Jika User Lama tapi belum pernah ada record reset (kasus migrasi)
         if not last_reset:
             should_reset = True
-        # Jika tanggalnya beda (sudah ganti hari)
-        elif last_reset.date() < now.date():
+        # 2. Jika tanggal hari ini LEBIH BARU dari tanggal terakhir reset
+        elif now.date() > last_reset.date():
             should_reset = True
 
         if should_reset:
-            # Hanya reset jika saldo kurang dari limit harian (3)
-            # Biar kalau user punya saldo banyak (misal bonus), gak hangus.
+            # Fitur Safety: Hanya reset jika saldo di bawah 3
+            # (Misal: Kemarin 0, hari ini jadi 3. Kemarin sisa 1, hari ini jadi 3)
             if user.creditBalance < CreditService.DAILY_LIMIT:
-                print(f"🔄 DAILY RESET: Mengembalikan kredit {user_email} menjadi {CreditService.DAILY_LIMIT}")
+                print(f"🔄 DAILY RESET: {user_email} saldo direset ke {CreditService.DAILY_LIMIT}")
                 await prisma.user.update(
                     where={"email": user_email},
                     data={
@@ -43,5 +43,5 @@ class CreditService:
                     }
                 )
             else:
-                # Cuma update tanggal reset biar gak dicek lagi hari ini
+                # Kalau saldo dia 5 (misal user premium), jangan diturunin, cuma update tanggalnya
                 await prisma.user.update(where={"email": user_email}, data={"lastCreditReset": now})
