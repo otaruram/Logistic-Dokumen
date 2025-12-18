@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useGoogleLogin } from '@react-oauth/google'; // Pakai Hook, bukan Komponen jadi
+import { useGoogleLogin } from '@react-oauth/google'; 
 import { ArrowLeft, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -23,44 +23,42 @@ const TypewriterText = ({ text }: { text: string }) => {
 
 export default function Login() {
   const navigate = useNavigate();
-  const [agreedToDrive, setAgreedToDrive] = useState(false); // State Checkbox
+  const [agreedToDrive, setAgreedToDrive] = useState(false); 
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const savedTheme = sessionStorage.getItem('theme');
+    // 🔥 Cek tema dari localStorage (bukan sessionStorage)
+    const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') document.documentElement.classList.add('dark');
   }, []);
 
   // --- LOGIC LOGIN UTAMA ---
   const googleLogin = useGoogleLogin({
-    // Jika dicentang, minta izin Drive. Jika tidak, hanya email/profile.
     scope: agreedToDrive ? 'https://www.googleapis.com/auth/drive.file email profile' : 'email profile',
     onSuccess: async (tokenResponse) => {
       setIsLoading(true);
       try {
-        // 1. Kita punya Access Token (Bisa buat Drive!)
         const accessToken = tokenResponse.access_token;
 
-        // 2. Ambil Info User (Nama, Foto) pakai Token tadi
         const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         const userInfo = await userInfoRes.json();
 
-        // 3. Simpan Data
         const userData = {
           name: userInfo.name,
           email: userInfo.email,
           picture: userInfo.picture,
-          credential: accessToken, // Simpan Access Token (Bukan ID Token)
-          isDriveEnabled: agreedToDrive // Tandai user ini punya akses drive
+          credential: accessToken, 
+          isDriveEnabled: agreedToDrive 
         };
 
-        sessionStorage.setItem('isAuthenticated', 'true');
-        sessionStorage.setItem('user', JSON.stringify(userData));
+        // 🔥 GANTI KE localStorage (PENTING BIAR TAB BARU TETAP LOGIN)
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('user', JSON.stringify(userData));
 
         toast.success(`Selamat datang, ${userInfo.name}!`);
-        navigate('/');
+        navigate('/dashboard'); // Arahkan ke dashboard
       } catch (error) {
         console.error("Login Error:", error);
         toast.error("Gagal mengambil data profil.");
@@ -92,7 +90,7 @@ export default function Login() {
           LOGIN AREA
         </p>
 
-        {/* --- CHECKBOX PERSETUJUAN --- */}
+        {/* CHECKBOX */}
         <div 
           className="flex items-start gap-3 text-left mb-6 cursor-pointer group"
           onClick={() => setAgreedToDrive(!agreedToDrive)}
@@ -105,7 +103,7 @@ export default function Login() {
           </p>
         </div>
 
-        {/* --- TOMBOL LOGIN CUSTOM --- */}
+        {/* TOMBOL LOGIN */}
         <div className="flex justify-center">
           <button
             onClick={() => googleLogin()}
