@@ -1,5 +1,5 @@
 """
-Google Drive Service Module - Safe Mode (Fallback to Root)
+Google Drive Service Module - Fixed for Read-Only Credentials
 """
 import os
 import io
@@ -14,13 +14,10 @@ load_dotenv()
 def get_drive_service_with_token(access_token):
     try:
         if not access_token: return None
-        # Matikan auto-refresh
+        
+        # 🔥 FIX: Jangan set properti manual (refresh_token = None) karena itu bikin error.
+        # Cukup buat objectnya saja. Library Google otomatis tahu ini token sementara.
         credentials = Credentials(token=access_token)
-        credentials.refresh_token = None
-        credentials.token_uri = None
-        credentials.client_id = None
-        credentials.client_secret = None
-        credentials.expiry = None
 
         service = build('drive', 'v3', credentials=credentials, cache_discovery=False, static_discovery=False)
         return service
@@ -29,10 +26,6 @@ def get_drive_service_with_token(access_token):
         return None
 
 def find_or_create_folder(service, folder_name):
-    """
-    Mencoba mencari/membuat folder. 
-    Jika gagal (karena permission), return None (Upload ke Root).
-    """
     try:
         # 1. Cari Folder
         query = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
