@@ -13,10 +13,10 @@ export default function Index() {
   const [loading, setLoading] = useState(false);
   const [initLoading, setInitLoading] = useState(true);
 
-  // --- 1. SETUP & FETCH DATA (PAKAI localStorage) ---
+  // --- 1. SETUP & FETCH DATA (FIXED: localStorage) ---
   const fetchUserProfile = async () => {
     try {
-        // 🔥 GANTI KE localStorage (Login Awet)
+        // 🔥 GANTI KE localStorage (Biar login awet di tab baru)
         const storedUser = localStorage.getItem('user');
         
         if (!storedUser) { navigate('/landing'); return; }
@@ -26,7 +26,7 @@ export default function Index() {
         
         if (!token) { navigate('/landing'); return; }
 
-        // Set UI awal pakai data lokal dulu (Optimistic UI)
+        // Set UI awal (Optimistic)
         setUser(localUser);
 
         // 🔥 FETCH DATA REALTIME DARI SERVER
@@ -36,17 +36,16 @@ export default function Index() {
         
         if (profileRes.ok) {
             const profileJson = await profileRes.json();
-            // Cek apakah response valid sebelum ambil data
+            // Cek validitas response
             if (profileJson && profileJson.status === "success") {
-                // Gabungkan data lokal dengan data server yang lebih baru
+                // Update data lokal dengan data server
                 const updatedUser = { 
                     ...localUser, 
                     ...profileJson.data,
-                    // Paksa update kredit dari server biar gak 0
                     creditBalance: profileJson.data.creditBalance 
                 };
                 
-                // Update State React & LocalStorage
+                // Simpan ke State & Storage
                 setUser(updatedUser);
                 localStorage.setItem('user', JSON.stringify(updatedUser));
             }
@@ -80,7 +79,7 @@ export default function Index() {
 
   useEffect(() => { fetchUserProfile(); }, []);
 
-  // --- 2. LOGIKA SCAN (ANTI NULL ERROR) ---
+  // --- 2. LOGIKA SCAN (ANTI NULL & CRASH) ---
   const handleScan = async (file: File) => {
     if (!user) return;
     if (user.creditBalance < 1) {
@@ -103,12 +102,12 @@ export default function Index() {
         timeout: 90000 
       });
 
-      // 🔥 FIX 1: Cek HTTP Status dulu
+      // 🔥 CEK HTTP STATUS
       if (!res.ok) {
          throw new Error(`Gagal memproses (Status: ${res.status})`);
       }
 
-      // 🔥 FIX 2: Parsing JSON dengan aman
+      // 🔥 PARSE JSON DENGAN AMAN
       let json;
       try {
           json = await res.json();
@@ -116,7 +115,7 @@ export default function Index() {
           throw new Error("Respon server tidak valid.");
       }
 
-      // 🔥 FIX 3: Cek ISI JSON sebelum akses properties
+      // 🔥 CEK ISI JSON
       if (json && json.status === "success") {
         toast.success("Berhasil!");
         
@@ -124,11 +123,11 @@ export default function Index() {
         const newBalance = json.remaining_credits;
         setUser((prevUser: any) => {
             const updated = { ...prevUser, creditBalance: newBalance };
-            localStorage.setItem('user', JSON.stringify(updated)); // Update Storage juga
+            localStorage.setItem('user', JSON.stringify(updated)); // Sync Storage
             return updated;
         });
 
-        // Update Tabel Log (Cek json.data dulu)
+        // Update Tabel Log
         if (json.data) {
             const newLog = {
                 id: json.data.id,
@@ -143,7 +142,6 @@ export default function Index() {
         }
 
       } else {
-        // Handle jika status error atau message ada
         throw new Error(json?.message || "Terjadi kesalahan pada server.");
       }
     } catch (error: any) {
@@ -154,6 +152,7 @@ export default function Index() {
     }
   };
 
+  // --- 3. HELPER FUNCTIONS ---
   const handleDeleteLog = async (id: number) => {
     if(!confirm("Hapus data ini?")) return;
     try {
@@ -184,7 +183,10 @@ export default function Index() {
     <div className="min-h-screen bg-[#F8F9FA] dark:bg-zinc-950 font-sans text-[#1A1A1A] dark:text-white pb-20">
       <Header 
         user={user} 
-        onLogout={() => { localStorage.clear(); navigate('/landing'); }} 
+        onLogout={() => { 
+            localStorage.clear(); // Bersihkan localStorage saat logout
+            navigate('/landing'); 
+        }} 
         onProfile={() => navigate('/profile')} 
         onSettings={() => navigate('/settings')} 
       />
