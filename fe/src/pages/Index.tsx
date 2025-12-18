@@ -13,38 +13,30 @@ export default function Index() {
   const [loading, setLoading] = useState(false);
   const [initLoading, setInitLoading] = useState(true);
 
-  // --- 1. FITUR ANTI KELUAR (BACK BUTTON GUARD) ---
-  useEffect(() => {
-    // Mencegah tombol Back di HP/Browser keluar dari aplikasi
-    const preventBack = () => {
-      window.history.pushState(null, "", window.location.href);
-    };
-    window.history.pushState(null, "", window.location.href);
-    window.addEventListener("popstate", preventBack);
-    return () => window.removeEventListener("popstate", preventBack);
-  }, []);
-
-  // --- FETCH DATA ---
+  // --- 1. SETUP & FETCH DATA ---
   const fetchUserProfile = async () => {
     try {
         const storedUser = sessionStorage.getItem('user');
-        const localUser = storedUser ? JSON.parse(storedUser) : null;
+        // Kalau gak ada session, tendang ke login
+        if (!storedUser) { navigate('/landing'); return; }
+
+        const localUser = JSON.parse(storedUser);
         const token = localUser?.credential;
         
-        if (!token) { navigate('/login'); return; }
+        if (!token) { navigate('/landing'); return; }
 
-        // Set User sementara, TAPI KREDIT JANGAN 0 DULU (Biar gk bikin panik)
-        // Kita pakai null dulu biar UI menampilkan Loading/Skeleton
+        // Set UI awal pakai data lokal
         setUser(localUser);
 
-        // Fetch User Info Terbaru dari Server
+        // Fetch Data Terbaru dari Server
         const profileRes = await apiFetch("/me", { 
             headers: { "Authorization": `Bearer ${token}` } 
         });
         
         if (profileRes.ok) {
             const profileJson = await profileRes.json();
-            if (profileJson.status === "success") {
+            // 🔥 FIX: Cek apakah profileJson ada isinya sebelum baca .status
+            if (profileJson && profileJson.status === "success") {
                 const updatedUser = { ...(localUser || {}), ...profileJson.data };
                 setUser(updatedUser);
                 sessionStorage.setItem('user', JSON.stringify(updatedUser));
@@ -79,10 +71,11 @@ export default function Index() {
 
   useEffect(() => { fetchUserProfile(); }, []);
 
+  // --- 2. LOGIKA SCAN (YANG ERROR TADI) ---
   const handleScan = async (file: File) => {
     if (!user) return;
     if (user.creditBalance < 1) {
-        toast.error("Kredit Habis!", { description: "Reset otomatis jam 00:00." });
+        toast.error("Kredit Habis!", { description: "Tunggu reset besok pagi ya." });
         return;
     }
 
@@ -92,7 +85,7 @@ export default function Index() {
     formData.append("receiver", user.name || "User");
 
     try {
-      toast.info("Sedang Memproses...", { description: "AI sedang membaca dokumen..." });
+      toast.info("Memproses...", { description: "AI sedang membaca dokumen..." });
       
       const res = await apiFetch("/scan", {
         method: "POST",
@@ -101,9 +94,17 @@ export default function Index() {
         timeout: 90000 
       });
 
+      // 🔥 FIX UTAMA: Handle jika respon server error/kosong
+      if (!res.ok) {
+         // Coba baca pesan error dari server jika ada
+         const errJson = await res.json().catch(() => null); 
+         throw new Error(errJson?.message || `Server Error: ${res.status}`);
+      }
+
       const json = await res.json();
 
-      if (json.status === "success") {
+      // 🔥 FIX: Pastikan json tidak null
+      if (json && json.status === "success") {
         toast.success("Berhasil!");
         
         // Update Kredit Realtime
@@ -114,6 +115,7 @@ export default function Index() {
             return updated;
         });
 
+        // Update Tabel Log
         const newLog = {
             id: json.data.id,
             date: new Date().toISOString().split("T")[0],
@@ -126,10 +128,11 @@ export default function Index() {
         setLogs(prev => [newLog, ...prev]);
 
       } else {
-        throw new Error(json.message || "Gagal memproses.");
+        throw new Error(json?.message || "Gagal memproses data.");
       }
     } catch (error: any) {
-      toast.error("Gagal", { description: error.message });
+      console.error("Scan Failed:", error);
+      toast.error("Gagal", { description: error.message || "Terjadi kesalahan sistem." });
     } finally {
       setLoading(false);
     }
