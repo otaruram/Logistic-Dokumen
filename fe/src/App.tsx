@@ -10,7 +10,6 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
-import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -21,51 +20,23 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* Halaman Public */}
+          {/* --- HALAMAN PUBLIK --- */}
           <Route path="/landing" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
 
-          {/* 🔥 PERBAIKAN UTAMA: Tambahkan Rute Dashboard di sini */}
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            } 
-          />
+          {/* --- HALAMAN UTAMA (JANGAN PAKAI PROTECTED ROUTE) --- */}
+          {/* Biarkan Index.tsx yang mengecek login sendiri */}
+          <Route path="/dashboard" element={<Index />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/settings" element={<Settings />} />
 
-          {/* Rute Root: Kalau buka '/', lempar ke dashboard */}
-          <Route 
-            path="/" 
-            element={
-              <ProtectedRoute>
-                <Navigate to="/dashboard" replace />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* Halaman Protected Lainnya */}
-          <Route 
-            path="/profile" 
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/settings" 
-            element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            } 
-          />
+          {/* --- ROUTE BAWAAN --- */}
+          {/* Kalau buka root, lempar ke dashboard (biar dashboard yang nendang kalau belum login) */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           
-          {/* Catch-All: Kalau nyasar, balikin ke Landing */}
+          {/* Catch-all: Kalau nyasar, ke Landing */}
           <Route path="*" element={<Landing />} />
         </Routes>
       </BrowserRouter>
