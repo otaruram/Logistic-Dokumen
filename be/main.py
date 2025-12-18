@@ -18,9 +18,9 @@ from db import prisma, connect_db, disconnect_db
 from utils import get_user_email_from_token
 from smart_ocr_processor import SmartOCRProcessor
 
-# Pastikan pricing_service isinya logika DAILY (Reset ke 3)
+# Pastikan pricing_service.py isinya logika DAILY (Reset ke 3)
 from pricing_service import CreditService 
-# Pastikan drive_service isinya logika Service Account (Bot)
+# Pastikan drive_service.py isinya logika Service Account (Bot)
 from drive_service import export_excel_to_drive 
 from imagekit_service import upload_to_imagekit, delete_from_imagekit_by_url
 
@@ -75,7 +75,7 @@ class RatingRequest(BaseModel):
 class LogUpdate(BaseModel):
     summary: str
 
-# --- ENDPOINTS ---
+# --- ENDPOINTS UTAMA ---
 
 @app.get("/health")
 def health(): return {"status": "ok", "env": "production"}
@@ -87,8 +87,8 @@ async def get_my_profile(authorization: str = Header(None)):
         user_email = get_user_email_hybrid(authorization)
         if not user_email: raise HTTPException(401, "Sesi habis/invalid")
 
-        # 1. JALANKAN LOGIKA KREDIT HARIAN
-        # Ini akan memastikan kalau hari sudah berganti, kredit user di-reset jadi 3
+        # 1. JALANKAN LOGIKA KREDIT HARIAN (Wajib di awal)
+        # Fungsi ini akan mereset kredit jadi 3 jika hari sudah berganti
         await CreditService.ensure_daily_credits(user_email, prisma)
 
         user = await prisma.user.find_unique(where={"email": user_email})
@@ -101,7 +101,7 @@ async def get_my_profile(authorization: str = Header(None)):
                 "name": google_info.get("name", "User") if google_info else "User",
                 "picture": google_info.get("picture", "") if google_info else "",
                 
-                # [FIX KRUSIAL] User baru start dengan 3 Kredit (Bukan 0, Bukan 50)
+                # [FIX PENTING] User baru start dengan 3 Kredit
                 "creditBalance": 3, 
                 
                 "tier": "free",
@@ -110,11 +110,11 @@ async def get_my_profile(authorization: str = Header(None)):
             })
 
         # 3. LOGIKA NOTIFIKASI RESET DATA (BULANAN)
-        # Kredit Reset = Harian (Otomatis)
-        # Data Reset = Bulanan (Manual via Scheduler/Admin, tapi kita kasih notif ke user)
+        # Kredit tetap harian, tapi kita hitung mundur tanggal 1 bulan depan
+        # untuk notifikasi "Pembersihan Data" di Header Frontend.
         now = datetime.now(WIB)
         
-        # Target Reset Data: Tanggal 1 Bulan Depan
+        # Target: Tanggal 1 Bulan Depan
         if now.month == 12:
             next_data_reset = datetime(now.year + 1, 1, 1, tzinfo=WIB)
         else:
@@ -122,7 +122,7 @@ async def get_my_profile(authorization: str = Header(None)):
             
         days_left = (next_data_reset - now).days
         
-        # Format Text Indonesia
+        # Format Text: 1 Februari 2026
         months_id = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
         reset_str = f"1 {months_id[next_data_reset.month]} {next_data_reset.year}"
 
@@ -131,10 +131,10 @@ async def get_my_profile(authorization: str = Header(None)):
             "data": {
                 "email": user.email, "name": user.name, "picture": user.picture,
                 
-                # Ini Saldo Harian (Realtime)
+                # Kredit Realtime (Harian)
                 "creditBalance": user.creditBalance, 
                 
-                # Ini Info utk Header Notifikasi (Warna Merah kalau H-7)
+                # Info Notifikasi Reset Data (Bulanan)
                 "resetInfo": { 
                     "nextResetDate": reset_str, 
                     "daysLeft": days_left,
@@ -151,7 +151,7 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         user_email = get_user_email_hybrid(authorization)
         if not user_email: raise HTTPException(401, "Unauthorized")
 
-        # Cek Reset Harian Dulu (Safety)
+        # Cek Reset Harian Dulu Sebelum Transaksi
         await CreditService.ensure_daily_credits(user_email, prisma)
 
         user = await prisma.user.find_unique(where={"email": user_email})
@@ -214,7 +214,7 @@ async def export_excel(authorization: str = Header(None)):
         logs = await prisma.logs.find_many(where={"userId": user_email}, order={"timestamp": "desc"})
         if not logs: return {"status": "error", "message": "Data kosong."}
         
-        # 1. Siapkan Data
+        # 1. Siapkan Data Frame
         data_list = []
         for l in logs:
             data_list.append({
@@ -260,7 +260,8 @@ async def export_excel(authorization: str = Header(None)):
             
     except Exception as e: return {"status": "error", "message": str(e)}
 
-# --- ENDPOINTS LOGS & RATING ---
+# --- ENDPOINTS LAINNYA ---
+
 @app.get("/history")
 async def get_history(authorization: str = Header(None)):
     try:
