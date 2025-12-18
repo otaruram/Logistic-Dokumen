@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
 # --- IMPORTS DARI FILE LAIN ---
+# Pastikan file db.py, utils.py, dll ada di folder yang sama
 from db import prisma, connect_db, disconnect_db
 from utils import get_user_email_from_token
 from smart_ocr_processor import SmartOCRProcessor
@@ -102,7 +103,7 @@ async def get_my_profile(authorization: str = Header(None)):
 
         user = await prisma.user.find_unique(where={"email": user_email})
 
-        # Cek Kredit Harian (Hanya jika user ada)
+        # Cek Kredit Harian
         if user:
             await CreditService.ensure_daily_credits(user_email, prisma)
             user = await prisma.user.find_unique(where={"email": user_email})
@@ -190,8 +191,9 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         if not base_url: base_url = "http://localhost:8000"
         final_url = f"{base_url}/uploads/{filename}"
 
-        # 4. Upload ke Google Drive
+        # 4. 🔥 Upload ke Google Drive dengan Error Handling 🔥
         drive_res = upload_image_to_drive(raw_token, filepath)
+        
         if drive_res and drive_res.get('direct_link'):
             final_url = drive_res.get('direct_link')
             print(f"✅ GDrive Upload Success: {final_url}")
@@ -222,7 +224,7 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         print(f"Scan Error: {e}")
         return {"status": "error", "message": f"Gagal Scan: {str(e)}"}
 
-# 🔥🔥 PERBAIKAN UTAMA DI SINI (EXPORT EXCEL) 🔥🔥
+# 🔥🔥 PERBAIKAN EXPORT EXCEL 🔥🔥
 @app.post("/export-excel")
 async def export_excel(authorization: str = Header(None)):
     try:
@@ -244,12 +246,12 @@ async def export_excel(authorization: str = Header(None)):
         df = pd.DataFrame(data_list)
         output = io.BytesIO()
         
-        # 🔥 Coba write Excel, tangkap error jika library openpyxl hilang
+        # 🔥 Safety check untuk library openpyxl
         try:
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 df.to_excel(writer, index=False)
         except ModuleNotFoundError:
-             return {"status": "error", "message": "Server Error: Library 'openpyxl' belum terinstall. Mohon hubungi admin."}
+             return {"status": "error", "message": "Server Error: Library 'openpyxl' belum terinstall."}
         
         output.seek(0)
         
@@ -259,8 +261,7 @@ async def export_excel(authorization: str = Header(None)):
         if drive_res: 
             return {"status": "success", "message": "Export Berhasil!", "link": drive_res.get('web_view_link')}
         else: 
-            # Jika ini muncul, berarti Token valid tapi TIDAK PUNYA IZIN DRIVE
-            return {"status": "error", "message": "Gagal Upload ke Drive. Pastikan Anda Login ulang dan mengizinkan akses Drive."}
+            return {"status": "error", "message": "Gagal Upload ke Drive. Silakan Logout dan Login ulang dengan mencentang izin Drive."}
 
     except Exception as e: 
         return {"status": "error", "message": f"System Error: {str(e)}"}
