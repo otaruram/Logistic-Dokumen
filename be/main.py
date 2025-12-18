@@ -13,11 +13,13 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
 # --- IMPORT MODULE SENDIRI ---
-# Pastikan file-file ini ada di folder yang sama
 from db import prisma, connect_db, disconnect_db
 from utils import get_user_email_from_token
 from smart_ocr_processor import SmartOCRProcessor
 from pricing_service import CreditService
+
+# 🔥 IMPORT MODUL GDRIVE (Sesuai nama file kamu: drive_service.py) 🔥
+from drive_service import upload_image_to_drive
 
 load_dotenv()
 
@@ -25,7 +27,7 @@ load_dotenv()
 smart_ocr = None
 UPLOAD_DIR = "uploads"
 
-# --- LIFESPAN (STARTUP & SHUTDOWN) ---
+# --- LIFESPAN ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Server Starting...")
@@ -62,7 +64,7 @@ app.add_middleware(
 # --- HELPER FUNCTIONS ---
 
 def get_google_user_info(token: str):
-    """Ambil data lengkap user dari Google (Nama, Foto, Email)"""
+    """Ambil data lengkap user dari Google"""
     try:
         res = requests.get(
             'https://www.googleapis.com/oauth2/v3/userinfo', 
@@ -76,7 +78,7 @@ def get_google_user_info(token: str):
     return None
 
 def get_user_email_hybrid(authorization: str):
-    """STRICT MODE: Validasi token. Return Email atau None."""
+    """STRICT MODE: Validasi token."""
     if not authorization: return None
     token = authorization.replace("Bearer ", "").strip()
     
@@ -131,22 +133,17 @@ async def get_my_profile(authorization: str = Header(None)):
         if not user_email: 
             raise HTTPException(status_code=401, detail="Sesi habis. Login ulang.")
 
-        # 1. Auto Reset Kredit Harian
+        # 1. Auto Reset & Sync
         await CreditService.ensure_daily_credits(user_email, prisma)
-
-        # 2. Ambil User DB
         user = await prisma.user.find_unique(where={"email": user_email})
 
-        # 3. Sync Profil Google (Agar Nama tidak NULL)
+        # Sync Google Info
         google_info = get_google_user_info(token)
         updates = {}
         if google_info:
-            if not user or not user.name or user.name == "User":
-                updates["name"] = google_info.get("name", "User")
-            if not user or not user.picture:
-                updates["picture"] = google_info.get("picture", "")
+            if not user or not user.name or user.name == "User": updates["name"] = google_info.get("name", "User")
+            if not user or not user.picture: updates["picture"] = google_info.get("picture", "")
 
-        # 4. Handle Create/Update User
         if not user:
             user = await prisma.user.create(data={
                 "email": user_email, 
@@ -160,50 +157,36 @@ async def get_my_profile(authorization: str = Header(None)):
         elif updates:
             user = await prisma.user.update(where={"email": user_email}, data=updates)
 
-        # 🔥 5. LOGIKA NOTIFIKASI RESET DATA (ANTI-CRASH) 🔥
-        # Logika ini menjamin Backend selalu mengirim tanggal valid, tidak pernah error 500
+        # Logika Notifikasi Reset Data
         try:
             today = datetime.now()
             join_date = user.createdAt if user.createdAt else today
-            
-            # Ambil tanggal (hari) join user
             reset_day = join_date.day
             
-            # Coba tetapkan target reset bulan ini
             try:
                 candidate_this_month = today.replace(day=reset_day)
             except ValueError:
-                # Handle jika tgl 30/31 tidak ada di bulan ini (misal Februari)
-                # Fallback: Geser ke tanggal 1 bulan depan biar aman
-                if today.month == 12:
-                    candidate_this_month = today.replace(year=today.year+1, month=1, day=1)
-                else:
-                    candidate_this_month = today.replace(month=today.month+1, day=1)
+                import calendar
+                last_day = calendar.monthrange(today.year, today.month)[1]
+                candidate_this_month = today.replace(day=last_day)
             
-            # Tentukan Next Reset
             if today.date() <= candidate_this_month.date():
                 next_reset_date = candidate_this_month
             else:
-                # Pindah ke bulan depan
                 next_month = 1 if today.month == 12 else today.month + 1
                 next_year = today.year + (1 if today.month == 12 else 0)
-                
                 try:
                     next_reset_date = today.replace(year=next_year, month=next_month, day=reset_day)
                 except ValueError:
-                    # Fallback akhir bulan (tanggal 28) jika tanggal reset tidak valid di bulan depan
                     next_reset_date = today.replace(year=next_year, month=next_month, day=28)
 
             days_left = (next_reset_date - today).days
-            if days_left < 0: days_left = 0 # Safety net
+            if days_left < 0: days_left = 0
             
             show_warning = days_left <= 7
             next_reset_str = next_reset_date.strftime("%d %B %Y")
             
         except Exception as calc_error:
-            # SAFETY NET: Jika matematika tanggal gagal total, pakai default aman
-            # Ini mencegah Frontend menerima data kosong (strip -)
-            print(f"Date Calculation Error: {calc_error}")
             days_left = 30
             show_warning = False
             next_reset_str = "Setiap Bulan"
@@ -234,6 +217,9 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         user_email = get_user_email_hybrid(authorization)
         if not user_email: 
             raise HTTPException(status_code=401, detail="Sesi tidak valid.")
+        
+        # Ambil Raw Token untuk Upload Drive
+        raw_token = authorization.replace("Bearer ", "").strip()
 
         # 2. Credit Deduct
         success_deduct = await CreditService.deduct_credit(user_email, prisma)
@@ -245,7 +231,7 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
                 "remaining_credits": 0
             }
 
-        # 3. Save File
+        # 3. Save File Locally
         content = await file.read()
         image_np = np.array(Image.open(io.BytesIO(content)))
         
@@ -255,17 +241,30 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         filepath = os.path.join(UPLOAD_DIR, filename)
         with open(filepath, "wb") as f: f.write(content)
 
-        # 4. Smart URL
-        base_url = os.getenv("API_BASE_URL") # VPS
-        if not base_url: base_url = os.getenv("RENDER_EXTERNAL_URL") # Render
-        if not base_url: base_url = "http://localhost:8000" # Local
+        # 4. Smart URL (Local URL)
+        base_url = os.getenv("API_BASE_URL") 
+        if not base_url: base_url = os.getenv("RENDER_EXTERNAL_URL")
+        if not base_url: base_url = "http://localhost:8000"
         
-        image_url = f"{base_url}/uploads/{filename}"
+        local_image_url = f"{base_url}/uploads/{filename}"
 
-        # 5. OCR Process
+        # 🔥 5. UPLOAD KE GOOGLE DRIVE (CLEAN CODE) 🔥
+        # Kita panggil fungsi dari drive_service.py
+        drive_res = upload_image_to_drive(raw_token, filepath)
+        
+        # Prioritaskan Link Direct/View dari Drive jika berhasil
+        final_image_url = local_image_url
+        drive_status = "local_only"
+
+        if drive_res:
+            # Gunakan direct_link jika ada, atau web_view_link
+            final_image_url = drive_res.get('direct_link') or drive_res.get('web_view_link')
+            drive_status = "uploaded"
+
+        # 6. OCR Process
         ocr_res = await extract_text_from_image(image_np)
         
-        # 6. Save Log
+        # 7. Save Log
         doc_data = ocr_res.get("structured_data", {})
         nomor_dokumen = doc_data.get('invoice_number') or doc_data.get('do_number') or "MANUAL CHECK"
         
@@ -276,7 +275,7 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
             "kategori": ocr_res.get("document_type", "unknown").upper(), 
             "nomorDokumen": nomor_dokumen, 
             "receiver": receiver.upper(), 
-            "imagePath": image_url, 
+            "imagePath": final_image_url, 
             "summary": ocr_res.get("summary", ""), 
             "fullText": ocr_res.get("raw_text", "")
         })
@@ -290,15 +289,15 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
                 "kategori": log.kategori, 
                 "nomorDokumen": log.nomorDokumen, 
                 "summary": log.summary, 
-                "imagePath": image_url
+                "imagePath": final_image_url
             }, 
+            "drive_status": drive_status,
             "remaining_credits": updated_user.creditBalance
         }
 
     except HTTPException as he: raise he
     except Exception as e: 
         print(f"Scan Error: {e}")
-        # Return JSON Error agar frontend tidak crash null
         return {"status": "error", "message": f"Server Error: {str(e)}"}
 
 @app.get("/history")
