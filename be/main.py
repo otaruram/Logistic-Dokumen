@@ -17,8 +17,7 @@ from db import prisma, connect_db, disconnect_db
 from utils import get_user_email_from_token
 from smart_ocr_processor import SmartOCRProcessor
 from pricing_service import CreditService
-
-# 🔥 IMPORT MODUL GDRIVE (Sesuai nama file kamu: drive_service.py) 🔥
+# Import drive service
 from drive_service import upload_image_to_drive
 
 load_dotenv()
@@ -64,7 +63,6 @@ app.add_middleware(
 # --- HELPER FUNCTIONS ---
 
 def get_google_user_info(token: str):
-    """Ambil data lengkap user dari Google"""
     try:
         res = requests.get(
             'https://www.googleapis.com/oauth2/v3/userinfo', 
@@ -78,23 +76,18 @@ def get_google_user_info(token: str):
     return None
 
 def get_user_email_hybrid(authorization: str):
-    """STRICT MODE: Validasi token."""
     if not authorization: return None
     token = authorization.replace("Bearer ", "").strip()
     
-    # 1. Cek Google
     user_info = get_google_user_info(token)
     if user_info and 'email' in user_info:
         return user_info['email']
         
-    # 2. Cek JWT Utils
     try: return get_user_email_from_token(authorization)
     except: pass
-    
     return None
 
 async def extract_text_from_image(image_np):
-    """Wrapper OCR Processor"""
     try:
         if smart_ocr:
             text = await smart_ocr.enhanced_ocr_extract(image_np)
@@ -110,7 +103,8 @@ async def extract_text_from_image(image_np):
                 }
     except Exception as e:
         print(f"OCR Logic Error: {e}")
-    return {"raw_text": "", "summary": "Gagal Baca / Error", "document_type": "error"}
+    # Lempar error biar ditangkap di endpoint scan
+    raise Exception("Gagal membaca teks dari gambar.")
 
 # --- MODELS ---
 class RatingRequest(BaseModel):
@@ -133,11 +127,9 @@ async def get_my_profile(authorization: str = Header(None)):
         if not user_email: 
             raise HTTPException(status_code=401, detail="Sesi habis. Login ulang.")
 
-        # 1. Auto Reset & Sync
         await CreditService.ensure_daily_credits(user_email, prisma)
         user = await prisma.user.find_unique(where={"email": user_email})
 
-        # Sync Google Info
         google_info = get_google_user_info(token)
         updates = {}
         if google_info:
@@ -157,7 +149,7 @@ async def get_my_profile(authorization: str = Header(None)):
         elif updates:
             user = await prisma.user.update(where={"email": user_email}, data=updates)
 
-        # Logika Notifikasi Reset Data
+        # Logika Notifikasi Reset
         try:
             today = datetime.now()
             join_date = user.createdAt if user.createdAt else today
@@ -186,7 +178,7 @@ async def get_my_profile(authorization: str = Header(None)):
             show_warning = days_left <= 7
             next_reset_str = next_reset_date.strftime("%d %B %Y")
             
-        except Exception as calc_error:
+        except Exception:
             days_left = 30
             show_warning = False
             next_reset_str = "Setiap Bulan"
@@ -218,20 +210,19 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         if not user_email: 
             raise HTTPException(status_code=401, detail="Sesi tidak valid.")
         
-        # Ambil Raw Token untuk Upload Drive
         raw_token = authorization.replace("Bearer ", "").strip()
 
-        # 2. Credit Deduct
-        success_deduct = await CreditService.deduct_credit(user_email, prisma)
-        if not success_deduct:
-            return {
+        # 🔥 UPDATE LOGIKA KREDIT: Cek dulu, jangan potong dulu 🔥
+        user = await prisma.user.find_unique(where={"email": user_email})
+        if not user or user.creditBalance < 1:
+             return {
                 "status": "error", 
                 "error_type": "insufficient_credits", 
                 "message": "Kredit habis. Tunggu besok ya!", 
                 "remaining_credits": 0
             }
 
-        # 3. Save File Locally
+        # 2. Save File Locally
         content = await file.read()
         image_np = np.array(Image.open(io.BytesIO(content)))
         
@@ -241,30 +232,42 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         filepath = os.path.join(UPLOAD_DIR, filename)
         with open(filepath, "wb") as f: f.write(content)
 
-        # 4. Smart URL (Local URL)
+        # 3. Setup URL
+        # 🔥 FIX BROKEN IMAGE DI HP: Pastikan base_url bukan localhost
+        # Cek ENV dulu, kalau gak ada coba tebak dari Render
         base_url = os.getenv("API_BASE_URL") 
         if not base_url: base_url = os.getenv("RENDER_EXTERNAL_URL")
+        # Fallback terakhir localhost (hanya jalan di laptop sendiri)
         if not base_url: base_url = "http://localhost:8000"
         
         local_image_url = f"{base_url}/uploads/{filename}"
 
-        # 🔥 5. UPLOAD KE GOOGLE DRIVE (CLEAN CODE) 🔥
-        # Kita panggil fungsi dari drive_service.py
-        drive_res = upload_image_to_drive(raw_token, filepath)
-        
-        # Prioritaskan Link Direct/View dari Drive jika berhasil
+        # 4. Upload ke Google Drive
+        print(f"🔄 Uploading to Drive...")
+        drive_res = None
+        try:
+            drive_res = upload_image_to_drive(raw_token, filepath)
+        except Exception as drive_err:
+            print(f"⚠️ Drive Upload Error (Ignored): {drive_err}")
+
+        # Tentukan URL Gambar Final
         final_image_url = local_image_url
         drive_status = "local_only"
 
         if drive_res:
-            # Gunakan direct_link jika ada, atau web_view_link
+            # Prioritas: Direct Link (biar bisa tampil di <img> tag)
+            # Kalau direct link kosong, pakai webViewLink
             final_image_url = drive_res.get('direct_link') or drive_res.get('web_view_link')
             drive_status = "uploaded"
+            print(f"✅ Drive Success: {final_image_url}")
+        else:
+            print(f"⚠️ Drive Failed/Skipped. Using local: {final_image_url}")
 
-        # 6. OCR Process
+        # 5. OCR Process
+        print("🔄 Processing OCR...")
         ocr_res = await extract_text_from_image(image_np)
         
-        # 7. Save Log
+        # 6. Save Log (Baru simpan log kalau OCR sukses)
         doc_data = ocr_res.get("structured_data", {})
         nomor_dokumen = doc_data.get('invoice_number') or doc_data.get('do_number') or "MANUAL CHECK"
         
@@ -280,7 +283,11 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
             "fullText": ocr_res.get("raw_text", "")
         })
 
-        updated_user = await prisma.user.find_unique(where={"email": user_email})
+        # 🔥 7. POTONG KREDIT SEKARANG (Hanya jika semua sukses) 🔥
+        updated_user = await prisma.user.update(
+            where={"email": user_email},
+            data={"creditBalance": {"decrement": 1}}
+        )
 
         return {
             "status": "success", 
@@ -297,8 +304,9 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
 
     except HTTPException as he: raise he
     except Exception as e: 
-        print(f"Scan Error: {e}")
-        return {"status": "error", "message": f"Server Error: {str(e)}"}
+        print(f"❌ Scan Error: {e}")
+        # Return JSON Error, JANGAN POTONG KREDIT
+        return {"status": "error", "message": f"Gagal Scan: {str(e)}"}
 
 @app.get("/history")
 async def get_history(authorization: str = Header(None)):
