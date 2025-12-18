@@ -52,7 +52,7 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 # --- CORS SETUP ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Ganti dengan domain spesifik saat production
+    allow_origins=["*"], # Saat production bisa diganti domain spesifik
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -84,7 +84,7 @@ def get_user_email_hybrid(authorization: str):
     if user_info and 'email' in user_info:
         return user_info['email']
         
-    # 2. Cek JWT Utils
+    # 2. Cek JWT Utils (Backup)
     try: return get_user_email_from_token(authorization)
     except: pass
     
@@ -159,30 +159,42 @@ async def get_my_profile(authorization: str = Header(None)):
         elif updates:
             user = await prisma.user.update(where={"email": user_email}, data=updates)
 
-        # 🔥 5. LOGIKA NOTIFIKASI RESET DATA (BULANAN) 🔥
+        # 🔥 5. LOGIKA NOTIFIKASI RESET DATA (REVISI FINAL) 🔥
         today = datetime.now()
         join_date = user.createdAt
         
-        # Hitung tanggal reset berikutnya (Bulan depan di tanggal yg sama)
-        next_month_year = today.year + (1 if today.month == 12 else 0)
-        next_month = 1 if today.month == 12 else today.month + 1
+        # Ambil tanggal (hari) join user
+        reset_day = join_date.day
         
+        # Coba tetapkan tanggal reset di BULAN INI
         try:
-            next_reset_date = join_date.replace(year=next_month_year, month=next_month)
+            candidate_this_month = today.replace(day=reset_day)
         except ValueError:
-            # Handle error tanggal 31 di bulan Februari/April/dll
-            next_reset_date = join_date.replace(year=next_month_year, month=next_month, day=28)
+            # Handle tanggal 30/31 di bulan Februari dsb
+            import calendar
+            last_day = calendar.monthrange(today.year, today.month)[1]
+            candidate_this_month = today.replace(day=last_day)
             
-        # Jika tanggal reset bulan ini sudah lewat, hitung bulan depannya lagi
-        if next_reset_date < today:
-             next_month_2 = 1 if next_month == 12 else next_month + 1
-             year_2 = next_month_year + (1 if next_month == 12 else 0)
-             try:
-                next_reset_date = next_reset_date.replace(year=year_2, month=next_month_2)
-             except: pass
+        # LOGIKA CERDAS:
+        # Jika hari ini <= Tanggal Reset Bulan Ini, maka Target = Bulan Ini.
+        # Jika hari ini > Tanggal Reset Bulan Ini, maka Target = Bulan Depan.
+        
+        if today.date() <= candidate_this_month.date():
+            next_reset_date = candidate_this_month
+        else:
+            # Pindah ke bulan depan
+            next_month_year = today.year + (1 if today.month == 12 else 0)
+            next_month = 1 if today.month == 12 else today.month + 1
+            try:
+                next_reset_date = today.replace(year=next_month_year, month=next_month, day=reset_day)
+            except ValueError:
+                import calendar
+                last_day = calendar.monthrange(next_month_year, next_month)[1]
+                next_reset_date = today.replace(year=next_month_year, month=next_month, day=last_day)
 
         # Hitung Sisa Hari
         days_left = (next_reset_date - today).days
+        if days_left < 0: days_left = 0 # Safety net
         
         # Trigger Notifikasi Header (Merah) jika <= 7 hari
         show_warning = days_left <= 7
