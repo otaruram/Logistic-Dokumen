@@ -61,7 +61,7 @@ export default function Header({ user, onLogout, onProfile, onSettings }: Header
             {user?.resetInfo && (
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-md mb-2 flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300">
                     <CalendarClock className="w-3 h-3" />
-                    <span className="font-medium">Reset Kredit: {user.resetInfo.nextResetDate}</span>
+                    <span className="font-medium">Reset Data: {user.resetInfo.nextResetDate}</span>
                 </div>
             )}
 
