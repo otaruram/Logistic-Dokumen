@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, ShieldCheck, Camera, Cpu, Cloud, Star } from "lucide-react";
+import { ArrowRight, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-service";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,19 +12,19 @@ export default function Landing() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 1. AUTO REDIRECT: Kalau sudah login, langsung ke Dashboard
-    const storedUser = sessionStorage.getItem('user');
+    // 🔥 AUTO REDIRECT: Cek localStorage (Bukan sessionStorage)
+    const storedUser = localStorage.getItem('user');
     if (storedUser) {
         const user = JSON.parse(storedUser);
         if (user.credential) {
-            navigate('/dashboard'); // Atau navigate('/') tergantung routing kamu
+            navigate('/dashboard'); // Langsung lempar ke dashboard
             return;
         }
     }
 
     const fetchRatings = async () => {
       try {
-        const res = await apiFetch("/ratings"); // Endpoint Public
+        const res = await apiFetch("/ratings");
         const json = await res.json();
         if (json.status === "success") {
             setRatings(json.data);
