@@ -5,7 +5,6 @@ import { ArrowLeft, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
-// Animasi Ketik
 const TypewriterText = ({ text }: { text: string }) => {
   const [displayText, setDisplayText] = useState('');
   useEffect(() => {
@@ -27,12 +26,10 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // 🔥 Cek tema dari localStorage (bukan sessionStorage)
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') document.documentElement.classList.add('dark');
   }, []);
 
-  // --- LOGIC LOGIN UTAMA ---
   const googleLogin = useGoogleLogin({
     scope: agreedToDrive ? 'https://www.googleapis.com/auth/drive.file email profile' : 'email profile',
     onSuccess: async (tokenResponse) => {
@@ -53,12 +50,16 @@ export default function Login() {
           isDriveEnabled: agreedToDrive 
         };
 
-        // 🔥 GANTI KE localStorage (PENTING BIAR TAB BARU TETAP LOGIN)
+        // Simpan data
         localStorage.setItem('isAuthenticated', 'true');
         localStorage.setItem('user', JSON.stringify(userData));
 
         toast.success(`Selamat datang, ${userInfo.name}!`);
-        navigate('/dashboard'); // Arahkan ke dashboard
+        
+        // 🔥 PERBAIKAN DISINI: JANGAN navigate('/') TAPI KE '/dashboard'
+        // Supaya tidak mental ke Landing Page
+        navigate('/dashboard', { replace: true }); 
+
       } catch (error) {
         console.error("Login Error:", error);
         toast.error("Gagal mengambil data profil.");
@@ -74,7 +75,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-[#F4F4F0] dark:bg-black flex flex-col items-center justify-center p-4 transition-colors duration-300">
-      
       <div className="absolute top-6 left-6">
         <Button onClick={() => navigate('/landing')} variant="ghost" className="font-bold font-mono text-black dark:text-white hover:bg-transparent hover:underline">
           <ArrowLeft className="w-4 h-4 mr-2" /> KEMBALI
@@ -82,7 +82,6 @@ export default function Login() {
       </div>
 
       <div className="w-full max-w-md bg-white dark:bg-zinc-900 border-4 border-black dark:border-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] p-8 text-center transition-all">
-        
         <h1 className="text-5xl font-black mb-2 text-black dark:text-white tracking-tighter">
           <TypewriterText text="OCR.WTF" />
         </h1>
@@ -90,7 +89,6 @@ export default function Login() {
           LOGIN AREA
         </p>
 
-        {/* CHECKBOX */}
         <div 
           className="flex items-start gap-3 text-left mb-6 cursor-pointer group"
           onClick={() => setAgreedToDrive(!agreedToDrive)}
@@ -103,7 +101,6 @@ export default function Login() {
           </p>
         </div>
 
-        {/* TOMBOL LOGIN */}
         <div className="flex justify-center">
           <button
             onClick={() => googleLogin()}
