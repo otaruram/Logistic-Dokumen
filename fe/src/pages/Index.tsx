@@ -13,10 +13,10 @@ export default function Index() {
   const [loading, setLoading] = useState(false);
   const [initLoading, setInitLoading] = useState(true);
 
-  // --- 1. SETUP & FETCH DATA (FIXED) ---
+  // --- 1. SETUP & FETCH DATA (PAKAI localStorage) ---
   const fetchUserProfile = async () => {
     try {
-        // 🔥 GANTI KE localStorage (Biar buka tab baru tetep login)
+        // 🔥 GANTI KE localStorage (Login Awet)
         const storedUser = localStorage.getItem('user');
         
         if (!storedUser) { navigate('/landing'); return; }
@@ -36,13 +36,13 @@ export default function Index() {
         
         if (profileRes.ok) {
             const profileJson = await profileRes.json();
+            // Cek apakah response valid sebelum ambil data
             if (profileJson && profileJson.status === "success") {
-                // 🔥 UPDATE CREDIT BALANCE LANGSUNG!
                 // Gabungkan data lokal dengan data server yang lebih baru
                 const updatedUser = { 
                     ...localUser, 
                     ...profileJson.data,
-                    // Paksa update kredit dari server
+                    // Paksa update kredit dari server biar gak 0
                     creditBalance: profileJson.data.creditBalance 
                 };
                 
@@ -80,7 +80,7 @@ export default function Index() {
 
   useEffect(() => { fetchUserProfile(); }, []);
 
-  // --- 2. LOGIKA SCAN ---
+  // --- 2. LOGIKA SCAN (ANTI NULL ERROR) ---
   const handleScan = async (file: File) => {
     if (!user) return;
     if (user.creditBalance < 1) {
@@ -103,13 +103,20 @@ export default function Index() {
         timeout: 90000 
       });
 
+      // 🔥 FIX 1: Cek HTTP Status dulu
       if (!res.ok) {
-         const errJson = await res.json().catch(() => null); 
-         throw new Error(errJson?.message || "Gagal memproses.");
+         throw new Error(`Gagal memproses (Status: ${res.status})`);
       }
 
-      const json = await res.json();
+      // 🔥 FIX 2: Parsing JSON dengan aman
+      let json;
+      try {
+          json = await res.json();
+      } catch (parseError) {
+          throw new Error("Respon server tidak valid.");
+      }
 
+      // 🔥 FIX 3: Cek ISI JSON sebelum akses properties
       if (json && json.status === "success") {
         toast.success("Berhasil!");
         
@@ -121,34 +128,55 @@ export default function Index() {
             return updated;
         });
 
-        const newLog = {
-            id: json.data.id,
-            date: new Date().toISOString().split("T")[0],
-            time: new Date().toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }),
-            docType: json.data.kategori,
-            summary: json.data.summary,
-            receiver: user.name,
-            imageUrl: json.data.imagePath
-        };
-        setLogs(prev => [newLog, ...prev]);
+        // Update Tabel Log (Cek json.data dulu)
+        if (json.data) {
+            const newLog = {
+                id: json.data.id,
+                date: new Date().toISOString().split("T")[0],
+                time: new Date().toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }),
+                docType: json.data.kategori,
+                summary: json.data.summary,
+                receiver: user.name,
+                imageUrl: json.data.imagePath
+            };
+            setLogs(prev => [newLog, ...prev]);
+        }
 
       } else {
-        throw new Error(json?.message || "Gagal memproses data.");
+        // Handle jika status error atau message ada
+        throw new Error(json?.message || "Terjadi kesalahan pada server.");
       }
     } catch (error: any) {
+      console.error("Scan Error:", error);
       toast.error("Gagal", { description: error.message });
     } finally {
       setLoading(false);
     }
   };
 
-  // ... (Sisa fungsi handleDeleteLog & handleUpdateLog biarkan sama seperti sebelumnya)
-  // Pastikan pakai apiFetch & user.credential
-  const handleDeleteLog = async (id: number) => { /* Code lama */ };
-  const handleUpdateLog = async (id: number, summary: string) => { /* Code lama */ };
-  
-  // Karena kode panjang, bagian return UI di bawah ini SAMA PERSIS kayak kode sebelumnya.
-  // Cuma pastikan di Header onLogout panggil localStorage.clear()
+  const handleDeleteLog = async (id: number) => {
+    if(!confirm("Hapus data ini?")) return;
+    try {
+        await apiFetch(`/logs/${id}`, { 
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${user.credential}` }
+        });
+        setLogs(prev => prev.filter(l => l.id !== id));
+        toast.success("Data dihapus.");
+    } catch (e) { toast.error("Gagal menghapus."); }
+  };
+
+  const handleUpdateLog = async (id: number, summary: string) => {
+    try {
+        await apiFetch(`/logs/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${user.credential}` },
+            body: JSON.stringify({ summary })
+        });
+        setLogs(prev => prev.map(l => l.id === id ? { ...l, summary } : l));
+        toast.success("Tersimpan.");
+    } catch (e) { toast.error("Gagal menyimpan."); }
+  };
 
   if (initLoading) return <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]"><div className="animate-spin text-2xl">⏳</div></div>;
 
@@ -160,18 +188,28 @@ export default function Index() {
         onProfile={() => navigate('/profile')} 
         onSettings={() => navigate('/settings')} 
       />
-      {/* ... Sisa Tampilan Dashboard Sama ... */}
+
       <main className="container mx-auto px-4 py-6 max-w-5xl flex flex-col gap-6">
-        {/* ... Copy paste UI dashboard kamu ... */}
-         <div className="w-full text-left">
+        <div className="w-full text-left">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Halo, {user?.name?.split(" ")[0]} 👋</h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Siap mendigitalkan dokumen?</p>
         </div>
+
         <div className="w-full bg-white dark:bg-zinc-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-zinc-800">
-             <FileUploadZone onFileSelect={handleScan} />
+            <div className="flex items-center justify-between mb-4">
+                 <h2 className="font-bold text-lg">Input Dokumen</h2>
+                 {loading && <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full animate-pulse">Memproses...</span>}
+            </div>
+            <div className="w-full">
+                <FileUploadZone onFileSelect={handleScan} />
+            </div>
         </div>
+
         <div className="w-full bg-white dark:bg-zinc-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-zinc-800">
-             <DataTable logs={logs} onDeleteLog={handleDeleteLog} onUpdateLog={handleUpdateLog} />
+            <div className="mb-4"><h2 className="font-bold text-lg">Riwayat Digitalisasi</h2></div>
+            <div className="w-full overflow-x-auto">
+                 <div className="min-w-[600px]"><DataTable logs={logs} onDeleteLog={handleDeleteLog} onUpdateLog={handleUpdateLog} /></div>
+            </div>
         </div>
       </main>
     </div>
