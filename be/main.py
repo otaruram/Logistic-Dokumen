@@ -12,6 +12,7 @@ import requests
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
+# --- IMPORT MODULE SENDIRI ---
 from db import prisma, connect_db, disconnect_db
 from utils import get_user_email_from_token
 from smart_ocr_processor import SmartOCRProcessor
@@ -19,13 +20,16 @@ from pricing_service import CreditService
 
 load_dotenv()
 
+# --- GLOBAL VARIABLES ---
 smart_ocr = None
 UPLOAD_DIR = "uploads"
 
+# --- LIFESPAN (Startup & Shutdown) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Server Starting...")
     await connect_db()
+    
     global smart_ocr
     try:
         api_key = os.getenv('OCR_SPACE_API_KEY', 'helloworld')
@@ -33,49 +37,84 @@ async def lifespan(app: FastAPI):
         print("✅ OCR Engine Ready")
     except Exception as e:
         print(f"⚠️ OCR Init Warning: {e}")
+        
     yield
+    
     print("🛑 Server Shutting Down...")
     await disconnect_db()
 
 app = FastAPI(lifespan=lifespan)
 
+# --- STATIC FILES ---
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
+# --- CORS SETUP ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"], # Ganti domain spesifik saat production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- HELPER: AMBIL DATA GOOGLE LENGKAP ---
+# --- HELPER FUNCTIONS ---
+
 def get_google_user_info(token: str):
-    """Ambil data lengkap user dari Google (Nama, Foto, Email)"""
+    """
+    Mengambil data lengkap user dari Google (Nama, Foto, Email).
+    Digunakan untuk mengisi profil user di database.
+    """
     try:
         res = requests.get(
             'https://www.googleapis.com/oauth2/v3/userinfo', 
-            headers={'Authorization': f'Bearer {token}'}, timeout=3
+            headers={'Authorization': f'Bearer {token}'}, 
+            timeout=5
         )
         if res.status_code == 200: 
-            return res.json() # Return full JSON: {sub, name, given_name, picture, email}
-    except: pass
+            return res.json() # Return JSON: {sub, name, picture, email}
+    except Exception as e: 
+        print(f"Google Info Error: {e}")
     return None
 
 def get_user_email_hybrid(authorization: str):
+    """
+    STRICT MODE: Validasi token.
+    Return Email jika valid, None jika tidak.
+    """
     if not authorization: return None
     token = authorization.replace("Bearer ", "").strip()
     
-    # Cek Google
+    # 1. Cek langsung ke Google (Paling Akurat)
     user_info = get_google_user_info(token)
     if user_info and 'email' in user_info:
         return user_info['email']
         
-    # Cek JWT
-    try: return get_user_email_from_token(authorization)
+    # 2. Cek JWT Utils (Backup)
+    try: 
+        return get_user_email_from_token(authorization)
     except: pass
+    
     return None
+
+async def extract_text_from_image(image_np):
+    """Wrapper OCR Processor"""
+    try:
+        if smart_ocr:
+            text = await smart_ocr.enhanced_ocr_extract(image_np)
+            if text and not text.startswith("[ERROR"):
+                doc_type = smart_ocr.detect_document_type(text)
+                structured = smart_ocr.extract_structured_data(text, doc_type)
+                summary = smart_ocr.generate_smart_summary(text, structured, doc_type)
+                return {
+                    "raw_text": text, 
+                    "summary": summary, 
+                    "document_type": doc_type, 
+                    "structured_data": structured
+                }
+    except Exception as e:
+        print(f"OCR Logic Error: {e}")
+    return {"raw_text": "", "summary": "Gagal Baca / Error", "document_type": "error"}
 
 # --- MODELS ---
 class RatingRequest(BaseModel):
@@ -86,38 +125,39 @@ class LogUpdate(BaseModel):
 # --- ENDPOINTS ---
 
 @app.get("/health")
-def health(): return {"status": "ok"}
+def health():
+    return {"status": "ok", "environment": os.getenv("ENVIRONMENT", "dev")}
 
-# 🔥 FIX PROFILE PICTURE & NAME DISINI 🔥
 @app.get("/me")
 async def get_my_profile(authorization: str = Header(None)):
     try:
-        token = authorization.replace("Bearer ", "").strip()
+        token = authorization.replace("Bearer ", "").strip() if authorization else ""
         user_email = get_user_email_hybrid(authorization)
         
         if not user_email: 
             raise HTTPException(status_code=401, detail="Sesi habis. Login ulang.")
 
+        # 1. Auto Reset Kredit Hari Ini
         await CreditService.ensure_daily_credits(user_email, prisma)
 
-        # 1. Cek User di DB
+        # 2. Ambil User dari Database
         user = await prisma.user.find_unique(where={"email": user_email})
-        
-        # 2. UPDATE OTOMATIS: Ambil Data Terbaru dari Google (Foto & Nama)
-        # Ini triknya! Setiap kali user buka profile, kita curi fotonya dari Google
+
+        # 3. SYNC PROFIL DARI GOOGLE (Fix Foto & Nama)
+        # Ambil data terbaru dari Google
         google_info = get_google_user_info(token)
         
         updates = {}
         if google_info:
-            # Jika di DB namanya masih default/kosong, atau fotonya kosong -> Update!
+            # Jika user belum punya nama/foto di DB, update sekarang
             if not user or not user.name or user.name == "User":
                 updates["name"] = google_info.get("name", "User")
             if not user or not user.picture:
                 updates["picture"] = google_info.get("picture", "")
 
-        # 3. Handle User Baru atau Update User Lama
+        # 4. Handle Create New / Update Existing
         if not user:
-            # Create Baru dengan foto lengkap
+            # User Baru
             user = await prisma.user.create(data={
                 "email": user_email, 
                 "name": google_info.get("name", "User") if google_info else "User",
@@ -128,60 +168,136 @@ async def get_my_profile(authorization: str = Header(None)):
                 "lastCreditReset": datetime.now()
             })
         elif updates:
-            # Update data yang kurang
+            # User Lama (Update Data)
             user = await prisma.user.update(where={"email": user_email}, data=updates)
 
         return {
             "status": "success", 
             "data": {
                 "email": user.email,
-                "name": user.name,     # Sekarang pasti ada isinya
-                "picture": user.picture, # Sekarang pasti ada isinya
+                "name": user.name,
+                "picture": user.picture,
                 "tier": getattr(user, 'tier', 'free'),
                 "creditBalance": user.creditBalance,
                 "createdAt": user.createdAt.isoformat() if user.createdAt else datetime.now().isoformat(),
                 "resetInfo": { "nextReset": "Tomorrow 00:00" } 
             }
         }
+    except HTTPException as he: raise he
     except Exception as e: return {"status": "error", "message": str(e)}
-
-# ... (Endpoint /scan, /history BIARKAN SAMA SEPERTI SEBELUMNYA) ...
-# Copy paste endpoint /scan dan /history dari kode sebelumnya ke sini
-# Supaya tidak kepanjangan saya skip tulis ulang, tapi pastikan ada.
 
 @app.post("/scan")
 async def scan_document(file: UploadFile = File(...), receiver: str = Form(...), authorization: str = Header(None)):
-    # ... Gunakan kode /scan dari jawaban sebelumnya ...
-    # Pastikan pakai get_user_email_hybrid yg baru
-    # Logika sama persis
-    pass 
+    try:
+        # 1. Auth Check
+        user_email = get_user_email_hybrid(authorization)
+        if not user_email: 
+            raise HTTPException(status_code=401, detail="Sesi tidak valid.")
+
+        # 2. Credit Deduct
+        success_deduct = await CreditService.deduct_credit(user_email, prisma)
+        if not success_deduct:
+            # Return JSON Error Khusus Kredit
+            return {
+                "status": "error", 
+                "error_type": "insufficient_credits", 
+                "message": "Kredit habis. Tunggu besok ya!", 
+                "remaining_credits": 0
+            }
+
+        # 3. Save File
+        content = await file.read()
+        image_np = np.array(Image.open(io.BytesIO(content)))
+        
+        timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+        clean_name = "".join(x for x in file.filename if x.isalnum() or x in "._- ")
+        filename = f"{timestamp_str}_{clean_name}"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        with open(filepath, "wb") as f: f.write(content)
+
+        # 4. Smart URL
+        base_url = os.getenv("API_BASE_URL")
+        if not base_url: base_url = os.getenv("RENDER_EXTERNAL_URL")
+        if not base_url: base_url = "http://localhost:8000"
+        
+        image_url = f"{base_url}/uploads/{filename}"
+
+        # 5. OCR Process
+        ocr_res = await extract_text_from_image(image_np)
+        
+        # 6. Save Log
+        doc_data = ocr_res.get("structured_data", {})
+        nomor_dokumen = doc_data.get('invoice_number') or doc_data.get('do_number') or "MANUAL CHECK"
+        
+        log = await prisma.logs.create(data={
+            "userId": user_email, 
+            "timestamp": datetime.now(), 
+            "filename": file.filename, 
+            "kategori": ocr_res.get("document_type", "unknown").upper(), 
+            "nomorDokumen": nomor_dokumen, 
+            "receiver": receiver.upper(), 
+            "imagePath": image_url, 
+            "summary": ocr_res.get("summary", ""), 
+            "fullText": ocr_res.get("raw_text", "")
+        })
+
+        updated_user = await prisma.user.find_unique(where={"email": user_email})
+
+        # Response Sukses
+        return {
+            "status": "success", 
+            "data": {
+                "id": log.id, 
+                "kategori": log.kategori, 
+                "nomorDokumen": log.nomorDokumen, 
+                "summary": log.summary, 
+                "imagePath": image_url
+            }, 
+            "remaining_credits": updated_user.creditBalance
+        }
+
+    except HTTPException as he: raise he
+    except Exception as e: 
+        print(f"Scan Error: {e}")
+        # Return JSON Error Generik biar frontend gk crash "null status"
+        return {"status": "error", "message": f"Server Error: {str(e)}"}
 
 @app.get("/history")
 async def get_history(authorization: str = Header(None)):
-    # ... Gunakan kode /history dari jawaban sebelumnya ...
-    pass
+    try:
+        user_email = get_user_email_hybrid(authorization)
+        if not user_email: return []
+        
+        logs = await prisma.logs.find_many(where={"userId": user_email}, order={"id": "desc"})
+        
+        return [{
+            "id": l.id, 
+            "timestamp": l.timestamp.isoformat(), 
+            "kategori": l.kategori, 
+            "nomorDokumen": l.nomorDokumen, 
+            "receiver": l.receiver, 
+            "imagePath": l.imagePath, 
+            "summary": l.summary
+        } for l in logs]
+    except: return []
 
+# --- RATINGS ENDPOINTS ---
 
-# 🔥 FIX RATING: Endpoint Baru untuk Baca Data Review 🔥
 @app.get("/ratings")
 async def get_ratings():
+    """Ambil daftar review untuk Landing Page"""
     try:
-        # Ambil 20 rating terbaru
-        ratings = await prisma.rating.find_many(
-            take=20, 
-            order={"createdAt": "desc"}
-        )
+        ratings = await prisma.rating.find_many(take=20, order={"createdAt": "desc"})
         return {"status": "success", "data": ratings}
     except Exception as e:
-        print(f"Rating Error: {e}")
-        return {"status": "error", "data": []}
+        return {"status": "error", "data": [], "message": str(e)}
 
 @app.post("/rating")
 async def create_rating(data: RatingRequest, authorization: str = Header(None)):
+    """Kirim review baru"""
     try:
         user_email = get_user_email_hybrid(authorization) or "anonymous"
         
-        # Simpan ke DB
         await prisma.rating.create(data={
             "userId": user_email, 
             "userName": data.userName, 
@@ -189,12 +305,40 @@ async def create_rating(data: RatingRequest, authorization: str = Header(None)):
             "stars": data.stars, 
             "emoji": data.emoji, 
             "message": data.message,
-            "createdAt": datetime.now() # Pastikan field ini ada di schema
+            "createdAt": datetime.now()
         })
         return {"status": "success"}
     except Exception as e: return {"status": "error", "message": str(e)}
 
-# ... (Sisanya sama: /logs update delete, /delete-account) ...
+# --- LOG MANAGEMENT ---
+
+@app.put("/logs/{log_id}")
+async def update_log(log_id: int, log_data: LogUpdate):
+    try:
+        await prisma.logs.update(where={"id": log_id}, data={"summary": log_data.summary})
+        return {"status": "success"}
+    except Exception as e: return {"status": "error", "message": str(e)}
+
+@app.delete("/logs/{log_id}")
+async def delete_log(log_id: int):
+    try:
+        await prisma.logs.delete(where={"id": log_id})
+        return {"status": "success"}
+    except Exception as e: return {"status": "error", "message": str(e)}
+
+@app.delete("/delete-account")
+async def delete_account(authorization: str = Header(None)):
+    try:
+        user_email = get_user_email_hybrid(authorization)
+        if not user_email: return {"status": "error"}
+        
+        user = await prisma.user.find_unique(where={"email": user_email})
+        if not user: raise HTTPException(404, "User not found")
+        
+        await prisma.logs.delete_many(where={"userId": user_email})
+        await prisma.user.delete(where={"id": user.id})
+        return {"status": "success"}
+    except Exception as e: return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
