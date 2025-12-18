@@ -6,6 +6,9 @@ import DataTable from "@/components/dashboard/DataTable";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
+// Asumsi fungsi ini ada di file utils/events.ts atau satu file
+import { triggerCreditUpdate, triggerCreditUsage, showCreditWarning } from "@/utils/events"; 
+
 export default function Index() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
@@ -17,17 +20,16 @@ export default function Index() {
   const fetchUserProfile = async () => {
     try {
         const storedUser = localStorage.getItem('user');
-        
         if (!storedUser) { navigate('/landing'); return; }
 
         const localUser = JSON.parse(storedUser);
         const token = localUser?.credential;
-        
         if (!token) { navigate('/landing'); return; }
 
-        setUser(localUser);
+        // Set user awal dari local storage biar cepat
+        if (!user) setUser(localUser);
 
-        // Fetch Data Terbaru
+        // Fetch Data Terbaru dari Server
         const profileRes = await apiFetch("/me", { 
             headers: { "Authorization": `Bearer ${token}` } 
         });
@@ -44,11 +46,15 @@ export default function Index() {
                 const updatedUser = { 
                     ...localUser, 
                     ...profileJson.data,
-                    creditBalance: profileJson.data.creditBalance,
+                    // Pastikan saldo sinkron dengan server
+                    creditBalance: profileJson.data.creditBalance, 
                     resetInfo: profileJson.data.resetInfo 
                 };
                 setUser(updatedUser);
                 localStorage.setItem('user', JSON.stringify(updatedUser));
+                
+                // 🔥 Cek Warning Saldo saat Load
+                showCreditWarning(updatedUser.creditBalance);
             }
         } 
 
@@ -78,7 +84,18 @@ export default function Index() {
     }
   };
 
-  useEffect(() => { fetchUserProfile(); }, []);
+  // Setup Listener agar kalau Header update kredit, Dashboard juga update
+  useEffect(() => { 
+      fetchUserProfile();
+
+      // Listen event global
+      const handleCreditUpdate = () => fetchUserProfile();
+      window.addEventListener('creditUpdated', handleCreditUpdate);
+
+      return () => {
+          window.removeEventListener('creditUpdated', handleCreditUpdate);
+      };
+  }, []);
 
   // --- 2. LOGIKA SCAN ---
   const handleScan = async (file: File) => {
@@ -111,15 +128,23 @@ export default function Index() {
       if (json && json.status === "success") {
         toast.success("Berhasil!");
         
-        // Update Kredit Realtime
+        // 1. Update Kredit Realtime (Dari Response Backend)
         const newBalance = json.remaining_credits;
+        
         setUser((prevUser: any) => {
             const updated = { ...prevUser, creditBalance: newBalance };
             localStorage.setItem('user', JSON.stringify(updated));
             return updated;
         });
 
-        // Update Table Log
+        // 🔥 2. Trigger Event Global (Supaya Header ikut berubah)
+        triggerCreditUpdate();
+        triggerCreditUsage('ocr_scan', `Scan: ${file.name}`);
+        
+        // 🔥 3. Cek Warning Saldo
+        showCreditWarning(newBalance);
+
+        // 4. Update Table Log
         if (json.data) {
             const newLog = {
                 id: json.data.id,
@@ -133,10 +158,12 @@ export default function Index() {
             setLogs(prev => [newLog, ...prev]);
         }
       } else {
+        // JIKA GAGAL (Backend Error) -> Kredit User AMAN (Tidak dikurangi)
         throw new Error(json?.message || "Gagal memproses data.");
       }
     } catch (error: any) {
       toast.error("Gagal", { description: error.message });
+      // Disini kita tidak melakukan setUser credit, jadi kredit di UI tetap aman
     } finally {
       setLoading(false);
     }
@@ -195,11 +222,10 @@ export default function Index() {
             </div>
         </div>
 
-        {/* RIWAYAT TANPA TOMBOL EXPORT */}
+        {/* RIWAYAT */}
         <div className="w-full bg-white dark:bg-zinc-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-zinc-800">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                 <h2 className="font-bold text-lg">Riwayat Digitalisasi</h2>
-                {/* Tombol Export sudah dihapus */}
             </div>
 
             <div className="w-full overflow-x-auto">
