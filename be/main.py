@@ -6,12 +6,15 @@ import numpy as np
 from PIL import Image
 import io
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import requests
 import calendar 
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
+
+# --- SCHEDULER (PEMBERSIH OTOMATIS) ---
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 # --- IMPORTS ---
 from db import prisma, connect_db, disconnect_db
@@ -19,26 +22,73 @@ from utils import get_user_email_from_token
 from smart_ocr_processor import SmartOCRProcessor
 from pricing_service import CreditService
 
-# 🔥 IMPORT DUA SERVICE BERBEDA 🔥
-from drive_service import export_excel_to_drive  # Khusus Export Excel
-from imagekit_service import upload_to_imagekit  # Khusus Simpan Gambar
+# 🔥 IMPORT SERVICE 🔥
+from drive_service import export_excel_to_drive
+from imagekit_service import upload_to_imagekit, delete_from_imagekit_by_url
 
 load_dotenv()
 
 # --- CONFIG ---
 smart_ocr = None
 UPLOAD_DIR = "uploads"
+scheduler = AsyncIOScheduler() # Inisialisasi Scheduler
+
+# 🔥 FUNGSI PEMBERSIH GAMBAR > 30 HARI 🔥
+async def cleanup_old_images():
+    print("🧹 Menjalankan Pembersihan Gambar Lama...")
+    try:
+        # 1. Hitung tanggal 30 hari yang lalu
+        cutoff_date = datetime.now() - timedelta(days=30)
+        
+        # 2. Cari Log yang lebih tua dari 30 hari & masih punya link ImageKit
+        old_logs = await prisma.logs.find_many(where={
+            "timestamp": {"lt": cutoff_date},
+            "imagePath": {"contains": "imagekit.io"} # Hanya yang di ImageKit
+        })
+
+        if not old_logs:
+            print("✅ Tidak ada gambar expired hari ini.")
+            return
+
+        print(f"found {len(old_logs)} data lama. Menghapus dari ImageKit...")
+
+        count = 0
+        for log in old_logs:
+            # 3. Hapus dari ImageKit
+            success = delete_from_imagekit_by_url(log.imagePath)
+            
+            # 4. Update Database (Tandai Expired agar link tidak broken)
+            if success:
+                await prisma.logs.update(
+                    where={"id": log.id},
+                    data={"imagePath": "EXPIRED_IMAGE (Deleted > 30 Days)"}
+                )
+                count += 1
+        
+        print(f"✅ Selesai! {count} gambar berhasil dihapus dari server.")
+
+    except Exception as e:
+        print(f"❌ Error Cleanup: {e}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Server Starting...")
     await connect_db()
+    
+    # SETUP OCR
     global smart_ocr
     try:
         api_key = os.getenv('OCR_SPACE_API_KEY', 'helloworld')
         smart_ocr = SmartOCRProcessor(api_key)
         print("✅ OCR Engine Ready")
     except: pass
+    
+    # 🔥 MULAI SCHEDULER 🔥
+    # Jalankan cleanup setiap 24 jam
+    scheduler.add_job(cleanup_old_images, 'interval', hours=24)
+    scheduler.start()
+    print("✅ Auto-Cleanup Scheduler Aktif (Check tiap 24 jam)")
+
     yield
     print("🛑 Server Shutting Down...")
     await disconnect_db()
@@ -55,7 +105,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- HELPER ---
+# --- HELPER & ENDPOINTS (SAMA SEPERTI SEBELUMNYA) ---
+# Copy-Paste sisa kodenya dari bawah sini (sama persis dengan sebelumnya)
+# Saya tulis ulang ringkasnya agar Anda tinggal copy paste full file
+
 def get_google_user_info(token: str):
     try:
         res = requests.get('https://www.googleapis.com/oauth2/v3/userinfo', headers={'Authorization': f'Bearer {token}'}, timeout=5)
@@ -83,13 +136,10 @@ async def extract_text_from_image(image_np):
     except: pass
     raise Exception("Gagal membaca teks dari gambar.")
 
-# --- MODELS ---
 class RatingRequest(BaseModel):
     stars: int; emoji: str; message: str; userName: str; userAvatar: str
 class LogUpdate(BaseModel):
     summary: str
-
-# --- ENDPOINTS ---
 
 @app.get("/health")
 def health(): return {"status": "ok", "env": os.getenv("ENVIRONMENT", "dev")}
@@ -169,12 +219,12 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         user_email = get_user_email_hybrid(authorization)
         if not user_email: raise HTTPException(401, "Sesi invalid")
 
-        # 1. Cek Saldo
+        # Cek Saldo
         user = await prisma.user.find_unique(where={"email": user_email})
         if not user or user.creditBalance < 1:
              return {"status": "error", "error_type": "insufficient_credits", "message": "Kredit habis.", "remaining_credits": 0}
 
-        # 2. Simpan File Lokal (Sementara)
+        # Simpan File Lokal
         content = await file.read()
         image_np = np.array(Image.open(io.BytesIO(content)))
         
@@ -184,33 +234,29 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         
         with open(filepath, "wb") as f: f.write(content)
 
-        # 3. 🔥 UPLOAD KE IMAGEKIT (Gantikan Render Link) 🔥
-        # Ini solusi agar gambar tidak hilang/pecah saat server restart
+        # UPLOAD KE IMAGEKIT
         image_url = upload_to_imagekit(filepath, filename)
         
-        # Fallback jika ImageKit gagal (jarang terjadi)
         if not image_url:
             base_url = os.getenv("API_BASE_URL") or os.getenv("RENDER_EXTERNAL_URL") or "http://localhost:8000"
             image_url = f"{base_url}/uploads/{filename}"
-            print("⚠️ Upload ImageKit gagal, pakai link lokal.")
 
-        # 4. OCR Process
+        # OCR Process
         ocr_res = await extract_text_from_image(image_np)
         
-        # 5. Simpan Log dengan Link ImageKit
+        # Simpan Log
         doc_data = ocr_res.get("structured_data", {})
         log = await prisma.logs.create(data={
             "userId": user_email, "timestamp": datetime.now(), 
             "filename": file.filename, "kategori": ocr_res.get("document_type", "unknown").upper(), 
             "nomorDokumen": doc_data.get('invoice_number') or "MANUAL", "receiver": receiver.upper(), 
-            "imagePath": image_url, # <-- Link Permanen
+            "imagePath": image_url, 
             "summary": ocr_res.get("summary", ""), "fullText": ocr_res.get("raw_text", "")
         })
 
-        # 6. Potong Kredit
+        # Potong Kredit
         updated = await prisma.user.update(where={"email": user_email}, data={"creditBalance": {"decrement": 1}})
 
-        # (Opsional) Hapus file lokal untuk hemat space Render
         if os.path.exists(filepath): os.remove(filepath)
 
         return {
@@ -226,7 +272,6 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
 @app.post("/export-excel")
 async def export_excel(authorization: str = Header(None)):
     try:
-        # 🔥 FITUR EXPORT TETAP PAKAI GOOGLE DRIVE 🔥
         user_email = get_user_email_hybrid(authorization)
         if not user_email: raise HTTPException(401, "Invalid")
         raw_token = authorization.replace("Bearer ", "").strip()
@@ -243,7 +288,7 @@ async def export_excel(authorization: str = Header(None)):
                 "Nomor": l.nomorDokumen, 
                 "Penerima": l.receiver,
                 "Ringkasan": l.summary, 
-                "Link Foto": l.imagePath # Ini Link ImageKit
+                "Link Foto": l.imagePath 
             })
         
         df = pd.DataFrame(data_list)
@@ -252,16 +297,12 @@ async def export_excel(authorization: str = Header(None)):
             df.to_excel(writer, index=False)
         output.seek(0)
         
-        # Upload Excel ke Google Drive User
         drive_res = export_excel_to_drive(raw_token, output, f"Report_{datetime.now().strftime('%Y%m%d')}.xlsx")
         
         if drive_res: return {"status": "success", "message": "Export Berhasil!", "link": drive_res.get('web_view_link')}
         else: return {"status": "error", "message": "Gagal Upload ke Drive."}
 
     except Exception as e: return {"status": "error", "message": str(e)}
-
-# ... (Endpoint history, rating, delete-account SAMA SEPERTI SEBELUMNYA) ...
-# Paste sisa kode endpoint lainnya di sini (tidak ada perubahan untuk endpoint bawah)
 
 @app.get("/ratings")
 async def get_ratings():
