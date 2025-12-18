@@ -1,11 +1,7 @@
-import { LogOut, User as UserIcon, Settings, Trash2 } from "lucide-react"; // Import Trash2
+import { LogOut, User as UserIcon, Settings, Trash2 } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -21,24 +17,27 @@ interface HeaderProps {
 
 export default function Header({ user, onLogout, onProfile, onSettings }: HeaderProps) {
   
-  // Fungsi Hapus Akun
+  // FIX ISSUE NO 1: Logic Hapus Akun yang Benar
   const handleDeleteAccount = async () => {
-    const confirmText = prompt("Ketik 'HAPUS' untuk menghapus akun permanen. Data tidak bisa kembali.");
+    const confirmText = prompt("Ketik 'HAPUS' (huruf besar) untuk menghapus akun permanen. Data hilang selamanya.");
     if (confirmText !== "HAPUS") return;
 
     try {
-      toast.info("Sedang menghapus akun...");
-      const res = await apiFetch("/delete-account", { method: "DELETE", headers: { Authorization: `Bearer ${user.credential}` } });
+      toast.info("Sedang menghapus data...");
+      const res = await apiFetch("/delete-account", { 
+          method: "DELETE", 
+          headers: { Authorization: `Bearer ${user.credential}` } 
+      });
       const json = await res.json();
 
       if (json.status === "success") {
-        toast.success("Akun berhasil dihapus. Selamat tinggal!");
-        onLogout(); // Logout otomatis
+        toast.success("Akun berhasil dihapus.");
+        onLogout(); // Logout paksa
       } else {
         toast.error(json.message || "Gagal menghapus akun");
       }
     } catch (e) {
-      toast.error("Terjadi kesalahan server");
+      toast.error("Kesalahan koneksi ke server");
     }
   };
 
@@ -49,13 +48,12 @@ export default function Header({ user, onLogout, onProfile, onSettings }: Header
       </div>
       
       <div className="ml-auto flex items-center gap-4">
-        {/* INFO KREDIT & RESET TIME */}
+        {/* FIX ISSUE NO 3: Info Reset Waktu */}
         {user && (
            <div className="text-right hidden sm:block">
               <div className="text-sm font-medium">
                 Kredit: <span className="text-blue-600 font-bold">{user.creditBalance ?? 0}</span>
               </div>
-              {/* MENAMPILKAN INFO RESET */}
               {user.resetInfo && (
                 <div className="text-[10px] text-gray-400">
                   Reset: {user.resetInfo.nextResetDate}
@@ -85,8 +83,8 @@ export default function Header({ user, onLogout, onProfile, onSettings }: Header
             <DropdownMenuItem onClick={onSettings}><Settings className="mr-2 h-4 w-4"/> Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
             
-            {/* MENU HAPUS AKUN */}
-            <DropdownMenuItem onClick={handleDeleteAccount} className="text-red-600 focus:text-red-600">
+            {/* Menu Hapus Akun */}
+            <DropdownMenuItem onClick={handleDeleteAccount} className="text-red-600 focus:text-red-600 cursor-pointer">
                 <Trash2 className="mr-2 h-4 w-4"/> Hapus Akun
             </DropdownMenuItem>
             
