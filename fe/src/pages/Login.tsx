@@ -58,7 +58,7 @@ export default function Login() {
         
         // 🔥 PERBAIKAN DISINI: JANGAN navigate('/') TAPI KE '/dashboard'
         // Supaya tidak mental ke Landing Page
-        navigate('/dashboard', { replace: true }); 
+        navigate('/index', { replace: true }); 
 
       } catch (error) {
         console.error("Login Error:", error);
