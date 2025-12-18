@@ -1,143 +1,189 @@
 import { useState, useEffect } from "react";
-import { apiFetch } from "@/lib/api-service";
 import { useNavigate } from "react-router-dom";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ArrowLeft, Star, Send, Trash2, Calendar, CreditCard, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Calendar, Mail, Trash2, Star, Send, ChevronLeft, Zap } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { apiFetch } from "@/lib/api-service";
 import { toast } from "sonner";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function Profile() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [ratingStars, setRatingStars] = useState(5);
-  const [ratingMessage, setRatingMessage] = useState("");
-  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  
+  // State untuk Rating
+  const [rating, setRating] = useState(5);
+  const [review, setReview] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const syncUserData = async () => {
-      try {
-        // 🔥 GANTI KE localStorage (Biar sinkron sama Dashboard)
-        const storedUser = localStorage.getItem('user');
-        const localUser = storedUser ? JSON.parse(storedUser) : null;
-        
-        if (!localUser?.credential) { navigate('/landing'); return; }
+    // Ambil data user dari localStorage
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+        setUser(JSON.parse(storedUser));
+    } else {
+        navigate('/login');
+    }
+  }, [navigate]);
 
-        setUser(localUser);
+  // 🔥 FUNGSI HAPUS AKUN 🔥
+  const handleDeleteAccount = async () => {
+    if (!confirm("YAKIN HAPUS AKUN? \nSemua data, log scan, dan kredit akan hilang permanen.")) return;
+    
+    try {
+        const res = await apiFetch("/delete-account", { 
+            method: "DELETE", 
+            headers: { "Authorization": `Bearer ${user.credential}` } 
+        });
 
-        // Sync Data Terbaru
-        const res = await apiFetch("/me", { 
-            headers: { "Authorization": `Bearer ${localUser.credential}` } 
+        if (res.ok) {
+            localStorage.clear(); // Bersihkan data di HP
+            toast.success("Akun berhasil dihapus.");
+            navigate('/landing'); // Tendang ke Landing Page
+        } else {
+            toast.error("Gagal menghapus akun.");
+        }
+    } catch (e) {
+        toast.error("Terjadi kesalahan sistem.");
+    }
+  };
+
+  // 🔥 FUNGSI KIRIM ULASAN 🔥
+  const handleSendReview = async () => {
+    if (!review.trim()) {
+        toast.error("Isi pesan ulasannya dulu ya!");
+        return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+        const res = await apiFetch("/rating", {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${user.credential}` 
+            },
+            body: JSON.stringify({
+                stars: rating,
+                emoji: "⭐", // Default emoji
+                message: review,
+                userName: user.name,
+                userAvatar: user.picture
+            })
         });
         
         if (res.ok) {
-            const json = await res.json();
-            if (json.status === "success") {
-                 const updatedUser = { ...localUser, ...json.data };
-                 setUser(updatedUser);
-                 // 🔥 SIMPAN KE localStorage JUGA
-                 localStorage.setItem('user', JSON.stringify(updatedUser));
-            }
+            toast.success("Ulasan terkirim!", { description: "Terima kasih atas masukan Anda." });
+            setReview(""); // Reset form
+        } else {
+            toast.error("Gagal mengirim ulasan.");
         }
-      } catch (e) { 
-        console.error("Gagal sync profile:", e);
-      } finally { 
-        setLoading(false); 
-      }
-    };
-
-    syncUserData();
-  }, [navigate]);
-
-  const handleDeleteAccount = async () => {
-    if (!confirm("YAKIN? Data akan hilang permanen.")) return;
-    try {
-        await apiFetch("/delete-account", { method: "DELETE", headers: { "Authorization": `Bearer ${user.credential}` } });
-        
-        // 🔥 BERSIHKAN localStorage
-        localStorage.clear();
-        navigate('/landing');
-        toast.success("Akun dihapus.");
-    } catch (e) { toast.error("Gagal menghapus."); }
+    } catch (e) {
+        toast.error("Gagal terhubung ke server.");
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
-  const handleSubmitRating = async () => {
-    if (!ratingMessage.trim()) return toast.warning("Isi pesan dulu ya.");
-    setIsSubmittingRating(true);
-    try {
-      const emojiMap = ["😡", "🙁", "😐", "🙂", "🤩"];
-      const payload = { 
-          stars: ratingStars, 
-          emoji: emojiMap[ratingStars - 1] || "🙂", 
-          message: ratingMessage, 
-          userName: user?.name, 
-          userAvatar: user?.picture 
-      };
-      await apiFetch("/rating", { 
-          method: "POST", 
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${user.credential}` }, 
-          body: JSON.stringify(payload) 
-      });
-      toast.success("Ulasan terkirim!");
-      setRatingMessage("");
-    } catch (e) { toast.error("Gagal kirim ulasan."); } 
-    finally { setIsSubmittingRating(false); }
-  };
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] dark:bg-zinc-950 font-sans text-[#1A1A1A] dark:text-white p-4 pb-20">
-      <div className="max-w-2xl mx-auto flex items-center gap-4 py-6">
+      
+      {/* HEADER */}
+      <div className="max-w-md mx-auto flex items-center gap-4 py-6">
         <Button 
-            variant="outline" 
+            variant="ghost" 
             size="icon" 
-            onClick={() => navigate('/')} 
-            className="rounded-full w-10 h-10 bg-white dark:bg-zinc-900 shadow-sm border-gray-200 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all"
+            onClick={() => navigate('/dashboard')} 
+            className="rounded-full hover:bg-gray-200 dark:hover:bg-zinc-800"
         >
-            <ChevronLeft className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+            <ArrowLeft className="w-6 h-6" />
         </Button>
-        <h1 className="text-2xl font-bold tracking-tight">Profile Saya</h1>
+        <h1 className="text-xl font-bold uppercase tracking-wider">Profile Saya</h1>
       </div>
 
-      <div className="max-w-2xl mx-auto space-y-6">
-          {loading ? ( <div className="space-y-4"><Skeleton className="h-40 w-full rounded-3xl" /><Skeleton className="h-20 w-full rounded-3xl" /></div> ) : (
-            <>
-                <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800 flex flex-col md:flex-row items-center gap-6 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 opacity-10"><Zap className="w-32 h-32" /></div>
-                    <Avatar className="h-24 w-24 border-4 border-gray-50 dark:border-zinc-800 shadow-inner z-10"><AvatarImage src={user?.picture} /><AvatarFallback className="text-2xl">{user?.name?.charAt(0)}</AvatarFallback></Avatar>
-                    <div className="text-center md:text-left space-y-1 z-10">
-                        <h2 className="text-2xl font-bold">{user?.name}</h2>
-                        <div className="flex items-center justify-center md:justify-start gap-2 text-gray-500 dark:text-gray-400 text-sm"><Mail className="w-4 h-4" /> {user?.email}</div>
-                        <div className="pt-2"><span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-black text-white dark:bg-white dark:text-black tracking-wide">{user?.tier || "FREE MEMBER"}</span></div>
+      <div className="max-w-md mx-auto space-y-6">
+            
+            {/* 1. KARTU PROFIL UTAMA */}
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-zinc-800 flex flex-col items-center text-center">
+                <Avatar className="w-24 h-24 mb-4 border-4 border-gray-50 dark:border-zinc-800">
+                    <AvatarImage src={user.picture} />
+                    <AvatarFallback className="text-2xl">{user.name?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <h2 className="text-xl font-black uppercase tracking-tight">{user.name}</h2>
+                <p className="text-gray-400 text-xs mb-4">{user.email}</p>
+                <span className="bg-black text-white dark:bg-white dark:text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
+                    {user.tier || "Free Member"}
+                </span>
+            </div>
+
+            {/* 2. STATISTIK KREDIT & BERGABUNG */}
+            <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-zinc-800">
+                    <div className="flex items-center gap-2 mb-2 text-gray-400">
+                        <CreditCard className="w-4 h-4" />
+                        <span className="text-[10px] font-bold uppercase">Sisa Kredit</span>
                     </div>
+                    <p className="text-3xl font-black">{user.creditBalance ?? 0}</p>
+                </div>
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-zinc-800">
+                    <div className="flex items-center gap-2 mb-2 text-gray-400">
+                        <Calendar className="w-4 h-4" />
+                        <span className="text-[10px] font-bold uppercase">Bergabung</span>
+                    </div>
+                    <p className="text-sm font-bold truncate">
+                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }) : "-"}
+                    </p>
+                </div>
+            </div>
+
+            {/* 3. FORM BERI ULASAN */}
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800">
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Beri Ulasan</h3>
+                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                </div>
+                
+                {/* Bintang */}
+                <div className="flex justify-center gap-3 mb-6">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                        <Star 
+                            key={star} 
+                            className={`w-8 h-8 cursor-pointer transition-transform hover:scale-110 ${star <= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-200 dark:text-zinc-700"}`}
+                            onClick={() => setRating(star)}
+                        />
+                    ))}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800">
-                        <div className="flex items-center gap-2 mb-2 text-gray-500"><CreditCard className="w-4 h-4" /><span className="text-xs font-bold uppercase">Sisa Kredit</span></div>
-                        <p className="text-3xl font-bold text-black dark:text-white">{user?.creditBalance ?? 0}</p>
-                    </div>
-                    <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800">
-                        <div className="flex items-center gap-2 mb-2 text-gray-500"><Calendar className="w-4 h-4" /><span className="text-xs font-bold uppercase">Bergabung</span></div>
-                        <p className="text-sm font-bold mt-2">
-                            {user?.createdAt ? new Date(user.createdAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' }) : "-"}
-                        </p>
-                    </div>
-                </div>
+                <Textarea 
+                    placeholder="Gimana pengalamanmu?" 
+                    value={review}
+                    onChange={(e) => setReview(e.target.value)}
+                    className="mb-4 bg-gray-50 dark:bg-zinc-800 border-none resize-none h-24 rounded-xl focus-visible:ring-1"
+                />
 
-                <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800">
-                    <div className="flex items-center justify-between mb-4"><h3 className="font-bold">Beri Ulasan</h3><Star className="w-5 h-5 text-yellow-400 fill-yellow-400" /></div>
-                    <div className="flex justify-center gap-3 mb-6">{[1, 2, 3, 4, 5].map((star) => (<button key={star} onClick={() => setRatingStars(star)} className="transition-transform hover:scale-110 active:scale-95 focus:outline-none"><Star className={`w-8 h-8 ${star <= ratingStars ? "text-yellow-400 fill-yellow-400" : "text-gray-200 fill-gray-100 dark:text-zinc-700 dark:fill-zinc-800"}`} /></button>))}</div>
-                    <textarea value={ratingMessage} onChange={(e) => setRatingMessage(e.target.value)} placeholder="Gimana pengalamanmu?" className="w-full p-4 rounded-xl bg-gray-50 dark:bg-zinc-800 border-none text-sm mb-4 outline-none focus:ring-1 focus:ring-black" rows={2} />
-                    <Button onClick={handleSubmitRating} disabled={isSubmittingRating} className="w-full rounded-xl font-bold h-12 bg-black text-white hover:bg-gray-800">{isSubmittingRating ? "Mengirim..." : <><Send className="w-4 h-4 mr-2" /> Kirim</>}</Button>
-                </div>
+                <Button onClick={handleSendReview} disabled={isSubmitting} className="w-full bg-black hover:bg-gray-800 dark:bg-white dark:text-black font-bold rounded-xl h-12">
+                    {isSubmitting ? "MENGIRIM..." : <><Send className="w-4 h-4 mr-2" /> KIRIM</>}
+                </Button>
+            </div>
 
-                <div className="flex justify-between items-center bg-red-50 dark:bg-red-900/10 p-5 rounded-2xl border border-red-100 dark:border-red-900/20">
-                    <div className="text-sm text-red-800 dark:text-red-200"><p className="font-bold">Hapus Akun</p><p className="text-xs opacity-70">Aksi ini tidak bisa dibatalkan.</p></div>
-                    <Button variant="destructive" size="sm" onClick={handleDeleteAccount} className="rounded-lg"><Trash2 className="w-4 h-4" /></Button>
+            {/* 4. TOMBOL HAPUS AKUN */}
+            <div className="bg-red-50 dark:bg-red-900/10 rounded-3xl p-6 border border-red-100 dark:border-red-900/20">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-sm font-bold text-red-600">Hapus Akun</h3>
+                        <p className="text-[10px] text-red-400 mt-1">Aksi ini tidak bisa dibatalkan.</p>
+                    </div>
+                    <Button variant="destructive" size="icon" onClick={handleDeleteAccount} className="rounded-xl w-10 h-10">
+                        <Trash2 className="w-5 h-5" />
+                    </Button>
                 </div>
-            </>
-          )}
+            </div>
+
+            <p className="text-center text-[10px] text-gray-300 uppercase py-4">
+                SmartDoc Pipeline v2.1
+            </p>
       </div>
     </div>
   );
