@@ -23,18 +23,18 @@ const TypewriterText = ({ text }: { text: string }) => {
 
 export default function Login() {
   const navigate = useNavigate();
-  const [agreedToDrive, setAgreedToDrive] = useState(false); 
+  // 🔥 UBAH KE TRUE: Agar default-nya sudah tercentang (User Experience lebih baik)
+  const [agreedToDrive, setAgreedToDrive] = useState(true); 
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Cek tema dari localStorage
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') document.documentElement.classList.add('dark');
   }, []);
 
   // --- LOGIC LOGIN UTAMA ---
   const googleLogin = useGoogleLogin({
-    // Scope dinamis: jika dicentang minta akses Drive, jika tidak cuma profile
+    // Scope dinamis
     scope: agreedToDrive ? 'https://www.googleapis.com/auth/drive.file email profile' : 'email profile',
     
     onSuccess: async (tokenResponse) => {
@@ -42,13 +42,11 @@ export default function Login() {
       try {
         const accessToken = tokenResponse.access_token;
 
-        // Ambil Data Profil User dari Google
         const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         const userInfo = await userInfoRes.json();
 
-        // Siapkan data untuk disimpan
         const userData = {
           name: userInfo.name,
           email: userInfo.email,
@@ -57,14 +55,12 @@ export default function Login() {
           isDriveEnabled: agreedToDrive 
         };
 
-        // 🔥 WAJIB: Simpan ke localStorage (Bukan sessionStorage)
         localStorage.setItem('isAuthenticated', 'true');
         localStorage.setItem('user', JSON.stringify(userData));
 
         toast.success(`Selamat datang, ${userInfo.name}!`);
         
-        // 🔥 ARAHKAN KE DASHBOARD
-        // Pastikan di App.tsx rutenya adalah <Route path="/dashboard" ... />
+        // Redirect ke dashboard
         navigate('/dashboard', { replace: true }); 
 
       } catch (error) {
@@ -83,14 +79,12 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-[#F4F4F0] dark:bg-black flex flex-col items-center justify-center p-4 transition-colors duration-300">
       
-      {/* Tombol Kembali */}
       <div className="absolute top-6 left-6">
         <Button onClick={() => navigate('/landing')} variant="ghost" className="font-bold font-mono text-black dark:text-white hover:bg-transparent hover:underline">
           <ArrowLeft className="w-4 h-4 mr-2" /> KEMBALI
         </Button>
       </div>
 
-      {/* Kotak Login Brutalist */}
       <div className="w-full max-w-md bg-white dark:bg-zinc-900 border-4 border-black dark:border-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] p-8 text-center transition-all">
         
         <h1 className="text-5xl font-black mb-2 text-black dark:text-white tracking-tighter">
