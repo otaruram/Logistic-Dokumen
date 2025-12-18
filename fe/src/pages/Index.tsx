@@ -16,13 +16,10 @@ export default function Index() {
   // --- 1. SETUP & FETCH DATA ---
   const fetchUserProfile = async () => {
     try {
+        // 🔥 BACA DARI localStorage (Bukan sessionStorage)
         const storedUser = localStorage.getItem('user');
         
-        // Cek ketat: Kalau kosong, tendang ke landing
-        if (!storedUser) { 
-            navigate('/landing'); 
-            return; 
-        }
+        if (!storedUser) { navigate('/landing'); return; }
 
         const localUser = JSON.parse(storedUser);
         const token = localUser?.credential;
@@ -36,7 +33,7 @@ export default function Index() {
             headers: { "Authorization": `Bearer ${token}` } 
         });
         
-        // 🔥 TAMBAHAN SECURITY: Kalau token expired (401), logout otomatis
+        // Handle Token Expired
         if (profileRes.status === 401) {
             localStorage.clear();
             navigate('/landing');
@@ -45,6 +42,7 @@ export default function Index() {
 
         if (profileRes.ok) {
             const profileJson = await profileRes.json();
+            // Cek status sukses
             if (profileJson && profileJson.status === "success") {
                 const updatedUser = { 
                     ...localUser, 
@@ -84,7 +82,7 @@ export default function Index() {
 
   useEffect(() => { fetchUserProfile(); }, []);
 
-  // --- 2. LOGIKA SCAN ---
+  // --- 2. LOGIKA SCAN (Anti Error Null) ---
   const handleScan = async (file: File) => {
     if (!user) return;
     if (user.creditBalance < 1) {
@@ -107,11 +105,12 @@ export default function Index() {
         timeout: 90000 
       });
 
-      if (!res.ok) throw new Error(`Gagal memproses (Status: ${res.status})`);
+      if (!res.ok) throw new Error(`Status Server: ${res.status}`);
 
       let json;
-      try { json = await res.json(); } catch { throw new Error("Respon server error."); }
+      try { json = await res.json(); } catch { throw new Error("Format respon tidak valid."); }
 
+      // 🔥 CEK STATUS JSON SEBELUM BACA DATA
       if (json && json.status === "success") {
         toast.success("Berhasil!");
         
@@ -144,7 +143,6 @@ export default function Index() {
     }
   };
 
-  // Helper Functions
   const handleDeleteLog = async (id: number) => {
     if(!confirm("Hapus data ini?")) return;
     try {
