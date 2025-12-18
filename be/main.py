@@ -13,15 +13,15 @@ import calendar
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
-# --- IMPORTS DARI FILE LAIN ---
-# Pastikan file db.py, utils.py, dll ada di folder yang sama
+# --- IMPORTS ---
 from db import prisma, connect_db, disconnect_db
 from utils import get_user_email_from_token
 from smart_ocr_processor import SmartOCRProcessor
 from pricing_service import CreditService
 
-# 🔥 IMPORT GDRIVE SERVICE 🔥
-from drive_service import upload_image_to_drive, export_excel_to_drive
+# 🔥 IMPORT DUA SERVICE BERBEDA 🔥
+from drive_service import export_excel_to_drive  # Khusus Export Excel
+from imagekit_service import upload_to_imagekit  # Khusus Simpan Gambar
 
 load_dotenv()
 
@@ -103,7 +103,6 @@ async def get_my_profile(authorization: str = Header(None)):
 
         user = await prisma.user.find_unique(where={"email": user_email})
 
-        # Cek Kredit Harian
         if user:
             await CreditService.ensure_daily_credits(user_email, prisma)
             user = await prisma.user.find_unique(where={"email": user_email})
@@ -114,7 +113,6 @@ async def get_my_profile(authorization: str = Header(None)):
             if not user or not user.name or user.name == "User": updates["name"] = google_info.get("name", "User")
             if not user or not user.picture: updates["picture"] = google_info.get("picture", "")
 
-        # Buat User Baru
         if not user:
             user = await prisma.user.create(data={
                 "email": user_email, 
@@ -128,7 +126,6 @@ async def get_my_profile(authorization: str = Header(None)):
         elif updates:
             user = await prisma.user.update(where={"email": user_email}, data=updates)
 
-        # Hitung Reset Bulanan
         try:
             today = datetime.now()
             join_date = user.createdAt if user.createdAt else today
@@ -171,52 +168,54 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
     try:
         user_email = get_user_email_hybrid(authorization)
         if not user_email: raise HTTPException(401, "Sesi invalid")
-        raw_token = authorization.replace("Bearer ", "").strip()
 
         # 1. Cek Saldo
         user = await prisma.user.find_unique(where={"email": user_email})
         if not user or user.creditBalance < 1:
              return {"status": "error", "error_type": "insufficient_credits", "message": "Kredit habis.", "remaining_credits": 0}
 
-        # 2. Simpan File Lokal
+        # 2. Simpan File Lokal (Sementara)
         content = await file.read()
         image_np = np.array(Image.open(io.BytesIO(content)))
-        filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+        
+        clean_name = "".join(x for x in file.filename if x.isalnum() or x in "._- ")
+        filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{clean_name}"
         filepath = os.path.join(UPLOAD_DIR, filename)
+        
         with open(filepath, "wb") as f: f.write(content)
 
-        # 3. Setup URL
-        base_url = os.getenv("API_BASE_URL") 
-        if not base_url: base_url = os.getenv("RENDER_EXTERNAL_URL")
-        if not base_url: base_url = "http://localhost:8000"
-        final_url = f"{base_url}/uploads/{filename}"
-
-        # 4. 🔥 Upload ke Google Drive dengan Error Handling 🔥
-        drive_res = upload_image_to_drive(raw_token, filepath)
+        # 3. 🔥 UPLOAD KE IMAGEKIT (Gantikan Render Link) 🔥
+        # Ini solusi agar gambar tidak hilang/pecah saat server restart
+        image_url = upload_to_imagekit(filepath, filename)
         
-        if drive_res and drive_res.get('direct_link'):
-            final_url = drive_res.get('direct_link')
-            print(f"✅ GDrive Upload Success: {final_url}")
-        else:
-            print(f"⚠️ GDrive Skipped/Failed (Check Token Scope). Using Local: {final_url}")
+        # Fallback jika ImageKit gagal (jarang terjadi)
+        if not image_url:
+            base_url = os.getenv("API_BASE_URL") or os.getenv("RENDER_EXTERNAL_URL") or "http://localhost:8000"
+            image_url = f"{base_url}/uploads/{filename}"
+            print("⚠️ Upload ImageKit gagal, pakai link lokal.")
 
-        # 5. OCR Process
+        # 4. OCR Process
         ocr_res = await extract_text_from_image(image_np)
         
-        # 6. Simpan Log
+        # 5. Simpan Log dengan Link ImageKit
         doc_data = ocr_res.get("structured_data", {})
         log = await prisma.logs.create(data={
             "userId": user_email, "timestamp": datetime.now(), 
             "filename": file.filename, "kategori": ocr_res.get("document_type", "unknown").upper(), 
             "nomorDokumen": doc_data.get('invoice_number') or "MANUAL", "receiver": receiver.upper(), 
-            "imagePath": final_url, "summary": ocr_res.get("summary", ""), "fullText": ocr_res.get("raw_text", "")
+            "imagePath": image_url, # <-- Link Permanen
+            "summary": ocr_res.get("summary", ""), "fullText": ocr_res.get("raw_text", "")
         })
 
+        # 6. Potong Kredit
         updated = await prisma.user.update(where={"email": user_email}, data={"creditBalance": {"decrement": 1}})
+
+        # (Opsional) Hapus file lokal untuk hemat space Render
+        if os.path.exists(filepath): os.remove(filepath)
 
         return {
             "status": "success", 
-            "data": { "id": log.id, "kategori": log.kategori, "nomorDokumen": log.nomorDokumen, "summary": log.summary, "imagePath": final_url }, 
+            "data": { "id": log.id, "kategori": log.kategori, "nomorDokumen": log.nomorDokumen, "summary": log.summary, "imagePath": image_url }, 
             "remaining_credits": updated.creditBalance
         }
 
@@ -224,47 +223,45 @@ async def scan_document(file: UploadFile = File(...), receiver: str = Form(...),
         print(f"Scan Error: {e}")
         return {"status": "error", "message": f"Gagal Scan: {str(e)}"}
 
-# 🔥🔥 PERBAIKAN EXPORT EXCEL 🔥🔥
 @app.post("/export-excel")
 async def export_excel(authorization: str = Header(None)):
     try:
+        # 🔥 FITUR EXPORT TETAP PAKAI GOOGLE DRIVE 🔥
         user_email = get_user_email_hybrid(authorization)
-        if not user_email: raise HTTPException(401, "Invalid Session")
+        if not user_email: raise HTTPException(401, "Invalid")
         raw_token = authorization.replace("Bearer ", "").strip()
 
         logs = await prisma.logs.find_many(where={"userId": user_email}, order={"timestamp": "desc"})
-        if not logs: return {"status": "error", "message": "Tidak ada data untuk diexport."}
+        if not logs: return {"status": "error", "message": "Data kosong."}
 
         data_list = []
         for l in logs:
             data_list.append({
-                "Tanggal": l.timestamp.strftime("%Y-%m-%d"), "Jam": l.timestamp.strftime("%H:%M"),
-                "Kategori": l.kategori, "Nomor": l.nomorDokumen, "Penerima": l.receiver,
-                "Ringkasan": l.summary, "Link Foto": l.imagePath
+                "Tanggal": l.timestamp.strftime("%Y-%m-%d"), 
+                "Jam": l.timestamp.strftime("%H:%M"),
+                "Kategori": l.kategori, 
+                "Nomor": l.nomorDokumen, 
+                "Penerima": l.receiver,
+                "Ringkasan": l.summary, 
+                "Link Foto": l.imagePath # Ini Link ImageKit
             })
         
         df = pd.DataFrame(data_list)
         output = io.BytesIO()
-        
-        # 🔥 Safety check untuk library openpyxl
-        try:
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df.to_excel(writer, index=False)
-        except ModuleNotFoundError:
-             return {"status": "error", "message": "Server Error: Library 'openpyxl' belum terinstall."}
-        
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False)
         output.seek(0)
         
-        # Upload ke Drive
+        # Upload Excel ke Google Drive User
         drive_res = export_excel_to_drive(raw_token, output, f"Report_{datetime.now().strftime('%Y%m%d')}.xlsx")
         
-        if drive_res: 
-            return {"status": "success", "message": "Export Berhasil!", "link": drive_res.get('web_view_link')}
-        else: 
-            return {"status": "error", "message": "Gagal Upload ke Drive. Silakan Logout dan Login ulang dengan mencentang izin Drive."}
+        if drive_res: return {"status": "success", "message": "Export Berhasil!", "link": drive_res.get('web_view_link')}
+        else: return {"status": "error", "message": "Gagal Upload ke Drive."}
 
-    except Exception as e: 
-        return {"status": "error", "message": f"System Error: {str(e)}"}
+    except Exception as e: return {"status": "error", "message": str(e)}
+
+# ... (Endpoint history, rating, delete-account SAMA SEPERTI SEBELUMNYA) ...
+# Paste sisa kode endpoint lainnya di sini (tidak ada perubahan untuk endpoint bawah)
 
 @app.get("/ratings")
 async def get_ratings():
