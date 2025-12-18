@@ -5,7 +5,7 @@ import FileUploadZone from "@/components/dashboard/FileUploadZone";
 import DataTable from "@/components/dashboard/DataTable";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { triggerCreditUpdate, triggerCreditUsage, showCreditWarning } from "@/events"; 
+import { triggerCreditUpdate, triggerCreditUsage, showCreditWarning } from "@/event"; 
 import { FileText, Clock, ShieldCheck } from "lucide-react";
 
 export default function Index() {
