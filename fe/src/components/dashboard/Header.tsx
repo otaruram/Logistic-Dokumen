@@ -9,7 +9,7 @@ export default function Header({ user, onLogout, onProfile, onSettings }: any) {
       <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-4 py-1.5 rounded-full border border-blue-100 dark:border-blue-800">
         <Zap className="w-4 h-4 text-blue-600 fill-blue-600" />
         <div className="flex flex-col">
-            <span className="text-[10px] uppercase font-bold text-slate-400 leading-none">Kredit</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 leading-none">Sisa Kredit</span>
             <span className="text-sm font-extrabold text-blue-700 dark:text-blue-400">{user?.creditBalance ?? 0}</span>
         </div>
       </div>
