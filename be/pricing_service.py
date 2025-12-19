@@ -6,9 +6,7 @@ class CreditService:
 
     @staticmethod
     async def ensure_daily_credits(user_email: str, prisma: Prisma):
-        """
-        Logic: Reset harian ke 3 kredit jika saldo < 3.
-        """
+        """Reset harian: Top-up ke 3 kredit jika sudah ganti hari dan saldo < 3."""
         try:
             user = await prisma.user.find_unique(where={"email": user_email})
             now = datetime.now()
@@ -19,11 +17,13 @@ class CreditService:
             last_reset = user.lastCreditReset
             should_reset = False
 
+            # Reset jika belum pernah reset atau hari sudah berganti
             if not last_reset or last_reset.date() < now.date():
                 should_reset = True
 
             if should_reset:
                 new_balance = user.creditBalance
+                # Jika saldo di bawah limit, naikkan ke limit harian (3)
                 if user.creditBalance < CreditService.DAILY_LIMIT:
                     new_balance = CreditService.DAILY_LIMIT
                 
@@ -43,9 +43,11 @@ class CreditService:
 
     @staticmethod
     async def deduct_credit(user_email: str, prisma: Prisma) -> bool:
+        """Mengurangi 1 kredit setiap kali scan sukses."""
         try:
             await CreditService.ensure_daily_credits(user_email, prisma)
             user = await prisma.user.find_unique(where={"email": user_email})
+            
             if not user or user.creditBalance < 1:
                 return False
             
