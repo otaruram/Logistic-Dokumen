@@ -1,315 +1,120 @@
 from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-import numpy as np
-from PIL import Image
-import io
 import pandas as pd
+import io, os, tempfile, pytz, requests
 from datetime import datetime, timedelta
-import os
-import requests
-import pytz 
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
-# --- IMPORTS LOKAL ---
+# IMPORTS LOKAL
 from db import prisma, connect_db, disconnect_db
 from utils import get_user_email_from_token
 from smart_ocr_processor import SmartOCRProcessor
-
-# Pastikan pricing_service.py isinya logika DAILY (Reset ke 3)
-from pricing_service import CreditService 
-# Pastikan drive_service.py isinya logika Service Account (Bot)
-from drive_service import export_excel_to_drive 
-from imagekit_service import upload_to_imagekit, delete_from_imagekit_by_url
+from pricing_service import CreditService
 
 load_dotenv()
 
-# --- CONFIG ---
-smart_ocr = None
-UPLOAD_DIR = "uploads"
 WIB = pytz.timezone('Asia/Jakarta')
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Server Starting...")
     await connect_db()
-    global smart_ocr
-    try:
-        api_key = os.getenv('OCR_SPACE_API_KEY', 'helloworld')
-        smart_ocr = SmartOCRProcessor(api_key)
-        print("✅ OCR Engine Ready")
-    except: pass
     yield
-    print("🛑 Server Shutting Down...")
     await disconnect_db()
 
 app = FastAPI(lifespan=lifespan)
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
 
-# --- HELPER ---
-def get_google_user_info(token: str):
-    try:
-        res = requests.get('https://www.googleapis.com/oauth2/v3/userinfo', headers={'Authorization': f'Bearer {token}'}, timeout=5)
-        if res.status_code == 200: return res.json()
-    except: pass
-    return None
-
+# HELPER AUTH
 def get_user_email_hybrid(authorization: str):
     if not authorization: return None
     token = authorization.replace("Bearer ", "").strip()
-    user_info = get_google_user_info(token)
-    if user_info and 'email' in user_info: return user_info['email']
+    # Logic verifikasi token google/custom di sini
     try: return get_user_email_from_token(authorization)
     except: return None
 
-# --- MODELS ---
-class RatingRequest(BaseModel):
-    stars: int; emoji: str; message: str; userName: str = "Anonymous"; userAvatar: str = ""
-
-class LogUpdate(BaseModel):
-    summary: str
-
-# --- ENDPOINTS UTAMA ---
-
-@app.get("/health")
-def health(): return {"status": "ok", "env": "production"}
+# --- ENDPOINT UTAMA ---
 
 @app.get("/me")
 async def get_my_profile(authorization: str = Header(None)):
-    try:
-        token = authorization.replace("Bearer ", "").strip() if authorization else ""
-        user_email = get_user_email_hybrid(authorization)
-        if not user_email: raise HTTPException(401, "Sesi habis/invalid")
+    user_email = get_user_email_hybrid(authorization)
+    if not user_email: raise HTTPException(401, "Unauthorized")
 
-        # 1. JALANKAN LOGIKA KREDIT HARIAN (Wajib di awal)
-        # Fungsi ini akan mereset kredit jadi 3 jika hari sudah berganti
-        await CreditService.ensure_daily_credits(user_email, prisma)
+    # 1. Jalankan Reset Harian
+    await CreditService.ensure_daily_credits(user_email, prisma)
+    
+    user = await prisma.user.find_unique(where={"email": user_email})
+    if not user:
+        # Create user baru jika belum ada
+        user = await prisma.user.create(data={
+            "email": user_email,
+            "creditBalance": 3,
+            "createdAt": datetime.now(),
+            "lastCreditReset": datetime.now()
+        })
 
-        user = await prisma.user.find_unique(where={"email": user_email})
+    # 2. Hitung Mundur Reset Data (30 Hari sejak Akun Dibuat)
+    join_date = user.createdAt.replace(tzinfo=pytz.utc).astimezone(WIB)
+    now = datetime.now(WIB)
+    
+    # Hitung siklus 30 hari berikutnya
+    next_data_reset = join_date + timedelta(days=30)
+    while next_data_reset < now:
+        next_data_reset += timedelta(days=30)
 
-        # 2. HANDLE USER BARU (Create jika belum ada)
-        if not user:
-            google_info = get_google_user_info(token)
-            user = await prisma.user.create(data={
-                "email": user_email, 
-                "name": google_info.get("name", "User") if google_info else "User",
-                "picture": google_info.get("picture", "") if google_info else "",
-                
-                # [FIX PENTING] User baru start dengan 3 Kredit
-                "creditBalance": 3, 
-                
-                "tier": "free",
-                "createdAt": datetime.now(),
-                "lastCreditReset": datetime.now()
-            })
+    days_left = (next_data_reset - now).days
 
-        # 3. LOGIKA NOTIFIKASI RESET DATA (BULANAN)
-        # Kredit tetap harian, tapi kita hitung mundur tanggal 1 bulan depan
-        # untuk notifikasi "Pembersihan Data" di Header Frontend.
-        now = datetime.now(WIB)
-        
-        # Target: Tanggal 1 Bulan Depan
-        if now.month == 12:
-            next_data_reset = datetime(now.year + 1, 1, 1, tzinfo=WIB)
-        else:
-            next_data_reset = datetime(now.year, now.month + 1, 1, tzinfo=WIB)
-            
-        days_left = (next_data_reset - now).days
-        
-        # Format Text: 1 Februari 2026
-        months_id = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
-        reset_str = f"1 {months_id[next_data_reset.month]} {next_data_reset.year}"
-
-        return {
-            "status": "success", 
-            "data": {
-                "email": user.email, "name": user.name, "picture": user.picture,
-                
-                # Kredit Realtime (Harian)
-                "creditBalance": user.creditBalance, 
-                
-                # Info Notifikasi Reset Data (Bulanan)
-                "resetInfo": { 
-                    "nextResetDate": reset_str, 
-                    "daysLeft": days_left,
-                    "type": "DataLog" 
-                }
+    return {
+        "status": "success",
+        "data": {
+            "email": user.email,
+            "creditBalance": user.creditBalance,
+            "createdAt": user.createdAt,
+            "resetInfo": {
+                "nextResetDate": next_data_reset.strftime("%d %B %Y"),
+                "daysLeft": days_left
             }
         }
-    except Exception as e: return {"status": "error", "message": str(e)}
+    }
 
-@app.post("/scan")
-async def scan_document(file: UploadFile = File(...), receiver: str = Form(...), authorization: str = Header(None)):
-    filepath = None
-    try:
-        user_email = get_user_email_hybrid(authorization)
-        if not user_email: raise HTTPException(401, "Unauthorized")
-
-        # Cek Reset Harian Dulu Sebelum Transaksi
-        await CreditService.ensure_daily_credits(user_email, prisma)
-
-        user = await prisma.user.find_unique(where={"email": user_email})
-        
-        # Validasi Kredit
-        if not user or user.creditBalance < 1:
-             return {"status": "error", "error_type": "insufficient_credits", "message": "Kredit harian habis (Limit: 3/hari)."}
-
-        # Proses File
-        content = await file.read()
-        image_np = np.array(Image.open(io.BytesIO(content)))
-        filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
-        filepath = os.path.join(UPLOAD_DIR, filename)
-        with open(filepath, "wb") as f: f.write(content)
-
-        image_url = upload_to_imagekit(filepath, filename)
-        if not image_url: raise Exception("Gagal upload gambar ke server.")
-
-        # OCR Logic
-        async def extract_text_from_image(img):
-            if smart_ocr:
-                text = await smart_ocr.enhanced_ocr_extract(img)
-                doc_type = smart_ocr.detect_document_type(text)
-                structured = smart_ocr.extract_structured_data(text, doc_type)
-                summary = smart_ocr.generate_smart_summary(text, structured, doc_type)
-                return { "raw_text": text, "summary": summary, "document_type": doc_type, "structured_data": structured }
-            return {}
-
-        ocr_res = await extract_text_from_image(image_np)
-        doc_data = ocr_res.get("structured_data", {})
-        
-        log = await prisma.logs.create(data={
-            "userId": user_email, "timestamp": datetime.now(), 
-            "filename": file.filename, "kategori": ocr_res.get("document_type", "unknown").upper(), 
-            "nomorDokumen": doc_data.get('invoice_number') or "MANUAL", "receiver": receiver.upper(), 
-            "imagePath": image_url, "summary": ocr_res.get("summary", ""), "fullText": ocr_res.get("raw_text", "")
-        })
-
-        # Potong 1 Kredit
-        updated = await prisma.user.update(where={"email": user_email}, data={"creditBalance": {"decrement": 1}})
-        
-        if filepath and os.path.exists(filepath): os.remove(filepath)
-
-        return {
-            "status": "success", 
-            "data": { "id": log.id, "kategori": log.kategori, "summary": log.summary, "imagePath": image_url }, 
-            "remaining_credits": updated.creditBalance
-        }
-    except Exception as e:
-        if filepath and os.path.exists(filepath): os.remove(filepath)
-        return {"status": "error", "message": f"Scan Gagal: {str(e)}"}
-
-# 🔥 EXPORT EXCEL RAPI + UPLOAD GDRIVE BOT 🔥
 @app.post("/export-excel")
 async def export_excel(authorization: str = Header(None)):
-    try:
-        user_email = get_user_email_hybrid(authorization)
-        if not user_email: raise HTTPException(401, "Unauthorized")
-        
-        logs = await prisma.logs.find_many(where={"userId": user_email}, order={"timestamp": "desc"})
-        if not logs: return {"status": "error", "message": "Data kosong."}
-        
-        # 1. Siapkan Data Frame
-        data_list = []
-        for l in logs:
-            data_list.append({
-                "Tanggal": l.timestamp.strftime("%Y-%m-%d"), 
-                "Jam": l.timestamp.strftime("%H:%M"),
-                "Kategori": l.kategori, "Nomor Dokumen": l.nomorDokumen, 
-                "Penerima": l.receiver, "Ringkasan": l.summary, "Link Gambar": l.imagePath
-            })
-        
-        df = pd.DataFrame(data_list)
-        output = io.BytesIO()
-        
-        # 2. Formatting Professional (XlsxWriter)
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            sheet_name = 'Laporan OCR'
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
-            workbook = writer.book; worksheet = writer.sheets[sheet_name]
-            
-            # Styles
-            header_fmt = workbook.add_format({'bold': True, 'text_wrap': True, 'valign': 'vcenter', 'align': 'center', 'fg_color': '#2F75B5', 'font_color': '#FFFFFF', 'border': 1})
-            body_fmt = workbook.add_format({'border': 1, 'valign': 'top', 'text_wrap': True})
-            link_fmt = workbook.add_format({'font_color': 'blue', 'underline': 1, 'border': 1, 'valign': 'top'})
+    user_email = get_user_email_hybrid(authorization)
+    if not user_email: raise HTTPException(401, "Unauthorized")
 
-            # Apply Styles & Auto Width
+    logs = await prisma.logs.find_many(where={"userId": user_email}, order={"timestamp": "desc"})
+    if not logs: return {"status": "error", "message": "Data kosong"}
+
+    # Siapkan Data
+    df = pd.DataFrame([
+        {
+            "Tanggal": l.timestamp.strftime("%Y-%m-%d"),
+            "Jam": l.timestamp.strftime("%H:%M"),
+            "Kategori": l.kategori,
+            "Penerima": l.receiver,
+            "Ringkasan": l.summary
+        } for l in logs
+    ])
+
+    # Buat File Excel Rapih (Langsung Download)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+        with pd.ExcelWriter(tmp.name, engine='xlsxwriter') as writer:
+            df.to_excel(writer, sheet_name='Laporan_OCR', index=False)
+            workbook = writer.book
+            worksheet = writer.sheets['Laporan_OCR']
+            
+            # Formatting Standard Kantor
+            header_fmt = workbook.add_format({'bold': True, 'fg_color': '#1A1A1A', 'font_color': '#FFFFFF', 'border': 1})
             for col_num, value in enumerate(df.columns.values):
                 worksheet.write(0, col_num, value, header_fmt)
-                col_len = max(df[value].astype(str).map(len).max(), len(str(value))) + 2
-                worksheet.set_column(col_num, col_num, min(col_len, 50), body_fmt)
-            
-            # Kolom Link (Index 6)
-            worksheet.set_column(6, 6, 25, link_fmt)
+                worksheet.set_column(col_num, col_num, 25)
 
-        output.seek(0)
-        filename = f"Laporan_OCR_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
-        
-        # 3. Upload ke Drive Bot
-        drive_res = export_excel_to_drive(output, filename)
-        
-        if drive_res: 
-            return {"status": "success", "message": "Export Berhasil!", "link": drive_res.get('web_view_link')}
-        else:
-            return {"status": "error", "message": "Gagal Upload ke Drive."}
-            
-    except Exception as e: return {"status": "error", "message": str(e)}
-
-# --- ENDPOINTS LAINNYA ---
-
-@app.get("/history")
-async def get_history(authorization: str = Header(None)):
-    try:
-        user_email = get_user_email_hybrid(authorization)
-        if not user_email: return []
-        logs = await prisma.logs.find_many(where={"userId": user_email}, order={"id": "desc"})
-        return [{"id": l.id, "timestamp": l.timestamp.isoformat(), "kategori": l.kategori, "nomorDokumen": l.nomorDokumen, "receiver": l.receiver, "imagePath": l.imagePath, "summary": l.summary} for l in logs]
-    except: return []
-
-@app.delete("/logs/{log_id}")
-async def delete_log(log_id: int):
-    try: await prisma.logs.delete(where={"id": log_id}); return {"status": "success"}
-    except: return {"status": "error"}
-
-@app.put("/logs/{log_id}")
-async def update_log(log_id: int, log_data: LogUpdate):
-    try: await prisma.logs.update(where={"id": log_id}, data={"summary": log_data.summary}); return {"status": "success"}
-    except: return {"status": "error"}
-
-@app.post("/rating")
-async def create_rating(data: RatingRequest, authorization: str = Header(None)):
-    try:
-        user_email = get_user_email_hybrid(authorization) or "anonymous"
-        await prisma.rating.create(data={
-            "userId": user_email, "userName": data.userName, "userAvatar": data.userAvatar,
-            "stars": data.stars, "emoji": data.emoji, "message": data.message, "createdAt": datetime.now()
-        })
-        return {"status": "success"}
-    except: return {"status": "error"}
-
-@app.get("/ratings")
-async def get_ratings():
-    try:
-        ratings = await prisma.rating.find_many(take=20, order={"createdAt": "desc"})
-        return {"status": "success", "data": ratings}
-    except: return {"status": "error", "data": []}
-
-@app.delete("/delete-account")
-async def delete_account(authorization: str = Header(None)):
-    try:
-        user_email = get_user_email_hybrid(authorization)
-        if not user_email: return {"status": "error", "message": "User not found"}
-        await prisma.logs.delete_many(where={"userId": user_email})
-        await prisma.rating.delete_many(where={"userId": user_email})
-        await prisma.user.delete(where={"email": user_email})
-        return {"status": "success"}
-    except Exception as e: return {"status": "error", "message": str(e)}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+        return FileResponse(
+            path=tmp.name, 
+            filename=f"Laporan_OCR_{datetime.now().strftime('%d%m%Y')}.xlsx",
+            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
