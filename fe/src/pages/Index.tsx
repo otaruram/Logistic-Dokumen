@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 // ✅ IMPORT DIPERBAIKI: Langsung ke src/events
-import { triggerCreditUpdate, triggerCreditUsage, showCreditWarning } from "@/events"; 
+import { triggerCreditUpdate, triggerCreditUsage, showCreditWarning } from "@/event"; 
 
 export default function Index() {
   const navigate = useNavigate();
