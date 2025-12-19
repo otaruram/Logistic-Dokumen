@@ -14,13 +14,12 @@ class CreditService:
         now = datetime.now(WIB)
         last_reset = user.lastCreditReset.replace(tzinfo=pytz.utc).astimezone(WIB) if user.lastCreditReset else None
         
-        should_reset = False
+        # Reset jika hari sudah berganti
         if not last_reset or now.date() > last_reset.date():
-            should_reset = True
-
-        if should_reset:
-            new_balance = max(user.creditBalance, CreditService.DAILY_LIMIT) if user.creditBalance > CreditService.DAILY_LIMIT else CreditService.DAILY_LIMIT
-            await prisma.user.update(
-                where={"email": user_email},
-                data={"creditBalance": new_balance, "lastCreditReset": now}
-            )
+            if user.creditBalance < CreditService.DAILY_LIMIT:
+                await prisma.user.update(
+                    where={"email": user_email},
+                    data={"creditBalance": CreditService.DAILY_LIMIT, "lastCreditReset": now}
+                )
+            else:
+                await prisma.user.update(where={"email": user_email}, data={"lastCreditReset": now})
