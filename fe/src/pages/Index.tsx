@@ -1,150 +1,179 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { apiFetch } from "@/lib/api-service";
 import Header from "@/components/dashboard/Header";
 import FileUploadZone from "@/components/dashboard/FileUploadZone";
 import DataTable from "@/components/dashboard/DataTable";
-import { apiFetch } from "@/lib/api-service";
 import { toast } from "sonner";
-import { LayoutDashboard, FileText, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { triggerCreditUpdate, triggerCreditUsage, showCreditWarning } from "@/events"; 
+import { FileText, Clock, ShieldCheck } from "lucide-react";
 
 export default function Index() {
   const navigate = useNavigate();
-  
-  // State Utama
   const [user, setUser] = useState<any>(null);
-  const [logs, setLogs] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeView, setActiveView] = useState("dashboard");
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [initLoading, setInitLoading] = useState(true);
 
-  // Fungsi Refresh Data (Dipanggil saat pertama loading & setelah scan sukses)
-  const refreshData = async () => {
+  // --- FETCH DATA (SAMA SEPERTI SEBELUMNYA) ---
+  const fetchUserProfile = async () => {
     try {
-      const [profileRes, historyRes] = await Promise.all([
-        apiFetch("/me"),
-        apiFetch("/history")
-      ]);
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) { navigate('/landing'); return; }
+        const localUser = JSON.parse(storedUser);
+        const token = localUser?.credential;
+        if (!token) { navigate('/landing'); return; }
 
-      if (profileRes.ok) {
-        const profileJson = await profileRes.json();
-        if (profileJson.status === "success") setUser(profileJson.data);
-      }
+        if (!user) setUser(localUser);
 
-      if (historyRes.ok) {
-        const historyJson = await historyRes.json();
-        setLogs(Array.isArray(historyJson) ? historyJson : []);
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setIsLoading(false);
-    }
+        const profileRes = await apiFetch("/me", { headers: { "Authorization": `Bearer ${token}` } });
+        if (profileRes.status === 401) { localStorage.clear(); navigate('/landing'); return; }
+
+        if (profileRes.ok) {
+            const profileJson = await profileRes.json();
+            if (profileJson.status === "success") {
+                const updatedUser = { ...localUser, ...profileJson.data };
+                setUser(updatedUser);
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+                showCreditWarning(updatedUser.creditBalance);
+            }
+        } 
+
+        const historyRes = await apiFetch("/history", { headers: { "Authorization": `Bearer ${token}` } });
+        if (historyRes.ok) {
+            const historyData = await historyRes.json();
+            if (Array.isArray(historyData)) {
+                setLogs(historyData.map((item: any) => ({
+                    id: item.id,
+                    date: item.timestamp.split("T")[0],
+                    time: new Date(item.timestamp).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }),
+                    docType: item.kategori,
+                    summary: item.summary,
+                    receiver: item.receiver,
+                    imageUrl: item.imagePath
+                })));
+            }
+        }
+    } catch (e) { console.error("Sync Error:", e); } finally { setInitLoading(false); }
   };
 
-  useEffect(() => {
-    refreshData();
+  useEffect(() => { 
+      fetchUserProfile();
+      const handleCreditUpdate = () => fetchUserProfile();
+      window.addEventListener('creditUpdated', handleCreditUpdate);
+      return () => window.removeEventListener('creditUpdated', handleCreditUpdate);
   }, []);
 
-  // Handler Logout
-  const handleLogout = () => {
-    localStorage.clear();
-    toast.success("Berhasil keluar.");
-    navigate("/login");
+  // --- LOGIC SCAN (SAMA) ---
+  const handleScan = async (file: File) => {
+    if (!user || user.creditBalance < 1) { toast.error("Kredit Habis!"); return; }
+    setLoading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("receiver", user.name || "User");
+
+    try {
+      toast.info("Sedang memproses dokumen...");
+      const res = await apiFetch("/scan", { method: "POST", body: formData, headers: { "Authorization": `Bearer ${user.credential}` }, timeout: 90000 });
+      if (!res.ok) throw new Error("Gagal");
+      const json = await res.json();
+
+      if (json.status === "success") {
+        toast.success("Dokumen berhasil didigitalkan!");
+        const newBalance = json.remaining_credits;
+        setUser((prev:any) => { const u = { ...prev, creditBalance: newBalance }; localStorage.setItem('user', JSON.stringify(u)); return u; });
+        triggerCreditUpdate();
+        triggerCreditUsage('ocr_scan', `Scan: ${file.name}`);
+        showCreditWarning(newBalance);
+        if (json.data) {
+            setLogs(prev => [{
+                id: json.data.id,
+                date: new Date().toISOString().split("T")[0],
+                time: new Date().toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }),
+                docType: json.data.kategori,
+                summary: json.data.summary,
+                receiver: user.name,
+                imageUrl: json.data.imagePath
+            }, ...prev]);
+        }
+      } else { throw new Error(json?.message); }
+    } catch (error: any) { toast.error("Gagal Scan", { description: error.message }); } finally { setLoading(false); }
   };
 
-  if (isLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
-        <div className="text-sm font-black uppercase tracking-[0.2em] animate-pulse">
-          Loading OCR.wtf...
-        </div>
-      </div>
-    );
-  }
+  const handleDeleteLog = async (id: number) => {
+    if(!confirm("Hapus?")) return;
+    try { await apiFetch(`/logs/${id}`, { method: "DELETE", headers: { "Authorization": `Bearer ${user.credential}` } }); setLogs(prev => prev.filter(l => l.id !== id)); toast.success("Dihapus."); } catch { toast.error("Gagal."); }
+  };
+  const handleUpdateLog = async (id: number, summary: string) => {
+    try { await apiFetch(`/logs/${id}`, { method: "PUT", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${user.credential}` }, body: JSON.stringify({ summary }) }); setLogs(prev => prev.map(l => l.id === id ? { ...l, summary } : l)); toast.success("Tersimpan."); } catch { toast.error("Gagal."); }
+  };
+
+  if (initLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-zinc-950"><div className="animate-spin text-4xl">💠</div></div>;
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans pb-20">
-      
-      {/* HEADER: Menampilkan Kredit & Info Reset */}
-      <Header 
-        user={user} 
-        onLogout={handleLogout} 
-        onProfile={() => navigate('/profile')} 
-        onSettings={() => setActiveView("settings")}
-      />
+    <div className="min-h-screen bg-slate-50/50 dark:bg-zinc-950 font-sans text-slate-900 dark:text-slate-50 pb-20">
+      <Header user={user} onLogout={() => { localStorage.clear(); navigate('/landing'); }} onProfile={() => navigate('/profile')} onSettings={() => navigate('/settings')} />
 
-      <main className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
-        
-        {activeView === "dashboard" ? (
-          <>
-            {/* SUMMARY STATS (GAYA SIMPEL/REPLIZ) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm transition-transform hover:scale-[1.02]">
-                <div className="flex items-center gap-2 text-zinc-400 mb-2">
-                  <FileText className="w-4 h-4" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Total Scanned</span>
+      <main className="container mx-auto px-6 py-8 max-w-7xl">
+        {/* STATS ROW */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-zinc-800 flex flex-col justify-center">
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-1">Halo, {user?.name?.split(" ")[0]}!</h2>
+                <p className="text-slate-500 text-sm">Selamat datang kembali di workspace Anda.</p>
+            </div>
+            
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-zinc-800 flex items-center gap-4">
+                <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-full text-blue-600">
+                    <FileText className="w-6 h-6"/>
                 </div>
-                <p className="text-4xl font-black">{logs.length}</p>
-              </div>
-
-              <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm transition-transform hover:scale-[1.02]">
-                <div className="flex items-center gap-2 text-blue-500 mb-2">
-                  <Zap className="w-4 h-4 fill-current" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Credit Active</span>
+                <div>
+                    <p className="text-sm text-slate-500 font-medium">Total Dokumen</p>
+                    <p className="text-2xl font-bold">{logs.length}</p>
                 </div>
-                <p className="text-4xl font-black">{user?.creditBalance ?? 0}</p>
-              </div>
+            </div>
 
-              <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm transition-transform hover:scale-[1.02] flex flex-col justify-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Status Sistem</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                  <span className="text-sm font-bold text-emerald-600 uppercase">Online</span>
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-zinc-800 flex items-center gap-4">
+                <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-full text-green-600">
+                    <ShieldCheck className="w-6 h-6"/>
                 </div>
-              </div>
+                <div>
+                    <p className="text-sm text-slate-500 font-medium">Status Akun</p>
+                    <p className="text-lg font-bold text-green-600">Active / Free Tier</p>
+                </div>
+            </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* KOLOM KIRI: UPLOAD */}
+            <div className="lg:col-span-1 space-y-6">
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-zinc-800 sticky top-24">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="font-bold text-lg flex items-center gap-2">
+                             🚀 Upload Dokumen
+                        </h3>
+                        {loading && <span className="text-xs font-bold text-blue-600 animate-pulse">Scanning...</span>}
+                    </div>
+                    <FileUploadZone onFileSelect={handleScan} />
+                    <p className="text-xs text-slate-400 mt-4 text-center">
+                        Format: JPG, PNG. Max 5MB. <br/> Dokumen akan otomatis di-scan AI.
+                    </p>
+                </div>
             </div>
 
-            {/* AREA UPLOAD */}
-            <div className="space-y-2">
-              <h2 className="text-xs font-black uppercase tracking-widest text-zinc-400 px-2">Action Center</h2>
-              <FileUploadZone onUploadSuccess={refreshData} />
+            {/* KOLOM KANAN: DATA TABLE */}
+            <div className="lg:col-span-2">
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-zinc-800 min-h-[500px]">
+                    <div className="flex items-center gap-2 mb-6">
+                        <Clock className="w-5 h-5 text-slate-400"/>
+                        <h3 className="font-bold text-lg">Riwayat Digitalisasi</h3>
+                    </div>
+                    <div className="w-full overflow-hidden">
+                         <DataTable logs={logs} onDeleteLog={handleDeleteLog} onUpdateLog={handleUpdateLog} />
+                    </div>
+                </div>
             </div>
-
-            {/* TABEL DATA */}
-            <div className="space-y-2">
-              <h2 className="text-xs font-black uppercase tracking-widest text-zinc-400 px-2">Recent Database</h2>
-              <DataTable logs={logs} user={user} />
-            </div>
-          </>
-        ) : (
-          /* SIMPLE SETTINGS VIEW */
-          <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 border border-zinc-100 dark:border-zinc-800 shadow-sm max-w-md mx-auto">
-            <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
-              <LayoutDashboard className="w-5 h-5" /> Settings
-            </h2>
-            <div className="space-y-4">
-              <div className="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-2xl">
-                <p className="text-xs font-bold text-zinc-400 uppercase mb-1">Versi Aplikasi</p>
-                <p className="text-sm font-bold">OCR.WTF Pipeline v2.1</p>
-              </div>
-              <div className="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-2xl">
-                <p className="text-xs font-bold text-zinc-400 uppercase mb-1">Status Cloud</p>
-                <p className="text-sm font-bold text-emerald-600 uppercase">Terhubung</p>
-              </div>
-              <button 
-                onClick={() => setActiveView("dashboard")}
-                className="w-full py-3 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold text-sm transition-transform active:scale-95"
-              >
-                KEMBALI KE DASHBOARD
-              </button>
-            </div>
-          </div>
-        )}
-
+        </div>
       </main>
-
-      <p className="text-center text-[10px] font-bold text-zinc-300 dark:text-zinc-800 uppercase tracking-[0.3em] mt-10">
-        Build with SmartDoc Technology
-      </p>
     </div>
   );
 }
