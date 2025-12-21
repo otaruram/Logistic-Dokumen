@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider             = "prisma-client-py"
+  interface            = "asyncio"
+  recursive_type_depth = 5
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id             Int              @id @default(autoincrement())
+  email          String           @unique
+  username       String           @unique
+  hashedPassword String           @map("hashed_password")
+  credits        Int              @default(10)  // Changed from 200 to 10 for daily reset
+  isActive       Boolean          @default(true) @map("is_active")
+  teamId         Int?             @map("team_id")  // Community feature: Team membership
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  
+  scans          Scan[]
+  invoices       Invoice[]
+  creditHistory  CreditHistory[]
+  quizzes        Quiz[]           // New relation
+  imagekitFiles  ImagekitFile[]   // New relation
+  team           Team?            @relation(fields: [teamId], references: [id], onDelete: SetNull)  // Community relation
+
+  @@index([teamId])
+  @@map("users")
+}
+
+model Scan {
+  id               Int      @id @default(autoincrement())
+  userId           Int      @map("user_id")
+  originalFilename String   @map("original_filename")
+  filePath         String   @map("file_path")
+  extractedText    String?  @map("extracted_text") @db.Text
+  confidenceScore  Float?   @map("confidence_score")
+  status           String   @default("processing")
+  namaPenerima     String?  @map("nama_penerima")
+  tandaTangan      String?  @map("tanda_tangan")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("scans")
+}
+
+model Invoice {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @map("user_id")
+  invoiceNumber String   @unique @map("invoice_number")
+  clientName    String   @map("client_name")
+  clientEmail   String?  @map("client_email")
+  clientAddress String?  @map("client_address") @db.Text
+  date          DateTime
+  dueDate       DateTime? @map("due_date")
+  items         Json     @default("[]")
+  notes         String?  @db.Text
+  subtotal      Float
+  tax           Float
+  total         Float
+  status        String   @default("draft")
+  templateId    Int      @map("template_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([invoiceNumber])
+  @@map("invoices")
+}
+
+model CreditHistory {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  amount      Int
+  action      String
+  referenceId Int?     @map("reference_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("credit_history")
+}
+
+// Quiz model - AI-powered quiz generator
+model Quiz {
+  id        String   @id  // nanoid(7) from backend
+  topic     String
+  title     String
+  questions Json     @default("[]")
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("quizzes")
+}
+
+// ImageKit file tracking for janitor cleanup
+model ImagekitFile {
+  id        Int      @id @default(autoincrement())
+  fileId    String   @unique @map("file_id")
+  fileUrl   String   @map("file_url")
+  fileName  String?  @map("file_name")
+  fileType  String?  @map("file_type")
+  feature   String   // 'qr', 'scan', 'invoice', 'quiz'
+  userId    Int?     @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([createdAt])
+  @@index([feature])
+  @@map("imagekit_files")
+}
+
+// Community Feature - Teams
+model Team {
+  id        Int      @id @default(autoincrement())
+  name      String
+  joinCode  String   @unique @map("join_code")
+  createdBy Int?     @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  members   User[]
+  posts     CommunityPost[]
+  
+  @@index([joinCode])
+  @@map("teams")
+}
+
+// Community Feature - Posts
+model CommunityPost {
+  id         Int      @id @default(autoincrement())
+  content    String   @db.Text
+  scope      String   // 'INTERNAL' or 'GLOBAL'
+  teamId     Int?     @map("team_id")
+  userId     String   @map("user_id")  // Supabase Auth UUID as string
+  authorName String   @map("author_name")
+  authorRole String?  @map("author_role")
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  team       Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  @@index([scope])
+  @@index([teamId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("community_posts")
+}

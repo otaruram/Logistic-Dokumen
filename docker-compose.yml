@@ -1,0 +1,96 @@
+services:
+  # Backend API Service
+  backend:
+    build:
+      context: ./be
+      dockerfile: Dockerfile
+    container_name: omni-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Supabase Configuration (from your .env)
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      
+      # OpenAI Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+      # JWT Configuration
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=10080
+      
+      # API Configuration
+      - API_URL=${API_URL:-http://localhost:8000}
+      
+      # Redis Configuration
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      
+    volumes:
+      # Mount uploads directory for persistent storage
+      - ./be/uploads:/app/uploads
+      
+      # Mount code for development (comment out for production)
+      # - ./be:/app
+    
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    depends_on:
+      - redis
+    
+    networks:
+      - omni-network
+
+  # Redis Cache Service
+  redis:
+    image: redis:7-alpine
+    container_name: omni-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - omni-network
+
+  # Nginx Reverse Proxy (Optional - for production)
+  # Uncomment this section if you want to use nginx
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: omni-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./deployment/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./deployment/ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - backend
+  #   restart: unless-stopped
+  #   networks:
+  #     - omni-network
+
+networks:
+  omni-network:
+    driver: bridge
+
+volumes:
+  uploads:
+  redis-data:

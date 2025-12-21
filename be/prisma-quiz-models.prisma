@@ -1,0 +1,55 @@
+// Add this to your schema.prisma file
+
+// Update User model - add Quiz relation
+model User {
+  id              Int       @id @default(autoincrement())
+  email           String    @unique
+  name            String?
+  password        String?
+  credits         Int       @default(10)  // Changed from 200 to 10 for daily reset
+  role            String    @default("user")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  scans           Scan[]
+  invoices        Invoice[]
+  quizzes         Quiz[]        // Add this relation
+  imagekitFiles   ImagekitFile[] // Add this relation
+  
+  @@map("users")
+}
+
+// New Quiz model
+model Quiz {
+  id        String   @id  // nanoid(7) from backend
+  topic     String
+  title     String
+  questions Json     @default("[]")
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("quizzes")
+}
+
+// New ImagekitFile model for tracking uploads
+model ImagekitFile {
+  id        Int      @id @default(autoincrement())
+  fileId    String   @unique @map("file_id")
+  fileUrl   String   @map("file_url")
+  fileName  String?  @map("file_name")
+  fileType  String?  @map("file_type")
+  feature   String   // 'qr', 'scan', 'invoice', 'quiz'
+  userId    Int?     @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([createdAt])
+  @@index([feature])
+  @@map("imagekit_files")
+}

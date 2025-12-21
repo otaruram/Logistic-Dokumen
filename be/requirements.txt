@@ -1,0 +1,53 @@
+# Core Framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+python-dotenv==1.0.1
+
+# Database & ORM
+supabase==2.10.0
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+prisma>=0.13.0
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+pyjwt>=2.10.1
+
+# Data Processing
+numpy==1.26.4
+pandas==2.2.3
+pillow==11.0.0
+
+# PDF Processing
+pypdf==4.0.1
+pdf2image==1.17.0
+reportlab==4.2.5
+pikepdf==9.4.2
+
+# OCR & AI
+pytesseract==0.3.10
+openai==1.55.0
+
+# Indonesian Utils
+num2words==0.5.13
+python-slugify==8.0.1
+
+# File Handling
+aiofiles==23.2.1
+nanoid==2.0.0
+imagekitio==3.2.0
+
+# HTTP & API
+requests==2.32.3
+httpx==0.27.2
+httpcore==1.0.5
+
+# Cache & Rate Limiting
+redis==5.0.1
+
+# Validation
+pydantic>=2.12.0
+pydantic-settings>=2.7.0
+email-validator>=2.0.0
