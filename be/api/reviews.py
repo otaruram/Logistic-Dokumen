@@ -43,31 +43,40 @@ async def submit_review(
 ):
     """Submit user review to be displayed on landing page"""
     try:
+        # Handle username for OAuth users (might be None)
+        username = current_user.username if current_user.username else current_user.email.split('@')[0]
+        
         # Insert review to Supabase public.reviews table
         review = {
             "user_id": str(current_user.id),
-            "user_name": current_user.username,
+            "user_name": username,
             "user_email": current_user.email,
             "rating": review_data.rating,
             "feedback": review_data.feedback,
             "is_approved": True  # Auto-approve for immediate display
         }
         
+        print(f"📝 Submitting review: {review}")
+        
         # Use admin client to bypass RLS
         result = supabase_admin.table("reviews").insert(review).execute()
+        
+        print(f"✅ Review result: {result.data}")
         
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to submit review")
         
         return {
             "id": result.data[0]["id"],
-            "user_name": current_user.username,
+            "user_name": username,
             "rating": review_data.rating,
             "feedback": review_data.feedback,
             "created_at": result.data[0]["created_at"]
         }
     except Exception as e:
         print(f"❌ Review submission error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to submit review: {str(e)}")
 
 @router.get("/all", response_model=List[ReviewResponse])
