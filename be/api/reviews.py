@@ -17,6 +17,9 @@ router = APIRouter()
 # Supabase client untuk reviews (public table)
 supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
 
+# Supabase admin client (bypass RLS)
+from utils.auth import supabase_admin
+
 @router.get("/", response_model=List[ReviewResponse])
 async def get_reviews():
     """Get approved reviews for landing page (default endpoint)"""
@@ -50,7 +53,8 @@ async def submit_review(
             "is_approved": True  # Auto-approve for immediate display
         }
         
-        result = supabase.table("reviews").insert(review).execute()
+        # Use admin client to bypass RLS
+        result = supabase_admin.table("reviews").insert(review).execute()
         
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to submit review")
