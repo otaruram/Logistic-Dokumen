@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from config.settings import settings
-from api import auth, scans, invoices, users, upload, config as config_api, reviews, community, tools, quiz, dashboard, cleanup
+from api import auth, scans, invoices, users, upload, config as config_api, reviews, tools, quiz, dashboard, cleanup, audit, ppt
 from middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware, IPBlockingMiddleware
 
 # Database will be handled by Prisma
@@ -47,8 +47,12 @@ app.add_middleware(RateLimitMiddleware)        # Rate limiting (DDoS protection)
 # Create upload directory
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
+# Create static exports directory for PPT files
+os.makedirs("static/exports", exist_ok=True)
+
 # Mount static files
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
@@ -58,11 +62,12 @@ app.include_router(invoices.router, prefix="/api/invoices", tags=["Invoices"])
 app.include_router(upload.router, tags=["Upload"])
 app.include_router(config_api.router, tags=["Config"])
 app.include_router(reviews.router, prefix="/api/reviews", tags=["Reviews"])
-app.include_router(community.router, prefix="/api/community", tags=["Community"])
 app.include_router(tools.router, prefix="/api/tools", tags=["Tools"])
 app.include_router(quiz.router, prefix="/api/quiz", tags=["Quiz"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(cleanup.router, prefix="/api/cleanup", tags=["Cleanup"])
+app.include_router(audit.router, prefix="/api/audit", tags=["Audit"])
+app.include_router(ppt.router, prefix="/api/ppt", tags=["PPT - Premium"])
 
 @app.get("/")
 async def root():

@@ -1,0 +1,11 @@
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Error: 
+1 validation error for PythonData
+  Value error, Prisma Client Python expected Prisma version: ac9d7041ed77bcc8a8dbd2ab6616b39013829574 but got: 34b5a692b7bd79939a9a2c3ef97d816e749cda2f
+  If this is intentional, set the PRISMA_PY_DEBUG_GENERATOR environment variable to 1 and try again.
+  If you are using the Node CLI then you must switch to v5.4.2, e.g. npx prisma@5.4.2 generate
+  or generate the client using the Python CLI, e.g. python3 -m prisma generate [type=value_error, input_value={'datamodel': '// Prisma ...y-engine-windows.exe'}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+

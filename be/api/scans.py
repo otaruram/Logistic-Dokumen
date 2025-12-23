@@ -116,7 +116,46 @@ async def get_user_scans(
         Scan.created_at.desc()
     ).offset(skip).limit(limit).all()
     
-    return scans
+    # Convert UUID to string for Pydantic validation
+    return [
+        {
+            **{k: str(v) if k == 'user_id' else v for k, v in scan.__dict__.items() if not k.startswith('_')}
+        }
+        for scan in scans
+    ]
+
+@router.get("/history")
+async def get_scan_history(
+    skip: int = 0,
+    limit: int = 50,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get scan history for current user - persistent across sessions"""
+    scans = db.query(Scan).filter(
+        Scan.user_id == current_user.id
+    ).order_by(
+        Scan.created_at.desc()
+    ).offset(skip).limit(limit).all()
+    
+    # Return with additional metadata for frontend
+    return {
+        "total": db.query(Scan).filter(Scan.user_id == current_user.id).count(),
+        "scans": [
+            {
+                "id": scan.id,
+                "original_filename": scan.original_filename,
+                "imagekit_url": scan.imagekit_url,
+                "extracted_text": scan.extracted_text,
+                "confidence_score": scan.confidence_score,
+                "status": scan.status,
+                "created_at": scan.created_at.isoformat() if scan.created_at else None,
+                "recipient_name": scan.recipient_name,
+                "signature_url": scan.signature_url
+            }
+            for scan in scans
+        ]
+    }
 
 @router.get("/{scan_id}", response_model=ScanResponse)
 async def get_scan(
@@ -133,7 +172,10 @@ async def get_scan(
     if not scan:
         raise HTTPException(status_code=404, detail="Scan not found")
     
-    return scan
+    # Convert UUID to string for Pydantic validation
+    return {
+        **{k: str(v) if k == 'user_id' else v for k, v in scan.__dict__.items() if not k.startswith('_')}
+    }
 
 @router.delete("/{scan_id}")
 async def delete_scan(
@@ -233,16 +275,39 @@ async def upload_scan_test(
 async def upload_signature(
     file: UploadFile = File(...),
 ):
-    """Upload signature to ImageKit"""
+    """Upload signature to ImageKit with brightness enhancement"""
     import traceback
     from services.imagekit_service import ImageKitService
+    from PIL import Image, ImageEnhance
+    from io import BytesIO
     
     try:
         content = await file.read()
         
-        print("📤 Uploading signature to ImageKit...")
+        # Enhance signature brightness and contrast
+        print("🎨 Enhancing signature brightness...")
+        img = Image.open(BytesIO(content))
+        
+        # Convert to RGB if needed
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        # Increase brightness by 30%
+        enhancer = ImageEnhance.Brightness(img)
+        img = enhancer.enhance(1.3)
+        
+        # Increase contrast by 15%
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(1.15)
+        
+        # Convert back to bytes
+        buffer = BytesIO()
+        img.save(buffer, format='PNG', quality=95)
+        enhanced_content = buffer.getvalue()
+        
+        print("📤 Uploading enhanced signature to ImageKit...")
         imagekit_result = ImageKitService.upload_file(
-            file=content,
+            file=enhanced_content,
             file_name=file.filename or "signature.png",
             folder="/signatures"
         )

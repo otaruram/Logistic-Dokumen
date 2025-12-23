@@ -39,7 +39,7 @@ const QuizPlay = () => {
   const { quizId } = useParams<{ quizId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -50,7 +50,23 @@ const QuizPlay = () => {
   const [currentAnswerResult, setCurrentAnswerResult] = useState<{ isCorrect: boolean; correctAnswer: string; explanation: string } | null>(null);
 
   useEffect(() => {
+    // Block back button
+    window.history.pushState(null, "", window.location.href);
+    const handlePopState = () => {
+      window.history.pushState(null, "", window.location.href);
+      toast({
+        title: "Navigation Locked",
+        description: "You cannot go back during the quiz!",
+        variant: "destructive",
+      });
+    };
+
+    window.addEventListener("popstate", handlePopState);
     loadQuiz();
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
   }, [quizId]);
 
   const loadQuiz = async () => {
@@ -92,10 +108,10 @@ const QuizPlay = () => {
   const handleAnswer = async (answerText: string) => {
     if (showExplanation || !quiz) return;
     const question = quiz.questions[currentQuestion];
-    
+
     setSelectedAnswer(answerText);
     setAnswers({ ...answers, [question.id]: answerText });
-    
+
     // Validate answer with backend immediately
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -124,7 +140,7 @@ const QuizPlay = () => {
 
   const handleNext = () => {
     if (!quiz) return;
-    
+
     if (currentQuestion < quiz.questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
       setSelectedAnswer(null);
@@ -167,29 +183,29 @@ const QuizPlay = () => {
     if (!quiz || !score) return;
 
     const doc = new jsPDF();
-    
+
     // Title
     doc.setFontSize(20);
     doc.setFont("helvetica", "bold");
     doc.text("Quiz Results Report", 20, 20);
-    
+
     // Quiz Info
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
     doc.text(`Topic: ${quiz.topic}`, 20, 35);
     doc.text(`Title: ${quiz.title}`, 20, 42);
     doc.text(`Score: ${score.score}% (${score.correct}/${score.total} correct)`, 20, 49);
-    
+
     // Date
     doc.setFontSize(10);
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 56);
-    
+
     // Separator
     doc.setLineWidth(0.5);
     doc.line(20, 62, 190, 62);
-    
+
     let yPos = 72;
-    
+
     // Questions and Answers
     quiz.questions.forEach((q, index) => {
       // Check if we need a new page
@@ -197,7 +213,7 @@ const QuizPlay = () => {
         doc.addPage();
         yPos = 20;
       }
-      
+
       // Question
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
@@ -205,20 +221,20 @@ const QuizPlay = () => {
       const questionLines = doc.splitTextToSize(questionText, 170);
       doc.text(questionLines, 20, yPos);
       yPos += questionLines.length * 7;
-      
+
       // User's Answer
       doc.setFont("helvetica", "normal");
       const userAnswer = answers[q.id] || "Not answered";
       doc.text(`Your answer: ${userAnswer}`, 25, yPos);
       yPos += 10;
-      
+
       // Add spacing between questions
       yPos += 5;
     });
-    
+
     // Save PDF
     doc.save(`quiz-results-${quiz.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.pdf`);
-    
+
     toast({
       title: "Success",
       description: "PDF report downloaded successfully!",
@@ -267,7 +283,7 @@ const QuizPlay = () => {
                 {score.score >= 80 ? "Excellent! 🎉" : score.score >= 60 ? "Good job! 👍" : "Keep practicing! 💪"}
               </p>
             </div>
-            
+
             <div className="space-y-2 mb-6 p-4 bg-gray-50 border border-gray-200 rounded">
               <p className="text-sm text-gray-600">
                 <strong>Topic:</strong> {quiz?.topic}
@@ -285,7 +301,7 @@ const QuizPlay = () => {
                 <Download className="w-4 h-4 mr-2" />
                 Download PDF Report
               </Button>
-              
+
               <Button onClick={() => navigate("/")} variant="outline" className="w-full border-2 border-black hover:bg-black hover:text-white">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Home
@@ -314,7 +330,7 @@ const QuizPlay = () => {
               {currentQuestion + 1} / {quiz.questions.length}
             </span>
           </div>
-          
+
           <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-black"
@@ -328,7 +344,7 @@ const QuizPlay = () => {
         {/* Question */}
         <Card className="p-6 mb-4 border-2 border-gray-200">
           <h3 className="text-lg font-semibold mb-4">{question.question}</h3>
-          
+
           <div className="space-y-3">
             {question.options.map((option, index) => {
               const isSelected = selectedAnswer === option.text;
@@ -340,12 +356,11 @@ const QuizPlay = () => {
                 <Button
                   key={index}
                   variant={isSelected ? "default" : "outline"}
-                  className={`w-full justify-start text-left h-auto py-3 px-4 border-2 ${
-                    showCorrect ? "bg-green-50 border-green-500 hover:bg-green-50 text-green-900" :
-                    showWrong ? "bg-red-50 border-red-500 hover:bg-red-50 text-red-900" :
-                    isSelected ? "bg-black text-white border-black hover:bg-gray-800" :
-                    "border-gray-300 hover:border-black hover:bg-gray-50"
-                  }`}
+                  className={`w-full justify-start text-left h-auto py-3 px-4 border-2 ${showCorrect ? "bg-green-50 border-green-500 hover:bg-green-50 text-green-900" :
+                      showWrong ? "bg-red-50 border-red-500 hover:bg-red-50 text-red-900" :
+                        isSelected ? "bg-black text-white border-black hover:bg-gray-800" :
+                          "border-gray-300 hover:border-black hover:bg-gray-50"
+                    }`}
                   onClick={() => handleAnswer(option.text)}
                   disabled={showExplanation}
                 >

@@ -1,7 +1,7 @@
 // Tab types
-export type TabType = "dashboard" | "features" | "dgtnz" | "invoice" | "qr" | "compressor" | "quiz" | "community" | "options" | "profile";
+export type TabType = "dashboard" | "features" | "dgtnz" | "invoice" | "qr" | "compressor" | "quiz" | "ppt" | "options" | "profile";
 
-export type FeatureType = "dgtnz" | "invoice" | "qr" | "compressor" | "quiz";
+export type FeatureType = "dgtnz" | "invoice" | "qr" | "compressor" | "quiz" | "ppt";
 
 // Navigation types
 export interface NavigationTab {
@@ -13,6 +13,7 @@ export interface Feature {
   id: FeatureType;
   title: string;
   description: string;
+  premium?: boolean;
 }
 
 // Dashboard types

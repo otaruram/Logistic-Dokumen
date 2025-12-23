@@ -23,8 +23,8 @@ class RedisClient:
                     port=redis_port,
                     db=redis_db,
                     decode_responses=True,
-                    socket_connect_timeout=5,
-                    socket_timeout=5
+                    socket_connect_timeout=2,
+                    socket_timeout=2
                 )
                 
                 # Test connection
@@ -32,8 +32,11 @@ class RedisClient:
                 print(f"✅ Redis connected: {redis_host}:{redis_port}")
                 
             except Exception as e:
-                print(f"⚠️ Redis connection failed: {e}")
-                print("📝 App will continue without Redis caching")
+                # Only print warning once
+                if not hasattr(cls, '_warning_shown'):
+                    print(f"⚠️ Redis not available: {e}")
+                    print("📝 App will continue without caching")
+                    cls._warning_shown = True
                 cls._instance = None
         
         return cls._instance

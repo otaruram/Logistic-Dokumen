@@ -14,33 +14,35 @@ async def get_dashboard_stats(user = Depends(get_current_user)):
     Get user's dashboard statistics - Only main features (dgtnz, invoice, pdf, quiz)
     """
     try:
-        user_id = user.id if hasattr(user, 'id') else int(user.get('id'))
+        user_id = str(user.id) if hasattr(user, 'id') else str(user.get('id'))
         
         # Get user's current credits
         user_data = supabase_admin.table("users").select("credits").eq("id", user_id).execute()
         credits = user_data.data[0].get("credits", 10) if user_data.data else 10
         
-        # Count total activities from activities table (only main features: dgtnz, invoice, pdf, quiz)
+        # Count total activities from activities table (only main features: dgtnz, invoice, pdf, quiz, audit)
         activities_count = supabase_admin.table("activities")\
             .select("id", count="exact")\
             .eq("user_id", user_id)\
-            .in_("feature", ["dgtnz", "invoice", "compressor", "quiz"])\
+            .in_("feature", ["dgtnz", "invoice", "compressor", "quiz", "audit"])\
             .execute()
         total_activities = activities_count.count or 0
         
-        # Calculate next data cleanup (every Sunday)
+        # Calculate next data cleanup (1st of next month)
         now = datetime.now()
-        days_until_sunday = (6 - now.weekday()) % 7  # 0=Mon, 6=Sun
-        if days_until_sunday == 0:  # Today is Sunday
-            days_until_sunday = 7
-        next_cleanup = now + timedelta(days=days_until_sunday)
-        next_cleanup = next_cleanup.replace(hour=0, minute=0, second=0, microsecond=0)
+        # Get 1st of next month
+        if now.month == 12:
+            next_cleanup = datetime(now.year + 1, 1, 1)
+        else:
+            next_cleanup = datetime(now.year, now.month + 1, 1)
+            
+        days_until_cleanup = (next_cleanup - now).days
         
         return {
             "totalActivities": total_activities,
             "credits": credits,
             "maxCredits": 10,
-            "nextCleanupDays": days_until_sunday,
+            "nextCleanupDays": days_until_cleanup,
             "nextCleanupDate": next_cleanup.strftime("%d %b %Y"),
         }
         
@@ -61,17 +63,17 @@ async def get_weekly_activity(user = Depends(get_current_user)):
     Get user's activity data for the last 7 days - ALL features included
     """
     try:
-        user_id = user.id if hasattr(user, 'id') else int(user.get('id'))
+        user_id = str(user.id) if hasattr(user, 'id') else str(user.get('id'))
         
         # Calculate date range (last 7 days including today)
         today = datetime.now().date()
         week_ago = today - timedelta(days=6)
         
-        # Get all activities for last 7 days (only main features: dgtnz, invoice, pdf, quiz)
+        # Get all activities for last 7 days (main features: dgtnz, invoice, pdf, quiz, audit)
         activities = supabase_admin.table("activities")\
             .select("created_at, feature")\
             .eq("user_id", user_id)\
-            .in_("feature", ["dgtnz", "invoice", "compressor", "quiz"])\
+            .in_("feature", ["dgtnz", "invoice", "compressor", "quiz", "audit"])\
             .gte("created_at", week_ago.isoformat())\
             .execute()
         

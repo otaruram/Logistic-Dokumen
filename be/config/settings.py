@@ -38,9 +38,24 @@ class Settings:
     OPENAI_API_KEY: str = os.getenv('OPENAI_API_KEY', '')
     OPENAI_BASE_URL: str = os.getenv('OPENAI_BASE_URL', 'https://ai.sumopod.com/v1')
     
+    # For Audit.WTF - Sumopod proxy (SEPARATE API KEY)
+    AUDIT_OPENAI_API_KEY: str = os.getenv('AUDIT_OPENAI_API_KEY', '')
+    AUDIT_OPENAI_BASE_URL: str = os.getenv('AUDIT_OPENAI_BASE_URL', 'https://ai.sumopod.com/v1')
+    AUDIT_OPENAI_MODEL: str = os.getenv('AUDIT_OPENAI_MODEL', 'gpt-4o-mini')
+    
     # For Quiz - Sumopod proxy
     QUIZ_OPENAI_API_KEY: str = os.getenv('QUIZ_OPENAI_API_KEY', '')
     QUIZ_BASE_URL: str = os.getenv('QUIZ_BASE_URL', 'https://ai.sumopod.com/v1')
+    
+    # Groq API - For Audit.WTF (2-Stage Pipeline)
+    GROQ_API_KEY: str = os.getenv('GROQ_API_KEY', '')
+    GROQ_VISION_MODEL: str = os.getenv('GROQ_VISION_MODEL', 'llama-3.2-11b-vision-preview')
+    GROQ_TEXT_MODEL: str = os.getenv('GROQ_TEXT_MODEL', 'llama-3.3-70b-versatile')
+    
+    # For Audit - Groq API (2-Stage Pipeline)
+    GROQ_API_KEY: str = os.getenv('GROQ_API_KEY', '')
+    GROQ_VISION_MODEL: str = 'llama-3.2-11b-vision-preview'
+    GROQ_TEXT_MODEL: str = 'llama-3.3-70b-versatile'
     
     # ImageKit - Main project
     IMAGEKIT_PUBLIC_KEY: str = os.getenv('IMAGEKIT_PUBLIC_KEY', '')

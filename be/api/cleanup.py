@@ -5,6 +5,8 @@ from fastapi import APIRouter, HTTPException, Depends, Header
 from utils.auth import supabase_admin
 from datetime import datetime, timedelta
 from typing import Optional
+import os
+from pathlib import Path
 
 router = APIRouter()
 
@@ -49,7 +51,18 @@ async def trigger_weekly_cleanup(authorization: Optional[str] = Header(None)):
         except Exception as e:
             results["deleted"]["imagekit_files"] = f"Error: {str(e)}"
         
-        # 3. Delete old activities (older than 30 days for analytics)
+        # 3. Delete old audit activities (older than 7 days)
+        try:
+            audit_result = supabase_admin.table("activities")\
+                .delete()\
+                .eq("feature", "audit")\
+                .lt("created_at", cleanup_date.isoformat())\
+                .execute()
+            results["deleted"]["audit_activities"] = len(audit_result.data) if audit_result.data else 0
+        except Exception as e:
+            results["deleted"]["audit_activities"] = f"Error: {str(e)}"
+        
+        # 4. Delete old general activities (older than 30 days for analytics)
         try:
             activities_cutoff = datetime.now() - timedelta(days=30)
             activities_result = supabase_admin.table("activities")\
@@ -59,6 +72,42 @@ async def trigger_weekly_cleanup(authorization: Optional[str] = Header(None)):
             results["deleted"]["activities"] = len(activities_result.data) if activities_result.data else 0
         except Exception as e:
             results["deleted"]["activities"] = f"Error: {str(e)}"
+        
+        # 5. Delete old PDF files from uploads/ (older than 7 days)
+        try:
+            deleted_files = 0
+            uploads_dir = Path("uploads")
+            
+            if uploads_dir.exists():
+                cutoff_time = datetime.now() - timedelta(days=7)
+                
+                # Scan all subdirectories in uploads/
+                for user_folder in uploads_dir.iterdir():
+                    if user_folder.is_dir():
+                        for file_path in user_folder.iterdir():
+                            if file_path.is_file():
+                                # Check file age
+                                file_mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+                                
+                                if file_mtime < cutoff_time:
+                                    try:
+                                        file_path.unlink()  # Delete file
+                                        deleted_files += 1
+                                    except Exception as file_error:
+                                        print(f"⚠️ Failed to delete {file_path}: {file_error}")
+                        
+                        # Remove empty user folders
+                        try:
+                            if not any(user_folder.iterdir()):
+                                user_folder.rmdir()
+                        except:
+                            pass
+            
+            results["deleted"]["pdf_files"] = deleted_files
+            print(f"🗑️ Deleted {deleted_files} old PDF files from uploads/")
+            
+        except Exception as e:
+            results["deleted"]["pdf_files"] = f"Error: {str(e)}"
         
         print(f"✅ Weekly cleanup completed: {results}")
         return results

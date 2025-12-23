@@ -16,7 +16,7 @@ export default function InvoiceUtils({ onBack }: InvoiceUtilsProps) {
             className="flex items-center gap-2 text-sm font-medium hover:underline mb-3"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to invoice.wtf
+            Back to audit.wtf
           </button>
 
           <div className="flex items-center gap-4">
@@ -24,9 +24,9 @@ export default function InvoiceUtils({ onBack }: InvoiceUtilsProps) {
               <FileText className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">invoice.wtf</h1>
+              <h1 className="text-2xl font-bold">audit.wtf</h1>
               <p className="text-sm text-gray-600">
-                Create professional invoices
+                AI-powered invoice fraud detection
               </p>
             </div>
           </div>
@@ -46,7 +46,7 @@ export default function InvoiceUtils({ onBack }: InvoiceUtilsProps) {
             className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white font-bold border-2 border-black hover:bg-gray-800 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to invoice.wtf
+            Back to audit.wtf
           </button>
         </div>
       </div>

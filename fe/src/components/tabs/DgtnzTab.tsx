@@ -96,7 +96,15 @@ const compressImageBlob = (blob: Blob, options: CompressOptions): Promise<Blob> 
         canvas.height = height;
 
         const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
+        if (ctx) {
+          // White background
+          ctx.fillStyle = "#FFFFFF";
+          ctx.fillRect(0, 0, width, height);
+
+          // Apply brightness/contrast filter
+          ctx.filter = "brightness(1.5) contrast(1.3)";
+          ctx.drawImage(img, 0, 0, width, height);
+        }
 
         canvas.toBlob(
           (newBlob) => {
@@ -141,7 +149,7 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingKeterangan, setEditingKeterangan] = useState("");
   const [isLoadingData, setIsLoadingData] = useState(true);
-  
+
   // Filter state
   const [filterDay, setFilterDay] = useState<string>("all");
   const [filterMonth, setFilterMonth] = useState<string>("all");
@@ -153,7 +161,7 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
       try {
         const { supabase } = await import("@/lib/supabaseClient");
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (!session) {
           setIsLoadingData(false);
           return;
@@ -207,7 +215,7 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Scan Records");
-    
+
     // Professional column widths
     ws['!cols'] = [
       { wch: 5 },   // No
@@ -221,13 +229,13 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
 
     // Add styling to all cells (borders + header color)
     const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-    
+
     // Style all cells with borders
     for (let R = range.s.r; R <= range.e.r; ++R) {
       for (let C = range.s.c; C <= range.e.c; ++C) {
         const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
         if (!ws[cellAddress]) continue;
-        
+
         // Add borders to all cells
         const borderStyle = { style: "thin", color: { rgb: "000000" } };
         ws[cellAddress].s = {
@@ -239,7 +247,7 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
           },
           alignment: { vertical: "center", wrapText: true }
         };
-        
+
         // Header row styling (bold + blue background)
         if (R === 0) {
           ws[cellAddress].s = {
@@ -263,17 +271,17 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
       // 1. Ambil Session
       const { supabase } = await import("@/lib/supabaseClient");
       const { data: sessionData } = await supabase.auth.getSession();
-      
+
       console.log('📋 Session data:', sessionData);
       console.log('📋 Provider token:', sessionData?.session?.provider_token);
-      
+
       // 2. CEK TOKEN LEBIH TELITI
       const googleToken = sessionData?.session?.provider_token;
-      
+
       if (!googleToken) {
         // Jika token kosong, berikan instruksi jelas ke user
         toast.error('Token Google Drive kadaluarsa atau belum diizinkan.');
-        
+
         // Minta user login ulang manual untuk refresh token
         const shouldRelogin = confirm(
           '⚠️ Token Google Drive tidak ditemukan.\n\n' +
@@ -283,7 +291,7 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
           '3. Pastikan mengizinkan akses Google Drive\n\n' +
           'Lanjutkan?'
         );
-        
+
         if (shouldRelogin) {
           await supabase.auth.signOut();
           window.location.reload();
@@ -307,7 +315,7 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Scan Records");
-      
+
       // Professional column widths
       ws['!cols'] = [
         { wch: 5 },   // No
@@ -318,14 +326,14 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
         { wch: 60 },  // Link Tanda Tangan
         { wch: 12 },  // Status
       ];
-      
+
       // Add styling (borders + header color)
       const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
       for (let R = range.s.r; R <= range.e.r; ++R) {
         for (let C = range.s.c; C <= range.e.c; ++C) {
           const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
           if (!ws[cellAddress]) continue;
-          
+
           const borderStyle = { style: "thin", color: { rgb: "000000" } };
           ws[cellAddress].s = {
             border: {
@@ -336,7 +344,7 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
             },
             alignment: { vertical: "center", wrapText: true }
           };
-          
+
           if (R === 0) {
             ws[cellAddress].s = {
               ...ws[cellAddress].s,
@@ -350,7 +358,7 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
 
       const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      
+
       // Upload directly to Google Drive using provider token
       const fileName = `scan-records-${new Date().toISOString().split('T')[0]}.xlsx`;
       const metadata = {
@@ -380,12 +388,12 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
 
       const data = await response.json();
       console.log('✅ Drive Upload Success:', data);
-      
+
       const driveUrl = `https://drive.google.com/file/d/${data.id}/view`;
-      
+
       toast.dismiss();
       toast.success(`✅ Excel exported to Google Drive!`);
-      
+
       // Open Google Drive file
       window.open(driveUrl, '_blank');
     } catch (error: any) {
@@ -426,25 +434,25 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
       // Convert data URL to blob
       const response = await fetch(signatureDataUrl);
       const blob = await response.blob();
-      
+
       // Compress signature
       const compressedBlob = await compressImageBlob(blob, {
         maxWidth: 500,
         maxHeight: 300,
         quality: 0.7
       });
-      
+
       // Upload to backend
       const formData = new FormData();
       formData.append('file', compressedBlob, 'signature.png');
-      
+
       const uploadResponse = await fetch(`${API_BASE_URL}/api/scans/upload-signature`, {
         method: 'POST',
         body: formData,
       });
-      
+
       if (!uploadResponse.ok) throw new Error('Signature upload failed');
-      
+
       const data = await uploadResponse.json();
       return data.url || signatureDataUrl;
     } catch (error) {
@@ -477,7 +485,7 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
       // Get session for authentication
       const { supabase } = await import("@/lib/supabaseClient");
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         toast.error("Anda harus login terlebih dahulu");
         return;
@@ -507,28 +515,38 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
 
       const data = await response.json();
 
-      // Add to table with real data from database
-      const newRecord: ScanRecord = {
-        id: data.id,
-        no: scanRecords.length + 1,
-        tanggal: new Date().toLocaleDateString('id-ID'),
-        namaPenerima: data.recipient_name || penerimaNama,
-        keterangan: data.extracted_text || "Processing...",
-        fotoUrl: data.imagekit_url || data.file_path || "",
-        tandaTangan: data.signature_url || signatureUrl,
-        status: "approved",
-      };
-
-      setScanRecords([newRecord, ...scanRecords]);
+      // Removed optimistic update to prevent data mismatch
+      // Refresh data from server instead
       toast.dismiss();
       toast.success("✅ Dokumen berhasil di-scan dan disimpan ke database!");
+
+      // RELOAD DATA FROM SERVER
+      if (session) {
+        const response = await fetch(`${API_BASE_URL}/api/scans`, {
+          headers: { "Authorization": `Bearer ${session.access_token}` },
+        });
+        if (response.ok) {
+          const scans = await response.json();
+          const records: ScanRecord[] = scans.map((scan: any, idx: number) => ({
+            id: scan.id,
+            no: idx + 1,
+            tanggal: new Date(scan.created_at).toLocaleDateString('id-ID'),
+            namaPenerima: scan.recipient_name || "-",
+            keterangan: scan.extracted_text || "-",
+            fotoUrl: scan.imagekit_url || scan.file_path || "-",
+            tandaTangan: scan.signature_url || "-",
+            status: scan.status === 'completed' ? 'approved' : scan.status === 'failed' ? 'rejected' : 'pending',
+          }));
+          setScanRecords(records);
+        }
+      }
 
       // AUTO-CLEAR: Reset zona validasi setelah berhasil
       setPenerimaNama("");
       setTandaTanganValidasi("");
       setPreviewUrl(null);
       setUploadedImage(null);
-      
+
       // Scroll ke tabel untuk lihat hasil
       setTimeout(() => {
         const tableElement = document.querySelector('[class*="Riwayat"]');
@@ -536,7 +554,7 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
           tableElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }, 100);
-      
+
     } catch (error) {
       toast.dismiss();
       toast.error("❌ Gagal memproses dokumen");
@@ -892,99 +910,98 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
                           </div>
                         )}
                       </td>
-                    <td className="p-2 sm:p-3">
-                      <a
-                        href={record.fotoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline text-xs flex items-center gap-1"
-                      >
-                        <ImageIcon className="w-3 h-3" />
-                        <span>Lihat</span>
-                      </a>
-                    </td>
-                    <td className="p-2 sm:p-3">
-                      {record.tandaTangan ? (
+                      <td className="p-2 sm:p-3">
                         <a
-                          href={record.tandaTangan}
+                          href={record.fotoUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:underline text-xs flex items-center gap-1"
                         >
-                          <Edit2 className="w-3 h-3" />
-                          <span>Lihat Tanda Tangan</span>
+                          <ImageIcon className="w-3 h-3" />
+                          <span>Lihat</span>
                         </a>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">-</span>
-                      )}
-                    </td>
-                    <td className="p-2 sm:p-3">
-                      <select
-                        value={record.status}
-                        onChange={(e) =>
-                          handleStatusChange(
-                            record.id,
-                            e.target.value as ScanRecord["status"]
-                          )
-                        }
-                        disabled={editingId === record.id}
-                        className={`text-xs rounded-full px-2 py-1 border-0 font-medium cursor-pointer ${
-                          record.status === "approved"
+                      </td>
+                      <td className="p-2 sm:p-3">
+                        {record.tandaTangan ? (
+                          <a
+                            href={record.tandaTangan}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline text-xs flex items-center gap-1"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                            <span>Lihat Tanda Tangan</span>
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </td>
+                      <td className="p-2 sm:p-3">
+                        <select
+                          value={record.status}
+                          onChange={(e) =>
+                            handleStatusChange(
+                              record.id,
+                              e.target.value as ScanRecord["status"]
+                            )
+                          }
+                          disabled={editingId === record.id}
+                          className={`text-xs rounded-full px-2 py-1 border-0 font-medium cursor-pointer ${record.status === "approved"
                             ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
                             : record.status === "rejected"
-                            ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                            : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
-                        }`}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
-                      </select>
-                    </td>
-                    <td className="p-2 sm:p-3">
-                      <div className="flex items-center justify-center gap-1">
-                        {editingId === record.id ? (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
-                              onClick={() => handleSaveEdit(record.id)}
-                            >
-                              <Save className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={handleCancelEdit}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => handleEdit(record.id, record.keterangan)}
-                            >
-                              <Edit2 className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => handleDelete(record.id)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                              ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                              : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
+                            }`}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="approved">Approved</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
+                      </td>
+                      <td className="p-2 sm:p-3">
+                        <div className="flex items-center justify-center gap-1">
+                          {editingId === record.id ? (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                onClick={() => handleSaveEdit(record.id)}
+                              >
+                                <Save className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={handleCancelEdit}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleEdit(record.id, record.keterangan)}
+                              >
+                                <Edit2 className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleDelete(record.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
                   ))
                 )}
               </tbody>

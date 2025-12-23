@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Scan, FileText, FileDown, Brain, X } from "lucide-react";
+import { Scan, FileText, FileDown, Brain, Presentation, X } from "lucide-react";
 import { FEATURES } from "@/constants";
 import { FeaturesDropupProps } from "@/types";
 
@@ -8,6 +8,7 @@ const FEATURE_ICONS = {
   invoice: FileText,
   compressor: FileDown,
   quiz: Brain,
+  ppt: Presentation,
 } as const;
 
 const FeaturesDropup = ({ onSelect, onClose }: FeaturesDropupProps) => {
@@ -39,8 +40,15 @@ const FeaturesDropup = ({ onSelect, onClose }: FeaturesDropupProps) => {
                 <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
                   <Icon className="w-5 h-5 text-foreground" />
                 </div>
-                <div>
-                  <p className="font-medium text-sm">{feature.title}</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm">{feature.title}</p>
+                    {feature.premium && (
+                      <span className="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full">
+                        Premium
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">{feature.description}</p>
                 </div>
               </button>

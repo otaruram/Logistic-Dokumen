@@ -18,7 +18,7 @@ class UserLogin(BaseModel):
     password: str
 
 class UserResponse(UserBase):
-    id: int
+    id: str
     is_active: bool
     credits: int
     created_at: datetime
@@ -32,7 +32,7 @@ class ScanCreate(BaseModel):
 
 class ScanResponse(BaseModel):
     id: int
-    user_id: int
+    user_id: str
     original_filename: str
     extracted_text: Optional[str] = None
     confidence_score: Optional[float] = None
@@ -49,46 +49,10 @@ class ReviewCreate(BaseModel):
     feedback: Optional[str] = None
 
 class ReviewResponse(BaseModel):
-    id: int
+    id: str  # Updated to str
     user_name: str
     rating: int
     feedback: Optional[str] = None
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
-
-# Team Schemas (Community Feature)
-class TeamCreate(BaseModel):
-    name: str = Field(min_length=3, max_length=100)
-
-class TeamJoin(BaseModel):
-    join_code: str = Field(min_length=5, max_length=50)
-
-class TeamResponse(BaseModel):
-    id: int
-    name: str
-    join_code: str
-    created_at: datetime
-    member_count: Optional[int] = 0
-    
-    class Config:
-        from_attributes = True
-
-# Community Post Schemas
-class PostCreate(BaseModel):
-    content: str = Field(min_length=1, max_length=5000)
-    scope: str = Field(pattern="^(INTERNAL|GLOBAL)$")  # INTERNAL or GLOBAL
-    author_role: Optional[str] = None
-
-class PostResponse(BaseModel):
-    id: int
-    content: str
-    scope: str
-    team_id: Optional[int] = None
-    user_id: str
-    author_name: str
-    author_role: Optional[str] = None
     created_at: datetime
     
     class Config:
@@ -131,4 +95,4 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    user_id: Optional[int] = None
+    user_id: Optional[str] = None

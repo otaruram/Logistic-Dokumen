@@ -126,11 +126,11 @@ PENTING: Buat TEPAT 20 pertanyaan seperti contoh di atas."""
         user_id = user.get('id') if isinstance(user, dict) else getattr(user, 'id', None)
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid session")
-        user_id_int = int(user_id)
+        user_id_str = str(user_id)
         
         # Deduct 1 credit for quiz generation
         from api.tools import deduct_user_credit, log_activity
-        await deduct_user_credit(user_id_int, 1)
+        await deduct_user_credit(user_id_str, 1)
         
         # Generate unique ID
         quiz_id = generate(size=7)
@@ -141,7 +141,7 @@ PENTING: Buat TEPAT 20 pertanyaan seperti contoh di atas."""
             "topic": topic,
             "title": quiz_data["title"],
             "questions": quiz_data["questions"],
-            "user_id": user_id_int,
+            "user_id": user_id_str,
             "created_at": "now()"
         }
         
@@ -151,7 +151,7 @@ PENTING: Buat TEPAT 20 pertanyaan seperti contoh di atas."""
             raise HTTPException(status_code=500, detail="Failed to save quiz to database")
         
         # Log activity
-        await log_activity(user_id_int, "quiz", "generate", {"quiz_id": quiz_id, "topic": topic, "questions": num_questions, "has_pdf": bool(pdf_context)})
+        await log_activity(user_id_str, "quiz", "generate", {"quiz_id": quiz_id, "topic": topic, "questions": num_questions, "has_pdf": bool(pdf_context)})
         
         print(f"✅ Quiz generated successfully: {quiz_id}")
         

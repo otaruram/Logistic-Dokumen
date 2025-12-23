@@ -3,15 +3,15 @@ import { Activity, Coins, AlertTriangle, TrendingUp } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
-  Cell 
+  Cell
 } from 'recharts';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -34,7 +34,7 @@ const DashboardTab = () => {
   const fetchDashboardData = async () => {
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
-      
+
       if (error || !session) {
         toast.error("Anda harus login terlebih dahulu");
         setLoading(false);
@@ -153,9 +153,9 @@ const DashboardTab = () => {
             <AlertTriangle className="w-6 h-6 text-white" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-bold text-black mb-2">Pembersihan Mingguan</h3>
+            <h3 className="text-lg font-bold text-black mb-2">Pembersihan Bulanan</h3>
             <p className="text-sm text-gray-700 mb-3">
-              Data DGTNZ & ImageKit dihapus otomatis setiap Minggu untuk menghemat storage.
+              Data DGTNZ & ImageKit dihapus otomatis setiap Bulan untuk menghemat storage.
             </p>
             <div className="flex items-center gap-4 text-sm">
               <div>
@@ -168,7 +168,7 @@ const DashboardTab = () => {
               <div>
                 <span className="text-gray-600">Tanggal:</span>
                 <span className="ml-2 font-mono text-black">
-                  {loading ? "..." : stats.nextCleanupDate}
+                  {loading ? "..." : stats.nextCleanupDate || "Loading..."}
                 </span>
               </div>
             </div>
@@ -202,18 +202,18 @@ const DashboardTab = () => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weeklyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="day" 
+                <XAxis
+                  dataKey="day"
                   tick={{ fill: '#6b7280', fontSize: 12 }}
                   axisLine={{ stroke: '#000' }}
                 />
-                <YAxis 
+                <YAxis
                   tick={{ fill: '#6b7280', fontSize: 12 }}
                   axisLine={{ stroke: '#000' }}
                 />
-                <Tooltip 
-                  contentStyle={{ 
-                    border: '2px solid #000', 
+                <Tooltip
+                  contentStyle={{
+                    border: '2px solid #000',
                     backgroundColor: '#fff',
                     borderRadius: 0
                   }}
@@ -221,9 +221,9 @@ const DashboardTab = () => {
                 />
                 <Bar dataKey="count" radius={[0, 0, 0, 0]}>
                   {weeklyData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={entry.count > 0 ? '#000' : '#e5e7eb'} 
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.count > 0 ? '#000' : '#e5e7eb'}
                     />
                   ))}
                 </Bar>
@@ -262,8 +262,8 @@ const DashboardTab = () => {
             <div className="flex-1">
               <h4 className="font-bold text-black mb-1">Gratis Selamanya</h4>
               <p className="text-sm text-gray-700">
-                Credits direset otomatis setiap hari jam <strong>00:00 UTC</strong>. 
-                Anda mendapat <strong>10 credits</strong> fresh setiap hari - tidak pernah habis permanent!
+                Credits direset otomatis setiap hari jam <strong>00:00</strong>.
+                Data DGTNZ dihapus setiap <strong>30 hari</strong>.
               </p>
             </div>
           </div>

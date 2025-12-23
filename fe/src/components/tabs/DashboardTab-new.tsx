@@ -168,7 +168,7 @@ const DashboardTab = () => {
               <div>
                 <span className="text-gray-600">Tanggal:</span>
                 <span className="ml-2 font-mono text-black">
-                  {loading ? "..." : stats.nextCleanupDate}
+                  {loading ? "..." : stats.nextCleanupDate || "Loading..."}
                 </span>
               </div>
             </div>

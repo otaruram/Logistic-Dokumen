@@ -148,7 +148,7 @@ const FeaturesTab = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        onClick={() => toast.info("Fitur invoice.wtf segera hadir!")}
+        onClick={() => toast.info("Fitur audit.wtf segera hadir!")}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -156,8 +156,8 @@ const FeaturesTab = () => {
               <FileText className="w-6 h-6 text-accent" />
             </div>
             <div>
-              <h3 className="font-semibold">invoice.wtf</h3>
-              <p className="text-xs text-muted-foreground">Generate invoice profesional</p>
+              <h3 className="font-semibold">audit.wtf</h3>
+              <p className="text-xs text-muted-foreground">Deteksi fraud invoice dengan AI</p>
             </div>
           </div>
           <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />

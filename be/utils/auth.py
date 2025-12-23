@@ -106,7 +106,7 @@ async def get_current_user(
                         email=email,
                         username=email.split('@')[0],
                         hashed_password="",  # No password for OAuth users
-                        credits=200,
+                        credits=10,  # Initial 10 credits (daily reset)
                         is_active=True
                     )
                     db.add(user)

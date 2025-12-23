@@ -335,9 +335,9 @@ const InvoiceTab = ({ onBack }: InvoiceTabProps) => {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold">invoice.wtf</h2>
+            <h2 className="text-xl sm:text-2xl font-bold">audit.wtf</h2>
             <p className="text-xs sm:text-sm text-gray-600">
-              Admin Command Center
+              AI-powered invoice fraud detection
             </p>
           </div>
         </div>

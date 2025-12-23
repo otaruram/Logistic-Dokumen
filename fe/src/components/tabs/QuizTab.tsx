@@ -70,8 +70,8 @@ export default function QuizTab({ onBack }: QuizTabProps) {
       return;
     }
 
-    if (questionCount < 5 || questionCount > 50) {
-      toast.error('Number of questions must be between 5-50');
+    if (questionCount < 1 || questionCount > 50) {
+      toast.error('Number of questions must be between 1-50');
       return;
     }
 
@@ -179,20 +179,42 @@ export default function QuizTab({ onBack }: QuizTabProps) {
             {/* Question Count */}
             <div>
               <label htmlFor="count" className="block text-sm font-medium text-gray-700 mb-2">
-                Number of Questions
+                Number of Questions: {questionCount}
               </label>
-              <div className="flex items-center gap-3">
-                <Input
-                  id="count"
-                  type="number"
-                  min={5}
+              
+              {/* Quick Select Buttons */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {[10, 20, 30, 40, 50].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => setQuestionCount(num)}
+                    className={`px-4 py-2 text-sm font-medium border-2 transition-all ${
+                      questionCount === num
+                        ? 'bg-black text-white border-black'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-black'
+                    }`}
+                    disabled={isGenerating || isExtracting}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Range Slider for Fine Control */}
+              <div className="space-y-2">
+                <input
+                  type="range"
+                  min={1}
                   max={50}
                   value={questionCount}
-                  onChange={(e) => setQuestionCount(Math.min(50, Math.max(5, parseInt(e.target.value) || 20)))}
-                  className="h-11 w-24 border-gray-300 focus:border-black focus:ring-black text-center"
+                  onChange={(e) => setQuestionCount(parseInt(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
                   disabled={isGenerating || isExtracting}
                 />
-                <span className="text-sm text-gray-500">Min: 5 • Max: 50 • Default: 20</span>
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>1</span>
+                  <span>50</span>
+                </div>
               </div>
             </div>
 

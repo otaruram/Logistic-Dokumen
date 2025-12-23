@@ -24,11 +24,11 @@ MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB for images
 
 # --- Helper Functions ---
 
-async def log_activity(user_id: int, feature: str, action: str, metadata: dict = None):
+async def log_activity(user_id: str, feature: str, action: str, metadata: dict = None):
     """Log user activity to activities table for analytics"""
     try:
         activity_data = {
-            "user_id": user_id,
+            "user_id": str(user_id),
             "feature": feature,  # dgtnz, invoice, quiz, community, compressor
             "action": action,    # generate, scan, upload, create, compress
             "metadata": metadata or {}
@@ -38,13 +38,13 @@ async def log_activity(user_id: int, feature: str, action: str, metadata: dict =
     except Exception as e:
         print(f"⚠️ Failed to log activity: {e}")
 
-async def deduct_user_credit(user_id: int, amount: int = 1):
+async def deduct_user_credit(user_id: str, amount: int = 1):
     """Deduct credits from user (dgtnz=1, invoice=1, quiz=1, pdf=1)"""
     try:
-        user_id_int = int(user_id) if isinstance(user_id, str) else user_id
+        user_id_str = str(user_id)
         
         # Get current credits
-        result = supabase_admin.table("users").select("credits").eq("id", user_id_int).execute()
+        result = supabase_admin.table("users").select("credits").eq("id", user_id_str).execute()
         if not result.data or len(result.data) == 0:
             raise HTTPException(status_code=404, detail="User not found")
         
@@ -56,9 +56,9 @@ async def deduct_user_credit(user_id: int, amount: int = 1):
         
         # Deduct credits
         new_credits = current_credits - amount
-        supabase_admin.table("users").update({"credits": new_credits}).eq("id", user_id_int).execute()
+        supabase_admin.table("users").update({"credits": new_credits}).eq("id", user_id_str).execute()
         
-        print(f"💳 Credit deducted: User {user_id_int} | {current_credits} -> {new_credits} (-{amount})")
+        print(f"💳 Credit deducted: User {user_id_str} | {current_credits} -> {new_credits} (-{amount})")
         return new_credits
         
     except HTTPException:
@@ -80,8 +80,6 @@ async def compress_pdf(file: UploadFile = File(...), user = Depends(get_current_
     
     # Get user ID for activity tracking
     user_id = user.get('id') if isinstance(user, dict) else getattr(user, 'id', None)
-    if user_id:
-        user_id_int = int(user_id)
     
     try:
         pdf_content = await file.read()
@@ -104,7 +102,7 @@ async def compress_pdf(file: UploadFile = File(...), user = Depends(get_current_
         
         # Log activity (compressor is FREE)
         if user_id:
-            await log_activity(user_id_int, "compressor", "compress", {"file_name": file.filename})
+            await log_activity(str(user_id), "compressor", "compress", {"file_name": file.filename})
         
         return StreamingResponse(
             output_buffer,
@@ -162,7 +160,7 @@ async def merge_images_to_pdf(
         
         # Log activity
         if user_id:
-            await log_activity(int(user_id), "pdf_tools", "merge_images", {
+            await log_activity(str(user_id), "pdf_tools", "merge_images", {
                 "image_count": len(files),
                 "file_names": [f.filename for f in files]
             })

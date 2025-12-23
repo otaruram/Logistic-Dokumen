@@ -2,11 +2,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import Header from "./Header";
 import DashboardTab from "../tabs/DashboardTab";
 import FeaturesDropup from "../tabs/FeaturesDropup";
+import PptTab from "../tabs/PptTab";
 import DgtnzTab from "../tabs/DgtnzTab";
-import InvoiceTab from "../tabs/InvoiceTab";
+import AuditTab from "../tabs/AuditTab";
 import PdfTab from "../tabs/PdfTab";
 import QuizTab from "../tabs/QuizTab";
-import CommunityTab from "../tabs/CommunityTab";
 import OptionsTab from "../tabs/OptionsTab";
 import ProfileTab from "../tabs/ProfileTab";
 import BottomNavigation from "../ui/bottom-navigation";
@@ -27,16 +27,16 @@ const MainLayout = () => {
     switch (activeTab) {
       case "dashboard":
         return <DashboardTab />;
+      case "ppt":
+        return <PptTab onBack={() => setActiveTab("dashboard")} />;
       case "dgtnz":
         return <DgtnzTab onBack={() => setActiveTab("dashboard")} />;
       case "invoice":
-        return <InvoiceTab onBack={() => setActiveTab("dashboard")} />;
+        return <AuditTab onBack={() => setActiveTab("dashboard")} />;
       case "compressor":
         return <PdfTab onBack={() => setActiveTab("dashboard")} />;
       case "quiz":
         return <QuizTab onBack={() => setActiveTab("dashboard")} />;
-      case "community":
-        return <CommunityTab />;
       case "options":
         return <OptionsTab />;
       case "profile":
@@ -50,7 +50,7 @@ const MainLayout = () => {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header only on dashboard */}
       {activeTab === "dashboard" && <Header />}
-      
+
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto pb-24 px-4">
         <AnimatePresence mode="wait">
@@ -87,7 +87,7 @@ const MainLayout = () => {
       </AnimatePresence>
 
       {/* Bottom Navigation */}
-      <BottomNavigation 
+      <BottomNavigation
         activeTab={activeTab}
         onTabClick={handleTabClick}
         getActiveTabId={getActiveTabId}

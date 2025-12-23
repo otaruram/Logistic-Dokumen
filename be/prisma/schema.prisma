@@ -1,10 +1,9 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Prisma Schema for ocr.wtf
+// Focus: Enterprise OCR, Fraud Audit, and Automated Reporting
 
 generator client {
   provider             = "prisma-client-py"
   interface            = "asyncio"
-  recursive_type_depth = 5
 }
 
 datasource db {
@@ -14,66 +13,99 @@ datasource db {
 }
 
 model User {
-  id             Int              @id @default(autoincrement())
-  email          String           @unique
-  username       String           @unique
-  hashedPassword String           @map("hashed_password")
-  credits        Int              @default(10)  // Changed from 200 to 10 for daily reset
-  isActive       Boolean          @default(true) @map("is_active")
-  teamId         Int?             @map("team_id")  // Community feature: Team membership
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @updatedAt @map("updated_at")
-  
-  scans          Scan[]
-  invoices       Invoice[]
-  creditHistory  CreditHistory[]
-  quizzes        Quiz[]           // New relation
-  imagekitFiles  ImagekitFile[]   // New relation
-  team           Team?            @relation(fields: [teamId], references: [id], onDelete: SetNull)  // Community relation
+  id             String   @id @default(uuid()) @db.Uuid
+  email          String   @unique
+  username       String   @unique
+  hashedPassword String?  @map("hashed_password") // Nullable for Auth users
+  credits        Int      @default(10) // Reset harian
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  @@index([teamId])
+  // Relations
+  scans         Scan[]
+  invoices      Invoice[]
+  creditHistory CreditHistory[]
+  quizzes       Quiz[]
+  imagekitFiles ImagekitFile[]
+  audits        DocumentAudit[]
+  reviews       Review[]
+  activities    Activity[]
+
   @@map("users")
 }
 
 model Scan {
-  id               Int      @id @default(autoincrement())
-  userId           Int      @map("user_id")
-  originalFilename String   @map("original_filename")
-  filePath         String   @map("file_path")
-  extractedText    String?  @map("extracted_text") @db.Text
-  confidenceScore  Float?   @map("confidence_score")
-  status           String   @default("processing")
-  namaPenerima     String?  @map("nama_penerima")
-  tandaTangan      String?  @map("tanda_tangan")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-  
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               Int     @id @default(autoincrement())
+  userId           String  @map("user_id") @db.Uuid
+  originalFilename String  @map("original_filename")
+  filePath         String  @map("file_path")
+  fileSize         Int?    @map("file_size")
+  fileType         String? @map("file_type")
+  recipientName    String? @map("recipient_name")
+  signatureUrl     String? @map("signature_url")
+  imageKitUrl      String? @map("imagekit_url")
+
+  // OCR Results
+  extractedText   String? @map("extracted_text") @db.Text
+  confidenceScore Float?  @map("confidence_score")
+  processingTime  Float?  @map("processing_time")
+
+  status       String  @default("completed")
+  errorMessage String? @map("error_message")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("scans")
 }
 
+// Fitur Unggulan: Audit & Fraud Detection
+model DocumentAudit {
+  id              String   @id @default(uuid()) @db.Uuid
+  invoiceNumber   String   @map("invoice_number")
+  vendorName      String   @map("vendor_name")
+  totalAmount     Float    @map("total_amount")
+  invoiceDate     String?  @map("invoice_date")
+  confidenceScore Int      @map("confidence_score") // Skor 0-100 (Rounded)
+  isDuplicate     Boolean  @default(false) @map("is_duplicate")
+  isSuspicious    Boolean  @default(false) @map("is_suspicious")
+  analysisNote    String?  @map("analysis_note") @db.Text
+  userId          String?  @map("user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Pencegahan Double-Claim
+  @@unique([invoiceNumber, vendorName, totalAmount])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("document_audits")
+}
+
 model Invoice {
-  id            Int      @id @default(autoincrement())
-  userId        Int      @map("user_id")
-  invoiceNumber String   @unique @map("invoice_number")
-  clientName    String   @map("client_name")
-  clientEmail   String?  @map("client_email")
-  clientAddress String?  @map("client_address") @db.Text
+  id            Int       @id @default(autoincrement())
+  userId        String    @map("user_id") @db.Uuid
+  invoiceNumber String    @unique @map("invoice_number")
+  clientName    String    @map("client_name")
+  clientEmail   String?   @map("client_email")
+  clientAddress String?   @map("client_address") @db.Text
   date          DateTime
   dueDate       DateTime? @map("due_date")
-  items         Json     @default("[]")
-  notes         String?  @db.Text
+  items         Json      @default("[]") // Sumber data untuk Tabel di PPT
+  notes         String?   @db.Text
   subtotal      Float
   tax           Float
   total         Float
-  status        String   @default("draft")
-  templateId    Int      @map("template_id")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status        String    @default("draft")
+  templateId    Int       @map("template_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([invoiceNumber])
@@ -82,84 +114,77 @@ model Invoice {
 
 model CreditHistory {
   id          Int      @id @default(autoincrement())
-  userId      Int      @map("user_id")
+  userId      String   @map("user_id") @db.Uuid
   amount      Int
   action      String
   referenceId Int?     @map("reference_id")
   createdAt   DateTime @default(now()) @map("created_at")
-  
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("credit_history")
 }
 
-// Quiz model - AI-powered quiz generator
 model Quiz {
-  id        String   @id  // nanoid(7) from backend
+  id        String   @id // nanoid(7)
   topic     String
   title     String
   questions Json     @default("[]")
-  userId    Int      @map("user_id")
+  userId    String   @map("user_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([createdAt])
   @@map("quizzes")
 }
 
-// ImageKit file tracking for janitor cleanup
+model Review {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  userName   String   @map("user_name")
+  userEmail  String?  @map("user_email")
+  rating     Int
+  feedback   String?  @db.Text
+  isApproved Boolean  @default(true) @map("is_approved")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("reviews")
+}
+
+model Activity {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  feature   String
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("activities")
+}
+
 model ImagekitFile {
   id        Int      @id @default(autoincrement())
   fileId    String   @unique @map("file_id")
   fileUrl   String   @map("file_url")
   fileName  String?  @map("file_name")
   fileType  String?  @map("file_type")
-  feature   String   // 'qr', 'scan', 'invoice', 'quiz'
-  userId    Int?     @map("user_id")
+  feature   String // 'qr', 'scan', 'invoice', 'quiz'
+  userId    String?  @map("user_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
-  
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([createdAt])
   @@index([feature])
   @@map("imagekit_files")
-}
-
-// Community Feature - Teams
-model Team {
-  id        Int      @id @default(autoincrement())
-  name      String
-  joinCode  String   @unique @map("join_code")
-  createdBy Int?     @map("created_by")
-  createdAt DateTime @default(now()) @map("created_at")
-  
-  members   User[]
-  posts     CommunityPost[]
-  
-  @@index([joinCode])
-  @@map("teams")
-}
-
-// Community Feature - Posts
-model CommunityPost {
-  id         Int      @id @default(autoincrement())
-  content    String   @db.Text
-  scope      String   // 'INTERNAL' or 'GLOBAL'
-  teamId     Int?     @map("team_id")
-  userId     String   @map("user_id")  // Supabase Auth UUID as string
-  authorName String   @map("author_name")
-  authorRole String?  @map("author_role")
-  createdAt  DateTime @default(now()) @map("created_at")
-  
-  team       Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  
-  @@index([scope])
-  @@index([teamId])
-  @@index([userId])
-  @@index([createdAt])
-  @@map("community_posts")
 }
