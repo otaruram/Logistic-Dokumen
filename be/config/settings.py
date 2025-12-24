@@ -81,7 +81,7 @@ class Settings:
     DEV_FE_URL: str = os.getenv('DEV_FE_URL', 'http://localhost:8080')
     
     # Production
-    PROD_URL: str = os.getenv('PROD_BE_URL', 'https://api-ocr.xyz')
+    API_URL: str = Field(default="https://api-ocr.xyz", env="API_URL")
     PROD_FE_URL: str = os.getenv('PROD_FE_URL', 'https://ocr.wtf')
     
     # CORS

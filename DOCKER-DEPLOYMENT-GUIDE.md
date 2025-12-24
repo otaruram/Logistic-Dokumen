@@ -13,8 +13,8 @@
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/otaruram/Logistic-Dokumen.git
-cd Logistic-Dokumen
+git clone https://github.com/otaruram/Logistic-Dokumen.git Logistic-Document
+cd Logistic-Document
 ```
 
 ### 2. Create Environment File
@@ -84,8 +84,8 @@ docker compose version
 
 ```bash
 cd ~
-git clone https://github.com/otaruram/Logistic-Dokumen.git omni-scan-suite
-cd omni-scan-suite
+git clone https://github.com/otaruram/Logistic-Dokumen.git Logistic-Document
+cd Logistic-Document
 ```
 
 ### Step 3: Configure Environment
@@ -243,12 +243,12 @@ docker compose logs --tail=100 backend
 docker compose ps
 
 # Resource usage
-docker stats omni-backend
+docker stats logistic-document-be
 ```
 
 ### Enter Container Shell
 ```bash
-docker exec -it omni-backend bash
+docker exec -it logistic-document-be bash
 
 # Inside container, you can:
 # - Check Python version: python --version
@@ -292,7 +292,7 @@ sudo lsof -i :8000
 sudo kill -9 <PID>
 
 # 2. Environment variables not set
-docker exec omni-backend env | grep SUPABASE
+docker exec logistic-document-be env | grep SUPABASE
 
 # 3. Rebuild from scratch
 docker compose down
@@ -318,7 +318,7 @@ python -c "from pdf2image import convert_from_path; print('OK')"
 ### Database connection fails
 ```bash
 # Test Supabase connection
-docker exec omni-backend python -c "
+docker exec logistic-document-be python -c "
 from config.settings import settings
 print(f'URL: {settings.SUPABASE_URL}')
 print(f'Key: {settings.SUPABASE_KEY[:20]}...')
@@ -410,8 +410,8 @@ docker compose up -d
 docker compose down -v
 
 # Remove containers and images
-docker rm -f omni-backend
-docker rmi $(docker images -q omni-scan-suite*)
+docker rm -f logistic-document-be
+docker rmi $(docker images -q logistic-document*)
 
 # Fresh start
 git pull origin main
@@ -440,8 +440,8 @@ After deployment, verify these work:
 
 If you encounter issues:
 1. Check logs: `docker compose logs -f backend`
-2. Verify environment variables: `docker exec omni-backend env`
-3. Test database connection: `docker exec omni-backend python -c "from config.database import supabase; print(supabase)"`
+2. Verify environment variables: `docker exec logistic-document-be env`
+3. Test database connection: `docker exec logistic-document-be python -c "from config.database import supabase; print(supabase)"`
 4. Check GitHub Issues: https://github.com/otaruram/Logistic-Dokumen/issues
 
 ---

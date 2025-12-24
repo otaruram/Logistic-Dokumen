@@ -116,7 +116,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
               <div className="bg-black p-4 rounded-xl">
                 <Scan className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
               </div>
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-black tracking-tight">
+              <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight mb-4 text-slate-900 dark:text-white">
                 ocr.wtf
               </h1>
             </div>
@@ -331,11 +331,10 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
                           {Array.from({ length: 5 }).map((_, i) => (
                             <Star
                               key={i}
-                              className={`w-4 h-4 ${
-                                i < review.rating
-                                  ? "text-yellow-500 fill-yellow-500"
-                                  : "text-gray-300"
-                              }`}
+                              className={`w-4 h-4 ${i < review.rating
+                                ? "text-yellow-500 fill-yellow-500"
+                                : "text-gray-300"
+                                }`}
                             />
                           ))}
                         </div>
