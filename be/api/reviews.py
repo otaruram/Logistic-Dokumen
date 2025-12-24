@@ -99,7 +99,7 @@ async def get_all_reviews():
 async def get_recent_reviews():
     """Get recent approved reviews for landing page (limit 6)"""
     try:
-        result = supabase.table("reviews")\
+        result = supabase_admin.table("reviews")\
             .select("*")\
             .eq("is_approved", True)\
             .order("created_at", desc=True)\
