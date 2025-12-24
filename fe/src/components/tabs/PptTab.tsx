@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Presentation, Sparkles, Loader2, ImagePlus, X, History, Wand2 } from "lucide-react";
+import { ArrowLeft, Presentation, Sparkles, Loader2, ImagePlus, X, History, Wand2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,9 +52,33 @@ const PptTab = ({ onBack }: PptTabProps) => {
         { id: "autumn", name: "Autumn (Brown)", color: "#3e2723" }
     ];
 
-    // Scans for optional history
-    const [scans, setScans] = useState<ScanRecord[]>([]);
-    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    // Fetch PPT history on component mount
+    const fetchPptHistory = async () => {
+        try {
+            const { supabase } = await import("@/lib/supabaseClient");
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (!session) return;
+
+            const response = await fetch(`${API_BASE_URL}/api/ppt/history`, {
+                headers: {
+                    "Authorization": `Bearer ${session.access_token}`,
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setPptHistory(data.records || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch PPT history:", error);
+        }
+    };
+
+    // Load history on mount
+    useEffect(() => {
+        fetchPptHistory();
+    }, []);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
@@ -76,35 +100,6 @@ const PptTab = ({ onBack }: PptTabProps) => {
 
     const removeImage = (index: number) => {
         setImages(prev => prev.filter((_, i) => i !== index));
-    };
-
-    const loadScanHistory = async () => {
-        if (scans.length > 0) {
-            setShowHistory(!showHistory);
-            return;
-        }
-
-        setIsLoadingHistory(true);
-        setShowHistory(true);
-        try {
-            const { supabase } = await import("@/lib/supabaseClient");
-            const { data: { session } } = await supabase.auth.getSession();
-
-            if (!session) return;
-
-            const response = await fetch(`${API_BASE_URL}/api/scans/history`, {
-                headers: { "Authorization": `Bearer ${session.access_token}` },
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setScans(data.scans || []);
-            }
-        } catch (error) {
-            console.error("Error loading history:", error);
-        } finally {
-            setIsLoadingHistory(false);
-        }
     };
 
     const handleGenerate = async () => {
@@ -147,6 +142,9 @@ const PptTab = ({ onBack }: PptTabProps) => {
             setResult(data);
             toast.dismiss();
             toast.success("✅ Presentation Ready!");
+
+            // Refresh PPT history
+            fetchPptHistory();
 
             // Reset form (keep result visible)
             setPrompt("");
@@ -309,56 +307,75 @@ const PptTab = ({ onBack }: PptTabProps) => {
                 </Button>
             </Card>
 
-            {/* Toggle Scan History */}
-            <div className="flex justify-center">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={loadScanHistory}
-                    className="gap-2 text-xs"
-                >
-                    <History className="w-3.5 h-3.5" />
-                    {showHistory ? "Hide Scan History" : "Generate from Scan History"}
-                </Button>
-            </div>
+            {/* PPT History Section */}
+            {pptHistory.length > 0 && (
+                <Card className="p-4 sm:p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-lg">📚 Your PPT History</h3>
+                        <span className="text-xs text-muted-foreground">{pptHistory.length} presentation{pptHistory.length > 1 ? 's' : ''}</span>
+                    </div>
 
-            <AnimatePresence>
-                {showHistory && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <Card className="p-4 sm:p-6 mt-4">
-                            <h3 className="font-medium mb-4 text-sm">Select from Scan History</h3>
-                            {/* Scan List Logic similar to previous version... */}
-                            {isLoadingHistory ? (
-                                <div className="text-center py-8"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div>
-                            ) : scans.length === 0 ? (
-                                <p className="text-center text-sm text-muted-foreground py-4">No scans found.</p>
-                            ) : (
-                                <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                                    {scans.map((scan) => (
-                                        <div key={scan.id} className="flex items-center justify-between p-3 border rounded-lg">
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-medium truncate">{scan.original_filename}</p>
-                                                <p className="text-xs text-muted-foreground">{new Date(scan.created_at).toLocaleDateString()}</p>
+                    <div className="grid gap-3">
+                        {pptHistory.map((ppt: any) => {
+                            const expiresAt = new Date(ppt.expires_at);
+                            const now = new Date();
+                            const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+                            return (
+                                <motion.div
+                                    key={ppt.id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-4 border rounded-lg hover:shadow-md transition-shadow bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800"
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-medium text-sm truncate">{ppt.title}</h4>
+                                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                                                    {ppt.theme}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {new Date(ppt.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                                                </span>
+                                                {daysLeft <= 2 && (
+                                                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
+                                                        {daysLeft === 0 ? 'Expires today' : `${daysLeft} day${daysLeft > 1 ? 's' : ''} left`}
+                                                    </span>
+                                                )}
                                             </div>
-                                            <Button size="sm" variant="secondary" onClick={() => {
-                                                setPrompt(`Generate report for document: ${scan.original_filename}\nExtracted text: ${scan.extracted_text}`);
-                                                setShowHistory(false);
-                                            }}>
-                                                Use Data
+                                        </div>
+                                        <div className="flex gap-2 shrink-0">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="gap-1.5 h-8"
+                                                onClick={() => {
+                                                    const previewUrl = `/ppt/preview?url=${encodeURIComponent(ppt.pdf_url)}&filename=${encodeURIComponent(ppt.pdf_filename)}&download=${encodeURIComponent(ppt.pdf_url)}`;
+                                                    window.location.href = previewUrl;
+                                                }}
+                                            >
+                                                <Presentation className="h-3.5 w-3.5" />
+                                                <span className="hidden sm:inline">Preview</span>
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-8 w-8 p-0"
+                                                asChild
+                                            >
+                                                <a href={ppt.pdf_url} download={ppt.pdf_filename}>
+                                                    <Download className="h-3.5 w-3.5" />
+                                                </a>
                                             </Button>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </Card>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                </Card>
+            )}
         </div>
     );
 };
