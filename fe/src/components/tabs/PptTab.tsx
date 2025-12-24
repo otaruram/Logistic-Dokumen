@@ -26,7 +26,7 @@ const PptTab = ({ onBack }: PptTabProps) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
     const [theme, setTheme] = useState("modern");
-    const [result, setResult] = useState<{ download_url: string, preview_url: string, pdf_filename: string } | null>(null);
+    const [result, setResult] = useState<{ download_url: string, preview_url: string, pptx_filename: string } | null>(null);
     const [pptHistory, setPptHistory] = useState<any[]>([]);
 
     const THEMES = [
@@ -211,7 +211,7 @@ const PptTab = ({ onBack }: PptTabProps) => {
                             className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white gap-2 flex-1"
                             size="lg"
                             onClick={() => {
-                                const previewUrl = `/ppt/preview?url=${encodeURIComponent(result.preview_url)}&filename=${encodeURIComponent(result.pdf_filename)}&download=${encodeURIComponent(result.download_url)}`;
+                                const previewUrl = `/ppt/preview?url=${encodeURIComponent(result.preview_url)}&filename=${encodeURIComponent(result.pptx_filename)}&download=${encodeURIComponent(result.download_url)}`;
                                 window.location.href = previewUrl;
                             }}
                         >

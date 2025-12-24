@@ -10,7 +10,6 @@ from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 from openai import OpenAI
 from config.settings import settings
-from services.pdf_converter import PDFConverter
 import json
 import os
 from datetime import datetime, timedelta
@@ -76,35 +75,22 @@ class PPTService:
             prs.save(pptx_path)
             print(f"✅ PPTX saved: {pptx_path}")
             
-            # 4. Convert PPTX to PDF
-            print(f"🔄 Converting PPTX to PDF...")
-            try:
-                pdf_path = PDFConverter.convert_pptx_to_pdf(pptx_path, exports_dir)
-                pdf_filename = os.path.basename(pdf_path)
-                print(f"✅ PDF created: {pdf_path}")
-            except Exception as e:
-                print(f"⚠️ PDF conversion failed: {e}")
-                # Fallback: use PPTX if PDF conversion fails
-                pdf_path = pptx_path
-                pdf_filename = pptx_filename
-            
-            # 5. Generate URLs
+            # 4. Generate URLs
             base_url = settings.base_url or "http://localhost:8000"
             pptx_url = f"{base_url}/static/exports/{pptx_filename}"
-            pdf_url = f"{base_url}/static/exports/{pdf_filename}"
             
-            # 6. Calculate expiration (7 days from now)
+            # Use Microsoft Office Online Viewer for preview
+            preview_url = f"https://view.officeapps.live.com/op/embed.aspx?src={pptx_url}"
+            
+            # 5. Calculate expiration (7 days from now)
             expires_at = datetime.now() + timedelta(days=7)
             
             return {
                 "pptx_path": pptx_path,
-                "pdf_path": pdf_path,
                 "pptx_filename": pptx_filename,
-                "pdf_filename": pdf_filename,
                 "pptx_url": pptx_url,
-                "pdf_url": pdf_url,
-                "preview_url": pdf_url,  # Preview uses PDF
-                "download_url": pdf_url,  # Download uses PDF
+                "preview_url": preview_url,
+                "download_url": pptx_url,
                 "title": structured_content.get("title", "Presentation"),
                 "theme": theme,
                 "prompt": prompt,

@@ -11,10 +11,6 @@ RUN apt-get update && apt-get install -y \
     tesseract-ocr-ind \
     libgl1 \
     libglib2.0-0 \
-    libreoffice \
-    libreoffice-writer \
-    libreoffice-calc \
-    libreoffice-impress \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first (for better Docker layer caching)

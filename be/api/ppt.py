@@ -69,9 +69,9 @@ async def generate_ppt_from_prompt(
             user_id=current_user.id,
             title=result["title"],
             pptx_filename=result["pptx_filename"],
-            pdf_filename=result["pdf_filename"],
+            pdf_filename=result["pptx_filename"],  # Same as PPTX since no PDF conversion
             pptx_url=result["pptx_url"],
-            pdf_url=result["pdf_url"],
+            pdf_url=result["pptx_url"],  # Same as PPTX
             theme=result["theme"],
             prompt=result["prompt"],
             expires_at=result["expires_at"]
@@ -90,7 +90,7 @@ async def generate_ppt_from_prompt(
             "success": True,
             "preview_url": result["preview_url"],
             "download_url": result["download_url"],
-            "pdf_filename": result["pdf_filename"],
+            "pptx_filename": result["pptx_filename"],
             "ppt_history_id": ppt_history.id,
             "credits_remaining": current_user.credits
         }
