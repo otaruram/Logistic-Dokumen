@@ -25,6 +25,31 @@ const PptTab = ({ onBack }: PptTabProps) => {
     const [images, setImages] = useState<string[]>([]); // Base64 strings
     const [isGenerating, setIsGenerating] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
+    const [theme, setTheme] = useState("modern");
+    const [result, setResult] = useState<{ download_url: string, viewer_url: string, filename: string } | null>(null);
+
+    const THEMES = [
+        { id: "modern", name: "Modern (Dark Blue)", color: "#1a237e" },
+        { id: "professional", name: "Professional (Gray)", color: "#212121" },
+        { id: "creative", name: "Creative (Pink)", color: "#880e4f" },
+        { id: "eco", name: "Eco (Green)", color: "#1b5e20" },
+        { id: "sunset", name: "Sunset (Orange)", color: "#bf360c" },
+        { id: "ocean", name: "Ocean (Teal)", color: "#006064" },
+        { id: "minimalist", name: "Minimalist (Black/White)", color: "#424242" },
+        { id: "global", name: "Global (Navy)", color: "#0d47a1" },
+        { id: "tech", name: "Tech (Dark)", color: "#263238" },
+        { id: "luxury", name: "Luxury (Gold)", color: "#d4af37" },
+        { id: "vibrant", name: "Vibrant (Purple)", color: "#311b92" },
+        { id: "calm", name: "Calm (Pastel)", color: "#004d40" },
+        { id: "energetic", name: "Energetic (Yellow)", color: "#fbc02d" },
+        { id: "trust", name: "Trust (Blue)", color: "#01579b" },
+        { id: "innovation", name: "Innovation (Indigo)", color: "#303f9f" },
+        { id: "harmony", name: "Harmony (Green)", color: "#2e7d32" },
+        { id: "bold", name: "Bold (Red)", color: "#b71c1c" },
+        { id: "elegant", name: "Elegant (Cream)", color: "#5e0d14" },
+        { id: "cyberpunk", name: "Cyberpunk (Neon)", color: "#ff00ff" },
+        { id: "autumn", name: "Autumn (Brown)", color: "#3e2723" }
+    ];
 
     // Scans for optional history
     const [scans, setScans] = useState<ScanRecord[]>([]);
@@ -107,7 +132,8 @@ const PptTab = ({ onBack }: PptTabProps) => {
                 },
                 body: JSON.stringify({
                     prompt: prompt,
-                    images: images
+                    images: images,
+                    theme: theme
                 }),
             });
 
@@ -117,27 +143,11 @@ const PptTab = ({ onBack }: PptTabProps) => {
             }
 
             const data = await response.json();
+            setResult(data);
             toast.dismiss();
+            toast.success("✅ Presentation Ready!");
 
-            // Check if running on localhost
-            const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-
-            if (isLocalhost) {
-                toast.success("✅ Presentation Ready! (Downloading file...)");
-                toast.info("Office Viewer cannot access localhost, so we downloaded the file instead.");
-                // Download directly
-                const link = document.createElement('a');
-                link.href = data.download_url;
-                link.download = data.filename;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            } else {
-                toast.success("✅ Presentation Ready!");
-                window.open(data.viewer_url, '_blank');
-            }
-
-            // Reset form
+            // Reset form (keep result visible)
             setPrompt("");
             setImages([]);
 
@@ -184,8 +194,68 @@ const PptTab = ({ onBack }: PptTabProps) => {
                 </div>
             </Card>
 
+            {result && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="p-4 sm:p-6 bg-green-50 dark:bg-green-950/20 border-2 border-green-500 rounded-xl space-y-3"
+                >
+                    <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                        <Sparkles className="h-5 w-5" />
+                        <h3 className="font-bold">PPT Anda sudah jadi!</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                        File presentasi AI Anda telah berhasil dibuat. Silakan download atau lihat melalui link di bawah:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            asChild
+                            className="bg-green-600 hover:bg-green-700 text-white gap-2"
+                        >
+                            <a href={result.download_url} download={result.filename}>
+                                Download PPTX
+                            </a>
+                        </Button>
+                        <Button
+                            variant="outline"
+                            asChild
+                            className="gap-2"
+                        >
+                            <a href={result.viewer_url} target="_blank" rel="noreferrer">
+                                Lihat Online (Office Viewer)
+                            </a>
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setResult(null)}
+                            className="text-xs ml-auto"
+                        >
+                            Buat Baru
+                        </Button>
+                    </div>
+                </motion.div>
+            )}
+
             {/* Main Generation Form */}
             <Card className="p-4 sm:p-6 space-y-4">
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Layout Theme</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <select
+                            value={theme}
+                            onChange={(e) => setTheme(e.target.value)}
+                            className="col-span-full p-2 rounded-md border bg-background text-sm"
+                        >
+                            {THEMES.map(t => (
+                                <option key={t.id} value={t.id}>
+                                    {t.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
                 <div className="space-y-2">
                     <label className="text-sm font-medium">Presentation Topic / Prompt</label>
                     <Textarea

@@ -21,6 +21,7 @@ from typing import List, Optional
 
 class PPTPromptRequest(BaseModel):
     prompt: str
+    theme: Optional[str] = Field(default="modern", description="PPT Theme name")
     images: Optional[List[str]] = Field(default=[], max_items=2, description="Base64 encoded images")
 
 @router.post("/generate-prompt")
@@ -45,7 +46,8 @@ async def generate_ppt_from_prompt(
         result = await PPTService.generate_from_prompt(
             prompt=request.prompt,
             user_id=str(current_user.id),
-            image_data=request.images
+            image_data=request.images,
+            theme=request.theme
         )
         
         # Deduct credits
