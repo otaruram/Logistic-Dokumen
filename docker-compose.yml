@@ -4,28 +4,13 @@ services:
     build:
       context: ./be
       dockerfile: Dockerfile
-    container_name: omni-backend
+    container_name: logistic-document-be
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
-      # Supabase Configuration (from your .env)
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      
-      # OpenAI Configuration
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      
-      # JWT Configuration
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_ALGORITHM=HS256
-      - ACCESS_TOKEN_EXPIRE_MINUTES=10080
-      
-      # API Configuration
-      - API_URL=${API_URL:-http://localhost:8000}
-      
-      # Redis Configuration
-      - REDIS_HOST=redis
+      - REDIS_HOST=logistic-document-redis
       - REDIS_PORT=6379
       - REDIS_DB=0
       
@@ -55,7 +40,7 @@ services:
   # Redis Cache Service
   redis:
     image: redis:7-alpine
-    container_name: omni-redis
+    container_name: logistic-document-redis
     ports:
       - "6379:6379"
     volumes:
@@ -88,7 +73,7 @@ services:
   #     - omni-network
 
 networks:
-  omni-network:
+  logistic-document-network:
     driver: bridge
 
 volumes:
