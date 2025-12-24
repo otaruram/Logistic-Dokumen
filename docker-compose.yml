@@ -35,7 +35,7 @@ services:
       - redis
     
     networks:
-      - omni-network
+      - logistic-document-network
 
   # Redis Cache Service
   redis:
@@ -53,7 +53,7 @@ services:
       timeout: 5s
       retries: 3
     networks:
-      - omni-network
+      - logistic-document-network
 
   # Nginx Reverse Proxy (Optional - for production)
   # Uncomment this section if you want to use nginx
