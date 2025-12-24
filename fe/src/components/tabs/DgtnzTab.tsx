@@ -911,15 +911,25 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
                         )}
                       </td>
                       <td className="p-2 sm:p-3">
-                        <a
-                          href={record.fotoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-xs flex items-center gap-1"
-                        >
-                          <ImageIcon className="w-3.5 h-3.5" />
-                          <span className="font-medium">Lihat Foto</span>
-                        </a>
+                        {record.fotoUrl ? (
+                          <a
+                            href={record.fotoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block"
+                          >
+                            <img
+                              src={record.fotoUrl}
+                              alt="Foto scan"
+                              className="w-16 h-16 object-cover rounded border hover:scale-105 transition-transform cursor-pointer"
+                              onError={(e) => {
+                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64"%3E%3Crect fill="%23ddd" width="64" height="64"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="12"%3ENo Image%3C/text%3E%3C/svg%3E';
+                              }}
+                            />
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
                       </td>
                       <td className="p-2 sm:p-3">
                         {record.tandaTangan ? (
@@ -927,10 +937,16 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
                             href={record.tandaTangan}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline text-xs flex items-center gap-1"
+                            className="block"
                           >
-                            <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
-                            <span className="font-medium">Lihat Signature</span>
+                            <img
+                              src={record.tandaTangan}
+                              alt="Tanda tangan"
+                              className="w-16 h-16 object-cover rounded border hover:scale-105 transition-transform cursor-pointer bg-white"
+                              onError={(e) => {
+                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64"%3E%3Crect fill="%23ddd" width="64" height="64"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="12"%3ENo Sign%3C/text%3E%3C/svg%3E';
+                              }}
+                            />
                           </a>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
