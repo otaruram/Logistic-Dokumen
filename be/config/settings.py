@@ -114,7 +114,7 @@ class Settings:
     
     @property
     def base_url(self) -> str:
-        return self.DEV_URL if self.is_development else self.PROD_URL
+        return self.DEV_URL if self.is_development else self.API_URL
     
     @property
     def frontend_url(self) -> str:

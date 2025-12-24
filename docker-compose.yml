@@ -10,6 +10,7 @@ services:
     env_file:
       - .env
     environment:
+      - PYTHON_ENV=production
       - REDIS_HOST=logistic-document-redis
       - REDIS_PORT=6379
       - REDIS_DB=0
