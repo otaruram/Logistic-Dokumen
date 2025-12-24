@@ -242,7 +242,7 @@ const DashboardTab = () => {
 
         <div className="mt-4 pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-500">
-            Menghitung: <span className="font-medium text-black">DGTNZ • QR • Invoice • Quiz • Community • PDF</span>
+            Menghitung: <span className="font-medium text-black">PPT.WTF • DGTNZ • AUDIT • INVOICE • QUIZ • PDF</span>
           </p>
         </div>
       </motion.div>

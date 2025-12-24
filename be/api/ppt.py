@@ -112,7 +112,8 @@ async def generate_ppt(
             "original_filename": scan.original_filename,
             "extracted_text": scan.extracted_text or "No text extracted",
             "confidence_score": scan.confidence_score or 0,
-            "recipient_name": scan.recipient_name,
+            "imagekit_url": scan.imagekit_url,
+            "signature_url": scan.signature_url,
             "created_at": scan.created_at.isoformat() if scan.created_at else None,
             "status": scan.status
         }

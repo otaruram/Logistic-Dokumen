@@ -24,7 +24,7 @@ async def get_dashboard_stats(user = Depends(get_current_user)):
         activities_count = supabase_admin.table("activities")\
             .select("id", count="exact")\
             .eq("user_id", user_id)\
-            .in_("feature", ["dgtnz", "invoice", "compressor", "quiz", "audit"])\
+            .in_("feature", ["dgtnz", "invoice", "compressor", "quiz", "audit", "ppt"])\
             .execute()
         total_activities = activities_count.count or 0
         
@@ -34,7 +34,8 @@ async def get_dashboard_stats(user = Depends(get_current_user)):
         if now.month == 12:
             next_cleanup = datetime(now.year + 1, 1, 1)
         else:
-            next_cleanup = datetime(now.year, now.month + 1, 1)
+            # Tetapkan tanggal ke hari terakhir bulan ini atau awal bulan depan
+            next_cleanup = (now.replace(day=1) + timedelta(days=32)).replace(day=1)
             
         days_until_cleanup = (next_cleanup - now).days
         
@@ -73,7 +74,7 @@ async def get_weekly_activity(user = Depends(get_current_user)):
         activities = supabase_admin.table("activities")\
             .select("created_at, feature")\
             .eq("user_id", user_id)\
-            .in_("feature", ["dgtnz", "invoice", "compressor", "quiz", "audit"])\
+            .in_("feature", ["dgtnz", "invoice", "compressor", "quiz", "audit", "ppt"])\
             .gte("created_at", week_ago.isoformat())\
             .execute()
         

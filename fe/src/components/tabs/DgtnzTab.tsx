@@ -917,8 +917,8 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:underline text-xs flex items-center gap-1"
                         >
-                          <ImageIcon className="w-3 h-3" />
-                          <span>Lihat</span>
+                          <ImageIcon className="w-3.5 h-3.5" />
+                          <span className="font-medium">Lihat Foto</span>
                         </a>
                       </td>
                       <td className="p-2 sm:p-3">
@@ -929,8 +929,8 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:underline text-xs flex items-center gap-1"
                           >
-                            <Edit2 className="w-3 h-3" />
-                            <span>Lihat Tanda Tangan</span>
+                            <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
+                            <span className="font-medium">Lihat Signature</span>
                           </a>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
