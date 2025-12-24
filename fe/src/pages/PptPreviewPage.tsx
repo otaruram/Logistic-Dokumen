@@ -11,7 +11,7 @@ const PptPreviewPage = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     const previewUrl = searchParams.get("url");
-    const filename = searchParams.get("filename") || "presentation.pptx";
+    const filename = searchParams.get("filename") || "presentation.pdf";
     const downloadUrl = searchParams.get("download") || previewUrl;
 
     useEffect(() => {
@@ -69,7 +69,7 @@ const PptPreviewPage = () => {
                         >
                             <a href={downloadUrl} download={filename}>
                                 <Download className="h-4 w-4" />
-                                <span className="hidden sm:inline">Download</span>
+                                <span className="hidden sm:inline">Download PDF</span>
                             </a>
                         </Button>
                     </div>
@@ -88,19 +88,20 @@ const PptPreviewPage = () => {
                             <div className="aspect-[16/10] bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                                 <div className="text-center">
                                     <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-amber-600" />
-                                    <p className="text-sm text-muted-foreground">Loading preview...</p>
+                                    <p className="text-sm text-muted-foreground">Loading PDF preview...</p>
                                 </div>
                             </div>
                         ) : (
                             <div className="bg-white dark:bg-slate-900">
-                                {/* Microsoft Office Online Viewer */}
-                                <iframe
-                                    src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewUrl)}`}
+                                {/* Native PDF Viewer - Works with PDF files */}
+                                <embed
+                                    src={previewUrl}
+                                    type="application/pdf"
                                     className="w-full aspect-[16/10] border-0"
-                                    title="Presentation Preview"
+                                    title="PDF Preview"
                                 />
 
-                                {/* Fallback: Direct link if iframe doesn't work */}
+                                {/* Fallback: Direct link if embed doesn't work */}
                                 <div className="p-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
                                     <p className="text-xs text-muted-foreground text-center">
                                         Preview not loading?{" "}
@@ -110,7 +111,7 @@ const PptPreviewPage = () => {
                                             rel="noreferrer"
                                             className="text-amber-600 hover:underline font-medium"
                                         >
-                                            Open in new tab
+                                            Open PDF in new tab
                                         </a>
                                     </p>
                                 </div>
@@ -126,11 +127,11 @@ const PptPreviewPage = () => {
                             </div>
                             <div className="flex-1">
                                 <h3 className="font-semibold text-sm sm:text-base mb-1">
-                                    Premium Presentation
+                                    Premium Presentation (PDF)
                                 </h3>
                                 <p className="text-xs sm:text-sm text-muted-foreground">
                                     This presentation was generated with AI using industry-standard design principles.
-                                    Download the PPTX file to edit or present.
+                                    Download the PDF file to view or share. Available for 7 days.
                                 </p>
                             </div>
                         </div>

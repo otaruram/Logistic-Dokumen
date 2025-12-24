@@ -101,3 +101,26 @@ class CreditHistory(Base):
     action = Column(String(100), nullable=False)  # scan, invoice, refill, etc.
     reference_id = Column(Integer)  # ID of scan/invoice
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PPTHistory(Base):
+    """PPT generation history with PDF storage and 1-week expiration"""
+    __tablename__ = "ppt_history"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    
+    # File info
+    title = Column(String(500), nullable=False)
+    pptx_filename = Column(String(500), nullable=False)
+    pdf_filename = Column(String(500), nullable=False)
+    pptx_url = Column(String(1000), nullable=False)
+    pdf_url = Column(String(1000), nullable=False)
+    
+    # Metadata
+    theme = Column(String(50), default="modern")
+    prompt = Column(Text, nullable=True)
+    
+    # Expiration (1 week from creation)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)

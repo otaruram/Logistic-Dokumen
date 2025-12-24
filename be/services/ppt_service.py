@@ -10,9 +10,10 @@ from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 from openai import OpenAI
 from config.settings import settings
+from services.pdf_converter import PDFConverter
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Any
 
 class PPTService:
@@ -64,29 +65,50 @@ class PPTService:
             # Add closing slide
             PPTService._add_premium_closing_slide(prs, theme_config)
             
-            # 3. Save file
+            # 3. Save PPTX file
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"premium_ppt_{user_id}_{timestamp}.pptx"
+            pptx_filename = f"premium_ppt_{user_id}_{timestamp}.pptx"
             
             exports_dir = os.path.join("static", "exports")
             os.makedirs(exports_dir, exist_ok=True)
             
-            file_path = os.path.join(exports_dir, filename)
-            prs.save(file_path)
+            pptx_path = os.path.join(exports_dir, pptx_filename)
+            prs.save(pptx_path)
+            print(f"✅ PPTX saved: {pptx_path}")
             
-            # 4. Generate URLs
+            # 4. Convert PPTX to PDF
+            print(f"🔄 Converting PPTX to PDF...")
+            try:
+                pdf_path = PDFConverter.convert_pptx_to_pdf(pptx_path, exports_dir)
+                pdf_filename = os.path.basename(pdf_path)
+                print(f"✅ PDF created: {pdf_path}")
+            except Exception as e:
+                print(f"⚠️ PDF conversion failed: {e}")
+                # Fallback: use PPTX if PDF conversion fails
+                pdf_path = pptx_path
+                pdf_filename = pptx_filename
+            
+            # 5. Generate URLs
             base_url = settings.base_url or "http://localhost:8000"
-            ppt_url = f"{base_url}/static/exports/{filename}"
+            pptx_url = f"{base_url}/static/exports/{pptx_filename}"
+            pdf_url = f"{base_url}/static/exports/{pdf_filename}"
             
-            # For now, we'll use the PPTX URL as preview_url
-            # In production, you'd convert to PDF here
-            preview_url = ppt_url
+            # 6. Calculate expiration (7 days from now)
+            expires_at = datetime.now() + timedelta(days=7)
             
             return {
-                "file_path": file_path,
-                "download_url": ppt_url,
-                "preview_url": preview_url,
-                "filename": filename
+                "pptx_path": pptx_path,
+                "pdf_path": pdf_path,
+                "pptx_filename": pptx_filename,
+                "pdf_filename": pdf_filename,
+                "pptx_url": pptx_url,
+                "pdf_url": pdf_url,
+                "preview_url": pdf_url,  # Preview uses PDF
+                "download_url": pdf_url,  # Download uses PDF
+                "title": structured_content.get("title", "Presentation"),
+                "theme": theme,
+                "prompt": prompt,
+                "expires_at": expires_at
             }
             
         except Exception as e:

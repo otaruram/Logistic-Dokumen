@@ -7,10 +7,11 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from config.database import get_db
-from models.models import User, Scan, CreditHistory
+from models.models import User, Scan, CreditHistory, PPTHistory
 from utils.auth import get_current_active_user
 from services.ppt_service import PPTService
 from api.tools import log_activity
+from datetime import datetime
 
 router = APIRouter()
 
@@ -63,16 +64,34 @@ async def generate_ppt_from_prompt(
         db.add(credit_log)
         db.commit()
         
+        # Save to PPT history
+        ppt_history = PPTHistory(
+            user_id=current_user.id,
+            title=result["title"],
+            pptx_filename=result["pptx_filename"],
+            pdf_filename=result["pdf_filename"],
+            pptx_url=result["pptx_url"],
+            pdf_url=result["pdf_url"],
+            theme=result["theme"],
+            prompt=result["prompt"],
+            expires_at=result["expires_at"]
+        )
+        db.add(ppt_history)
+        db.commit()
+        db.refresh(ppt_history)
+        
         await log_activity(current_user.id, "ppt", "generate_prompt", {
             "prompt": request.prompt[:100],
-            "images_count": len(request.images or [])
+            "images_count": len(request.images or []),
+            "ppt_history_id": ppt_history.id
         })
         
         return {
             "success": True,
             "preview_url": result["preview_url"],
             "download_url": result["download_url"],
-            "filename": result.get("filename", "presentation.pptx"),
+            "pdf_filename": result["pdf_filename"],
+            "ppt_history_id": ppt_history.id,
             "credits_remaining": current_user.credits
         }
         
@@ -166,14 +185,15 @@ async def get_ppt_history(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Get user's PPT generation history"""
+    """Get user's PPT generation history (not expired)"""
     try:
-        # Get PPT generation records from credit history
-        ppt_records = db.query(CreditHistory).filter(
-            CreditHistory.user_id == current_user.id,
-            CreditHistory.action == 'ppt_generation'
+        # Get PPT history records that haven't expired
+        now = datetime.now()
+        ppt_records = db.query(PPTHistory).filter(
+            PPTHistory.user_id == current_user.id,
+            PPTHistory.expires_at > now  # Only non-expired
         ).order_by(
-            CreditHistory.created_at.desc()
+            PPTHistory.created_at.desc()
         ).limit(20).all()
         
         return {
@@ -181,8 +201,13 @@ async def get_ppt_history(
             "records": [
                 {
                     "id": record.id,
-                    "scan_id": record.reference_id,
-                    "created_at": record.created_at.isoformat() if record.created_at else None
+                    "title": record.title,
+                    "theme": record.theme,
+                    "pdf_url": record.pdf_url,
+                    "pptx_url": record.pptx_url,
+                    "pdf_filename": record.pdf_filename,
+                    "created_at": record.created_at.isoformat() if record.created_at else None,
+                    "expires_at": record.expires_at.isoformat() if record.expires_at else None
                 }
                 for record in ppt_records
             ]
@@ -191,3 +216,4 @@ async def get_ppt_history(
     except Exception as e:
         print(f"❌ Get PPT history error: {e}")
         raise HTTPException(status_code=500, detail="Failed to get PPT history")
+
