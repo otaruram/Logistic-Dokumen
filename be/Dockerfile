@@ -22,6 +22,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Generate Prisma client
+RUN prisma generate
+
 # Create uploads directory
 RUN mkdir -p uploads
 
