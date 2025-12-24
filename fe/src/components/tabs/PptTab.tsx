@@ -26,7 +26,7 @@ const PptTab = ({ onBack }: PptTabProps) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
     const [theme, setTheme] = useState("modern");
-    const [result, setResult] = useState<{ download_url: string, viewer_url: string, filename: string } | null>(null);
+    const [result, setResult] = useState<{ download_url: string, preview_url: string, filename: string } | null>(null);
 
     const THEMES = [
         { id: "modern", name: "Modern (Dark Blue)", color: "#1a237e" },
@@ -198,38 +198,32 @@ const PptTab = ({ onBack }: PptTabProps) => {
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="p-4 sm:p-6 bg-green-50 dark:bg-green-950/20 border-2 border-green-500 rounded-xl space-y-3"
+                    className="p-4 sm:p-6 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-2 border-green-500 rounded-xl space-y-3"
                 >
                     <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
                         <Sparkles className="h-5 w-5" />
-                        <h3 className="font-bold">PPT Anda sudah jadi!</h3>
+                        <h3 className="font-bold">✨ Presentasi Premium Anda Siap!</h3>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        File presentasi AI Anda telah berhasil dibuat. Silakan download atau lihat melalui link di bawah:
+                        Presentasi profesional Anda telah berhasil dibuat dengan kualitas super premium. Klik tombol di bawah untuk melihat preview.
                     </p>
                     <div className="flex flex-wrap gap-2">
                         <Button
-                            asChild
-                            className="bg-green-600 hover:bg-green-700 text-white gap-2"
+                            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white gap-2 flex-1"
+                            size="lg"
+                            onClick={() => {
+                                const previewUrl = `/ppt/preview?url=${encodeURIComponent(result.preview_url)}&filename=${encodeURIComponent(result.filename)}&download=${encodeURIComponent(result.download_url)}`;
+                                window.location.href = previewUrl;
+                            }}
                         >
-                            <a href={result.download_url} download={result.filename}>
-                                Download PPTX
-                            </a>
-                        </Button>
-                        <Button
-                            variant="outline"
-                            asChild
-                            className="gap-2"
-                        >
-                            <a href={result.viewer_url} target="_blank" rel="noreferrer">
-                                Lihat Online (Office Viewer)
-                            </a>
+                            <Presentation className="h-4 w-4" />
+                            Preview Presentation
                         </Button>
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setResult(null)}
-                            className="text-xs ml-auto"
+                            className="text-xs"
                         >
                             Buat Baru
                         </Button>

@@ -275,41 +275,18 @@ async def upload_scan_test(
 async def upload_signature(
     file: UploadFile = File(...),
 ):
-    """Upload signature to ImageKit with brightness enhancement"""
+    """Upload signature to ImageKit QR with brightness enhancement"""
     import traceback
-    from services.imagekit_service import ImageKitService
-    from PIL import Image, ImageEnhance
-    from io import BytesIO
+    from services.imagekit_qr_service import ImageKitQRService
     
     try:
         content = await file.read()
         
-        # Enhance signature brightness and contrast
-        print("🎨 Enhancing signature brightness...")
-        img = Image.open(BytesIO(content))
-        
-        # Convert to RGB if needed
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
-        
-        # Increase brightness by 30%
-        enhancer = ImageEnhance.Brightness(img)
-        img = enhancer.enhance(1.3)
-        
-        # Increase contrast by 15%
-        enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.15)
-        
-        # Convert back to bytes
-        buffer = BytesIO()
-        img.save(buffer, format='PNG', quality=95)
-        enhanced_content = buffer.getvalue()
-        
-        print("📤 Uploading enhanced signature to ImageKit...")
-        imagekit_result = ImageKitService.upload_file(
-            file=enhanced_content,
-            file_name=file.filename or "signature.png",
-            folder="/signatures"
+        # Upload to ImageKit QR (enhancement is done inside the service)
+        print("📤 Uploading signature to ImageKit QR...")
+        imagekit_result = ImageKitQRService.upload_signature(
+            file=content,
+            file_name=file.filename or "signature.png"
         )
         
         image_url = imagekit_result.get("url")
@@ -336,16 +313,16 @@ async def save_scan_with_signature(
     """Save scan to database with recipient name and signature"""
     import tempfile
     import traceback
-    from services.imagekit_service import ImageKitService
+    from services.imagekit_qr_service import ImageKitQRService
     
     try:
         content = await file.read()
         
-        # Upload to ImageKit
-        imagekit_result = ImageKitService.upload_file(
+        # Upload to ImageKit QR
+        imagekit_result = ImageKitQRService.upload_file(
             file=content,
             file_name=file.filename or "scan.jpg",
-            folder="/scans"
+            folder="/qr-scans"
         )
         image_url = imagekit_result.get("url")
         

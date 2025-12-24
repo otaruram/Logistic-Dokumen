@@ -70,8 +70,9 @@ async def generate_ppt_from_prompt(
         
         return {
             "success": True,
-            "viewer_url": result["viewer_url"],
+            "preview_url": result["preview_url"],
             "download_url": result["download_url"],
+            "filename": result.get("filename", "presentation.pptx"),
             "credits_remaining": current_user.credits
         }
         
@@ -112,8 +113,7 @@ async def generate_ppt(
             "original_filename": scan.original_filename,
             "extracted_text": scan.extracted_text or "No text extracted",
             "confidence_score": scan.confidence_score or 0,
-            "imagekit_url": scan.imagekit_url,
-            "signature_url": scan.signature_url,
+            "recipient_name": scan.recipient_name,
             "created_at": scan.created_at.isoformat() if scan.created_at else None,
             "status": scan.status
         }
@@ -147,7 +147,7 @@ async def generate_ppt(
         return {
             "success": True,
             "message": "Presentation generated successfully!",
-            "viewer_url": result["viewer_url"],
+            "preview_url": result["preview_url"],
             "download_url": result["download_url"],
             "filename": result["filename"],
             "credits_remaining": current_user.credits
