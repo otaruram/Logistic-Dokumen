@@ -65,14 +65,15 @@ const PptPreviewPage = () => {
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, []);
 
-    const url = searchParams.get("url");
     const filename = searchParams.get("filename") || "Presentation.pdf";
-    const downloadUrl = searchParams.get("download") || url || "";
-    const pptxUrl = searchParams.get("pptx") || "";
 
-    const previewUrl = url
-        ? (url.startsWith("http") ? url : `${import.meta.env.VITE_API_URL}${url}`)
+    // Construct the preview URL using the download endpoint
+    // This ensures proper CORS headers and download behavior
+    const previewUrl = filename
+        ? `${import.meta.env.VITE_API_URL}/api/ppt/download/${filename}`
         : "";
+
+    const pptxUrl = searchParams.get("pptx") || "";
 
     function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
         setNumPages(numPages);
@@ -163,18 +164,15 @@ const PptPreviewPage = () => {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48 bg-neutral-900 border-neutral-800 text-neutral-200">
                                     <DropdownMenuItem onClick={() => {
-                                        const downloadLink = `${import.meta.env.VITE_API_URL}/api/ppt/download/${filename}`;
-                                        window.location.href = downloadLink;
+                                        window.location.href = `${import.meta.env.VITE_API_URL}/api/ppt/download/${filename}`;
                                     }} className="focus:bg-neutral-800 cursor-pointer">
                                         <FileText className="h-4 w-4 mr-2" />
                                         <span>PDF Document</span>
                                     </DropdownMenuItem>
                                     {pptxUrl && (
                                         <DropdownMenuItem onClick={() => {
-                                            // Extract filename from pptxUrl if possible, or use filename.replace(.pdf, .pptx)
                                             const pptxFilename = filename.replace('.pdf', '.pptx').replace('.PDF', '.pptx');
-                                            const downloadLink = `${import.meta.env.VITE_API_URL}/api/ppt/download/${pptxFilename}`;
-                                            window.location.href = downloadLink;
+                                            window.location.href = `${import.meta.env.VITE_API_URL}/api/ppt/download/${pptxFilename}`;
                                         }} className="focus:bg-neutral-800 cursor-pointer">
                                             <Presentation className="h-4 w-4 mr-2" />
                                             <span>PowerPoint (.pptx)</span>

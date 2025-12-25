@@ -361,7 +361,9 @@ const PptTab = ({ onBack }: PptTabProps) => {
                                                 size="sm"
                                                 className="flex-1 h-8 text-xs font-medium"
                                                 onClick={() => {
-                                                    const previewUrl = `/ppt/preview?url=${encodeURIComponent(ppt.pdf_url)}&filename=${encodeURIComponent(ppt.pdf_filename)}&download=${encodeURIComponent(ppt.pdf_url)}&pptx=${encodeURIComponent(ppt.pptx_url)}`;
+                                                    // Backend already returns correct download endpoint URLs
+                                                    // Just pass the filename for display
+                                                    const previewUrl = `/ppt/preview?filename=${encodeURIComponent(ppt.pdf_filename)}`;
                                                     window.location.href = previewUrl;
                                                 }}
                                             >
