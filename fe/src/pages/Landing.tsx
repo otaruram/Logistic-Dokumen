@@ -33,7 +33,6 @@ export default function Landing() {
 
           <p className="text-lg md:text-xl font-mono text-black/70 mb-8 leading-relaxed max-w-3xl mx-auto hero-description">
             Upload foto dokumen, langsung jadi data digital. 
-            Cepat, akurat, dan otomatis dengan kecerdasan buatan.
           </p>
 
           {/* Feature Pills */}
