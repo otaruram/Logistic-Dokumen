@@ -149,14 +149,14 @@ class PPTService:
             print(f"🔄 Converting PPTX to PDF...")
             pdf_path = PPTService.convert_pptx_to_pdf(pptx_path)
             
-            # 5. Generate URLs
+            # 5. Generate URLs using download endpoint (fixes CORS and forces download)
             base_url = settings.base_url or "http://localhost:8000"
-            pptx_url = f"{base_url}/static/exports/{pptx_filename}"
-            pdf_url = f"{base_url}/static/exports/{pdf_filename}"
+            pptx_url = f"{base_url}/api/ppt/download/{pptx_filename}"
+            pdf_url = f"{base_url}/api/ppt/download/{pdf_filename}"
             
-            # Direct file URLs for preview and download
-            preview_url = pdf_url  # Preview shows PDF
-            download_url = pdf_url  # Download gives PDF
+            # Use download endpoint for both preview and download (proper CORS + download headers)
+            preview_url = pdf_url  # Preview shows PDF via download endpoint
+            download_url = pdf_url  # Download gives PDF via download endpoint
             
             # 6. Calculate expiration (7 days from now)
             expires_at = datetime.now() + timedelta(days=7)
