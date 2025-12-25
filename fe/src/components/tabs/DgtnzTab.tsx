@@ -911,45 +911,61 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
                         )}
                       </td>
                       <td className="p-2 sm:p-3">
-                        {record.fotoUrl ? (
+                        {record.fotoUrl && record.fotoUrl !== "-" ? (
                           <a
                             href={record.fotoUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="block"
+                            title={record.fotoUrl}
                           >
                             <img
                               src={record.fotoUrl}
                               alt="Foto scan"
                               className="w-16 h-16 object-cover rounded border hover:scale-105 transition-transform cursor-pointer"
+                              loading="lazy"
                               onError={(e) => {
-                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64"%3E%3Crect fill="%23ddd" width="64" height="64"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="12"%3ENo Image%3C/text%3E%3C/svg%3E';
+                                console.error('Failed to load image:', record.fotoUrl);
+                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64"%3E%3Crect fill="%23ddd" width="64" height="64"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="10"%3ENo Image%3C/text%3E%3C/svg%3E';
+                              }}
+                              onLoad={() => {
+                                console.log('Image loaded successfully:', record.fotoUrl);
                               }}
                             />
                           </a>
                         ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
+                          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded border flex items-center justify-center">
+                            <span className="text-[10px] text-gray-400">No Image</span>
+                          </div>
                         )}
                       </td>
                       <td className="p-2 sm:p-3">
-                        {record.tandaTangan ? (
+                        {record.tandaTangan && record.tandaTangan !== "-" ? (
                           <a
                             href={record.tandaTangan}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="block"
+                            title={record.tandaTangan}
                           >
                             <img
                               src={record.tandaTangan}
                               alt="Tanda tangan"
                               className="w-16 h-16 object-cover rounded border hover:scale-105 transition-transform cursor-pointer bg-white"
+                              loading="lazy"
                               onError={(e) => {
-                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64"%3E%3Crect fill="%23ddd" width="64" height="64"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="12"%3ENo Sign%3C/text%3E%3C/svg%3E';
+                                console.error('Failed to load signature:', record.tandaTangan);
+                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64"%3E%3Crect fill="%23ddd" width="64" height="64"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="10"%3ENo Sign%3C/text%3E%3C/svg%3E';
+                              }}
+                              onLoad={() => {
+                                console.log('Signature loaded successfully:', record.tandaTangan);
                               }}
                             />
                           </a>
                         ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
+                          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded border flex items-center justify-center">
+                            <span className="text-[10px] text-gray-400">No Sign</span>
+                          </div>
                         )}
                       </td>
                       <td className="p-2 sm:p-3">

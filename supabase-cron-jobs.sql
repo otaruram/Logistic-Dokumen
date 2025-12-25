@@ -29,14 +29,27 @@ BEGIN
   DELETE FROM public.scans 
   WHERE created_at < NOW() - INTERVAL '1 month';
   
-  -- Record the cleanup (optional, uses activities if exists, otherwise redundant)
-  -- Assuming simple delete is enough.
+  -- Delete old ImageKit file tracking
+  DELETE FROM public.imagekit_files
+  WHERE created_at < NOW() - INTERVAL '1 month';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ==========================================
+-- 4. Monthly PPT History Cleanup Function
+-- ==========================================
+CREATE OR REPLACE FUNCTION public.cleanup_expired_ppt()
+RETURNS void AS $$
+BEGIN
+  -- Delete expired PPT history (past expires_at date)
+  DELETE FROM public.ppt_history 
+  WHERE expires_at < NOW();
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 -- ==========================================
--- 4. Schedule Jobs using pg_cron
+-- 5. Schedule Jobs using pg_cron
 -- ==========================================
 
 -- Schedule Daily Credit Reset at 00:00 (Midnight)
@@ -52,6 +65,13 @@ SELECT cron.schedule(
   'cleanup-old-scans',   -- unique job name
   '0 0 1 * *',           -- 1st of every month at 00:00
   'SELECT public.cleanup_old_scans()'
+);
+
+-- Schedule Monthly PPT Cleanup at 01:00 on the 1st of every month
+SELECT cron.schedule(
+  'cleanup-expired-ppt', -- unique job name
+  '0 1 1 * *',           -- 1st of every month at 01:00
+  'SELECT public.cleanup_expired_ppt()'
 );
 
 -- ==========================================

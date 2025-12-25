@@ -12,11 +12,78 @@ from openai import OpenAI
 from config.settings import settings
 import json
 import os
+import sys
 from datetime import datetime, timedelta
 from typing import Dict, List, Any
 
 class PPTService:
     """Service for generating PREMIUM PowerPoint presentations from scan data"""
+    
+    @staticmethod
+    def convert_pptx_to_pdf(pptx_path: str) -> str:
+        """
+        Convert PPTX to PDF using comtypes (Windows) or fallback methods
+        Returns path to generated PDF file
+        """
+        try:
+            pdf_path = pptx_path.replace('.pptx', '.pdf')
+            
+            # Windows: Use comtypes with PowerPoint
+            if sys.platform == 'win32':
+                try:
+                    import comtypes.client
+                    
+                    powerpoint = comtypes.client.CreateObject("Powerpoint.Application")
+                    powerpoint.Visible = 1
+                    
+                    # Open presentation
+                    abs_pptx_path = os.path.abspath(pptx_path)
+                    abs_pdf_path = os.path.abspath(pdf_path)
+                    
+                    deck = powerpoint.Presentations.Open(abs_pptx_path)
+                    deck.SaveAs(abs_pdf_path, 32)  # 32 = PDF format
+                    deck.Close()
+                    powerpoint.Quit()
+                    
+                    print(f"✅ PDF converted (Windows): {pdf_path}")
+                    return pdf_path
+                    
+                except Exception as e:
+                    print(f"⚠️ Windows conversion failed: {e}")
+                    # Fallback: just copy PPTX as PDF (browser will handle)
+                    import shutil
+                    shutil.copy(pptx_path, pdf_path)
+                    return pdf_path
+            
+            # Linux/Mac: Use LibreOffice (if available)
+            else:
+                try:
+                    import subprocess
+                    result = subprocess.run([
+                        'libreoffice',
+                        '--headless',
+                        '--convert-to', 'pdf',
+                        '--outdir', os.path.dirname(pptx_path),
+                        pptx_path
+                    ], capture_output=True, timeout=30)
+                    
+                    if result.returncode == 0 and os.path.exists(pdf_path):
+                        print(f"✅ PDF converted (LibreOffice): {pdf_path}")
+                        return pdf_path
+                    else:
+                        raise Exception("LibreOffice conversion failed")
+                        
+                except Exception as e:
+                    print(f"⚠️ LibreOffice conversion failed: {e}")
+                    # Fallback: copy PPTX as PDF
+                    import shutil
+                    shutil.copy(pptx_path, pdf_path)
+                    return pdf_path
+                    
+        except Exception as e:
+            print(f"❌ PDF conversion error: {e}")
+            # Last resort: return PPTX path
+            return pptx_path
     
     @staticmethod
     async def generate_from_prompt(
@@ -67,6 +134,7 @@ class PPTService:
             # 3. Save PPTX file
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             pptx_filename = f"premium_ppt_{user_id}_{timestamp}.pptx"
+            pdf_filename = f"premium_ppt_{user_id}_{timestamp}.pdf"
             
             exports_dir = os.path.join("static", "exports")
             os.makedirs(exports_dir, exist_ok=True)
@@ -75,22 +143,31 @@ class PPTService:
             prs.save(pptx_path)
             print(f"✅ PPTX saved: {pptx_path}")
             
-            # 4. Generate URLs
+            # 4. Convert PPTX to PDF for preview
+            print(f"🔄 Converting PPTX to PDF...")
+            pdf_path = PPTService.convert_pptx_to_pdf(pptx_path)
+            
+            # 5. Generate URLs
             base_url = settings.base_url or "http://localhost:8000"
             pptx_url = f"{base_url}/static/exports/{pptx_filename}"
+            pdf_url = f"{base_url}/static/exports/{pdf_filename}"
             
-            # Use Microsoft Office Online Viewer for preview
-            preview_url = f"https://view.officeapps.live.com/op/embed.aspx?src={pptx_url}"
+            # Direct file URLs for preview and download
+            preview_url = pdf_url  # Preview shows PDF
+            download_url = pdf_url  # Download gives PDF
             
-            # 5. Calculate expiration (7 days from now)
+            # 6. Calculate expiration (7 days from now)
             expires_at = datetime.now() + timedelta(days=7)
             
             return {
                 "pptx_path": pptx_path,
+                "pdf_path": pdf_path,
                 "pptx_filename": pptx_filename,
+                "pdf_filename": pdf_filename,
                 "pptx_url": pptx_url,
+                "pdf_url": pdf_url,
                 "preview_url": preview_url,
-                "download_url": pptx_url,
+                "download_url": download_url,
                 "title": structured_content.get("title", "Presentation"),
                 "theme": theme,
                 "prompt": prompt,

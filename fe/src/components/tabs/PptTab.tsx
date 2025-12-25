@@ -330,7 +330,7 @@ const PptTab = ({ onBack }: PptTabProps) => {
                                 >
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex-1 min-w-0">
-                                            <h4 className="font-medium text-sm truncate">{ppt.title}</h4>
+                                            <h4 className="font-medium text-sm truncate" title={ppt.title}>{ppt.title}</h4>
                                             <div className="flex flex-wrap items-center gap-2 mt-1">
                                                 <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                                                     {ppt.theme}
