@@ -40,6 +40,11 @@ class ScanResponse(BaseModel):
     status: str
     created_at: datetime
     
+    imagekit_url: Optional[str] = None
+    signature_url: Optional[str] = None
+    recipient_name: Optional[str] = None
+    file_path: Optional[str] = None
+    
     class Config:
         from_attributes = True
 

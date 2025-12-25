@@ -120,6 +120,7 @@ class PPTHistory(Base):
     # Metadata
     theme = Column(String(50), default="modern")
     prompt = Column(Text, nullable=True)
+    script = Column(Text, nullable=True)  # AI Generated Speaker Notes
     
     # Expiration (1 week from creation)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

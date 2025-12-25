@@ -1,7 +1,7 @@
 """
 Scans API routes - dgtnz.wtf functionality
 """
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Form
 from sqlalchemy.orm import Session
 from typing import List
 import os
@@ -305,8 +305,8 @@ async def upload_signature(
 @router.post("/save-with-signature")
 async def save_scan_with_signature(
     file: UploadFile = File(...),
-    recipient_name: str = "",
-    signature_url: str = "",
+    recipient_name: str = Form(""),
+    signature_url: str = Form(""),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -314,6 +314,9 @@ async def save_scan_with_signature(
     import tempfile
     import traceback
     from services.imagekit_qr_service import ImageKitQRService
+    
+    print(f"📝 SAVE Request - Recipient: {recipient_name}")
+    print(f"📝 SAVE Request - Signature: {signature_url}")
     
     try:
         content = await file.read()

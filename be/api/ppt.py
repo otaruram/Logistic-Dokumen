@@ -23,6 +23,7 @@ from typing import List, Optional
 class PPTPromptRequest(BaseModel):
     prompt: str
     theme: Optional[str] = Field(default="modern", description="PPT Theme name")
+    language: Optional[str] = Field(default="English", description="Target language")
     images: Optional[List[str]] = Field(default=[], max_items=2, description="Base64 encoded images")
 
 @router.post("/generate-prompt")
@@ -42,13 +43,14 @@ async def generate_ppt_from_prompt(
                 detail=f"Insufficient credits. Required: {PPT_COST}"
             )
 
-        print(f"🎯 Generating PPT from prompt: {request.prompt[:50]}...")
+        print(f"🎯 Generating PPT from prompt: {request.prompt[:50]}... ({request.language})")
         
         result = await PPTService.generate_from_prompt(
             prompt=request.prompt,
             user_id=str(current_user.id),
             image_data=request.images,
-            theme=request.theme
+            theme=request.theme,
+            language=request.language
         )
         
         # Deduct credits
@@ -74,6 +76,7 @@ async def generate_ppt_from_prompt(
             pdf_url=result.get("pdf_url", result["pptx_url"]),
             theme=result["theme"],
             prompt=result["prompt"],
+            script=result.get("script"),  # Save script
             expires_at=result["expires_at"]
         )
         db.add(ppt_history)
@@ -208,7 +211,8 @@ async def get_ppt_history(
                     "pptx_url": record.pptx_url,
                     "pdf_filename": record.pdf_filename,
                     "created_at": record.created_at.isoformat() if record.created_at else None,
-                    "expires_at": record.expires_at.isoformat() if record.expires_at else None
+                    "expires_at": record.expires_at.isoformat() if record.expires_at else None,
+                    "script": record.script
                 }
                 for record in ppt_records
             ]

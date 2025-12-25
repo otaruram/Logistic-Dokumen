@@ -175,17 +175,22 @@ const DgtnzTab = ({ onBack }: DgtnzTabProps) => {
 
         if (response.ok) {
           const scans = await response.json();
+          console.log("🔍 API Response Scans:", scans); // Debug log
+
           // Transform API response to ScanRecord format
-          const records: ScanRecord[] = scans.map((scan: any, idx: number) => ({
-            id: scan.id,
-            no: idx + 1,
-            tanggal: new Date(scan.created_at).toLocaleDateString('id-ID'),
-            namaPenerima: scan.recipient_name || "-",
-            keterangan: scan.extracted_text || "-",
-            fotoUrl: scan.imagekit_url || scan.file_path || "-",
-            tandaTangan: scan.signature_url || "-",
-            status: scan.status === 'completed' ? 'approved' : scan.status === 'failed' ? 'rejected' : 'pending',
-          }));
+          const records: ScanRecord[] = scans.map((scan: any, idx: number) => {
+            console.log(`Scan ${scan.id} Signature:`, scan.signature_url); // Log signature URL
+            return {
+              id: scan.id,
+              no: idx + 1,
+              tanggal: new Date(scan.created_at).toLocaleDateString('id-ID'),
+              namaPenerima: scan.recipient_name || "-",
+              keterangan: scan.extracted_text || "-",
+              fotoUrl: scan.imagekit_url || scan.file_path || "-",
+              tandaTangan: scan.signature_url || "-",
+              status: scan.status === 'completed' ? 'approved' : scan.status === 'failed' ? 'rejected' : 'pending',
+            };
+          });
           setScanRecords(records);
           toast.success(`✅ ${records.length} scan records loaded`);
         }

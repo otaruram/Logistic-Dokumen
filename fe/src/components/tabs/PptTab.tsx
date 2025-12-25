@@ -1,9 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Presentation, Sparkles, Loader2, ImagePlus, X, History, Wand2, Download } from "lucide-react";
+import { ArrowLeft, ArrowRight, Presentation, Sparkles, Loader2, ImagePlus, X, History, Wand2, Download, FileText, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -26,31 +39,47 @@ const PptTab = ({ onBack }: PptTabProps) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
     const [theme, setTheme] = useState("modern");
-    const [result, setResult] = useState<{ download_url: string, preview_url: string, pptx_filename: string } | null>(null);
+    const [result, setResult] = useState<{ download_url: string, preview_url: string, pptx_filename: string, pptx_url: string } | null>(null);
     const [pptHistory, setPptHistory] = useState<any[]>([]);
 
-    const THEMES = [
-        { id: "modern", name: "Modern (Dark Blue)", color: "#1a237e" },
-        { id: "professional", name: "Professional (Gray)", color: "#212121" },
-        { id: "creative", name: "Creative (Pink)", color: "#880e4f" },
-        { id: "eco", name: "Eco (Green)", color: "#1b5e20" },
-        { id: "sunset", name: "Sunset (Orange)", color: "#bf360c" },
-        { id: "ocean", name: "Ocean (Teal)", color: "#006064" },
-        { id: "minimalist", name: "Minimalist (Black/White)", color: "#424242" },
-        { id: "global", name: "Global (Navy)", color: "#0d47a1" },
-        { id: "tech", name: "Tech (Dark)", color: "#263238" },
-        { id: "luxury", name: "Luxury (Gold)", color: "#d4af37" },
-        { id: "vibrant", name: "Vibrant (Purple)", color: "#311b92" },
-        { id: "calm", name: "Calm (Pastel)", color: "#004d40" },
-        { id: "energetic", name: "Energetic (Yellow)", color: "#fbc02d" },
-        { id: "trust", name: "Trust (Blue)", color: "#01579b" },
-        { id: "innovation", name: "Innovation (Indigo)", color: "#303f9f" },
-        { id: "harmony", name: "Harmony (Green)", color: "#2e7d32" },
-        { id: "bold", name: "Bold (Red)", color: "#b71c1c" },
-        { id: "elegant", name: "Elegant (Cream)", color: "#5e0d14" },
-        { id: "cyberpunk", name: "Cyberpunk (Neon)", color: "#ff00ff" },
-        { id: "autumn", name: "Autumn (Brown)", color: "#3e2723" }
+    // Script Modal State
+    const [selectedScript, setSelectedScript] = useState<{ title: string, content: string } | null>(null);
+
+    const [language, setLanguage] = useState("Indonesian"); // Default Indonesian
+
+    const [showAdvanced, setShowAdvanced] = useState(false);
+
+    const LANGUAGES = [
+        "Indonesian", "English", "Spanish", "French", "German",
+        "Chinese (Simplified)", "Japanese", "Korean", "Arabic", "Russian",
+        "Portuguese", "Italian", "Dutch", "Turkish", "Polish",
+        "Swedish", "Vietnamese", "Thai", "Hindi", "Bengali"
     ];
+
+    // Premium Themes Only
+    const THEMES = [
+        { id: "ai_recommended", name: "✨ AI Recommended (Auto)", color: "#000000" },
+        { id: "modern", name: "Modern Blue (Clean)", color: "#1a237e" },
+        { id: "minimalist", name: "Minimalist Black (Sleek)", color: "#000000" },
+        { id: "corporate", name: "Corporate Gray (Professional)", color: "#212121" },
+        { id: "luxury", name: "Elegant Gold (Premium)", color: "#d4af37" },
+        { id: "creative", name: "Creative Pink (Vibrant)", color: "#880e4f" }
+    ];
+
+    // Scroll Container logic
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    const scroll = (direction: 'left' | 'right') => {
+        if (scrollContainerRef.current) {
+            const { current } = scrollContainerRef;
+            const scrollAmount = 300;
+            if (direction === 'left') {
+                current.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+            } else {
+                current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+            }
+        }
+    };
 
     // Fetch PPT history on component mount
     const fetchPptHistory = async () => {
@@ -129,7 +158,8 @@ const PptTab = ({ onBack }: PptTabProps) => {
                 body: JSON.stringify({
                     prompt: prompt,
                     images: images,
-                    theme: theme
+                    theme: theme,
+                    language: language
                 }),
             });
 
@@ -143,10 +173,7 @@ const PptTab = ({ onBack }: PptTabProps) => {
             toast.dismiss();
             toast.success("✅ Presentation Ready!");
 
-            // Refresh PPT history
             fetchPptHistory();
-
-            // Reset form (keep result visible)
             setPrompt("");
             setImages([]);
 
@@ -159,129 +186,96 @@ const PptTab = ({ onBack }: PptTabProps) => {
     };
 
     return (
-        <div className="space-y-4 sm:space-y-6">
-            <div className="flex items-center gap-3">
-                <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8">
-                    <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <div>
-                    <div className="flex items-center gap-2">
-                        <h2 className="text-xl sm:text-2xl font-semibold">ppt.wtf</h2>
-                        <span className="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full">
-                            Premium
-                        </span>
-                    </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                        Generate slides from text & images
-                    </p>
-                </div>
-            </div>
+        <div className="space-y-6 max-w-4xl mx-auto">
+            {/* ... (Header remains same) */}
 
-            <Card className="p-4 sm:p-6 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200 dark:border-amber-800">
-                <div className="flex items-start gap-3">
-                    <div className="p-2 bg-amber-500 rounded-lg">
-                        <Sparkles className="h-5 w-5 text-white" />
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="font-semibold text-sm sm:text-base mb-1">
-                            AI Presentation Generator
-                        </h3>
-                        <p className="text-xs sm:text-sm text-muted-foreground">
-                            Describe what you want, upload reference images (optional), and let AI build your slides.
-                        </p>
-                    </div>
-                </div>
-            </Card>
+            {/* Generator Form */}
+            <Card className="p-6 border-0 shadow-sm bg-neutral-50 dark:bg-neutral-900/50 space-y-6">
 
-            {result && (
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="p-4 sm:p-6 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-2 border-green-500 rounded-xl space-y-3"
-                >
-                    <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
-                        <Sparkles className="h-5 w-5" />
-                        <h3 className="font-bold">✨ Presentasi Premium Anda Siap!</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                        Presentasi profesional Anda telah berhasil dibuat dengan kualitas super premium. Klik tombol di bawah untuk melihat preview.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white gap-2 flex-1"
-                            size="lg"
-                            onClick={() => {
-                                const previewUrl = `/ppt/preview?url=${encodeURIComponent(result.preview_url)}&filename=${encodeURIComponent(result.pptx_filename)}&download=${encodeURIComponent(result.download_url)}`;
-                                window.location.href = previewUrl;
-                            }}
-                        >
-                            <Presentation className="h-4 w-4" />
-                            Preview Presentation
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setResult(null)}
-                            className="text-xs"
-                        >
-                            Buat Baru
-                        </Button>
-                    </div>
-                </motion.div>
-            )}
-
-            {/* Main Generation Form */}
-            <Card className="p-4 sm:p-6 space-y-4">
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Layout Theme</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <select
-                            value={theme}
-                            onChange={(e) => setTheme(e.target.value)}
-                            className="col-span-full p-2 rounded-md border bg-background text-sm"
-                        >
-                            {THEMES.map(t => (
-                                <option key={t.id} value={t.id}>
-                                    {t.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                {/* Advanced Toggle */}
+                <div className="flex items-center space-x-2">
+                    <input
+                        type="checkbox"
+                        id="advanced_mode"
+                        checked={showAdvanced}
+                        onChange={(e) => setShowAdvanced(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+                    />
+                    <label
+                        htmlFor="advanced_mode"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer select-none"
+                    >
+                        Customize Settings (Theme & Language)
+                    </label>
                 </div>
+
+                {/* Conditional Advanced Options */}
+                {showAdvanced && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        className="grid grid-cols-1 sm:grid-cols-2 gap-6 overflow-hidden"
+                    >
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Theme Style</label>
+                            <select
+                                value={theme}
+                                onChange={(e) => setTheme(e.target.value)}
+                                className="w-full h-10 px-3 rounded-md border bg-background text-sm focus:ring-1 focus:ring-black dark:focus:ring-white transition-all"
+                            >
+                                {THEMES.map(t => (
+                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Content Language</label>
+                            <select
+                                value={language}
+                                onChange={(e) => setLanguage(e.target.value)}
+                                className="w-full h-10 px-3 rounded-md border bg-background text-sm focus:ring-1 focus:ring-black dark:focus:ring-white transition-all"
+                            >
+                                {LANGUAGES.map(lang => (
+                                    <option key={lang} value={lang}>{lang}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </motion.div>
+                )}
 
                 <div className="space-y-2">
-                    <label className="text-sm font-medium">Presentation Topic / Prompt</label>
+                    <label className="text-sm font-medium">Topic or Prompt</label>
                     <Textarea
-                        placeholder="E.g. Create a pitch deck for a coffee shop business. key points: market analysis, financial projections..."
-                        className="min-h-[120px] resize-none"
+                        placeholder="Describe your presentation topic in detail..."
+                        className="min-h-[120px] resize-none focus-visible:ring-1 focus-visible:ring-black dark:focus-visible:ring-white"
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                     />
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-sm font-medium flex justify-between">
-                        <span>Reference Images (Optional)</span>
-                        <span className="text-muted-foreground text-xs">{images.length}/2</span>
-                    </label>
+                    <div className="flex justify-between items-center">
+                        <label className="text-sm font-medium">Reference Images (Optional)</label>
+                        <span className="text-xs text-muted-foreground">{images.length}/2</span>
+                    </div>
 
-                    <div className="flex gap-3 overflow-x-auto pb-2">
+                    <div className="flex gap-4">
                         {images.map((img, idx) => (
-                            <div key={idx} className="relative w-20 h-20 shrink-0">
-                                <img src={img} alt="ref" className="w-full h-full object-cover rounded-lg border" />
+                            <div key={idx} className="relative w-24 h-24 group">
+                                <img src={img} alt="ref" className="w-full h-full object-cover rounded-lg border shadow-sm" />
                                 <button
                                     onClick={() => removeImage(idx)}
-                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow-sm"
+                                    className="absolute -top-2 -right-2 bg-black text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
                                     <X className="w-3 h-3" />
                                 </button>
                             </div>
                         ))}
-
                         {images.length < 2 && (
-                            <label className="w-20 h-20 shrink-0 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
+                            <label className="w-24 h-24 border-2 border-dashed border-neutral-300 dark:border-neutral-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
                                 <ImagePlus className="w-6 h-6 text-muted-foreground" />
-                                <span className="text-[10px] text-muted-foreground mt-1">Add Image</span>
+                                <span className="text-[10px] text-muted-foreground mt-1">Upload</span>
                                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                             </label>
                         )}
@@ -289,93 +283,202 @@ const PptTab = ({ onBack }: PptTabProps) => {
                 </div>
 
                 <Button
-                    className="w-full h-11 text-base gap-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white"
+                    className="w-full h-12 text-base font-medium bg-black hover:bg-neutral-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 transition-colors"
                     onClick={handleGenerate}
                     disabled={isGenerating || !prompt.trim()}
                 >
                     {isGenerating ? (
                         <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Generating Magic...
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            Creating Presentation...
                         </>
                     ) : (
                         <>
-                            <Wand2 className="w-4 h-4" />
+                            <Wand2 className="w-4 h-4 mr-2" />
                             Generate Presentation (1 Credit)
                         </>
                     )}
                 </Button>
             </Card>
 
-            {/* PPT History Section */}
+            {/* Minimalist Horizontal History */}
             {pptHistory.length > 0 && (
-                <Card className="p-4 sm:p-6 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-lg">📚 Your PPT History</h3>
-                        <span className="text-xs text-muted-foreground">{pptHistory.length} presentation{pptHistory.length > 1 ? 's' : ''}</span>
+                <div className="space-y-4 pt-4 border-t">
+                    <div className="flex items-center justify-between px-1">
+                        <h3 className="font-semibold text-lg">History</h3>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 rounded-full"
+                                onClick={() => scroll('left')}
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 rounded-full"
+                                onClick={() => scroll('right')}
+                            >
+                                <ArrowRight className="h-4 w-4" />
+                            </Button>
+                        </div>
                     </div>
 
-                    <div className="grid gap-3">
-                        {pptHistory.map((ppt: any) => {
-                            const expiresAt = new Date(ppt.expires_at);
-                            const now = new Date();
-                            const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-                            return (
+                    <div className="relative group">
+                        {/* Horizontal Scroll Container */}
+                        <div
+                            ref={scrollContainerRef}
+                            className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar"
+                            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                        >
+                            {pptHistory.map((ppt: any) => (
                                 <motion.div
                                     key={ppt.id}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="p-4 border rounded-lg hover:shadow-md transition-shadow bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800"
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="snap-start shrink-0 w-[280px] p-4 rounded-xl border bg-card hover:border-black dark:hover:border-white transition-colors"
                                 >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="font-medium text-sm truncate" title={ppt.title}>{ppt.title}</h4>
-                                            <div className="flex flex-wrap items-center gap-2 mt-1">
-                                                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                                    <div className="flex flex-col h-full justify-between gap-4">
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground border px-1.5 py-0.5 rounded">
                                                     {ppt.theme}
                                                 </span>
-                                                <span className="text-xs text-muted-foreground">
+                                                <span className="text-[10px] text-muted-foreground">
                                                     {new Date(ppt.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                                                 </span>
-                                                {daysLeft <= 2 && (
-                                                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
-                                                        {daysLeft === 0 ? 'Expires today' : `${daysLeft} day${daysLeft > 1 ? 's' : ''} left`}
-                                                    </span>
-                                                )}
                                             </div>
+                                            <h4 className="font-medium text-sm line-clamp-2 leading-tight mb-1" title={ppt.title}>
+                                                {ppt.title}
+                                            </h4>
                                         </div>
-                                        <div className="flex gap-2 shrink-0">
+
+                                        <div className="flex items-center gap-2 pt-2 border-t mt-auto">
                                             <Button
+                                                variant="secondary"
                                                 size="sm"
-                                                variant="outline"
-                                                className="gap-1.5 h-8"
+                                                className="flex-1 h-8 text-xs font-medium"
                                                 onClick={() => {
-                                                    const previewUrl = `/ppt/preview?url=${encodeURIComponent(ppt.pdf_url)}&filename=${encodeURIComponent(ppt.pdf_filename)}&download=${encodeURIComponent(ppt.pdf_url)}`;
+                                                    const previewUrl = `/ppt/preview?url=${encodeURIComponent(ppt.pdf_url)}&filename=${encodeURIComponent(ppt.pdf_filename)}&download=${encodeURIComponent(ppt.pdf_url)}&pptx=${encodeURIComponent(ppt.pptx_url)}`;
                                                     window.location.href = previewUrl;
                                                 }}
                                             >
-                                                <Presentation className="h-3.5 w-3.5" />
-                                                <span className="hidden sm:inline">Preview</span>
+                                                <Presentation className="w-3 h-3 mr-1.5" />
+                                                Preview
                                             </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                className="h-8 w-8 p-0"
-                                                asChild
-                                            >
-                                                <a href={ppt.pdf_url} download={ppt.pdf_filename}>
-                                                    <Download className="h-3.5 w-3.5" />
-                                                </a>
-                                            </Button>
+
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-neutral-200 dark:hover:bg-neutral-800">
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-48">
+                                                    <DropdownMenuItem onClick={() => {
+                                                        const link = document.createElement('a');
+                                                        link.href = ppt.download_url;
+                                                        link.download = ppt.pdf_filename;
+                                                        link.click();
+                                                    }}>
+                                                        <Download className="w-4 h-4 mr-2" />
+                                                        Download PDF
+                                                    </DropdownMenuItem>
+
+                                                    {/* PPTX Download */}
+                                                    {ppt.pptx_url && (
+                                                        <DropdownMenuItem onClick={() => {
+                                                            const link = document.createElement('a');
+                                                            link.href = ppt.pptx_url;
+                                                            link.download = ppt.pptx_filename || "presentation.pptx";
+                                                            link.click();
+                                                        }}>
+                                                            <Presentation className="w-4 h-4 mr-2" />
+                                                            Download PPTX
+                                                        </DropdownMenuItem>
+                                                    )}
+
+                                                    {/* Script Download */}
+                                                    {ppt.script && (
+                                                        <DropdownMenuItem onClick={() => {
+                                                            const element = document.createElement("a");
+                                                            const file = new Blob([ppt.script], { type: 'text/plain' });
+                                                            element.href = URL.createObjectURL(file);
+                                                            element.download = `${ppt.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_script.txt`;
+                                                            document.body.appendChild(element);
+                                                            element.click();
+                                                            document.body.removeChild(element);
+                                                            toast.success("Script downloaded!");
+                                                        }}>
+                                                            <FileText className="w-4 h-4 mr-2" />
+                                                            Download Script (.txt)
+                                                        </DropdownMenuItem>
+                                                    )}
+
+                                                    {/* Script View */}
+                                                    {ppt.script && (
+                                                        <DropdownMenuItem onClick={() => setSelectedScript({ title: ppt.title, content: ppt.script })}>
+                                                            <FileText className="w-4 h-4 mr-2" />
+                                                            View Script
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </div>
                                     </div>
                                 </motion.div>
-                            );
-                        })}
+                            ))}
+                        </div>
                     </div>
-                </Card>
+                </div>
             )}
+
+            {/* Script Modal */}
+            <Dialog open={!!selectedScript} onOpenChange={(open) => !open && setSelectedScript(null)}>
+                <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle>{selectedScript?.title}</DialogTitle>
+                        <DialogDescription>
+                            AI Generated Speaker Notes & Script
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-y-auto pr-2 mt-4 space-y-4">
+                        <div className="p-4 rounded-lg bg-neutral-100 dark:bg-neutral-900 text-sm whitespace-pre-wrap leading-relaxed font-mono">
+                            {selectedScript?.content}
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded border border-yellow-200 dark:border-yellow-800">
+                            <History className="h-3 w-3 text-yellow-600 dark:text-yellow-500" />
+                            <span>
+                                Note: This script (and the presentation) will be automatically deleted 7 days after generation.
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-4 border-t">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                if (!selectedScript) return;
+                                const element = document.createElement("a");
+                                const file = new Blob([selectedScript.content], { type: 'text/plain' });
+                                element.href = URL.createObjectURL(file);
+                                element.download = `${selectedScript.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_script.txt`;
+                                document.body.appendChild(element);
+                                element.click();
+                                document.body.removeChild(element);
+                                toast.success("Script downloaded!");
+                            }}
+                        >
+                            <Download className="mr-2 h-4 w-4" />
+                            Download .txt
+                        </Button>
+                        <Button onClick={() => setSelectedScript(null)}>Close</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

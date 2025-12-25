@@ -90,7 +90,8 @@ class PPTService:
         prompt: str, 
         user_id: str, 
         image_data: List[str] = None,
-        theme: str = "modern"
+        theme: str = "modern",
+        language: str = "English"
     ) -> Dict[str, str]:
         """
         Generate SUPER PROFESSIONAL presentation from text prompt and optional images
@@ -100,12 +101,13 @@ class PPTService:
             user_id: User requesting generation
             image_data: List of base64 encoded images (max 2)
             theme: Visual theme for presentation
+            language: Target language for the presentation content
         """
         try:
             # 1. Structure content using AI with PREMIUM instructions
-            print(f"🤖 Structuring PREMIUM PPT from prompt: '{prompt}' with {len(image_data or [])} images")
+            print(f"🤖 Structuring PREMIUM PPT from prompt: '{prompt}' with {len(image_data or [])} images in {language}")
             
-            structured_content = await PPTService._structure_from_prompt(prompt, image_data)
+            structured_content = await PPTService._structure_from_prompt(prompt, image_data, language)
             
             # 2. Build PREMIUM PowerPoint
             print(f"📊 Building SUPER PROFESSIONAL PowerPoint presentation with theme: {theme}...")
@@ -113,7 +115,7 @@ class PPTService:
             prs.slide_width = Inches(10)
             prs.slide_height = Inches(7.5)
             
-            theme_config = PPTService._get_premium_theme_config(theme)
+            theme_config = PPTService._get_theme_config(theme)
             
             # Add slides with PREMIUM design
             PPTService._add_premium_title_slide(prs, structured_content.get("title", "Presentation"), theme_config)
@@ -171,6 +173,7 @@ class PPTService:
                 "title": structured_content.get("title", "Presentation"),
                 "theme": theme,
                 "prompt": prompt,
+                "script": structured_content.get("script", ""),
                 "expires_at": expires_at
             }
             
@@ -179,46 +182,58 @@ class PPTService:
             raise Exception(f"Failed to generate presentation: {str(e)}")
 
     @staticmethod
-    async def _structure_from_prompt(prompt: str, images: List[str] = None) -> Dict[str, Any]:
+    async def _structure_from_prompt(prompt: str, images: List[str] = None, language: str = "English") -> Dict[str, Any]:
         """Use GPT-4o-mini Vision to structure PREMIUM presentation from prompt + images"""
         
         client = OpenAI(api_key=settings.OPENAI_API_KEY)
         
-        system_prompt = """You are a WORLD-CLASS Presentation Designer working for Fortune 500 companies.
+
+        system_prompt = f"""You are a WORLD-CLASS Presentation Designer working for Fortune 500 companies.
 Create an EXCEPTIONAL, PREMIUM PowerPoint structure that will WOW the audience.
 
 CRITICAL REQUIREMENTS:
-1. Title must be COMPELLING and PROFESSIONAL
-2. Summary must be EXECUTIVE-LEVEL with clear value proposition
-3. Each slide must have MAXIMUM 4-5 bullet points (concise, impactful)
-4. Use POWERFUL, ACTION-ORIENTED language
-5. Include data points, statistics, or concrete examples where possible
-6. Structure should tell a STORY with clear flow
-7. Add comparison slides for before/after or pros/cons when relevant
+1. OUTPUT LANGUAGE: You MUST generate ALL content in {language}.
+2. Title must be COMPELLING and PROFESSIONAL
+3. Summary must be EXECUTIVE-LEVEL with clear value proposition
+4. Each slide must have MAXIMUM 4-5 bullet points (concise, impactful)
+5. Use POWERFUL, ACTION-ORIENTED language
+6. Include data points, statistics, or concrete examples where possible
+7. Structure should tell a STORY with clear flow
+8. Add comparison slides for before/after or pros/cons when relevant
+9. For the LAST SLIDE, provide a 'closing' type slide.
+10. IMPORTANT: You MUST also generate a PROFESSIONAL SPEAKER SCRIPT for the presentation.
+    - Format it as a separate section at the very end of the JSON.
+    - Key "script": "..."
+    - The script should be TO THE POINT, Structured, and Professional.
+    - Break it down by Slide 1, Slide 2, etc.
+    - Do not just read the slides; provide context and flow.
 
-Return ONLY valid JSON in this exact format:
-{
+RETURN JSON ONLY. No markdown formatting.
+Structure:
+{{
   "title": "Compelling Professional Title",
-  "summary": {
+  "subtitles": "Optional subtitle or tagline",
+  "summary": {{
     "overview": "Executive summary with clear value proposition and key insights...",
     "key_points": ["Impactful takeaway 1", "Impactful takeaway 2", "Impactful takeaway 3"]
-  },
+  }},
   "slides": [
-    {
+    {{
       "type": "bullet",
       "title": "Slide Title (Clear & Specific)",
       "points": ["Concise point 1", "Concise point 2", "Concise point 3"]
-    },
-    {
+    }},
+    {{
       "type": "comparison",
       "title": "Before vs After / Pros vs Cons",
       "left_title": "Before / Challenges",
       "left_points": ["Point 1", "Point 2"],
       "right_title": "After / Solutions",
       "right_points": ["Point 1", "Point 2"]
-    }
-  ]
-}
+    }}
+  ],
+  "script": "Slide 1: ...\\n\\nSlide 2: ..."
+}}
 
 Make it PREMIUM. Make it WOW. Make it UNFORGETTABLE.
 """
@@ -274,51 +289,61 @@ Make it PREMIUM. Make it WOW. Make it UNFORGETTABLE.
         return await PPTService.generate_from_prompt("Generate generic report", user_id)
     
     @staticmethod
-    def _get_premium_theme_config(theme: str) -> Dict[str, Any]:
-        """Get PREMIUM color and style configuration for the selected theme"""
+    def _get_theme_config(theme: str) -> Dict[str, Any]:
+        """Get color scheme and font settings for a theme"""
+        
+        # Premium Themes Definition
         themes = {
-            "modern": {
-                "bg": (26, 35, 126), 
+            "modern": { # Modern Blue
+                "bg": (26, 35, 126), # Deep Blue
                 "text": (255, 255, 255), 
-                "accent": (255, 193, 7),  # Gold accent
-                "sub": (200, 200, 200),
+                "accent": (68, 138, 255), # Bright Blue
+                "sub": (197, 202, 233),
                 "gradient_start": (26, 35, 126),
                 "gradient_end": (13, 71, 161)
             },
-            "professional": {
+            "minimalist": { # Minimalist Black
+                "bg": (0, 0, 0), 
+                "text": (255, 255, 255), 
+                "accent": (255, 255, 255), # White accent
+                "sub": (158, 158, 158),
+                "gradient_start": (0, 0, 0),
+                "gradient_end": (33, 33, 33)
+            },
+            "corporate": { # Professional Gray
                 "bg": (33, 33, 33), 
                 "text": (255, 255, 255), 
-                "accent": (0, 188, 212),  # Cyan accent
+                "accent": (0, 188, 212), # Cyan
                 "sub": (189, 189, 189),
                 "gradient_start": (33, 33, 33),
                 "gradient_end": (66, 66, 66)
             },
-            "creative": {
+            "luxury": { # Elegant Gold
+                "bg": (18, 18, 18), 
+                "text": (212, 175, 55), # Gold text
+                "accent": (255, 215, 0), # Bright Gold
+                "sub": (184, 134, 11),
+                "gradient_start": (0, 0, 0),
+                "gradient_end": (28, 28, 28)
+            },
+            "creative": { # Creative Pink
                 "bg": (136, 14, 79), 
                 "text": (255, 255, 255), 
-                "accent": (255, 235, 59),  # Yellow accent
+                "accent": (255, 64, 129), # Pink accent
                 "sub": (248, 187, 208),
                 "gradient_start": (136, 14, 79),
                 "gradient_end": (194, 24, 91)
-            },
-            "eco": {
-                "bg": (27, 94, 32), 
-                "text": (255, 255, 255), 
-                "accent": (255, 235, 59),
-                "sub": (165, 214, 167),
-                "gradient_start": (27, 94, 32),
-                "gradient_end": (56, 142, 60)
-            },
-            "luxury": {
-                "bg": (0, 0, 0), 
-                "text": (212, 175, 55), 
-                "accent": (255, 215, 0),  # Gold
-                "sub": (184, 134, 11),
-                "gradient_start": (0, 0, 0),
-                "gradient_end": (33, 33, 33)
-            },
+            }
         }
-        return themes.get(theme, themes["modern"])
+        
+        # AI Recommended Logic: Pick a random premium theme
+        if theme == "ai_recommended" or theme not in themes:
+            import random
+            selected_theme = random.choice(list(themes.keys()))
+            print(f"🤖 AI Recommended Theme: {selected_theme}")
+            return themes[selected_theme]
+            
+        return themes[theme]
 
     @staticmethod
     def _add_premium_title_slide(prs: Presentation, title: str, theme: Dict[str, Any]):
