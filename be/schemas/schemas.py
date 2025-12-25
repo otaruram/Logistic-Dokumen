@@ -1,0 +1,103 @@
+"""
+Pydantic schemas for request/response validation
+"""
+from pydantic import BaseModel, EmailStr, Field
+from datetime import datetime
+from typing import Optional, List
+
+# User Schemas
+class UserBase(BaseModel):
+    email: EmailStr
+    username: str
+
+class UserCreate(UserBase):
+    password: str
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserResponse(UserBase):
+    id: str
+    is_active: bool
+    credits: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+# Scan Schemas
+class ScanCreate(BaseModel):
+    filename: str
+
+class ScanResponse(BaseModel):
+    id: int
+    user_id: str
+    original_filename: str
+    extracted_text: Optional[str] = None
+    confidence_score: Optional[float] = None
+    processing_time: Optional[float] = None
+    status: str
+    created_at: datetime
+    
+    imagekit_url: Optional[str] = None
+    signature_url: Optional[str] = None
+    recipient_name: Optional[str] = None
+    file_path: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+# Review Schemas
+class ReviewCreate(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    feedback: Optional[str] = None
+
+class ReviewResponse(BaseModel):
+    id: str  # Updated to str
+    user_name: str
+    rating: int
+    feedback: Optional[str] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+# Invoice Schemas
+class InvoiceItem(BaseModel):
+    description: str
+    quantity: float
+    unit_price: float
+    amount: float
+
+class InvoiceCreate(BaseModel):
+    client_name: str
+    client_email: Optional[str] = None
+    client_address: Optional[str] = None
+    items: List[InvoiceItem]
+    tax: float = 0.0
+    issue_date: datetime
+    due_date: datetime
+
+class InvoiceResponse(BaseModel):
+    id: int
+    invoice_number: str
+    client_name: str
+    subtotal: float
+    tax: float
+    total: float
+    status: str
+    issue_date: datetime
+    due_date: datetime
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+# Token Schema
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    user_id: Optional[str] = None

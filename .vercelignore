@@ -1,0 +1,10 @@
+# Vercel Ignore
+be/
+deployment/
+.git/
+.venv/
+*.md
+!README.md
+*.sql
+package-lock.json
+.gitignore
