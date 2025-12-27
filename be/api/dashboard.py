@@ -11,33 +11,40 @@ router = APIRouter()
 @router.get("/stats")
 async def get_dashboard_stats(user = Depends(get_current_user)):
     """
-    Get user's dashboard statistics - Only main features (dgtnz, invoice, pdf, quiz)
+    Get user's dashboard statistics - Only DGTNZ feature
     """
     try:
         user_id = str(user.id) if hasattr(user, 'id') else str(user.get('id'))
         
-        # Get user's current credits
-        user_data = supabase_admin.table("users").select("credits").eq("id", user_id).execute()
+        # Get user's current credits and created_at date
+        user_data = supabase_admin.table("users").select("credits, created_at").eq("id", user_id).execute()
         credits = user_data.data[0].get("credits", 10) if user_data.data else 10
         
-        # Count total activities from activities table (only main features: dgtnz, invoice, pdf, quiz, audit)
+        # Get user's join date for cleanup calculation
+        user_created_at = user_data.data[0].get("created_at") if user_data.data else None
+        
+        # Count total activities from activities table (only dgtnz now)
         activities_count = supabase_admin.table("activities")\
             .select("id", count="exact")\
             .eq("user_id", user_id)\
-            .in_("feature", ["dgtnz", "invoice", "compressor", "quiz", "audit", "ppt"])\
+            .in_("feature", ["dgtnz"])\
             .execute()
         total_activities = activities_count.count or 0
         
-        # Calculate next data cleanup (1st of next month)
-        now = datetime.now()
-        # Get 1st of next month
-        if now.month == 12:
-            next_cleanup = datetime(now.year + 1, 1, 1)
+        # Calculate next data cleanup (30 days from user join date)
+        if user_created_at:
+            join_date = datetime.fromisoformat(user_created_at.replace("Z", "+00:00"))
+            # Calculate next cleanup as 30 days cycle from join date
+            now = datetime.now()
+            days_since_join = (now - join_date).days
+            days_in_current_cycle = days_since_join % 30
+            days_until_cleanup = 30 - days_in_current_cycle
+            next_cleanup = now + timedelta(days=days_until_cleanup)
         else:
-            # Tetapkan tanggal ke hari terakhir bulan ini atau awal bulan depan
-            next_cleanup = (now.replace(day=1) + timedelta(days=32)).replace(day=1)
-            
-        days_until_cleanup = (next_cleanup - now).days
+            # Fallback if no join date
+            now = datetime.now()
+            days_until_cleanup = 30
+            next_cleanup = now + timedelta(days=30)
         
         return {
             "totalActivities": total_activities,
@@ -53,15 +60,15 @@ async def get_dashboard_stats(user = Depends(get_current_user)):
             "totalActivities": 0,
             "credits": 10,
             "maxCredits": 10,
-            "nextCleanupDays": 7,
-            "nextCleanupDate": (datetime.now() + timedelta(days=7)).strftime("%d %b %Y"),
+            "nextCleanupDays": 30,
+            "nextCleanupDate": (datetime.now() + timedelta(days=30)).strftime("%d %b %Y"),
         }
 
 # --- GET WEEKLY ACTIVITY DATA ---
 @router.get("/weekly")
 async def get_weekly_activity(user = Depends(get_current_user)):
     """
-    Get user's activity data for the last 7 days - ALL features included
+    Get user's activity data for the last 7 days - Only DGTNZ feature
     """
     try:
         user_id = str(user.id) if hasattr(user, 'id') else str(user.get('id'))
@@ -70,11 +77,11 @@ async def get_weekly_activity(user = Depends(get_current_user)):
         today = datetime.now().date()
         week_ago = today - timedelta(days=6)
         
-        # Get all activities for last 7 days (main features: dgtnz, invoice, pdf, quiz, audit)
+        # Get all activities for last 7 days (only dgtnz now)
         activities = supabase_admin.table("activities")\
             .select("created_at, feature")\
             .eq("user_id", user_id)\
-            .in_("feature", ["dgtnz", "invoice", "compressor", "quiz", "audit", "ppt"])\
+            .in_("feature", ["dgtnz"])\
             .gte("created_at", week_ago.isoformat())\
             .execute()
         

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { LayoutDashboard, Grid2X2, Users, Menu, User } from "lucide-react";
+import { LayoutDashboard, Scan, Menu, User } from "lucide-react";
 import { NAVIGATION_TABS } from "@/constants";
 import { TabType } from "@/types";
 
@@ -11,8 +11,7 @@ interface BottomNavigationProps {
 
 const TAB_ICONS = {
   dashboard: LayoutDashboard,
-  features: Grid2X2,
-  community: Users,
+  dgtnz: Scan,
   options: Menu,
   profile: User,
 } as const;
@@ -25,14 +24,12 @@ const BottomNavigation = ({ activeTab, onTabClick, getActiveTabId }: BottomNavig
           {NAVIGATION_TABS.map((tab) => {
             const Icon = TAB_ICONS[tab.id as keyof typeof TAB_ICONS];
             const isActive = getActiveTabId() === tab.id;
-            const isDisabled = tab.id === 'community';
-            
+
             return (
               <button
                 key={tab.id}
-                onClick={() => !isDisabled && onTabClick(tab.id)}
-                disabled={isDisabled}
-                className={`nav-item relative flex-1 ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                onClick={() => onTabClick(tab.id)}
+                className="nav-item relative flex-1"
                 aria-label={tab.label}
                 aria-current={isActive ? "page" : undefined}
               >

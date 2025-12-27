@@ -1,7 +1,8 @@
 // Tab types
-export type TabType = "dashboard" | "features" | "dgtnz" | "invoice" | "qr" | "compressor" | "quiz" | "ppt" | "options" | "profile";
+export type TabType = "dashboard" | "dgtnz" | "options" | "profile";
 
-export type FeatureType = "dgtnz" | "invoice" | "qr" | "compressor" | "quiz" | "ppt";
+export type FeatureType = "dgtnz";
+
 
 // Navigation types
 export interface NavigationTab {

@@ -6,9 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ConfigErrorPage } from "@/components/ConfigErrorPage";
 import { isSupabaseConfigured } from "@/lib/supabaseClient";
 import Index from "./pages/Index";
-import QuizPlay from "./pages/QuizPlay";
-import PptPreviewPage from "./pages/PptPreviewPage";
 import NotFound from "./pages/NotFound";
+
 
 const queryClient = new QueryClient();
 
@@ -31,8 +30,6 @@ const App = () => {
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/play/:quizId" element={<QuizPlay />} />
-              <Route path="/ppt/preview" element={<PptPreviewPage />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/help" element={<Help />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

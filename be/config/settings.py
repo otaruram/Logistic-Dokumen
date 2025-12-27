@@ -47,15 +47,23 @@ class Settings:
     QUIZ_OPENAI_API_KEY: str = os.getenv('QUIZ_OPENAI_API_KEY', '')
     QUIZ_BASE_URL: str = os.getenv('QUIZ_BASE_URL', 'https://ai.sumopod.com/v1')
     
-    # Groq API - For Audit.WTF (2-Stage Pipeline)
-    GROQ_API_KEY: str = os.getenv('GROQ_API_KEY', '')
-    GROQ_VISION_MODEL: str = os.getenv('GROQ_VISION_MODEL', 'llama-3.2-11b-vision-preview')
-    GROQ_TEXT_MODEL: str = os.getenv('GROQ_TEXT_MODEL', 'llama-3.3-70b-versatile')
+    # Groq API Keys - Backup for OpenAI (multiple keys for rotation)
+    GROQ_API_KEY_1: str = os.getenv('GROQ_API_KEY_1', '')
+    GROQ_API_KEY_2: str = os.getenv('GROQ_API_KEY_2', '')
+    GROQ_API_KEY_3: str = os.getenv('GROQ_API_KEY_3', '')
+    GROQ_API_KEY_4: str = os.getenv('GROQ_API_KEY_4', '')
+    GROQ_BASE_URL: str = 'https://api.groq.com/openai/v1'
+    GROQ_MODEL: str = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
     
-    # For Audit - Groq API (2-Stage Pipeline)
-    GROQ_API_KEY: str = os.getenv('GROQ_API_KEY', '')
-    GROQ_VISION_MODEL: str = 'llama-3.2-11b-vision-preview'
-    GROQ_TEXT_MODEL: str = 'llama-3.3-70b-versatile'
+    @property
+    def groq_api_keys(self) -> list:
+        """Get list of all Groq API keys"""
+        return [k for k in [
+            self.GROQ_API_KEY_1,
+            self.GROQ_API_KEY_2,
+            self.GROQ_API_KEY_3,
+            self.GROQ_API_KEY_4
+        ] if k]
     
     # ImageKit - Main project
     IMAGEKIT_PUBLIC_KEY: str = os.getenv('IMAGEKIT_PUBLIC_KEY', '')

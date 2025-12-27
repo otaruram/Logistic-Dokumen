@@ -5,6 +5,7 @@ import httpx
 from typing import Tuple, Optional
 import time
 import os
+import random
 from config.settings import settings
 
 # --- PERBAIKAN JALUR TESSERACT (HARDCODE WINDOWS) ---
@@ -21,19 +22,40 @@ else:
     pytesseract.pytesseract.tesseract_cmd = "tesseract"
 
 # --- OPENAI SETUP ---
-client = None
+openai_client = None
 try:
     if settings.OPENAI_API_KEY:
         # Tambahkan timeout lebih lama (30 detik) untuk koneksi lambat
         http_client = httpx.Client(timeout=30.0)
         
-        client = OpenAI(
+        openai_client = OpenAI(
             api_key=settings.OPENAI_API_KEY,
             base_url=settings.OPENAI_BASE_URL,
             http_client=http_client
         )
+        print("✅ OpenAI client initialized")
 except Exception as e:
     print(f"⚠️ OpenAI Client Init Failed: {e}")
+
+# --- GROQ SETUP (BACKUP) ---
+groq_clients = []
+try:
+    if settings.groq_api_keys:
+        for idx, key in enumerate(settings.groq_api_keys):
+            try:
+                client = OpenAI(
+                    api_key=key,
+                    base_url=settings.GROQ_BASE_URL,
+                    http_client=httpx.Client(timeout=30.0)
+                )
+                groq_clients.append(client)
+            except Exception as e:
+                print(f"⚠️ Groq API Key {idx+1} Init Failed: {e}")
+        
+        if groq_clients:
+            print(f"✅ Groq fallback initialized with {len(groq_clients)} API key(s)")
+except Exception as e:
+    print(f"⚠️ Groq Setup Failed: {e}")
 
 class OCRService:
     
@@ -69,21 +91,50 @@ class OCRService:
     
     @staticmethod
     async def enhance_with_openai(text: str) -> str:
-        if not client:
-            return text
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "Fix OCR typos. Return only corrected text."},
-                    {"role": "user", "content": text}
-                ],
-                temperature=0.3
-            )
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"⚠️ OpenAI Enhancement Error: {e}")
-            return text # Kembalikan teks asli jika AI gagal (koneksi error)
+        """Try OpenAI first, fallback to Groq if OpenAI fails"""
+        
+        # Try OpenAI first
+        if openai_client:
+            try:
+                response = openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "Fix OCR typos. Return only corrected text."},
+                        {"role": "user", "content": text}
+                    ],
+                    temperature=0.3
+                )
+                print("✅ Enhanced with OpenAI")
+                return response.choices[0].message.content.strip()
+            except Exception as e:
+                print(f"⚠️ OpenAI Enhancement Error: {e}")
+                print("🔄 Trying Groq fallback...")
+        
+        # Fallback to Groq if OpenAI failed or not available
+        if groq_clients:
+            # Try each Groq key in random order
+            groq_keys_shuffled = groq_clients.copy()
+            random.shuffle(groq_keys_shuffled)
+            
+            for idx, client in enumerate(groq_keys_shuffled):
+                try:
+                    response = client.chat.completions.create(
+                        model=settings.GROQ_MODEL,
+                        messages=[
+                            {"role": "system", "content": "Fix OCR typos. Return only corrected text."},
+                            {"role": "user", "content": text}
+                    ],
+                        temperature=0.3
+                    )
+                    print(f"✅ Enhanced with Groq (key {idx+1})")
+                    return response.choices[0].message.content.strip()
+                except Exception as e:
+                    print(f"⚠️ Groq key {idx+1} failed: {e}")
+                    continue
+        
+        # If all failed, return original text
+        print("⚠️ All AI enhancement failed, returning original text")
+        return text
     
     @staticmethod
     async def process_image(image_path: str, use_ai_enhancement: bool = True) -> dict:
@@ -91,7 +142,7 @@ class OCRService:
         
         enhanced_text = raw_text
         # Hanya panggil AI jika ada teks hasil OCR
-        if use_ai_enhancement and raw_text and client and "Error" not in raw_text:
+        if use_ai_enhancement and raw_text and "Error" not in raw_text:
             enhanced_text = await OCRService.enhance_with_openai(raw_text)
         
         return {

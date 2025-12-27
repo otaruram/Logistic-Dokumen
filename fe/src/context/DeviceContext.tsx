@@ -1,19 +1,19 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, ReactNode } from "react";
 
-type DeviceMode = "mobile" | "tablet" | "desktop";
+type DeviceMode = "tablet";
 
 interface DeviceContextType {
     deviceMode: DeviceMode;
-    setDeviceMode: (mode: DeviceMode) => void;
 }
 
 const DeviceContext = createContext<DeviceContextType | undefined>(undefined);
 
 export const DeviceProvider = ({ children }: { children: ReactNode }) => {
-    const [deviceMode, setDeviceMode] = useState<DeviceMode>("mobile");
+    // Always use tablet mode for consistent design
+    const deviceMode: DeviceMode = "tablet";
 
     return (
-        <DeviceContext.Provider value={{ deviceMode, setDeviceMode }}>
+        <DeviceContext.Provider value={{ deviceMode }}>
             {children}
         </DeviceContext.Provider>
     );

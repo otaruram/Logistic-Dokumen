@@ -1,37 +1,19 @@
 import { motion } from "framer-motion";
-import { Moon, Sun, Monitor, Smartphone, Tablet, ChevronRight, Bell, Shield, HelpCircle, Trash2 } from "lucide-react";
+import { Moon, Sun, ChevronRight, Bell, Shield, HelpCircle, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { useDevice } from "@/context/DeviceContext";
 
 const OptionsTab = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const navigate = useNavigate();
-  const { deviceMode, setDeviceMode } = useDevice();
+
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
     document.documentElement.classList.toggle("dark");
     toast.success(`Theme changed to ${isDarkMode ? "Light" : "Dark"}`);
   };
-
-  // Logic to cycle device modes or show a selector. Cycling is simple and effective.
-  const cycleDeviceMode = () => {
-    if (deviceMode === 'mobile') {
-      setDeviceMode('tablet');
-      toast.success("Switched to Tablet Mode");
-    } else if (deviceMode === 'tablet') {
-      setDeviceMode('desktop');
-      toast.success("Switched to Desktop Mode");
-    } else {
-      setDeviceMode('mobile');
-      toast.success("Switched to Mobile Mode");
-    }
-  };
-
-  const currentDeviceIcon = deviceMode === 'mobile' ? Smartphone : deviceMode === 'tablet' ? Tablet : Monitor;
-  const currentDeviceLabel = deviceMode === 'mobile' ? "Mobile" : deviceMode === 'tablet' ? "Tablet" : "Desktop";
 
   const settingsGroups = [
     {
@@ -42,13 +24,6 @@ const OptionsTab = () => {
           label: "Theme",
           value: isDarkMode ? "Dark" : "Light",
           action: toggleTheme,
-        },
-        // Replaced Language with Device Mode
-        {
-          icon: currentDeviceIcon,
-          label: "Device Mode",
-          value: currentDeviceLabel, // Shows current mode
-          action: cycleDeviceMode,
         },
       ],
     },
