@@ -19,33 +19,42 @@ async def get_dashboard_stats(user = Depends(get_current_user)):
         # Get user's current credits and created_at date
         user_data = supabase_admin.table("users").select("credits, created_at").eq("id", user_id).execute()
         credits = user_data.data[0].get("credits", 10) if user_data.data else 10
-        
-        # Get user's join date for cleanup calculation
         user_created_at = user_data.data[0].get("created_at") if user_data.data else None
         
-        # Count total activities from activities table (only dgtnz now)
-        activities_count = supabase_admin.table("activities")\
-            .select("id", count="exact")\
-            .eq("user_id", user_id)\
-            .in_("feature", ["dgtnz"])\
-            .execute()
-        total_activities = activities_count.count or 0
+        total_activities = 0
+        days_until_cleanup = 30
+        next_cleanup = datetime.now() + timedelta(days=30)
         
-        # Calculate next data cleanup (30 days from user join date)
         if user_created_at:
-            join_date = datetime.fromisoformat(user_created_at.replace("Z", "+00:00"))
-            # Calculate next cleanup as 30 days cycle from join date
-            now = datetime.now()
+            # Parse Creation Date (handle Z for UTC)
+            if user_created_at.endswith('Z'):
+                user_created_at = user_created_at[:-1] + '+00:00'
+            
+            join_date = datetime.fromisoformat(user_created_at)
+            # Ensure timezone awareness for 'now'
+            now = datetime.now(join_date.tzinfo) if join_date.tzinfo else datetime.now()
+            
+            # 1. Calculate Cleanup Cycle
             days_since_join = (now - join_date).days
+            if days_since_join < 0: days_since_join = 0
+            
+            cycle_number = days_since_join // 30
             days_in_current_cycle = days_since_join % 30
             days_until_cleanup = 30 - days_in_current_cycle
+            
+            current_cycle_start = join_date + timedelta(days=cycle_number * 30)
             next_cleanup = now + timedelta(days=days_until_cleanup)
-        else:
-            # Fallback if no join date
-            now = datetime.now()
-            days_until_cleanup = 30
-            next_cleanup = now + timedelta(days=30)
-        
+            
+            # 2. Count Scans in Current Cycle (Total Activity)
+            # Using 'scans' table directly instead of activities
+            scans_count = supabase_admin.table("scans")\
+                .select("id", count="exact")\
+                .eq("user_id", user_id)\
+                .gte("created_at", current_cycle_start.isoformat())\
+                .execute()
+            
+            total_activities = scans_count.count or 0
+            
         return {
             "totalActivities": total_activities,
             "credits": credits,
@@ -56,6 +65,8 @@ async def get_dashboard_stats(user = Depends(get_current_user)):
         
     except Exception as e:
         print(f"❌ Dashboard Stats Error: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             "totalActivities": 0,
             "credits": 10,
@@ -68,7 +79,7 @@ async def get_dashboard_stats(user = Depends(get_current_user)):
 @router.get("/weekly")
 async def get_weekly_activity(user = Depends(get_current_user)):
     """
-    Get user's activity data for the last 7 days - Only DGTNZ feature
+    Get user's activity data for the last 7 days - Using Scans table
     """
     try:
         user_id = str(user.id) if hasattr(user, 'id') else str(user.get('id'))
@@ -77,11 +88,10 @@ async def get_weekly_activity(user = Depends(get_current_user)):
         today = datetime.now().date()
         week_ago = today - timedelta(days=6)
         
-        # Get all activities for last 7 days (only dgtnz now)
-        activities = supabase_admin.table("activities")\
-            .select("created_at, feature")\
+        # Get scans for last 7 days
+        scans = supabase_admin.table("scans")\
+            .select("created_at")\
             .eq("user_id", user_id)\
-            .in_("feature", ["dgtnz"])\
             .gte("created_at", week_ago.isoformat())\
             .execute()
         
@@ -91,12 +101,20 @@ async def get_weekly_activity(user = Depends(get_current_user)):
             date = today - timedelta(days=i)
             daily_counts[date.strftime("%a")] = 0
         
-        # Count activities per day
-        for activity in (activities.data or []):
-            created_date = datetime.fromisoformat(activity["created_at"].replace("Z", "+00:00")).date()
-            day_name = created_date.strftime("%a")
-            if day_name in daily_counts:
-                daily_counts[day_name] += 1
+        # Count scans per day
+        for scan in (scans.data or []):
+            if not scan.get("created_at"): continue
+            
+            ts_str = scan["created_at"]
+            if ts_str.endswith('Z'): ts_str = ts_str[:-1] + '+00:00'
+            
+            try:
+                created_date = datetime.fromisoformat(ts_str).date()
+                day_name = created_date.strftime("%a")
+                if day_name in daily_counts:
+                    daily_counts[day_name] += 1
+            except ValueError:
+                continue
         
         # Format for frontend chart (maintains order: Mon-Sun sliding window)
         chart_data = [
