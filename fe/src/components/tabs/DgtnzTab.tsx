@@ -192,8 +192,6 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
 
       const data = await res.json();
       toast.dismiss();
-      const data = await res.json();
-      toast.dismiss();
       // toast.success("Successfully exported to Drive!", {
       //   action: {
       //     label: "View",
