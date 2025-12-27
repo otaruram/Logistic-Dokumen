@@ -13,6 +13,13 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface ScanRecord {
     id: number;
@@ -34,11 +41,27 @@ interface ScanHistoryProps {
 
 export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: ScanHistoryProps) => {
     const [searchTerm, setSearchTerm] = useState("");
+    const [filterDate, setFilterDate] = useState("all");
+    const [filterMonth, setFilterMonth] = useState("all");
+    const [filterYear, setFilterYear] = useState("all");
 
-    const filteredRecords = records.filter(record =>
-        record.namaPenerima.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.keterangan.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredRecords = records.filter(record => {
+        const matchesSearch = record.namaPenerima.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            record.keterangan.toLowerCase().includes(searchTerm.toLowerCase());
+
+        if (!matchesSearch) return false;
+
+        // Parse DD/MM/YYYY
+        const parts = record.tanggal.split('/');
+        if (parts.length === 3) {
+            const [d, m, y] = parts;
+            // Compare as integers to handle "01" vs "1"
+            if (filterDate !== "all" && parseInt(d) !== parseInt(filterDate)) return false;
+            if (filterMonth !== "all" && parseInt(m) !== parseInt(filterMonth)) return false;
+            if (filterYear !== "all" && y !== filterYear) return false;
+        }
+        return true;
+    });
 
     const handleExportExcel = () => {
         if (filteredRecords.length === 0) return;
@@ -89,15 +112,56 @@ export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: 
                 </div>
             </div>
 
-            <div className="p-4 border-b border-white/10 bg-white/[0.02]">
-                <div className="relative max-w-sm">
+            <div className="p-4 border-b border-white/10 bg-white/[0.02] flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                     <Input
                         placeholder="Search recipient or content..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-9 bg-[#111] border-white/10 text-white placeholder:text-gray-600 focus:border-white/30 h-9 text-sm"
+                        className="pl-9 bg-[#111] border-white/10 text-white placeholder:text-gray-600 focus:border-white/30 h-10"
                     />
+                </div>
+
+                <div className="flex gap-2">
+                    {/* Date 1-31 */}
+                    <Select value={filterDate} onValueChange={setFilterDate}>
+                        <SelectTrigger className="w-[70px] bg-[#111] border-white/10 text-white h-10">
+                            <SelectValue placeholder="Tgl" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111] border-white/10 text-white">
+                            <SelectItem value="all">All</SelectItem>
+                            {Array.from({ length: 31 }, (_, i) => (
+                                <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Month Jan-Dec */}
+                    <Select value={filterMonth} onValueChange={setFilterMonth}>
+                        <SelectTrigger className="w-[100px] bg-[#111] border-white/10 text-white h-10">
+                            <SelectValue placeholder="Bulan" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111] border-white/10 text-white">
+                            <SelectItem value="all">All</SelectItem>
+                            {["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"].map((m, i) => (
+                                <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Year 2025-2040 */}
+                    <Select value={filterYear} onValueChange={setFilterYear}>
+                        <SelectTrigger className="w-[90px] bg-[#111] border-white/10 text-white h-10">
+                            <SelectValue placeholder="Thn" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111] border-white/10 text-white">
+                            <SelectItem value="all">All</SelectItem>
+                            {Array.from({ length: 16 }, (_, i) => (
+                                <SelectItem key={i} value={String(2025 + i)}>{2025 + i}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 

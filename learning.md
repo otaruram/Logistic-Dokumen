@@ -1,132 +1,157 @@
-# 📚 OCR.WTF - Learning Guide
+# 📚 OCR.WTF - Comprehensive Learning Documentation
 
-Panduan lengkap untuk memahami, mengembangkan, dan memelihara project OCR.WTF (Logistic-Dokumen).
-
----
-
-## 🏗️ Architecture Overview
-
-Project ini menggunakan arsitektur **Modern Monolith** yang terpisah antara Frontend dan Backend, namun dikelola dalam satu repository (Monorepo-style).
-
-### 1. Frontend (`/fe`)
-- **Framework**: React + Vite (TypeScript)
-- **UI Library**: Shadcn/UI + TailwindCSS
-- **State Management**: React Query (TanStack Query) + Context API
-- **Routing**: React Router DOM v6
-- **Icons**: Lucide React
-- **Animation**: Framer Motion
-
-### 2. Backend (`/be`)
-- **Framework**: FastAPI (Python) - High performance async framework
-- **Database**: Supabase (PostgreSQL)
-- **ORM**: Raw SQL via Supabase Client (untuk performa & simplicity)
-- **AI Engines**:
-  - **OCR**: Tesseract (Local)
-  - **Enhancement**: OpenAI GPT-4o-mini (Primary) + Groq Llama 3 (Backup)
-- **Storage**: ImageKit (Images) + Google Drive API (Results)
+Selamat datang di panduan teknis mendalam untuk **OCR.WTF (Logistic-Dokumen)**. Dokumen ini dirancang untuk membantu developer memahami setiap inci dari sistem ini, dari arsitektur level tinggi hingga detail implementasi baris kode.
 
 ---
 
-## 🔧 Key Features Implementation
+## 🏗️ 1. Architecture & Tech Stack
 
-### 1. DGTNZ (Digitization) Pipeline
-Proses konversi dokumen fisik ke digital:
+Project ini menggunakan arsitektur **Modern Monolithic** yang dioptimalkan untuk performa AI dan kemudahan deployment.
 
-1.  **Direct Upload**: User upload foto/PDF -> Frontend.
-2.  **Preprocessing**: Frontend resize/compress gambar sebelum kirim (hemat bandwidth).
-3.  **OCR Processing (Backend)**:
-    - Image diterima -> Tesseract melakukan ekstraksi teks mentah.
-    - Teks mentah sering berantakan (typo, format salah).
-4.  **AI Enhancement**:
-    - Teks mentah dikirim ke OpenAI (`ocr_service.py`).
-    - Prompt khusus meminta AI memperbaiki typo & format JSON.
-    - **Fallback System**: Jika OpenAI mati/timeout -> Otomatis switch ke **Groq** (4 API keys rotasi).
-5.  **Result**: JSON bersih dikembalikan ke Frontend -> Disimpan ke Supabase.
+### 🌐 Frontend (`/fe`)
+Frontend dibangun untuk kecepatan dan estetika "Premium Dark Mode".
+- **Core**: React 18 + Vite (TypeScript).
+- **Styling**: TailwindCSS + Shadcn/UI (Radix Primitives).
+- **State**: React Hooks standard (`useState`, `useEffect`) + TanStack Query.
+- **Animations**: Framer Motion (untuk transisi halaman dan efek visual).
+- **Icons**: Lucide React.
+- **Build Tool**: Vite (Ultra-fast HMR).
 
-### 2. Dashboard System
-Statistik real-time dengan caching:
-
-- **Weekly Activity**: Query Supabase dengan filter tanggal 7 hari terakhir.
-- **Cleanup Logic**: 
-  - Sistem menghitung 30 hari dari `user.created_at`.
-  - Notifikasi muncul jika mendekati hari pembersihan.
-  - *Note*: Saat ini cleanup dilakukan manual atau via cron job (perlu di-setup di VPS).
+### ⚙️ Backend (`/be`)
+Backend adalah otak dari operasi AI dan manajemen data.
+- **Framework**: FastAPI (Python 3.10+) - Asynchronous, Type-safe.
+- **Database**: Supabase (PostgreSQL) via `supabase-py` client & SQLAlchemy ORM (Hybrid approach).
+- **AI Processing**:
+  - **Tesseract OCR**: Engine OCR open-source untuk ekstraksi teks dasar.
+  - **OpenAI GPT-4o-mini**: "Brain" utama untuk cleaning data, formatting JSON, dan generate konten PPT.
+  - **Groq (Llama3)**: Fallback engine super-cepat jika OpenAI down/lambat.
+- **Storage**:
+  - **ImageKit**: Hosting gambar dan tanda tangan (CDN optimization).
+  - **Google Drive**: Export hasil laporan scan (Excel Premium).
 
 ---
 
-## 🛠️ Setup & Development
+## 📂 2. Directory Structure Map
 
-### Prasyarat
-- Node.js 18+
-- Python 3.10+
-- Tesseract OCR (`sudo apt install tesseract-ocr`)
-- Docker (Optional, recommended for production)
+Memahami struktur folder adalah kunci navigasi cepat.
 
-### Environment Variables (.env)
-File `.env` adalah kunci segalanya. Jangan pernah commit file ini!
-
-**Frontend (.env)**:
-```env
-VITE_API_URL=http://localhost:8000
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...
 ```
-
-**Backend (.env)**:
-```env
-DATABASE_URL=...
-OPENAI_API_KEY=...
-GROQ_API_KEY_1=... (Backup)
-IMAGEKIT_PUBLIC_KEY=...
+Logistic-Dokumen-main/
+├── be/ (Backend)
+│   ├── api/                # API Route controllers (Endpoints)
+│   │   ├── scans.py        # Logic scanning DGTNZ
+│   │   ├── reviews.py      # Logic review landing page
+│   │   ├── ppt.py          # Logic generate PowerPoint
+│   │   └── ...
+│   ├── config/             # Configuration & Env Vars
+│   ├── models/             # SQLAlchemy Database Models
+│   ├── schemas/            # Pydantic Schemas (Validation)
+│   ├── services/           # Business Logic terpisah (The "Brain")
+│   │   ├── ocr_service.py  # Handle Tesseract + OpenAI/Groq
+│   │   ├── imagekit_service.py # Upload handling
+│   │   └── drive_service.py # Google Drive Integration
+│   ├── utils/              # Helper functions (Auth, File handling)
+│   └── main.py             # Entry point FastAPI
+│
+├── fe/ (Frontend)
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── dgtnz/      # Komponen khusus DGTNZ (ScanHistory, Upload)
+│   │   │   ├── tabs/       # Halaman utama per tab (Profile, Dashboard)
+│   │   │   ├── ui/         # Shadcn Reusable Components (Button, Dialog)
+│   │   │   └── LandingPage.tsx # Halaman muka public
+│   │   ├── lib/            # Utilities (Supabase Client, utils)
+│   │   ├── pages/          # Full page routes (Login, Terms)
+│   │   ├── App.tsx         # Main Router
+│   │   └── index.css       # Global Styles (Tailwind imports)
+│   └── vite.config.ts      # Build configuration
+└── ...
 ```
 
 ---
 
-## 🚀 Deployment (VPS)
+## 🌟 3. Feature Deep Dive
 
-### Mengapa VPS?
-Kita menggunakan VPS (Ubuntu) memberikan kontrol penuh dibanding Vercel/Render untuk kasus ini karena:
-1.  **Tesseract OCR**: Butuh instalasi binary OS level.
-2.  **Long Running Process**: OCR bisa memakan waktu >10-60 detik (Serverless sering timeout).
-3.  **Cost**: VPS fixed cost lebih murah untuk compute heavy tasks.
+### A. DGTNZ (Digitization Engine)
+Fitur inti untuk mengubah dokumen fisik menjadi data digital.
+1.  **Flow**: User Upload -> Backend Save Temp -> ImageKit Upload -> Tesseract OCR -> LLM Cleaning -> Database.
+2.  **Key File**: `be/api/scans.py` & `be/services/ocr_service.py`.
+3.  **UI Components**: `DgtnzTab.tsx`, `ScanUpload.tsx`, `ValidationZone.tsx`.
+4.  **Highlights**:
+    - **Smart Fallback**: Jika OpenAI error, otomatis switch ke Groq.
+    - **Signature Handling**: Tanda tangan di-upload terpisah ke ImageKit QR folder dan di-link ke record.
+    - **Edit & Dialogs**: Menggunakan komponen Dialog Shadcn untuk UX yang smooth.
 
-### Cara Deploy
-Lihat `VPS_DEPLOYMENT_GUIDE.md` untuk detailnya. Intinya:
-1.  Clone repo.
-2.  Setup Python Venv & Install requirements.
-3.  Setup Node.js & Build Frontend.
-4.  Gunakan `systemd` (Linux service) atau `Docker` untuk menjalankan backend 24/7.
-5.  Gunakan Nginx sebagai Reverse Proxy (Port 80 -> 8000).
+### B. PPT.WTF (AI Presentation)
+Generator PowerPoint instan dari topik sederhana.
+1.  **Flow**: User Topic -> LLM Generate Content (JSON) -> Python `python-pptx` build slide -> Convert to PDF -> Return URL.
+2.  **Key File**: `be/api/ppt.py`.
+3.  **Highlights**:
+    - **History System**: Menyimpan hasil generate selama 7 hari (`PPTHistory` model).
+    - **PDF Preview**: Konversi PPT ke PDF di server agar bisa di-preview di browser tanpa download.
 
----
-
-## 🐛 Troubleshooting Umum
-
-**Masalah**: *Upload Gagal / Timeout*
-- **Sebab**: File terlalu besar atau koneksi lambat.
-- **Solusi**: Cek Nginx config `client_max_body_size 10M;`. Cek timeout setting.
-
-**Masalah**: *AI Error / Fallback Active*
-- **Sebab**: OpenAI limit habis atau down.
-- **Solusi**: Cek logs backend. Pastikan Groq API keys valid.
-
-**Masalah**: *Preview PDF Kosong*
-- **Sebab**: Browser memblokir mixed content (HTTP vs HTTPS) atau CORS.
-- **Solusi**: Pastikan backend mengizinkan origin frontend di `CORS_ORIGINS`.
+### C. Reviews System (Public Trust)
+Sistem review "expiry" unik di Landing Page.
+1.  **Logic**: Hanya menampilkan review yang dibuat dalam **7 hari terakhir**.
+2.  **Implementation**: Filter `created_at > now - 7 days` di endpoint `GET /api/reviews/recent`.
+3.  **Security**: Menggunakan `supabase_admin` untuk bypass RLS saat submit/read public data.
 
 ---
 
-## 📚 Best Practices Code ini
+## 🗄️ 4. Database Schema (Supabase)
 
-1.  **Type Safety**: Selalu gunakan Interface di TypeScript (`fe/src/types/`).
-2.  **Service Layer**: Logic backend dipisah ke `services/` (contoh: `ocr_service.py`), bukan numpuk di `main.py`.
-3.  **Component Reusability**: UI komponen kecil ada di `fe/src/components/ui` (Shadcn pattern).
-4.  **Error Handling**: Backend selalu return JSON standardize (`{"status": "error", "message": "..."}`).
+Kita menggunakan PostgreSQL via Supabase.
+
+### Tables:
+1.  **`users`**:
+    - `id` (UUID), `email`, `credits` (Quota scanning).
+2.  **`scans`** (DGTNZ Records):
+    - `id`, `user_id`, `imagekit_url`, `extracted_text` (Hasil OCR), `recipient_name`, `signature_url`.
+3.  **`reviews`**:
+    - `id`, `user_name`, `rating` (1-5), `feedback`, `is_approved`, `created_at`.
+4.  **`ppt_history`**:
+    - `id`, `pptx_url`, `pdf_url`, `expires_at`.
 
 ---
 
-## 🔮 Future Improvements (Ide Pengembangan)
+## 🎨 5. Frontend & UI Philosophy
 
-1.  **Queue System (Redis)**: Untuk handle ratusan upload bersamaan tanpa bikin server hang.
-2.  **Webhooks**: Kirim notifikasi ke WhatsApp/Email setelah scan selesai.
-3.  **Multi-page PDF**: Support scan buku tebal (saat ini optimized untuk 1-5 halaman).
+Design language project ini adalah **"Professional Dark Mode"**.
+- **Colors**: Dominasi `#0a0a0a` (Vantablack-ish) dengan aksen White/#111.
+- **Glassmorphism**: Penggunaan `backdrop-blur` dan `bg-white/5` untuk layer di atas background.
+- **Interactivity**: Semua tombol dan card memiliki state `hover` dan transisi `framer-motion` untuk feel yang "hidup".
+- **Responsive**: Grid system (`grid-cols-1 lg:grid-cols-2`) memastikan tampilan bagus di HP dan Laptop.
+
+---
+
+## 🛠️ 6. Maintenance & Troubleshooting
+
+### Common Issues:
+1.  **"Upload Failed"**:
+    - Cek koneksi internet (ImageKit butuh upload stabil).
+    - Cek size file (Max 10MB di Nginx/FastAPI limit).
+2.  **"AI Error" / Hasil Kosong**:
+    - Cek API Key OpenAI/Groq di `.env` backend.
+    - Cek kuota API provider.
+3.  **Edit Button "Coming Soon"**:
+    - Pastikan endpoint `PATCH` di backend sudah di-deploy.
+    - Refresh halaman browser (cache JS lama).
+
+### Cara Menambah Fitur Baru:
+1.  **Backend**: Buat endpoint baru di `be/api/`, tambahkan Schema Pydantic di `be/schemas/`.
+2.  **Frontend**: Buat komponen baru atau update Tab yang relevan. Jangan lupa update `Interface` TypeScript.
+3.  **Database**: Jika butuh kolom baru, update Migration (atau add manual di Dashboard Supabase jika prototype).
+
+---
+
+## 🚀 7. Deployment Checklist
+
+Saat deploy ke VPS/Production:
+1.  [ ] Setup **SSL/HTTPS** (Wajib untuk akses Camera/Mic di browser).
+2.  [ ] Set **CORS** `allow_origins` ke domain production (`https://ocr.wtf`).
+3.  [ ] Gunakan **Docker** atau **PM2/Systemd** agar backend auto-restart jika crash.
+4.  [ ] Pastikan **Tesseract OCR** terinstall di server (`apt install tesseract-ocr`).
+
+---
+
+*Dokumen ini dibuat otomatis dan diperbarui terakhir pada Desember 2025.*

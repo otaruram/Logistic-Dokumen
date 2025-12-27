@@ -8,6 +8,7 @@ import { ValidationZone } from "../dgtnz/ValidationZone";
 import { ScanHistory } from "../dgtnz/ScanHistory";
 import { EditScanDialog } from "../dgtnz/EditScanDialog";
 import { ScanSuccessDialog } from "../dgtnz/ScanSuccessDialog";
+import { DriveSuccessDialog } from "../dgtnz/DriveSuccessDialog";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -35,6 +36,7 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
   // Dialog States
   const [editingRecord, setEditingRecord] = useState<any>(null);
   const [successUrl, setSuccessUrl] = useState<string | null>(null);
+  const [driveSuccessLink, setDriveSuccessLink] = useState<string | null>(null);
 
   // Load Data
   useEffect(() => {
@@ -109,12 +111,13 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
       const resJson = await res.json();
       toast.dismiss();
       // toast.success("Document digitized successfully!");
-      setSuccessUrl(resJson.imagekit_url || resJson.file_path); // Trigger Success Dialog
-
       setUploadedImage(null);
       setPreviewUrl(null);
       setRecipientName("");
       setSignatureData("");
+
+      toast.success("Document digitized successfully!");
+      // setSuccessUrl(resJson.imagekit_url || resJson.file_path); // Disabled as requested
       loadRecords();
 
       setTimeout(() => {
@@ -189,12 +192,15 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
 
       const data = await res.json();
       toast.dismiss();
-      toast.success("Successfully exported to Drive!", {
-        action: {
-          label: "View",
-          onClick: () => window.open(data.web_view_link, "_blank")
-        }
-      });
+      const data = await res.json();
+      toast.dismiss();
+      // toast.success("Successfully exported to Drive!", {
+      //   action: {
+      //     label: "View",
+      //     onClick: () => window.open(data.web_view_link, "_blank")
+      //   }
+      // });
+      setDriveSuccessLink(data.web_view_link);
 
     } catch (e) {
       toast.dismiss();
@@ -290,6 +296,12 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
         open={!!successUrl}
         onOpenChange={(open) => !open && setSuccessUrl(null)}
         imageUrl={successUrl || ""}
+      />
+
+      <DriveSuccessDialog
+        open={!!driveSuccessLink}
+        onOpenChange={(open) => !open && setDriveSuccessLink(null)}
+        fileUrl={driveSuccessLink || ""}
       />
     </div>
   );

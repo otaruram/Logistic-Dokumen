@@ -561,57 +561,69 @@ async def export_to_drive_direct(
     Export to Drive using token provided by Frontend (Supabase Session)
     Body: { "access_token": "..." }
     """
-    access_token = token_data.get("access_token")
-    if not access_token:
-        raise HTTPException(status_code=400, detail="Google Access Token required")
+    import traceback
+    
+    try:
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=400, detail="Google Access Token required")
 
-    import pandas as pd
-    import io
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    from drive_service import export_to_google_drive_with_token
-    
-    # 1. Fetch data
-    scans = db.query(Scan).filter(Scan.user_id == current_user.id).order_by(Scan.created_at.desc()).all()
-    
-    data = []
-    for idx, scan in enumerate(scans, 1):
-        data.append({
-            "No": idx,
-            "Date": scan.created_at.strftime('%Y-%m-%d %H:%M'),
-            "Recipient": scan.recipient_name or "-",
-            "Extracted Content": scan.extracted_text or "-",
-            "Status": scan.status.upper(),
-            "Image Link": scan.imagekit_url or "",
-            "Signature Link": scan.signature_url or ""
-        })
-    
-    df = pd.DataFrame(data)
+        import pandas as pd
+        import io
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from drive_service import export_to_google_drive_with_token
+        
+        # 1. Fetch data
+        scans = db.query(Scan).filter(Scan.user_id == current_user.id).order_by(Scan.created_at.desc()).all()
+        
+        data = []
+        for idx, scan in enumerate(scans, 1):
+            data.append({
+                "No": idx,
+                "Date": scan.created_at.strftime('%Y-%m-%d %H:%M'),
+                "Recipient": scan.recipient_name or "-",
+                "Extracted Content": scan.extracted_text or "-",
+                "Status": scan.status.upper(),
+                "Image Link": scan.imagekit_url or "",
+                "Signature Link": scan.signature_url or ""
+            })
+        
+        df = pd.DataFrame(data)
 
-    # 2. Excel Generation (Premium)
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Scan Report')
-        worksheet = writer.sheets['Scan Report']
-        
-        # Styles
-        header_fill = PatternFill(start_color="111111", end_color="111111", fill_type="solid") # Dark Gray
-        header_font = Font(color="FFFFFF", bold=True)
-        
-        # Header
-        for cell in worksheet[1]:
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = Alignment(horizontal='center')
+        # 2. Excel Generation (Premium)
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Scan Report')
+            worksheet = writer.sheets['Scan Report']
             
-        # Column Widths
-        for col in worksheet.columns:
-            column = col[0].column_letter
-            worksheet.column_dimensions[column].width = 25
+            # Styles
+            header_fill = PatternFill(start_color="111111", end_color="111111", fill_type="solid") # Dark Gray
+            header_font = Font(color="FFFFFF", bold=True)
+            
+            # Header
+            for cell in worksheet[1]:
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal='center')
+                
+            # Column Widths
+            for col in worksheet.columns:
+                column = col[0].column_letter
+                worksheet.column_dimensions[column].width = 25
 
-    output.seek(0)
-    
-    # 3. Upload
-    filename = f"Scan_Report_{current_user.email}_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx"
-    result = export_to_google_drive_with_token(access_token, output.read(), filename)
-    
-    return result
+        output.seek(0)
+        
+        # 3. Upload
+        filename = f"Scan_Report_{current_user.email}_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx"
+        print(f"🚀 Starting Drive Export for {current_user.email}...")
+        result = export_to_google_drive_with_token(access_token, output.read(), filename)
+        print(f"✅ Drive Export Success: {result}")
+        
+        return result
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"❌ Export to Drive Direct Error: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
