@@ -32,7 +32,7 @@ const SignatureCanvas = ({ value, onChange, disabled = false }: SignatureCanvasP
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (disabled) return;
-    
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -72,7 +72,7 @@ const SignatureCanvas = ({ value, onChange, disabled = false }: SignatureCanvasP
   const stopDrawing = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
-    
+
     const canvas = canvasRef.current;
     if (canvas) {
       const dataUrl = canvas.toDataURL("image/png");
@@ -82,7 +82,7 @@ const SignatureCanvas = ({ value, onChange, disabled = false }: SignatureCanvasP
 
   const handleClear = () => {
     if (disabled) return;
-    
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -104,19 +104,19 @@ const SignatureCanvas = ({ value, onChange, disabled = false }: SignatureCanvasP
               <>
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
+                  variant="ghost"
+                  size="icon"
                   onClick={handleClear}
                   disabled={disabled}
-                  className="gap-2"
+                  className="h-8 w-8 rounded-full hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                  title="Hapus Tanda Tangan"
                 >
-                  <Trash2 className="h-3 w-3" />
-                  Hapus Tanda Tangan
+                  <Trash2 className="h-4 w-4" />
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => {
                     handleClear();
                     setTimeout(() => {
@@ -125,16 +125,16 @@ const SignatureCanvas = ({ value, onChange, disabled = false }: SignatureCanvasP
                     }, 100);
                   }}
                   disabled={disabled}
-                  className="gap-2"
+                  className="h-8 w-8 rounded-full hover:bg-white/10 transition-colors"
+                  title="Ganti Tanda Tangan"
                 >
-                  <Edit2 className="h-3 w-3" />
-                  Ganti Tanda Tangan
+                  <Edit2 className="h-4 w-4" />
                 </Button>
               </>
             )}
           </div>
         </div>
-        
+
         <div className={`relative border-2 rounded-lg border-gray-300 ${disabled ? "opacity-50" : ""}`}>
           <canvas
             ref={canvasRef}
@@ -148,13 +148,13 @@ const SignatureCanvas = ({ value, onChange, disabled = false }: SignatureCanvasP
             onTouchStart={startDrawing}
             onTouchMove={draw}
             onTouchEnd={stopDrawing}
-            style={{ 
+            style={{
               touchAction: "none",
               backgroundColor: "#fff"
             }}
           />
         </div>
-        
+
         {!hasSignature && (
           <p className="text-xs text-muted-foreground text-center">
             Tanda tangan di area di atas

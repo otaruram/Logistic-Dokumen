@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { ScanUpload } from "../dgtnz/ScanUpload";
 import { ValidationZone } from "../dgtnz/ValidationZone";
 import { ScanHistory } from "../dgtnz/ScanHistory";
+import { EditScanDialog } from "../dgtnz/EditScanDialog";
+import { ScanSuccessDialog } from "../dgtnz/ScanSuccessDialog";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -29,6 +31,10 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
   const [recipientName, setRecipientName] = useState("");
   const [signatureData, setSignatureData] = useState("");
   const [records, setRecords] = useState<ScanRecord[]>([]);
+
+  // Dialog States
+  const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [successUrl, setSuccessUrl] = useState<string | null>(null);
 
   // Load Data
   useEffect(() => {
@@ -100,8 +106,10 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
 
       if (!res.ok) throw new Error("Upload failed");
 
+      const resJson = await res.json();
       toast.dismiss();
-      toast.success("Document digitized successfully!");
+      // toast.success("Document digitized successfully!");
+      setSuccessUrl(resJson.imagekit_url || resJson.file_path); // Trigger Success Dialog
 
       setUploadedImage(null);
       setPreviewUrl(null);
@@ -126,8 +134,73 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
     toast.success("Record deleted");
   };
 
+  const handleEdit = (record: ScanRecord) => {
+    setEditingRecord(record);
+  };
+
+  const handleSaveEdit = async (id: number, data: { recipient_name: string; extracted_text: string }) => {
+    try {
+      const { supabase } = await import("@/lib/supabaseClient");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/scans/${id}`, {
+        method: 'PATCH',
+        headers: {
+          "Authorization": `Bearer ${session.access_token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (res.ok) {
+        toast.success("Record updated");
+        loadRecords(); // Reload to refresh table
+      } else {
+        toast.error("Failed to update");
+      }
+    } catch (e) {
+      toast.error("Error updating record");
+    }
+  };
+
   const handleExportDrive = async () => {
-    toast.info("Exporting to Drive...");
+    try {
+      toast.loading("Preparing premium export...");
+      const { supabase } = await import("@/lib/supabaseClient");
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session || !session.provider_token) {
+        toast.dismiss();
+        toast.error("Please login with Google to use Drive Export");
+        return;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/scans/export-drive-direct`, {
+        method: 'POST',
+        headers: {
+          "Authorization": `Bearer ${session.access_token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ access_token: session.provider_token })
+      });
+
+      if (!res.ok) throw new Error("Export failed");
+
+      const data = await res.json();
+      toast.dismiss();
+      toast.success("Successfully exported to Drive!", {
+        action: {
+          label: "View",
+          onClick: () => window.open(data.web_view_link, "_blank")
+        }
+      });
+
+    } catch (e) {
+      toast.dismiss();
+      console.error(e);
+      toast.error("Export failed. Make sure you logged in via Google.");
+    }
   };
 
   return (
@@ -201,9 +274,23 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
         <ScanHistory
           records={records}
           onDelete={handleDelete}
+          onEdit={handleEdit}
           onExportGoogleDrive={handleExportDrive}
         />
       </motion.div>
+
+      <EditScanDialog
+        open={!!editingRecord}
+        onOpenChange={(open) => !open && setEditingRecord(null)}
+        record={editingRecord}
+        onSave={handleSaveEdit}
+      />
+
+      <ScanSuccessDialog
+        open={!!successUrl}
+        onOpenChange={(open) => !open && setSuccessUrl(null)}
+        imageUrl={successUrl || ""}
+      />
     </div>
   );
 }

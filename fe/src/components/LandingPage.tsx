@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Scan, Zap, Shield, Cloud, Check, ArrowRight, Brain, Lock } from "lucide-react";
+import { Scan, Zap, Shield, Cloud, Check, ArrowRight, Brain, Lock, Star, Quote, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -176,6 +176,65 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
         </div>
       </section>
 
+      {/* Reviews / Trusted Section */}
+      {reviews.length > 0 && (
+        <section className="relative z-10 py-24 px-6 overflow-hidden">
+          {/* Background Glow */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-blue-900/10 blur-[100px] rounded-full pointer-events-none" />
+
+          <div className="container mx-auto max-w-6xl relative">
+            <div className="text-center mb-16">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Trusted by Professionals</h2>
+                <p className="text-gray-400 max-w-2xl mx-auto text-lg">
+                  See what others are saying about the future of document processing.
+                </p>
+              </motion.div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6">
+              {reviews.map((review, i) => (
+                <motion.div
+                  key={review.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                >
+                  <div className="h-full p-8 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-sm hover:bg-white/[0.05] transition-colors relative group">
+                    <Quote className="absolute top-6 right-6 w-8 h-8 text-white/5 group-hover:text-white/10 transition-colors" />
+
+                    <div className="flex items-center gap-1 text-yellow-500 mb-6">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className={`w-4 h-4 ${i < review.rating ? "fill-yellow-500" : "fill-transparent opacity-30"}`} />
+                      ))}
+                    </div>
+
+                    <p className="text-gray-300 mb-8 leading-relaxed">
+                      "{review.feedback}"
+                    </p>
+
+                    <div className="flex items-center gap-4 mt-auto">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
+                        {review.user_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white">{review.user_name}</p>
+                        <p className="text-xs text-gray-500">Verified User</p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Features Grid */}
       <section className="relative z-10 py-32 bg-white/[0.02] border-t border-white/5">
         <div className="container mx-auto px-6 max-w-6xl">
@@ -218,8 +277,9 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
             <span className="font-bold text-gray-400 text-sm">ocr.wtf &copy; 2025</span>
           </div>
           <div className="flex gap-6 mt-4 md:mt-0">
-            <a href="#" className="text-gray-400 hover:text-white transition-colors">GitHub</a>
-            <a href="#" className="text-gray-400 hover:text-white transition-colors">Discord</a>
+            <button onClick={onLogin} className="text-gray-400 hover:text-white transition-colors text-sm font-medium">
+              Sign In
+            </button>
           </div>
         </div>
       </footer>

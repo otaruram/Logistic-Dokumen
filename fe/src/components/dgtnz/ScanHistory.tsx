@@ -1,6 +1,6 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
-import { FileDown, Cloud, Search, Trash2, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { FileDown, Cloud, Search, Trash2, CheckCircle2, XCircle, Clock, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -28,10 +28,11 @@ interface ScanRecord {
 interface ScanHistoryProps {
     records: ScanRecord[];
     onDelete: (id: number) => void;
+    onEdit: (record: ScanRecord) => void;
     onExportGoogleDrive: () => void;
 }
 
-export const ScanHistory = ({ records, onDelete, onExportGoogleDrive }: ScanHistoryProps) => {
+export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: ScanHistoryProps) => {
     const [searchTerm, setSearchTerm] = useState("");
 
     const filteredRecords = records.filter(record =>
@@ -107,7 +108,9 @@ export const ScanHistory = ({ records, onDelete, onExportGoogleDrive }: ScanHist
                             <TableHead className="w-[50px] text-gray-400">No</TableHead>
                             <TableHead className="text-gray-400">Date</TableHead>
                             <TableHead className="text-gray-400">Recipient</TableHead>
-                            <TableHead className="text-gray-400 w-[40%]">Content</TableHead>
+                            <TableHead className="text-gray-400 w-[100px]">Photo</TableHead>
+                            <TableHead className="text-gray-400 w-[100px]">Signature</TableHead>
+                            <TableHead className="text-gray-400 w-[30%]">Content</TableHead>
                             <TableHead className="text-gray-400">Status</TableHead>
                             <TableHead className="text-right text-gray-400">Actions</TableHead>
                         </TableRow>
@@ -119,15 +122,33 @@ export const ScanHistory = ({ records, onDelete, onExportGoogleDrive }: ScanHist
                                     <TableCell className="text-gray-500">{idx + 1}</TableCell>
                                     <TableCell className="font-mono text-sm text-gray-400">{record.tanggal}</TableCell>
                                     <TableCell className="font-medium text-white">{record.namaPenerima}</TableCell>
-                                    <TableCell className="text-gray-400 text-sm max-w-md truncate" title={record.keterangan}>
+                                    <TableCell>
+                                        {record.fotoUrl ? (
+                                            <a href={record.fotoUrl} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-all">
+                                                <img src={record.fotoUrl} alt="Scan" className="w-full h-full object-cover" />
+                                            </a>
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Img</div>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>
+                                        {record.tandaTangan ? (
+                                            <a href={record.tandaTangan} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-all bg-white">
+                                                <img src={record.tandaTangan} alt="Sig" className="w-full h-full object-contain p-1" />
+                                            </a>
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Sig</div>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-gray-400 text-sm max-w-xs truncate" title={record.keterangan}>
                                         {record.keterangan}
                                     </TableCell>
                                     <TableCell>{getStatusBadge(record.status)}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            <a href={record.fotoUrl} target="_blank" rel="noreferrer" className="p-2 hover:bg-white/10 rounded-full transition-colors" title="View Image">
-                                                <Search className="w-4 h-4 text-blue-400" />
-                                            </a>
+                                            <button onClick={() => onEdit(record)} className="p-2 hover:bg-yellow-500/20 rounded-full transition-colors" title="Edit">
+                                                <Pencil className="w-4 h-4 text-yellow-500" />
+                                            </button>
                                             <button onClick={() => onDelete(record.id)} className="p-2 hover:bg-red-900/20 rounded-full transition-colors" title="Delete">
                                                 <Trash2 className="w-4 h-4 text-red-400" />
                                             </button>
@@ -137,7 +158,7 @@ export const ScanHistory = ({ records, onDelete, onExportGoogleDrive }: ScanHist
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={6} className="h-32 text-center text-gray-500">
+                                <TableCell colSpan={8} className="h-32 text-center text-gray-500">
                                     No records found.
                                 </TableCell>
                             </TableRow>

@@ -30,6 +30,10 @@ class UserResponse(UserBase):
 class ScanCreate(BaseModel):
     filename: str
 
+class ScanUpdate(BaseModel):
+    recipient_name: Optional[str] = None
+    extracted_text: Optional[str] = None
+
 class ScanResponse(BaseModel):
     id: int
     user_id: str

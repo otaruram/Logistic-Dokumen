@@ -97,16 +97,24 @@ async def get_all_reviews():
 
 @router.get("/recent")
 async def get_recent_reviews():
-    """Get recent approved reviews for landing page (limit 6)"""
+    """Get recent approved reviews for landing page (limit 6, max 7 days old)"""
+    from datetime import datetime, timedelta
+    
     try:
+        cutoff_date = (datetime.now() - timedelta(days=7)).isoformat()
+        
         result = supabase_admin.table("reviews")\
             .select("*")\
             .eq("is_approved", True)\
+            .gt("created_at", cutoff_date)\
             .order("created_at", desc=True)\
             .limit(6)\
             .execute()
         
         return result.data
+    except Exception as e:
+        print(f"❌ Get recent reviews error: {e}")
+        return []
     except Exception as e:
         print(f"❌ Get recent reviews error: {e}")
         return []

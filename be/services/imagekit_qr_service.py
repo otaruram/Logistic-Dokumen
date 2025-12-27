@@ -108,8 +108,15 @@ class ImageKitQRService:
             print("🎨 Enhancing signature brightness...")
             img = Image.open(BytesIO(content))
             
-            # Convert to RGB if needed
-            if img.mode != 'RGB':
+            # Handle transparency (RGBA) before converting to RGB
+            if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+                img = img.convert('RGBA')
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[3]) # Use alpha channel as mask
+                img = background
+            
+            # Convert to RGB if needed (e.g. Grayscale)
+            elif img.mode != 'RGB':
                 img = img.convert('RGB')
             
             # Increase brightness by 30%
