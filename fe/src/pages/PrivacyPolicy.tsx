@@ -7,69 +7,82 @@ const PrivacyPolicy = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="min-h-screen bg-white p-6">
+        <div className="min-h-screen bg-[#0a0a0a] text-white p-6 font-sans">
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="max-w-2xl mx-auto"
+                className="max-w-3xl mx-auto"
             >
                 <Button
                     variant="ghost"
                     onClick={() => navigate(-1)}
-                    className="mb-6 pl-0 hover:bg-transparent hover:text-gray-600"
+                    className="mb-8 pl-0 hover:bg-transparent text-gray-400 hover:text-white transition-colors gap-2"
                 >
-                    <ArrowLeft className="w-5 h-5 mr-2" />
+                    <ArrowLeft className="w-5 h-5" />
                     Back
                 </Button>
 
-                <div className="mb-8">
-                    <Shield className="w-12 h-12 text-black mb-4" />
-                    <h1 className="text-3xl font-bold mb-2">Privacy Policy</h1>
-                    <p className="text-gray-500">Last updated: December 25, 2024</p>
+                <div className="mb-12 border-b border-white/10 pb-8">
+                    <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-6 border border-white/10">
+                        <Shield className="w-8 h-8 text-white" />
+                    </div>
+                    <h1 className="text-4xl font-bold mb-3 tracking-tight">Privacy Policy</h1>
+                    <p className="text-gray-400 text-lg">Your data privacy is our top priority. Last updated: Dec 2024</p>
                 </div>
 
-                <div className="space-y-8">
+                <div className="space-y-12">
                     <section>
-                        <div className="flex items-center gap-2 mb-3">
-                            <Lock className="w-5 h-5 text-gray-700" />
-                            <h2 className="text-xl font-semibold">Data Protection</h2>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-blue-500/10 rounded-lg">
+                                <Lock className="w-5 h-5 text-blue-400" />
+                            </div>
+                            <h2 className="text-xl font-bold text-white">Data Protection</h2>
                         </div>
-                        <p className="text-gray-600 leading-relaxed">
-                            We take the security of your data seriously. All uploaded documents and generated content are processed securely and are not shared with third parties without your explicit consent. Files are automatically encrypted at rest.
+                        <p className="text-gray-400 leading-relaxed text-lg">
+                            We use industry-standard encryption protocols to protect your data both in transit and at rest.
+                            Your documents are processed in secure, ephemeral environments and are never used to train global AI models without your explicit consent.
                         </p>
                     </section>
 
                     <section>
-                        <div className="flex items-center gap-2 mb-3">
-                            <Eye className="w-5 h-5 text-gray-700" />
-                            <h2 className="text-xl font-semibold">Data Usage</h2>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-purple-500/10 rounded-lg">
+                                <Eye className="w-5 h-5 text-purple-400" />
+                            </div>
+                            <h2 className="text-xl font-bold text-white">Data Usage</h2>
                         </div>
-                        <p className="text-gray-600 leading-relaxed">
-                            We collect minimal data necessary to provide our services, such as:
+                        <p className="text-gray-400 leading-relaxed text-lg mb-4">
+                            We only collect the absolute minimum data required to provide our services:
                         </p>
-                        <ul className="list-disc pl-5 mt-2 space-y-1 text-gray-600">
-                            <li>Document contents (for OCR processing)</li>
-                            <li>Generated quiz history</li>
-                            <li>User preferences and settings</li>
-                        </ul>
+                        <div className="grid sm:grid-cols-3 gap-4">
+                            {['Document Contents', 'Processing Logs', 'User Settings'].map((item) => (
+                                <div key={item} className="p-4 bg-[#111] border border-white/10 rounded-xl text-center text-sm text-gray-300">
+                                    {item}
+                                </div>
+                            ))}
+                        </div>
                     </section>
 
                     <section>
-                        <div className="flex items-center gap-2 mb-3">
-                            <FileText className="w-5 h-5 text-gray-700" />
-                            <h2 className="text-xl font-semibold">Your Rights</h2>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-green-500/10 rounded-lg">
+                                <FileText className="w-5 h-5 text-green-400" />
+                            </div>
+                            <h2 className="text-xl font-bold text-white">Your Rights</h2>
                         </div>
-                        <p className="text-gray-600 leading-relaxed">
-                            You retain full ownership of your data. You may request the deletion of your account and all associated data at any time through the settings menu or by contacting support.
+                        <p className="text-gray-400 leading-relaxed text-lg">
+                            You retain 100% ownership of your data. You can request a full data export or permanent deletion of your account at any time via the profile settings.
                         </p>
                     </section>
 
-                    <section className="bg-gray-50 p-6 rounded-xl border border-gray-100 mt-8">
-                        <h3 className="font-semibold mb-2">Contact Us</h3>
-                        <p className="text-gray-600 text-sm">
-                            If you have any questions about this Privacy Policy, please contact us at: <br />
-                            <span className="text-black font-medium">ocrwtf@gmail.com</span>
+                    <section className="bg-[#111] p-8 rounded-2xl border border-white/10 mt-12 text-center">
+                        <h3 className="font-bold text-xl mb-2 text-white">Questions?</h3>
+                        <p className="text-gray-400 mb-6">
+                            Our Data Protection Officer is available to answer your concerns.
                         </p>
+                        <a href="mailto:ocrwtf@gmail.com" className="inline-block px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-colors">
+                            Contact DPO
+                        </a>
                     </section>
                 </div>
             </motion.div>

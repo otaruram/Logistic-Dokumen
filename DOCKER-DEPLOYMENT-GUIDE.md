@@ -36,13 +36,13 @@ JWT_SECRET=your_random_secret_minimum_32_characters
 ### 3. Build and Run
 ```bash
 # Build Docker image
-docker-compose build
+docker compose build
 
 # Start services
-docker-compose up -d
+docker compose up -d
 
 # Check logs
-docker-compose logs -f backend
+docker compose logs -f backend
 ```
 
 ### 4. Test API

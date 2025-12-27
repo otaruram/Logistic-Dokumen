@@ -16,7 +16,7 @@ const Index = () => {
     // 1. Fungsi untuk menangani hasil auth
     const handleAuth = (session: any) => {
       if (!mounted) return;
-      
+
       if (session) {
         console.log("✅ Login Berhasil:", session.user.email);
         setCurrentView("app");
@@ -25,7 +25,7 @@ const Index = () => {
         setCurrentView("landing");
         // Bersihkan URL yang kotor (penuh token) jika login gagal
         if (window.location.hash) {
-           window.history.replaceState(null, '', window.location.pathname);
+          window.history.replaceState(null, '', window.location.pathname);
         }
       }
       setLoading(false);
@@ -49,7 +49,7 @@ const Index = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Memuat...</p>

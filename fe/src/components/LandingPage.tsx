@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Scan, FileText, Cloud, Zap, Shield, Download, Star } from "lucide-react";
+import { Scan, Zap, Shield, Cloud, Check, ArrowRight, Brain, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -15,375 +15,215 @@ interface Review {
   user_name: string;
   rating: number;
   feedback: string;
-  created_at: string;
 }
 
 const LandingPage = ({ onLogin }: LandingPageProps) => {
-  const [typedText, setTypedText] = useState("");
-  const fullText = "Document Intelligence\nMade Simple";
-  const [typedSubtitle, setTypedSubtitle] = useState("");
-  const fullSubtitle = "AI-powered OCR, automated invoicing, and seamless cloud integration. Built for professionals who value simplicity and security.";
-  const [showSubtitle, setShowSubtitle] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
 
-  // Fetch reviews
   useEffect(() => {
-    const fetchReviews = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/reviews/recent`);
-        if (response.ok) {
-          const data = await response.json();
-          setReviews(data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch reviews:", error);
-      }
-    };
-    fetchReviews();
+    // Only fetch if needed, fail gracefully
+    fetch(`${API_BASE_URL}/api/reviews/recent`)
+      .then(res => res.json())
+      .then(data => setReviews(data))
+      .catch(() => setReviews([]));
   }, []);
-
-  useEffect(() => {
-    if (typedText.length < fullText.length) {
-      const timeout = setTimeout(() => {
-        setTypedText(fullText.slice(0, typedText.length + 1));
-      }, 80);
-      return () => clearTimeout(timeout);
-    } else if (!showSubtitle) {
-      setTimeout(() => setShowSubtitle(true), 200);
-    }
-  }, [typedText, showSubtitle]);
-
-  useEffect(() => {
-    if (showSubtitle && typedSubtitle.length < fullSubtitle.length) {
-      const timeout = setTimeout(() => {
-        setTypedSubtitle(fullSubtitle.slice(0, typedSubtitle.length + 1));
-      }, 20);
-      return () => clearTimeout(timeout);
-    }
-  }, [typedSubtitle, showSubtitle]);
 
   const features = [
     {
-      icon: <Scan className="w-8 h-8" />,
-      title: "OCR Technology",
-      description: "Powered by Tesseract & OpenAI for accurate text extraction from any document"
+      icon: <Brain className="w-6 h-6" />,
+      title: "AI Precision",
+      desc: "Powered by advanced LLMs (OpenAI & Groq) to correct typos and format text perfectly."
     },
     {
-      icon: <FileText className="w-8 h-8" />,
-      title: "Invoice Generator",
-      description: "Create professional invoices with 10 customizable templates"
-    },
-    {
-      icon: <Cloud className="w-8 h-8" />,
-      title: "Cloud Storage",
-      description: "Secure file storage with Google Drive integration for easy sharing"
-    },
-    {
-      icon: <Download className="w-8 h-8" />,
-      title: "Export Anywhere",
-      description: "Export to Excel, download, or share with auto-formatted data"
-    },
-    {
-      icon: <Shield className="w-8 h-8" />,
-      title: "Digital Signature",
-      description: "Sign documents digitally with canvas signature capture"
-    },
-    {
-      icon: <Zap className="w-8 h-8" />,
+      icon: <Zap className="w-6 h-6" />,
       title: "Lightning Fast",
-      description: "Process documents in seconds with serverless architecture"
+      desc: "Optimized Tesseract engine + Groq fallback ensures results in seconds."
+    },
+    {
+      icon: <Cloud className="w-6 h-6" />,
+      title: "Google Drive Sync",
+      desc: "Automatically save every scan to your personal Google Drive."
+    },
+    {
+      icon: <Lock className="w-6 h-6" />,
+      title: "Secure & Private",
+      desc: "Your data is yours. We process it and forget it. Zero retention."
     }
   ];
 
   return (
-    <div className="min-h-screen bg-white text-black">
-      {/* Hero Section */}
-      <div className="container mx-auto px-4 py-12 sm:py-16 lg:py-20">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="text-center space-y-8 max-w-5xl mx-auto"
-        >
-          {/* Logo/Brand */}
-          <motion.div
-            initial={{ scale: 0.9 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.5 }}
-            className="inline-block"
-          >
-            <div className="flex items-center justify-center gap-4 mb-8">
-              <div className="bg-black p-4 rounded-xl">
-                <Scan className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
-              </div>
-              <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight mb-4 text-slate-900 dark:text-white">
-                ocr.wtf
-              </h1>
-            </div>
-          </motion.div>
+    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-white selection:text-black font-sans overflow-x-hidden">
 
-          {/* Hero Text with Typing Animation */}
-          <div className="space-y-6">
-            <div className="min-h-[180px] sm:min-h-[200px] lg:min-h-[240px] flex items-center justify-center">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-black leading-tight">
-                {typedText.split('\n').map((line, i) => (
-                  <span key={i}>
-                    {i === 0 ? line : <span className="text-gray-600">{line}</span>}
-                    {i === 0 && <br />}
-                  </span>
-                ))}
-                <motion.span
-                  animate={{ opacity: [1, 0] }}
-                  transition={{ duration: 0.8, repeat: Infinity }}
-                  className="inline-block w-1 h-12 sm:h-14 lg:h-16 bg-black ml-1 align-middle"
-                />
-              </h2>
-            </div>
-
-            {/* Subtitle with Typing */}
-            {showSubtitle && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}
-                className="min-h-[100px] sm:min-h-[80px] flex items-center justify-center"
-              >
-                <p className="text-lg sm:text-xl lg:text-2xl text-gray-700 max-w-3xl mx-auto font-light">
-                  {typedSubtitle}
-                  {typedSubtitle.length < fullSubtitle.length && (
-                    <motion.span
-                      animate={{ opacity: [1, 0] }}
-                      transition={{ duration: 0.6, repeat: Infinity }}
-                      className="inline-block w-0.5 h-5 sm:h-6 bg-gray-700 ml-0.5 align-middle"
-                    />
-                  )}
-                </p>
-              </motion.div>
-            )}
-          </div>
-
-          {/* CTA Button */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8, duration: 0.6 }}
-            className="pt-8"
-          >
-            <Button
-              size="lg"
-              onClick={onLogin}
-              className="text-lg px-12 py-7 bg-black text-white hover:bg-gray-800 transition-all duration-300 rounded-full font-medium"
-            >
-              Start
-            </Button>
-          </motion.div>
-
-          {/* Trusted By Section with Blob Animation */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1, duration: 0.8 }}
-            className="mt-16 w-full overflow-hidden"
-          >
-            <div className="relative py-8">
-              {/* Animated Blob Background */}
-              <motion.div
-                animate={{
-                  x: ["-100%", "100%"],
-                }}
-                transition={{
-                  duration: 30,
-                  repeat: Infinity,
-                  ease: "linear",
-                }}
-                className="absolute inset-0 flex items-center gap-16 whitespace-nowrap"
-                style={{ width: "200%" }}
-              >
-                {[...Array(2)].map((_, groupIndex) => (
-                  <div key={groupIndex} className="flex items-center gap-16">
-                    {[
-                      "Trusted by Students",
-                      "Trusted by Admins",
-                      "Trusted by Pak Ujang",
-                      "Trusted by Pak Asep",
-                      "Trusted by Developers",
-                      "Trusted by Managers",
-                      "Trusted by Bu Siti",
-                      "Trusted by Professionals",
-                      "Trusted by Startups",
-                      "Trusted by Enterprises",
-                    ].map((text, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-3 px-6 py-3 bg-gray-100 rounded-full border border-gray-200"
-                      >
-                        <div className="w-2 h-2 bg-black rounded-full" />
-                        <span className="text-sm font-medium text-gray-800">
-                          {text}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </motion.div>
-            </div>
-          </motion.div>
-
-          {/* Trust Indicators */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.2, duration: 0.8 }}
-            className="flex flex-wrap justify-center gap-8 pt-12 text-sm text-gray-600 border-t border-gray-200 mt-12"
-          >
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              <span>Enterprise Security</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4" />
-              <span>Instant Processing</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Cloud className="w-4 h-4" />
-              <span>Cloud Integrated</span>
-            </div>
-          </motion.div>
-        </motion.div>
+      {/* Background Gradients */}
+      <div className="fixed inset-0 z-0 opacity-20 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-900/30 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-900/30 blur-[120px] rounded-full" />
       </div>
 
-      {/* Features Section */}
-      <div className="bg-gray-50 py-12 sm:py-16">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-10"
+      {/* Navbar */}
+      <nav className="relative z-50 border-b border-white/10 bg-[#0a0a0a]/80 backdrop-blur-md">
+        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Scan className="w-6 h-6" />
+            <span className="font-bold text-xl tracking-tighter">ocr.wtf</span>
+          </div>
+          <Button
+            variant="outline"
+            className="border-white/20 text-black hover:bg-white hover:text-black transition-colors rounded-full px-6"
+            onClick={onLogin}
           >
-            <h3 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 text-black">
-              Everything You Need
-            </h3>
-            <p className="text-gray-600 text-lg sm:text-xl max-w-2xl mx-auto">
-              Professional document management tools designed for modern workflows
-            </p>
-          </motion.div>
+            Sign In
+          </Button>
+        </div>
+      </nav>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-            {features.map((feature, index) => (
+      {/* Hero Section */}
+      <section className="relative z-10 pt-24 pb-32 px-6">
+        <div className="container mx-auto max-w-5xl text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          >
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-sm text-gray-400 mb-8">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span>v2.0 Now Available</span>
+            </div>
+
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter mb-8 leading-[1.1]">
+              Document Intelligence <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">
+                Reimagined.
+              </span>
+            </h1>
+
+            <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-12 leading-relaxed">
+              Transform physical documents into actionable digital data instantly.
+              Powered by state-of-the-art AI for unmatched accuracy.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button
+                size="lg"
+                onClick={onLogin}
+                className="w-full sm:w-auto h-14 px-8 text-lg bg-white text-black hover:bg-gray-200 rounded-full font-medium"
+              >
+                Start Scanning <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={onLogin} // Redirect to login for demo too for now
+                className="w-full sm:w-auto h-14 px-8 text-lg border-white/20 hover:bg-white/10 text-white rounded-full bg-transparent"
+              >
+                View Demo
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* UI Showcase / Tilt Card */}
+      <section className="relative z-10 pb-32 px-6 overflow-hidden">
+        <div className="container mx-auto max-w-6xl">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, rotateX: 20 }}
+            whileInView={{ opacity: 1, scale: 1, rotateX: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 1 }}
+            className="rounded-xl border border-white/10 bg-[#0a0a0a] shadow-2xl shadow-blue-900/20 overflow-hidden relative"
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+            <div className="p-8 md:p-12 grid md:grid-cols-2 gap-12 items-center">
+              <div className="space-y-6">
+                <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
+                  <Zap className="w-6 h-6" />
+                </div>
+                <h3 className="text-3xl font-bold">Smart Extraction</h3>
+                <div className="space-y-4">
+                  {[
+                    "Auto-detects document boundaries",
+                    "Corrects OCR errors with GPT-4o",
+                    "Formats unstructured data into JSON",
+                    "Syncs directly to your workspace"
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-3 text-gray-400">
+                      <Check className="w-5 h-5 text-blue-500" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Mock UI */}
+              <div className="rounded-lg border border-white/10 bg-black/50 p-4 aspect-video relative group">
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
+                <div className="flex items-center gap-2 mb-4 border-b border-white/10 pb-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500/50" />
+                  <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
+                  <div className="w-3 h-3 rounded-full bg-green-500/50" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-2 w-3/4 bg-white/10 rounded animate-pulse" />
+                  <div className="h-2 w-1/2 bg-white/10 rounded animate-pulse delay-75" />
+                  <div className="h-2 w-5/6 bg-white/10 rounded animate-pulse delay-150" />
+                </div>
+                <div className="absolute bottom-4 right-4 bg-blue-600/20 text-blue-400 text-xs px-2 py-1 rounded border border-blue-500/30">
+                  Processing: 98%
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Features Grid */}
+      <section className="relative z-10 py-32 bg-white/[0.02] border-t border-white/5">
+        <div className="container mx-auto px-6 max-w-6xl">
+          <div className="text-center mb-20">
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">Built for Modern Teams</h2>
+            <p className="text-gray-400 max-w-2xl mx-auto">
+              Stop wasting hours on manual data entry. Let AI handle the heavy lifting.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {features.map((f, i) => (
               <motion.div
-                key={index}
+                key={i}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.1, duration: 0.5 }}
+                transition={{ delay: i * 0.1 }}
               >
-                <Card className="p-8 hover:shadow-xl transition-all duration-300 border-2 border-gray-200 hover:border-black h-full bg-white">
-                  <div className="inline-flex p-4 rounded-xl bg-black text-white mb-6">
-                    {feature.icon}
+                <Card className="h-full bg-[#111] border-white/10 hover:border-white/20 transition-colors p-6">
+                  <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-6 text-white">
+                    {f.icon}
                   </div>
-                  <h4 className="text-xl font-bold mb-3 text-black">{feature.title}</h4>
-                  <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                  <h3 className="text-xl font-bold mb-3">{f.title}</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed">
+                    {f.desc}
+                  </p>
                 </Card>
               </motion.div>
             ))}
           </div>
         </div>
-      </div>
-
-      {/* Reviews Section */}
-      {reviews.length > 0 && (
-        <div className="bg-white py-12 sm:py-16 border-t border-gray-200">
-          <div className="container mx-auto px-4">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="text-center mb-10"
-            >
-              <h3 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 text-black">
-                What Users Say
-              </h3>
-              <p className="text-gray-600 text-lg sm:text-xl max-w-2xl mx-auto">
-                Real feedback from professionals using ocr.wtf
-              </p>
-            </motion.div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-              {reviews.slice(0, 6).map((review, index) => (
-                <motion.div
-                  key={review.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1, duration: 0.5 }}
-                >
-                  <Card className="p-6 hover:shadow-xl transition-all duration-300 border-2 border-gray-200 h-full bg-white">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center font-bold">
-                        {review.user_name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-black">{review.user_name}</p>
-                        <div className="flex gap-0.5">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-4 h-4 ${i < review.rating
-                                ? "text-yellow-500 fill-yellow-500"
-                                : "text-gray-300"
-                                }`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    {review.feedback && (
-                      <p className="text-gray-600 text-sm leading-relaxed">
-                        "{review.feedback}"
-                      </p>
-                    )}
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CTA Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="container mx-auto px-4 py-12 sm:py-16"
-      >
-        <Card className="bg-black text-white p-8 sm:p-10 lg:p-12 text-center border-none">
-          <h3 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6">
-            Ready to Get Started?
-          </h3>
-          <p className="text-lg sm:text-xl text-gray-300 mb-6 max-w-2xl mx-auto">
-            Join professionals who trust ocr.wtf for their document management needs
-          </p>
-          <Button
-            size="lg"
-            onClick={onLogin}
-            className="bg-white text-black hover:bg-gray-100 text-lg px-12 py-7 rounded-full font-medium transition-all duration-300"
-          >
-            Start Now
-          </Button>
-        </Card>
-      </motion.div>
+      </section>
 
       {/* Footer */}
-      <div className="border-t border-gray-200 py-8">
-        <div className="container mx-auto px-4 text-center text-gray-600 text-sm">
-          <p>© 2025 ocr.wtf. Built for professionals.</p>
+      <footer className="relative z-10 py-12 border-t border-white/10 bg-[#050505]">
+        <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-2">
+            <Scan className="w-5 h-5 text-gray-400" />
+            <span className="font-bold text-gray-400 text-sm">ocr.wtf &copy; 2025</span>
+          </div>
+          <div className="flex gap-6 mt-4 md:mt-0">
+            <a href="#" className="text-gray-400 hover:text-white transition-colors">GitHub</a>
+            <a href="#" className="text-gray-400 hover:text-white transition-colors">Discord</a>
+          </div>
         </div>
-      </div>
+      </footer>
+
     </div>
   );
 };
