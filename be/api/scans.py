@@ -348,6 +348,13 @@ async def save_scan_with_signature(
     print(f"📝 SAVE Request - Recipient: {recipient_name}")
     print(f"📝 SAVE Request - Signature: {signature_url}")
     
+    # Check credits FIRST
+    if current_user.credits < SCAN_COST:
+        raise HTTPException(
+            status_code=402,
+            detail=f"Insufficient credits. Required: {SCAN_COST}, Available: {current_user.credits}"
+        )
+    
     try:
         content = await file.read()
         
@@ -389,6 +396,21 @@ async def save_scan_with_signature(
             db.commit()
             db.refresh(new_scan)
             
+            # Deduct credits (1 credit for DGTNZ scan)
+            current_user.credits -= SCAN_COST
+            
+            # Log credit usage
+            credit_log = CreditHistory(
+                user_id=current_user.id,
+                amount=-SCAN_COST,
+                action='scan',
+                reference_id=new_scan.id
+            )
+            db.add(credit_log)
+            db.commit()
+            
+            print(f"✅ Scan saved. User {current_user.id} credits: {current_user.credits}")
+            
             return {
                 "id": new_scan.id,
                 "file_path": image_url,
@@ -396,7 +418,8 @@ async def save_scan_with_signature(
                 "extracted_text": extracted,
                 "recipient_name": recipient_name,
                 "signature_url": signature_url,
-                "status": "completed"
+                "status": "completed",
+                "credits_remaining": current_user.credits
             }
         finally:
             try:
@@ -404,6 +427,8 @@ async def save_scan_with_signature(
             except:
                 pass
                 
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"❌ Save scan error: {str(e)}")
         print(traceback.format_exc())
