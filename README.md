@@ -1,8 +1,7 @@
 # OCR.WTF (Omni Scan Suite)
 
-**Professional Document Intelligence Platform** Scan, digitize, and manage documents with AI-powered precision.
+**Professional Document Intelligence Platform** Scan, digitize, and manage documents with AI-powered precision
 
-![OCR.WTF Landing](../1.png)
 
 ## 🚀 Key Features
 
