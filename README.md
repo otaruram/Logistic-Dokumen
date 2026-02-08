@@ -1,9 +1,8 @@
 # OCR.WTF (Omni Scan Suite)
 
-**Professional Document Intelligence Platform**  
-Scan, digitize, and manage documents with AI-powered precision.
+**Professional Document Intelligence Platform** Scan, digitize, and manage documents with AI-powered precision.
 
-![OCR.WTF Landing](../screenshot.png)
+![OCR.WTF Landing](../1.png)
 
 ## 🚀 Key Features
 
@@ -23,63 +22,17 @@ The core engine of the platform.
 
 ## 🛠️ Tech Stack
 
-### Frontend
-- **React 18** (Vite)
-- **TypeScript**
-- **Shadcn/UI** + TailwindCSS
-- **Framer Motion**
-
-### Backend
-- **FastAPI** (Python)
-- **Supabase** (PostgreSQL + Auth)
-- **Tesseract OCR**
-- **OpenAI / Groq API**
+- **Frontend:** React 18 (Vite), TypeScript, Shadcn/UI, Framer Motion
+- **Backend:** FastAPI (Python), Supabase, Tesseract OCR
+- **AI Integration:** OpenAI & Groq API
 
 ---
 
-## 📦 Installation (Local)
+## 📚 Documentation & Setup Guide
 
-### Prerequisites
-- Node.js 18+
-- Python 3.10+
-- Tesseract OCR installed locally
+For comprehensive details on **System Architecture**, **Local Installation**, and **Deployment (Docker/VPS)**, please refer to the main documentation:
 
-### 1. Clone & Setup
-```bash
-git clone https://github.com/otaruram/Logistic-Dokumen.git
-cd Logistic-Dokumen
-```
-
-### 2. Backend Setup
-```bash
-cd be
-python -m venv venv
-# Windows
-.\venv\Scripts\activate
-# Linux/Mac
-source venv/bin/activate
-
-pip install -r requirements.txt
-cp .env.example .env 
-# Configure .env with your keys
-python main.py
-```
-
-### 3. Frontend Setup
-```bash
-cd fe
-npm install
-cp .env.example .env
-npm run dev
-```
-
----
-
-## 🐳 Docker / VPS Deployment
-
-Please refer to:
-- [**Deployment Guide**](VPS_DEPLOYMENT_GUIDE.md): For step-by-step VPS setup.
-- [**Docker Guide**](DOCKER-DEPLOYMENT-GUIDE.md): For containerized deployment.
+👉 **[READ FULL DOCUMENTATION (learning.md)](./learning.md)**
 
 ---
 
