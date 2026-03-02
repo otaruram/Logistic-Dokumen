@@ -1,0 +1,280 @@
+import { useState } from "react";
+import * as XLSX from "xlsx";
+import { FileDown, Cloud, Search, Trash2, CheckCircle2, XCircle, Clock, Pencil, ShieldAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { toast } from "sonner";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+
+interface ScanRecord {
+    id: number;
+    no: number;
+    tanggal: string;
+    namaPenerima: string;
+    keterangan: string;
+    fotoUrl: string;
+    tandaTangan: string;
+    status: "processing" | "verified" | "tampered" | "pending" | "approved" | "rejected";
+    isFraudScan?: boolean;
+    fraudFields?: {
+        nominal_total?: number | null;
+        nama_klien?: string | null;
+        nomor_surat_jalan?: string | null;
+        tanggal_jatuh_tempo?: string | null;
+        confidence?: string;
+    } | null;
+}
+
+interface ScanHistoryProps {
+    records: ScanRecord[];
+    onDelete: (id: number) => void;
+    onEdit: (record: ScanRecord) => void;
+    onExportGoogleDrive: () => void;
+}
+
+export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: ScanHistoryProps) => {
+    const [searchTerm, setSearchTerm] = useState("");
+    const [filterDate, setFilterDate] = useState("all");
+    const [filterMonth, setFilterMonth] = useState("all");
+    const [filterYear, setFilterYear] = useState("all");
+
+    const filteredRecords = records.filter(record => {
+        const matchesSearch = record.namaPenerima.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            record.keterangan.toLowerCase().includes(searchTerm.toLowerCase());
+
+        if (!matchesSearch) return false;
+
+        // Parse DD/MM/YYYY
+        const parts = record.tanggal.split('/');
+        if (parts.length === 3) {
+            const [d, m, y] = parts;
+            // Compare as integers to handle "01" vs "1"
+            if (filterDate !== "all" && parseInt(d) !== parseInt(filterDate)) return false;
+            if (filterMonth !== "all" && parseInt(m) !== parseInt(filterMonth)) return false;
+            if (filterYear !== "all" && y !== filterYear) return false;
+        }
+        return true;
+    });
+
+    const handleExportExcel = () => {
+        if (filteredRecords.length === 0) return;
+
+        const exportData = filteredRecords.map((r, i) => ({
+            No: i + 1,
+            Date: r.tanggal,
+            Recipient: r.namaPenerima,
+            Details: r.keterangan,
+            ImageLink: r.fotoUrl,
+            SignatureLink: r.tandaTangan,
+            Status: r.status.toUpperCase()
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Scans");
+        XLSX.writeFile(wb, `scans-${new Date().toISOString().split('T')[0]}.xlsx`);
+        toast.success("Excel exported successfully");
+    };
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'verified':
+            case 'approved':
+                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-500/10 text-green-400 border border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]"><CheckCircle2 className="w-3 h-3" /> VERIFIED</span>;
+            case 'tampered':
+            case 'rejected':
+                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-500/10 text-red-500 border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.2)]"><XCircle className="w-3 h-3" /> TAMPERED</span>;
+            case 'processing':
+            case 'pending':
+            default:
+                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-500/10 text-yellow-500 border border-yellow-500/20"><Clock className="w-3 h-3 animate-pulse" /> PROCESSING</span>;
+        }
+    };
+
+    return (
+        <Card className="border-white/10 bg-[#0a0a0a] text-white">
+            <div className="p-6 border-b border-white/10 flex flex-col sm:flex-row justify-between gap-4">
+                <div>
+                    <h3 className="font-semibold text-lg">Scan History</h3>
+                    <p className="text-sm text-gray-500">Track and manage your digitized documents</p>
+                </div>
+
+                <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!records.length} className="border-white/10 hover:bg-white/5 text-gray-300">
+                        <FileDown className="w-4 h-4 mr-2" /> Excel
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={onExportGoogleDrive} disabled={!records.length} className="border-white/10 hover:bg-white/5 text-gray-300">
+                        <Cloud className="w-4 h-4 mr-2" /> Drive
+                    </Button>
+                </div>
+            </div>
+
+            <div className="p-4 border-b border-white/10 bg-white/[0.02] flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                    <Input
+                        placeholder="Search recipient or content..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9 bg-[#111] border-white/10 text-white placeholder:text-gray-600 focus:border-white/30 h-10"
+                    />
+                </div>
+
+                <div className="flex gap-2">
+                    {/* Date 1-31 */}
+                    <Select value={filterDate} onValueChange={setFilterDate}>
+                        <SelectTrigger className="w-[70px] bg-[#111] border-white/10 text-white h-10">
+                            <SelectValue placeholder="Tgl" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111] border-white/10 text-white">
+                            <SelectItem value="all">All</SelectItem>
+                            {Array.from({ length: 31 }, (_, i) => (
+                                <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Month Jan-Dec */}
+                    <Select value={filterMonth} onValueChange={setFilterMonth}>
+                        <SelectTrigger className="w-[100px] bg-[#111] border-white/10 text-white h-10">
+                            <SelectValue placeholder="Bulan" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111] border-white/10 text-white">
+                            <SelectItem value="all">All</SelectItem>
+                            {["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"].map((m, i) => (
+                                <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Year 2025-2040 */}
+                    <Select value={filterYear} onValueChange={setFilterYear}>
+                        <SelectTrigger className="w-[90px] bg-[#111] border-white/10 text-white h-10">
+                            <SelectValue placeholder="Thn" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111] border-white/10 text-white">
+                            <SelectItem value="all">All</SelectItem>
+                            {Array.from({ length: 16 }, (_, i) => (
+                                <SelectItem key={i} value={String(2025 + i)}>{2025 + i}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+
+            <div className="overflow-x-auto">
+                <Table>
+                    <TableHeader className="bg-white/[0.02]">
+                        <TableRow className="border-white/10 hover:bg-white/5">
+                            <TableHead className="w-[50px] text-gray-400">No</TableHead>
+                            <TableHead className="text-gray-400">Date</TableHead>
+                            <TableHead className="text-gray-400">Recipient</TableHead>
+                            <TableHead className="text-gray-400 w-[100px]">Photo</TableHead>
+                            <TableHead className="text-gray-400 w-[100px]">Signature</TableHead>
+                            <TableHead className="text-gray-400 w-[30%]">Content</TableHead>
+                            <TableHead className="text-gray-400">Status</TableHead>
+                            <TableHead className="text-right text-gray-400">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredRecords.length > 0 ? (
+                            filteredRecords.map((record, idx) => (
+                                <TableRow key={record.id} className="border-white/5 hover:bg-white/[0.02]">
+                                    <TableCell className="text-gray-500">{idx + 1}</TableCell>
+                                    <TableCell className="font-mono text-sm text-gray-400">{record.tanggal}</TableCell>
+                                    <TableCell className="font-medium text-white">
+                                        <div className="flex items-center gap-2">
+                                            {record.namaPenerima}
+                                            {record.isFraudScan && (
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-500/20 border border-red-500/40 text-red-400 text-[10px] font-bold flex-shrink-0">
+                                                    <ShieldAlert className="w-2.5 h-2.5" />FRAUD
+                                                </span>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        {record.fotoUrl ? (
+                                            <a href={record.fotoUrl} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-all">
+                                                <img src={record.fotoUrl} alt="Scan" className="w-full h-full object-cover" />
+                                            </a>
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Img</div>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>
+                                        {record.tandaTangan ? (
+                                            <a href={record.tandaTangan} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-all bg-white">
+                                                <img src={record.tandaTangan} alt="Sig" className="w-full h-full object-contain p-1" />
+                                            </a>
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Sig</div>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-gray-400 text-sm max-w-xs" title={record.keterangan}>
+                                        <div className="space-y-1">
+                                            <p className="truncate">{record.keterangan}</p>
+                                            {record.isFraudScan && record.fraudFields && (
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                    {record.fraudFields.nominal_total && (
+                                                        <span className="text-[10px] bg-white/5 text-gray-300 px-1.5 py-0.5 rounded">
+                                                            Rp {record.fraudFields.nominal_total.toLocaleString('id-ID')}
+                                                        </span>
+                                                    )}
+                                                    {record.fraudFields.nama_klien && (
+                                                        <span className="text-[10px] bg-white/5 text-gray-300 px-1.5 py-0.5 rounded truncate max-w-[120px]">
+                                                            {record.fraudFields.nama_klien}
+                                                        </span>
+                                                    )}
+                                                    {record.fraudFields.confidence && (
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${record.fraudFields.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
+                                                                record.fraudFields.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                    'bg-gray-500/20 text-gray-400'
+                                                            }`}>
+                                                            {record.fraudFields.confidence}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{getStatusBadge(record.status)}</TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <button onClick={() => onEdit(record)} className="p-2 hover:bg-yellow-500/20 rounded-full transition-colors" title="Edit">
+                                                <Pencil className="w-4 h-4 text-yellow-500" />
+                                            </button>
+                                            <button onClick={() => onDelete(record.id)} className="p-2 hover:bg-red-900/20 rounded-full transition-colors" title="Delete">
+                                                <Trash2 className="w-4 h-4 text-red-400" />
+                                            </button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={8} className="h-32 text-center text-gray-500">
+                                    No records found.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+        </Card>
+    );
+};
