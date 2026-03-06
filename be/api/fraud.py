@@ -77,6 +77,38 @@ async def get_fraud_scan_history(
         )
 
 
+@router.delete("/fraud/{fraud_id}")
+async def delete_fraud_scan(
+    fraud_id: str,
+    current_user: User = Depends(get_current_active_user),
+):
+    """Delete a fraud scan record from Supabase fraud_scans table."""
+    supabase_admin = get_supabase_admin()
+    if not supabase_admin:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    try:
+        # Delete from fraud_scans (verify user ownership)
+        result = (
+            supabase_admin.table("fraud_scans")
+            .delete()
+            .eq("id", fraud_id)
+            .eq("user_id", str(current_user.id))
+            .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Fraud record not found")
+
+        print(f"🗑️ Deleted fraud scan {fraud_id} for user {current_user.id}")
+        return {"message": "Fraud record deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error deleting fraud scan: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete fraud record: {str(e)}")
+
+
 @router.get("/debug-fraud")
 async def debug_fraud_status(
     current_user: User = Depends(get_current_active_user),

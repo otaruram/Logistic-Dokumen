@@ -18,7 +18,7 @@ type ScanMode = "default" | "fraud";
 
 // Interfaces
 interface ScanRecord {
-  id: number;
+  id: number | string;
   no: number;
   tanggal: string;
   namaPenerima: string;
@@ -295,20 +295,30 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
     return handleDefaultProcess();
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number | string) => {
     try {
       const { supabase } = await import("@/lib/supabaseClient");
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       if (!token) { toast.error("Please login first"); return; }
 
-      const res = await fetch(`${API_BASE_URL}/api/scans/${id}`, {
+      // Fraud records have UUID (string) IDs, default records have integer IDs
+      const isFraud = typeof id === "string" && id.includes("-");
+      const endpoint = isFraud
+        ? `${API_BASE_URL}/api/scans/fraud/${id}`
+        : `${API_BASE_URL}/api/scans/${id}`;
+
+      const res = await fetch(endpoint, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Delete failed");
 
-      setRecords(records.filter(r => r.id !== id));
+      if (isFraud) {
+        setFraudRecords(prev => prev.filter(r => r.id !== id));
+      } else {
+        setRecords(prev => prev.filter(r => r.id !== id));
+      }
       toast.success("Record deleted successfully");
       window.dispatchEvent(new Event('scan-completed'));
     } catch (e) {
@@ -528,8 +538,8 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
         <button
           onClick={() => setHistoryTab("default")}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${historyTab === "default"
-              ? "bg-white text-black shadow"
-              : "text-gray-400 hover:text-white"
+            ? "bg-white text-black shadow"
+            : "text-gray-400 hover:text-white"
             }`}
         >
           <FileCheck className="w-4 h-4" />
@@ -542,8 +552,8 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
         <button
           onClick={() => setHistoryTab("fraud")}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${historyTab === "fraud"
-              ? "bg-red-500 text-white shadow"
-              : "text-gray-400 hover:text-white"
+            ? "bg-red-500 text-white shadow"
+            : "text-gray-400 hover:text-white"
             }`}
         >
           <ShieldAlert className="w-4 h-4" />
