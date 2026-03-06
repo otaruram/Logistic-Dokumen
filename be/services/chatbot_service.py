@@ -12,7 +12,7 @@ class ChatbotService:
             raise ValueError("SUMOPOD_API_KEY environment variable not set.")
 
         self.client = AsyncOpenAI(
-            base_url="https://api.sumopod.com/v1",
+            base_url=os.getenv("OPENAI_BASE_URL", "https://ai.sumopod.com/v1"),
             api_key=self.api_key,
         )
 
