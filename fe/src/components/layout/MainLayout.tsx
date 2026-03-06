@@ -4,6 +4,7 @@ import DashboardTab from "../tabs/DashboardTab";
 import DgtnzTab from "../tabs/DgtnzTab";
 import OptionsTab from "../tabs/OptionsTab";
 import ProfileTab from "../tabs/ProfileTab";
+import OtaruChatPage from "@/pages/OtaruChatPage";
 import BottomNavigation from "../ui/bottom-navigation";
 import { useTabNavigation } from "@/hooks/use-tab-navigation";
 
@@ -22,6 +23,8 @@ const MainLayout = () => {
         return <DashboardTab />;
       case "dgtnz":
         return <DgtnzTab onBack={() => setActiveTab("dashboard")} />;
+      case "otaru":
+        return <OtaruChatPage />;
       case "options":
         return <OptionsTab />;
       case "profile":
