@@ -1,7 +1,7 @@
 import os
 from openai import AsyncOpenAI
 from sqlalchemy.orm import Session
-from models.models import User, Profile
+from models.models import User
 
 class ChatbotService:
     def __init__(self, db: Session, user: User):
@@ -16,15 +16,8 @@ class ChatbotService:
             api_key=self.api_key,
         )
 
-    def _get_user_profile(self):
-        """Retrieves the user's profile to build the system prompt."""
-        profile = self.db.query(Profile).filter(Profile.id == self.user.id).first()
-        return profile
-
     def _construct_system_prompt(self):
         """Constructs the persona-driven system prompt for Otaru."""
-        profile = self._get_user_profile()
-        
         prompt = """
         You are "Otaru", an expert logistics and financial document analyst. 
         Your persona is sharp, professional, and insightful.
@@ -35,8 +28,8 @@ class ChatbotService:
         4.  Explain how the document might affect the user's 'logistics trust score' if relevant.
         5.  Always be helpful and clear in your analysis.
         """
-        if profile and profile.full_name:
-            prompt += f"\nYou are assisting {profile.full_name}."
+        if self.user and hasattr(self.user, 'username') and self.user.username:
+            prompt += f"\nYou are assisting {self.user.username}."
 
         return prompt
 
