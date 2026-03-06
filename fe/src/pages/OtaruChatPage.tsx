@@ -3,6 +3,8 @@ import { Paperclip, Send, Sparkles, Clock, X, Plus, MessageSquare, FileText, Ima
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 // Mock chat history data
 const chatHistory = [
   { time: 'Today', chats: [{ id: 1, thread: 'Analysis of Invoice #123' }] },
@@ -93,8 +95,16 @@ const OtaruChatPage = () => {
     setMessages((prev) => [...prev, { text: '', sender: 'bot', isThinking: true }]);
 
     try {
-      const response = await fetch('/api/chatbot/chat', {
+      // Get auth token from Supabase session
+      const { supabase } = await import('@/lib/supabaseClient');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const response = await fetch(`${API_URL}/api/chatbot/chat`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
         body: formData,
       });
 
