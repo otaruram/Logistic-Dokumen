@@ -295,9 +295,26 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
     return handleDefaultProcess();
   };
 
-  const handleDelete = (id: number) => {
-    setRecords(records.filter(r => r.id !== id));
-    toast.success("Record deleted");
+  const handleDelete = async (id: number) => {
+    try {
+      const { supabase } = await import("@/lib/supabaseClient");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) { toast.error("Please login first"); return; }
+
+      const res = await fetch(`${API_BASE_URL}/api/scans/${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Delete failed");
+
+      setRecords(records.filter(r => r.id !== id));
+      toast.success("Record deleted successfully");
+      window.dispatchEvent(new Event('scan-completed'));
+    } catch (e) {
+      console.error("Delete error:", e);
+      toast.error("Failed to delete record");
+    }
   };
 
   const handleEdit = (record: ScanRecord) => {
@@ -386,8 +403,8 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
         <button
           onClick={() => { setScanMode("default"); setHistoryTab("default"); }}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${!isFraudMode
-              ? "bg-white text-black shadow"
-              : "text-gray-400 hover:text-white"
+            ? "bg-white text-black shadow"
+            : "text-gray-400 hover:text-white"
             }`}
         >
           <FileCheck className="w-4 h-4" />
@@ -396,8 +413,8 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
         <button
           onClick={() => { setScanMode("fraud"); setHistoryTab("fraud"); }}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isFraudMode
-              ? "bg-red-500 text-white shadow"
-              : "text-gray-400 hover:text-white"
+            ? "bg-red-500 text-white shadow"
+            : "text-gray-400 hover:text-white"
             }`}
         >
           <ShieldAlert className="w-4 h-4" />
@@ -483,8 +500,8 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
               onClick={handleProcess}
               disabled={isProcessing || !uploadedImage || !recipientName || !signatureData}
               className={`w-full h-14 text-base font-bold rounded-xl shadow-lg disabled:opacity-50 transition-all ${isFraudMode
-                  ? "bg-red-600 hover:bg-red-500 text-white shadow-red-500/20"
-                  : "bg-white text-black hover:bg-gray-200 shadow-white/5"
+                ? "bg-red-600 hover:bg-red-500 text-white shadow-red-500/20"
+                : "bg-white text-black hover:bg-gray-200 shadow-white/5"
                 }`}
             >
               {isProcessing ? (
@@ -510,34 +527,30 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="flex gap-2 p-1 rounded-xl bg-white/5 border border-white/10 w-fit">
         <button
           onClick={() => setHistoryTab("default")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-            historyTab === "default"
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${historyTab === "default"
               ? "bg-white text-black shadow"
               : "text-gray-400 hover:text-white"
-          }`}
+            }`}
         >
           <FileCheck className="w-4 h-4" />
           DGTNZ Default
           {defaultRecords.length > 0 && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-              historyTab === "default" ? 'bg-black/10' : 'bg-white/10'
-            }`}>{defaultRecords.length}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${historyTab === "default" ? 'bg-black/10' : 'bg-white/10'
+              }`}>{defaultRecords.length}</span>
           )}
         </button>
         <button
           onClick={() => setHistoryTab("fraud")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-            historyTab === "fraud"
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${historyTab === "fraud"
               ? "bg-red-500 text-white shadow"
               : "text-gray-400 hover:text-white"
-          }`}
+            }`}
         >
           <ShieldAlert className="w-4 h-4" />
           Deteksi Fraud
           {fraudRecords.length > 0 && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-              historyTab === "fraud" ? 'bg-white/20' : 'bg-red-500/20 text-red-400'
-            }`}>{fraudRecords.length}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${historyTab === "fraud" ? 'bg-white/20' : 'bg-red-500/20 text-red-400'
+              }`}>{fraudRecords.length}</span>
           )}
         </button>
       </motion.div>

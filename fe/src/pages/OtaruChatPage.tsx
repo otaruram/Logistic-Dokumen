@@ -59,8 +59,8 @@ const TypingIndicator = () => (
 );
 
 const BotAvatar = () => (
-  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-    <Sparkles className="w-4 h-4 text-white" />
+  <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden shadow-lg shadow-blue-500/20">
+    <img src="/otaru-icon.png" alt="Otaru" className="w-full h-full object-cover" />
   </div>
 );
 

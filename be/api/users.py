@@ -46,60 +46,60 @@ async def get_user_credits(current_user: User = Depends(get_current_active_user)
 @router.delete("/delete-account")
 async def delete_account(
     db: Session = Depends(get_db),
-    user_auth = Depends(get_current_user) # Object User dari Supabase Auth (UUID)
+    user_auth = Depends(get_current_user)
 ):
-    """Delete user account and all related data"""
-    try:
-        # 1. Cari User di Database Lokal (Pakai Email karena ID-nya beda)
-        db_user = db.query(User).filter(User.email == user_auth.email).first()
-        
-        if not db_user:
-            raise HTTPException(status_code=404, detail="User data not found in local DB")
+    """Delete user account and ALL related data (local DB + Supabase)."""
+    from utils.auth import supabase_admin
 
-        # 2. Hapus Data Relasi di DB Lokal (Manual Cascade)
-        # Hapus semua scans milik user
-        db.query(Scan).filter(Scan.user_id == db_user.id).delete()
-        
-        # Hapus semua invoices milik user
-        db.query(Invoice).filter(Invoice.user_id == db_user.id).delete()
-        
-        # Hapus data lainnya jika ada (CreditHistory, Reviews, dll)
-        # db.query(CreditHistory).filter(CreditHistory.user_id == db_user.id).delete()
-        
-        # 3. Hapus User Lokal
-        db.delete(db_user)
-        db.commit()
-        
-        # 4. Hapus User di Supabase Auth (OPSIONAL - Butuh SERVICE_ROLE_KEY)
-        # Karena kita pakai ANON_KEY, user harus hapus sendiri dari frontend
-        # Frontend bisa panggil: supabase.auth.signOut() setelah delete account
-        # Atau setup SERVICE_ROLE_KEY di backend untuk force delete
-        
+    try:
+        user_id = str(user_auth.id)
+
+        # ── 1. Wipe Supabase tables (cloud data) ──
+        supabase_tables = [
+            "chat_messages",       # must go before chat_sessions (FK)
+            "chat_sessions",
+            "extracted_finance_data",
+            "fraud_scans",
+            "documents",
+            "imagekit_files",
+            "reviews",
+            "profiles",
+        ]
+
+        if supabase_admin:
+            for table in supabase_tables:
+                try:
+                    supabase_admin.table(table).delete().eq("user_id", user_id).execute()
+                    print(f"  🗑️ Cleared {table}")
+                except Exception as e:
+                    print(f"  ⚠️ Could not clear {table}: {e}")
+
+        # ── 2. Wipe local DB (SQLite/Postgres) ──
+        db_user = db.query(User).filter(User.email == user_auth.email).first()
+        if db_user:
+            db.query(Scan).filter(Scan.user_id == db_user.id).delete()
+            db.query(Invoice).filter(Invoice.user_id == db_user.id).delete()
+            db.delete(db_user)
+            db.commit()
+            print(f"  🗑️ Local DB cleared for {user_auth.email}")
+
+        # ── 3. Delete Supabase Auth user (needs SERVICE_ROLE_KEY) ──
         try:
-            # Coba hapus dari Supabase (akan gagal jika pakai ANON_KEY)
-            supabase.auth.admin.delete_user(user_auth.id)
-            print(f"✅ User {user_auth.email} deleted from Supabase Auth")
+            supabase_admin.auth.admin.delete_user(user_id)
+            print(f"✅ User {user_auth.email} fully deleted from Supabase Auth")
         except Exception as e:
-            print(f"⚠️ Supabase auth delete warning (Expected with ANON_KEY): {e}")
-            # Tidak masalah, data lokal sudah terhapus
-        
+            print(f"⚠️ Could not delete Supabase Auth user: {e}")
+
         return {
             "success": True,
             "message": "Account and all data deleted successfully"
         }
-        
+
     except HTTPException as he:
         raise he
     except Exception as e:
         db.rollback()
-        print(f"❌ Delete Account Error: {e}")
-        
-        return {
-            "success": True,
-            "message": "Account and all data deleted successfully"
-        }
-    except Exception as e:
-        db.rollback()
         print(f"❌ Delete account error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete account: {str(e)}")
+
 
