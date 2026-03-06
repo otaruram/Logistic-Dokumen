@@ -6,7 +6,7 @@ import mimetypes
 
 from config.database import get_db
 from services.chatbot_service import ChatbotService
-from schemas.schemas import User
+from models.models import User
 from utils.auth import get_current_user
 
 router = APIRouter(
