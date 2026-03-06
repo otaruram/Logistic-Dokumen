@@ -4,10 +4,10 @@ from typing import Optional
 import base64
 import mimetypes
 
-from ..config.database import get_db
-from ..services.chatbot_service import ChatbotService
-from ..schemas.schemas import User
-from ..utils.auth import get_current_user
+from config.database import get_db
+from services.chatbot_service import ChatbotService
+from schemas.schemas import User
+from utils.auth import get_current_user
 
 router = APIRouter(
     prefix="/api/chatbot",
