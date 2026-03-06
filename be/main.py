@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from config.settings import settings
-from api import auth, scans, fraud, exports, invoices, users, upload, config as config_api, reviews, dashboard, cleanup, chatbot
+from api import auth, scans, fraud, exports, invoices, users, upload, config as config_api, reviews, dashboard, cleanup, chatbot, chat_history
 from middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware, IPBlockingMiddleware
 
 # Database will be handled by Prisma
@@ -65,6 +65,7 @@ app.include_router(reviews.router, prefix="/api/reviews", tags=["Reviews"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(cleanup.router, prefix="/api/cleanup", tags=["Cleanup"])
 app.include_router(chatbot.router)
+app.include_router(chat_history.router)
 
 @app.get("/")
 async def root():
