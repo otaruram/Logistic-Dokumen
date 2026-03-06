@@ -1,5 +1,5 @@
 """
-Admin API — restricted to admin email (okitr52@gmail.com)
+Admin API — restricted to admin email (from ADMIN_EMAIL env var)
 Endpoints: user management, activity monitoring, token/ban/retention controls
 """
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from models.models import User, Scan
 from utils.auth import get_current_active_user
 from config.database import get_db
+from config.settings import settings
 from sqlalchemy.orm import Session
 
 router = APIRouter(
@@ -17,7 +18,7 @@ router = APIRouter(
     tags=["Admin"],
 )
 
-ADMIN_EMAIL = "okitr52@gmail.com"
+ADMIN_EMAIL = settings.ADMIN_EMAIL
 
 
 def require_admin(current_user: User = Depends(get_current_active_user)):
@@ -25,6 +26,25 @@ def require_admin(current_user: User = Depends(get_current_active_user)):
     if current_user.email != ADMIN_EMAIL:
         raise HTTPException(status_code=403, detail="Admin access only")
     return current_user
+
+
+def audit_log(admin_email: str, action: str, target_user_id: str = "", details: str = ""):
+    """Log admin actions for accountability."""
+    timestamp = datetime.utcnow().isoformat()
+    print(f"🔒 AUDIT [{timestamp}] admin={admin_email} action={action} target={target_user_id} details={details}")
+    # Also try to save to Supabase
+    try:
+        sb = get_supabase()
+        sb.table("admin_audit_logs").insert({
+            "admin_email": admin_email,
+            "action": action,
+            "target_user_id": target_user_id,
+            "details": details,
+            "created_at": timestamp,
+        }).execute()
+    except Exception:
+        pass  # Audit log table might not exist yet, that's OK
+
 
 
 def get_supabase():
@@ -229,7 +249,7 @@ async def update_user_credits(
 
     try:
         sb.table("profiles").update({"credits": body.credits}).eq("id", user_id).execute()
-        print(f"🔑 Admin set credits to {body.credits} for user {user_id}")
+        audit_log(admin.email, "SET_CREDITS", user_id, f"credits={body.credits}")
         return {"success": True, "credits": body.credits}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update credits: {str(e)}")
@@ -248,12 +268,11 @@ async def ban_user(
 
     try:
         if body.banned:
-            # Ban by setting banned_until far in the future
-            sb.auth.admin.update_user_by_id(user_id, {"ban_duration": "876000h"})  # ~100 years
-            print(f"🚫 Admin banned user {user_id}")
+            sb.auth.admin.update_user_by_id(user_id, {"ban_duration": "876000h"})
+            audit_log(admin.email, "BAN_USER", user_id)
         else:
             sb.auth.admin.update_user_by_id(user_id, {"ban_duration": "none"})
-            print(f"✅ Admin unbanned user {user_id}")
+            audit_log(admin.email, "UNBAN_USER", user_id)
 
         return {"success": True, "banned": body.banned}
     except Exception as e:
@@ -309,7 +328,7 @@ async def admin_delete_user(
         except Exception:
             pass
 
-        print(f"🗑️ Admin deleted user {user_id}")
+        audit_log(admin.email, "DELETE_USER", user_id)
         return {"success": True, "message": "User deleted successfully"}
 
     except Exception as e:
@@ -333,7 +352,7 @@ async def extend_retention(
             "retention_extended_until": (datetime.utcnow() + timedelta(days=body.extra_days)).isoformat()
         }).eq("id", user_id).execute()
 
-        print(f"📅 Admin extended retention for user {user_id} by {body.extra_days} days")
+        audit_log(admin.email, "EXTEND_RETENTION", user_id, f"days={body.extra_days}")
         return {"success": True, "extra_days": body.extra_days}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to extend retention: {str(e)}")

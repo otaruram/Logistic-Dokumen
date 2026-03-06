@@ -32,7 +32,6 @@ app.add_middleware(
         "https://logistic-dokumen.vercel.app",
         "https://ocr.wtf",
         "https://www.ocr.wtf",
-        "*"  # Allow all origins for now - REMOVE in production!
     ],
     allow_credentials=True,
     allow_methods=["*"],

@@ -95,6 +95,9 @@ class Settings:
     # CORS
     CORS_ORIGINS: list = os.getenv('CORS_ORIGINS', '').split(',')
     
+    # Admin
+    ADMIN_EMAIL: str = os.getenv('ADMIN_EMAIL', 'okitr52@gmail.com')
+    
     # JWT
     JWT_SECRET: str = os.getenv('JWT_SECRET', 'change-this-secret')
     JWT_ALGORITHM: str = 'HS256'
