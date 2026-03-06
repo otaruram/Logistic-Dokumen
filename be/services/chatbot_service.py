@@ -1,7 +1,7 @@
 import os
 from openai import AsyncOpenAI
 from sqlalchemy.orm import Session
-from ..models.models import User, Profile
+from models.models import User, Profile
 
 class ChatbotService:
     def __init__(self, db: Session, user: User):
