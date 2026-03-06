@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { Paperclip, Send, Sparkles, Clock } from 'lucide-react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { Paperclip, Send, Sparkles, Clock, X, Plus, MessageSquare, FileText, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -10,14 +10,46 @@ const chatHistory = [
   { time: 'Previous 7 Days', chats: [{ id: 3, thread: 'Receipt OCR' }] },
 ];
 
-const OtaruChatPage = () => {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [attachment, setAttachment] = useState(null);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const fileInputRef = useRef(null);
+// Typing animation component (like Gemini's response streaming)
+const TypingIndicator = () => (
+  <div className="flex items-center gap-1.5 py-1">
+    <div className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+    <div className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+    <div className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+  </div>
+);
 
-  const onDrop = useCallback((acceptedFiles) => {
+// Bot avatar component
+const BotAvatar = () => (
+  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+    <Sparkles className="w-4 h-4 text-white" />
+  </div>
+);
+
+const OtaruChatPage = () => {
+  const [messages, setMessages] = useState<Array<{ text: string; sender: string; attachment?: { name: string; type: string; preview: string; file: File } | null; isThinking?: boolean }>>([]);
+  const [input, setInput] = useState('');
+  const [attachment, setAttachment] = useState<{ name: string; type: string; preview: string; file: File } | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 150) + 'px';
+    }
+  }, [input]);
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
       setAttachment({
@@ -31,13 +63,18 @@ const OtaruChatPage = () => {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: 'image/jpeg, image/png, application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    accept: {
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'application/pdf': ['.pdf'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+    },
     noClick: true,
     noKeyboard: true,
   });
 
   const handleSendMessage = async () => {
-    if (!input.trim() && !attachment) return;
+    if ((!input.trim() && !attachment) || isLoading) return;
 
     const userMessage = { text: input, sender: 'user', attachment };
     setMessages((prev) => [...prev, userMessage]);
@@ -50,12 +87,10 @@ const OtaruChatPage = () => {
 
     setInput('');
     setAttachment(null);
+    setIsLoading(true);
 
-    // Simulate bot thinking
-    setTimeout(() => {
-        setMessages((prev) => [...prev, { text: 'Otaru is thinking...', sender: 'bot' }]);
-    }, 500);
-
+    // Add thinking indicator
+    setMessages((prev) => [...prev, { text: '', sender: 'bot', isThinking: true }]);
 
     try {
       const response = await fetch('/api/chatbot/chat', {
@@ -68,27 +103,31 @@ const OtaruChatPage = () => {
       }
 
       const data = await response.json();
-      
-      // Replace "thinking" message with actual response
+
+      // Replace thinking with actual response
       setMessages((prev) => {
         const newMessages = [...prev];
-        const thinkingIndex = newMessages.findIndex(m => m.text === 'Otaru is thinking...');
+        const thinkingIndex = newMessages.findIndex((m) => m.isThinking);
         if (thinkingIndex !== -1) {
-            newMessages[thinkingIndex] = { text: data.response, sender: 'bot' };
+          newMessages[thinkingIndex] = { text: data.response, sender: 'bot' };
         }
         return newMessages;
       });
-
     } catch (error) {
       console.error('Chat API error:', error);
-       setMessages((prev) => {
+      setMessages((prev) => {
         const newMessages = [...prev];
-        const thinkingIndex = newMessages.findIndex(m => m.text === 'Otaru is thinking...');
+        const thinkingIndex = newMessages.findIndex((m) => m.isThinking);
         if (thinkingIndex !== -1) {
-            newMessages[thinkingIndex] = { text: 'Sorry, I encountered an error. Please try again.', sender: 'bot' };
+          newMessages[thinkingIndex] = {
+            text: 'Sorry, I encountered an error. Please try again.',
+            sender: 'bot',
+          };
         }
         return newMessages;
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -96,9 +135,9 @@ const OtaruChatPage = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-     if (file) {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
       setAttachment({
         name: file.name,
         type: file.type,
@@ -106,103 +145,372 @@ const OtaruChatPage = () => {
         file: file,
       });
     }
-  }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const isEmpty = messages.length === 0;
 
   return (
-    <div {...getRootProps()} className="flex flex-col h-full bg-background text-foreground relative">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border">
-        <div className="flex items-center">
-          <Sparkles className="w-6 h-6 text-primary mr-2" />
-          <h1 className="text-lg font-bold">Otaru</h1>
+    <div {...getRootProps()} className="flex flex-col h-full relative" style={{ background: '#131314' }}>
+      <input {...getInputProps()} />
+
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="flex items-center gap-3">
+          <BotAvatar />
+          <div>
+            <h1 className="text-[15px] font-semibold text-white tracking-tight">Otaru</h1>
+            <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>Document Analysis AI</p>
+          </div>
         </div>
-        <button onClick={() => setIsHistoryOpen(true)} aria-label="Chat History">
-          <Clock className="w-6 h-6" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setMessages([]); setInput(''); setAttachment(null); }}
+            className="p-2 rounded-full transition-colors duration-200"
+            style={{ color: 'rgba(255,255,255,0.5)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            aria-label="New Chat"
+            title="New Chat"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setIsHistoryOpen(true)}
+            className="p-2 rounded-full transition-colors duration-200"
+            style={{ color: 'rgba(255,255,255,0.5)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            aria-label="Chat History"
+            title="Chat History"
+          >
+            <Clock className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
-      {/* Chat Messages */}
-      <div className="flex-1 p-4 overflow-y-auto">
-        {messages.map((msg, index) => (
-          <div key={index} className={`flex mb-4 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`rounded-lg px-4 py-2 max-w-xs lg:max-w-md ${msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-              {msg.attachment && (
-                <div className="mb-2">
-                  {msg.attachment.type.startsWith('image/') ? (
-                    <img src={msg.attachment.preview} alt="attachment" className="rounded-md max-h-40" />
-                  ) : (
-                    <div className="p-2 bg-background rounded-md text-sm">{msg.attachment.name}</div>
-                  )}
-                </div>
-              )}
-              {msg.text}
-            </div>
+      {/* ── Chat Area ── */}
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}>
+        {isEmpty ? (
+          /* ── Empty State (Gemini-style greeting) ── */
+          <div className="flex flex-col items-center justify-center h-full px-6 pb-8">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+              className="text-center"
+            >
+              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-xl shadow-blue-500/20">
+                <Sparkles className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-semibold text-white mb-2">Hi, I'm Otaru</h2>
+              <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.45)', maxWidth: '360px' }}>
+                Your expert logistics & financial document analyst. Upload a document or ask me anything.
+              </p>
+
+              {/* Suggestion chips */}
+              <div className="flex flex-wrap justify-center gap-2.5 max-w-md">
+                {[
+                  { icon: <FileText className="w-4 h-4" />, text: 'Analyze an invoice' },
+                  { icon: <ImageIcon className="w-4 h-4" />, text: 'Scan a receipt' },
+                  { icon: <MessageSquare className="w-4 h-4" />, text: 'Review delivery order' },
+                ].map((chip, i) => (
+                  <motion.button
+                    key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 + i * 0.1, duration: 0.3 }}
+                    onClick={() => setInput(chip.text)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-all duration-200"
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'rgba(255,255,255,0.7)',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                    }}
+                  >
+                    {chip.icon}
+                    {chip.text}
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
           </div>
-        ))}
+        ) : (
+          /* ── Messages ── */
+          <div className="max-w-2xl mx-auto px-4 py-5 space-y-6">
+            {messages.map((msg, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                {msg.sender === 'user' ? (
+                  /* ── User Message ── */
+                  <div className="flex justify-end">
+                    <div
+                      className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-3"
+                      style={{ background: '#1e3a5f' }}
+                    >
+                      {msg.attachment && (
+                        <div className="mb-2.5">
+                          {msg.attachment.type.startsWith('image/') ? (
+                            <img
+                              src={msg.attachment.preview}
+                              alt="attachment"
+                              className="rounded-lg max-h-48 object-cover"
+                            />
+                          ) : (
+                            <div
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm"
+                              style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)' }}
+                            >
+                              <FileText className="w-4 h-4" />
+                              {msg.attachment.name}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <p className="text-[14px] leading-relaxed text-white whitespace-pre-wrap">{msg.text}</p>
+                    </div>
+                  </div>
+                ) : (
+                  /* ── Bot Message ── */
+                  <div className="flex gap-3 items-start">
+                    <BotAvatar />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>Otaru</p>
+                      <div
+                        className="rounded-2xl rounded-tl-md px-4 py-3"
+                        style={{ background: 'rgba(255,255,255,0.06)' }}
+                      >
+                        {msg.isThinking ? (
+                          <TypingIndicator />
+                        ) : (
+                          <p className="text-[14px] leading-relaxed whitespace-pre-wrap" style={{ color: 'rgba(255,255,255,0.88)' }}>
+                            {msg.text}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+
+        {/* Drag overlay */}
         {isDragActive && (
-            <div className="absolute inset-0 bg-primary/10 flex items-center justify-center border-2 border-dashed border-primary rounded-lg">
-                <p className="text-lg font-semibold">Drop files to analyze</p>
+          <div
+            className="absolute inset-0 flex items-center justify-center z-40"
+            style={{ background: 'rgba(19,19,20,0.9)', backdropFilter: 'blur(8px)' }}
+          >
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl border-2 border-dashed border-blue-400 flex items-center justify-center">
+                <Paperclip className="w-7 h-7 text-blue-400" />
+              </div>
+              <p className="text-lg font-medium text-white">Drop file to analyze</p>
+              <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>PDF, DOCX, JPG, PNG</p>
             </div>
+          </div>
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 border-t border-border">
-        {attachment && (
-          <div className="mb-2 flex items-center bg-muted p-2 rounded-lg">
-            <Paperclip className="w-5 h-5 mr-2" />
-            <span className="text-sm">{attachment.name}</span>
-            <button onClick={() => setAttachment(null)} className="ml-auto text-xs">Remove</button>
+      {/* ── Input Area ── */}
+      <div className="px-4 pb-4 pt-2">
+        <div className="max-w-2xl mx-auto">
+          {/* Attachment preview */}
+          <AnimatePresence>
+            {attachment && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-2.5"
+              >
+                <div
+                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                >
+                  {attachment.type.startsWith('image/') ? (
+                    <img src={attachment.preview} alt="preview" className="w-10 h-10 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(96,165,250,0.15)' }}>
+                      <FileText className="w-5 h-5 text-blue-400" />
+                    </div>
+                  )}
+                  <span className="text-sm flex-1 truncate" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                    {attachment.name}
+                  </span>
+                  <button
+                    onClick={() => setAttachment(null)}
+                    className="p-1 rounded-full transition-colors"
+                    style={{ color: 'rgba(255,255,255,0.4)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Input box */}
+          <div
+            className="relative flex items-end rounded-2xl overflow-hidden transition-all duration-200"
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.1)',
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(96,165,250,0.4)'; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+          >
+            <button
+              onClick={handleAttachmentClick}
+              className="flex-shrink-0 p-3.5 transition-colors duration-200"
+              style={{ color: 'rgba(255,255,255,0.4)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}
+              title="Attach file"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept="image/jpeg,image/png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            />
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask Otaru about your documents..."
+              rows={1}
+              className="flex-1 py-3.5 bg-transparent resize-none focus:outline-none text-sm"
+              style={{
+                color: 'rgba(255,255,255,0.9)',
+                maxHeight: '150px',
+              }}
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={isLoading || (!input.trim() && !attachment)}
+              className="flex-shrink-0 p-3 mr-1 mb-1 rounded-xl transition-all duration-200 flex items-center justify-center"
+              style={{
+                background: (input.trim() || attachment) && !isLoading
+                  ? 'linear-gradient(135deg, #3b82f6, #7c3aed)'
+                  : 'rgba(255,255,255,0.06)',
+                color: (input.trim() || attachment) && !isLoading
+                  ? '#fff'
+                  : 'rgba(255,255,255,0.2)',
+                cursor: isLoading || (!input.trim() && !attachment) ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            </button>
           </div>
-        )}
-        <div className="relative">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="Ask Otaru about your documents..."
-            className="w-full bg-muted rounded-full py-3 pl-12 pr-20 focus:outline-none"
-          />
-          <button onClick={handleAttachmentClick} className="absolute left-4 top-1/2 -translate-y-1/2">
-            <Paperclip className="w-5 h-5 text-muted-foreground" />
-          </button>
-          <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-          <button onClick={handleSendMessage} className="absolute right-4 top-1/2 -translate-y-1/2 bg-primary text-primary-foreground rounded-full p-2">
-            <Send className="w-5 h-5" />
-          </button>
+
+          <p className="text-center mt-2.5 text-[11px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
+            Otaru may make mistakes. Verify important information.
+          </p>
         </div>
       </div>
-      
-      {/* History Drawer */}
+
+      {/* ── History Sidebar ── */}
       <AnimatePresence>
         {isHistoryOpen && (
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="absolute top-0 right-0 h-full w-full max-w-sm bg-background border-l border-border z-50 p-4"
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold">History</h2>
-              <button onClick={() => setIsHistoryOpen(false)}>Close</button>
-            </div>
-            <div className="space-y-4">
-              {chatHistory.map((group) => (
-                <div key={group.time}>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">{group.time}</h3>
-                  <ul className="space-y-2">
-                    {group.chats.map((chat) => (
-                      <li key={chat.id} className="p-2 bg-muted rounded-md cursor-pointer hover:bg-primary/10">
-                        {chat.thread}
-                      </li>
-                    ))}
-                  </ul>
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsHistoryOpen(false)}
+              className="absolute inset-0 z-40"
+              style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+            />
+
+            {/* Sidebar */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 350, damping: 35 }}
+              className="absolute top-0 right-0 h-full w-[300px] z-50 flex flex-col"
+              style={{ background: '#1a1a1c', borderLeft: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              {/* Sidebar header */}
+              <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.5)' }} />
+                  <h2 className="text-sm font-semibold text-white">Chat History</h2>
                 </div>
-              ))}
-            </div>
-          </motion.div>
+                <button
+                  onClick={() => setIsHistoryOpen(false)}
+                  className="p-1.5 rounded-lg transition-colors"
+                  style={{ color: 'rgba(255,255,255,0.4)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Sidebar content */}
+              <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}>
+                {chatHistory.map((group) => (
+                  <div key={group.time}>
+                    <h3
+                      className="text-[11px] font-medium uppercase tracking-wider mb-2.5 px-2"
+                      style={{ color: 'rgba(255,255,255,0.35)' }}
+                    >
+                      {group.time}
+                    </h3>
+                    <div className="space-y-1">
+                      {group.chats.map((chat) => (
+                        <button
+                          key={chat.id}
+                          className="w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all duration-200 flex items-center gap-2.5"
+                          style={{ color: 'rgba(255,255,255,0.7)' }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                            e.currentTarget.style.color = 'rgba(255,255,255,0.9)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+                          }}
+                        >
+                          <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.3)' }} />
+                          <span className="truncate">{chat.thread}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>
