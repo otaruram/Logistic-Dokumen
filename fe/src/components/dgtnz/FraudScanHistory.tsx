@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 
 interface ScanRecord {
-    id: number;
+    id: number | string;
     no: number;
     tanggal: string;
     namaPenerima: string;
@@ -42,7 +42,7 @@ interface ScanRecord {
 
 interface FraudScanHistoryProps {
     records: ScanRecord[];
-    onDelete: (id: number) => void;
+    onDelete: (id: number | string) => void;
     onEdit: (record: ScanRecord) => void;
     onExportGoogleDrive: () => void;
 }

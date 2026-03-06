@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { LayoutDashboard, Scan, Menu, User, Sparkles } from "lucide-react";
+import { LayoutDashboard, Scan, Menu, User, Sparkles, Shield } from "lucide-react";
 import { NAVIGATION_TABS } from "@/constants";
 import { TabType } from "@/types";
 
@@ -7,6 +7,7 @@ interface BottomNavigationProps {
   activeTab: TabType;
   onTabClick: (tabId: string) => void;
   getActiveTabId: () => string;
+  isAdmin?: boolean;
 }
 
 const TAB_ICONS = {
@@ -15,14 +16,24 @@ const TAB_ICONS = {
   otaru: Sparkles,
   options: Menu,
   profile: User,
+  admin: Shield,
 } as const;
 
-const BottomNavigation = ({ activeTab, onTabClick, getActiveTabId }: BottomNavigationProps) => {
+const BottomNavigation = ({ activeTab, onTabClick, getActiveTabId, isAdmin }: BottomNavigationProps) => {
+  // Build tab list: insert admin tab after dashboard if admin
+  const tabs = isAdmin
+    ? [
+      NAVIGATION_TABS[0], // Dashboard
+      { id: "admin" as const, label: "Admin" },
+      ...NAVIGATION_TABS.slice(1),
+    ]
+    : [...NAVIGATION_TABS];
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border">
       <div className="max-w-lg mx-auto">
         <div className="flex justify-around items-center py-2">
-          {NAVIGATION_TABS.map((tab) => {
+          {tabs.map((tab) => {
             const Icon = TAB_ICONS[tab.id as keyof typeof TAB_ICONS];
             const isActive = getActiveTabId() === tab.id;
 

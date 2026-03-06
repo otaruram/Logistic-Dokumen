@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 
 interface ScanRecord {
-    id: number;
+    id: number | string;
     no: number;
     tanggal: string;
     namaPenerima: string;
@@ -42,7 +42,7 @@ interface ScanRecord {
 
 interface ScanHistoryProps {
     records: ScanRecord[];
-    onDelete: (id: number) => void;
+    onDelete: (id: number | string) => void;
     onEdit: (record: ScanRecord) => void;
     onExportGoogleDrive: () => void;
 }
@@ -242,8 +242,8 @@ export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: 
                                                     )}
                                                     {record.fraudFields.confidence && (
                                                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${record.fraudFields.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
-                                                                record.fraudFields.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                                    'bg-gray-500/20 text-gray-400'
+                                                            record.fraudFields.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                'bg-gray-500/20 text-gray-400'
                                                             }`}>
                                                             {record.fraudFields.confidence}
                                                         </span>

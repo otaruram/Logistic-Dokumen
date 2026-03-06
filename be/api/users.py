@@ -55,30 +55,56 @@ async def delete_account(
         user_id = str(user_auth.id)
 
         # ── 1. Wipe Supabase tables (cloud data) ──
-        supabase_tables = [
-            "chat_messages",       # must go before chat_sessions (FK)
-            "chat_sessions",
-            "extracted_finance_data",
-            "fraud_scans",
-            "documents",
-            "imagekit_files",
-            "reviews",
-            "profiles",
-        ]
-
         if supabase_admin:
-            for table in supabase_tables:
+            # First, get all session IDs to delete chat_messages via session_id
+            try:
+                sessions = supabase_admin.table("chat_sessions") \
+                    .select("id") \
+                    .eq("user_id", user_id) \
+                    .execute()
+                session_ids = [s["id"] for s in (sessions.data or [])]
+                for sid in session_ids:
+                    try:
+                        supabase_admin.table("chat_messages").delete().eq("session_id", sid).execute()
+                    except Exception:
+                        pass
+                print(f"  🗑️ Cleared chat_messages for {len(session_ids)} sessions")
+            except Exception as e:
+                print(f"  ⚠️ Could not clear chat_messages: {e}")
+
+            # Tables with user_id column
+            user_id_tables = [
+                "chat_sessions",
+                "extracted_finance_data",
+                "fraud_scans",
+                "documents",
+                "imagekit_files",
+                "reviews",
+            ]
+            for table in user_id_tables:
                 try:
                     supabase_admin.table(table).delete().eq("user_id", user_id).execute()
                     print(f"  🗑️ Cleared {table}")
                 except Exception as e:
                     print(f"  ⚠️ Could not clear {table}: {e}")
 
+            # profiles uses 'id' not 'user_id'
+            try:
+                supabase_admin.table("profiles").delete().eq("id", user_id).execute()
+                print(f"  🗑️ Cleared profiles")
+            except Exception as e:
+                print(f"  ⚠️ Could not clear profiles: {e}")
+
         # ── 2. Wipe local DB (SQLite/Postgres) ──
         db_user = db.query(User).filter(User.email == user_auth.email).first()
         if db_user:
             db.query(Scan).filter(Scan.user_id == db_user.id).delete()
-            db.query(Invoice).filter(Invoice.user_id == db_user.id).delete()
+            # Invoice table might not have issue_date column in DB
+            try:
+                db.query(Invoice).filter(Invoice.user_id == db_user.id).delete()
+            except Exception as e:
+                print(f"  ⚠️ Could not clear invoices: {e}")
+                db.rollback()
             db.delete(db_user)
             db.commit()
             print(f"  🗑️ Local DB cleared for {user_auth.email}")
