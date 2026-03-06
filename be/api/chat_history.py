@@ -5,7 +5,7 @@ All data stored in Supabase (zero VPS storage)
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from models.models import User
 from utils.auth import get_current_user, supabase_admin
@@ -147,3 +147,55 @@ async def update_session_title(
     except Exception as e:
         print(f"Error updating session: {e}")
         raise HTTPException(status_code=500, detail="Failed to update session")
+
+
+@router.get("/stats")
+async def get_chatbot_stats(current_user: User = Depends(get_current_user)):
+    """Get chatbot usage stats for the dashboard."""
+    try:
+        user_id = str(current_user.id)
+
+        # Total sessions
+        sessions_res = supabase_admin.table("chat_sessions") \
+            .select("id, created_at") \
+            .eq("user_id", user_id) \
+            .execute()
+        total_sessions = len(sessions_res.data) if sessions_res.data else 0
+
+        # Total messages (user messages only = actual interactions)
+        session_ids = [s["id"] for s in (sessions_res.data or [])]
+        total_messages = 0
+        weekly_counts = [0, 0, 0, 0, 0, 0, 0]  # Mon-Sun
+
+        if session_ids:
+            messages_res = supabase_admin.table("chat_messages") \
+                .select("created_at, role") \
+                .in_("session_id", session_ids) \
+                .eq("role", "user") \
+                .execute()
+
+            total_messages = len(messages_res.data) if messages_res.data else 0
+
+            # Weekly breakdown (current week Mon-Sun)
+            now = datetime.utcnow()
+            day_of_week = now.weekday()  # 0=Mon
+            monday = (now - timedelta(days=day_of_week)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+            for msg in (messages_res.data or []):
+                try:
+                    msg_date = datetime.fromisoformat(msg["created_at"].replace("Z", "+00:00")).replace(tzinfo=None)
+                    if msg_date >= monday:
+                        idx = msg_date.weekday()  # 0=Mon
+                        weekly_counts[idx] += 1
+                except Exception:
+                    pass
+
+        return {
+            "total_sessions": total_sessions,
+            "total_messages": total_messages,
+            "weekly_counts": weekly_counts,  # [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
+        }
+    except Exception as e:
+        print(f"Error fetching chatbot stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch chatbot stats")
+

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Activity, ShieldCheck, TrendingUp, AlertTriangle } from "lucide-react";
+import { Activity, ShieldCheck, TrendingUp, AlertTriangle, Sparkles, MessageSquare } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -30,10 +30,14 @@ const DashboardTab = () => {
     totalActivity: 0,
     totalScanDefault: 0,
     totalScanFraud: 0,
+    // Chatbot Stats
+    totalChatSessions: 0,
+    totalChatMessages: 0,
     credits: 0,
     nextCleanupDays: 0,
     nextCleanupDate: "",
   });
+  const [chatWeekly, setChatWeekly] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
 
   const [weeklyData, setWeeklyData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,9 +176,32 @@ const DashboardTab = () => {
       } catch (e) {
         console.error('Could not fetch scans:', e);
       }
-      const weeklyChartData = dayNames.map((label, i) => ({ day: label, count: dailyCounts[i] }));
+      // 9. Chatbot stats
+      let totalChatSessions = 0;
+      let totalChatMessages = 0;
+      let chatWeeklyCounts = [0, 0, 0, 0, 0, 0, 0];
+      try {
+        const chatStatsRes = await fetch(`${API_URL}/api/chatbot/stats`, {
+          headers: { "Authorization": `Bearer ${session.access_token}` }
+        });
+        if (chatStatsRes.ok) {
+          const chatStats = await chatStatsRes.json();
+          totalChatSessions = chatStats.total_sessions ?? 0;
+          totalChatMessages = chatStats.total_messages ?? 0;
+          chatWeeklyCounts = chatStats.weekly_counts ?? [0, 0, 0, 0, 0, 0, 0];
+        }
+      } catch (e) {
+        console.error('Could not fetch chatbot stats:', e);
+      }
+      if (isMounted.current) setChatWeekly(chatWeeklyCounts);
+
+      const weeklyChartData = dayNames.map((label, i) => ({
+        day: label,
+        scans: dailyCounts[i],
+        chats: chatWeeklyCounts[i],
+      }));
       if (isMounted.current) setWeeklyData(weeklyChartData);
-      const totalActivity = totalScanDefault + totalScanFraud;
+      const totalActivity = totalScanDefault + totalScanFraud + totalChatMessages;
 
       // 8. Cleanup stats from API
       let apiCleanupDays = nextCleanupDays;
@@ -204,6 +231,8 @@ const DashboardTab = () => {
           totalActivity,
           totalScanDefault,
           totalScanFraud,
+          totalChatSessions,
+          totalChatMessages,
           credits,
           nextCleanupDays: apiCleanupDays,
           nextCleanupDate: apiCleanupDate,
@@ -354,7 +383,23 @@ const DashboardTab = () => {
             <div className="text-6xl font-black tracking-tighter text-white tabular-nums">
               {loading ? <span className="text-gray-600 animate-pulse">—</span> : stats.totalActivity}
             </div>
-            <p className="text-xs text-gray-500 mt-1 font-medium">Scan berhasil diproses</p>
+            <p className="text-xs text-gray-500 mt-1 font-medium">Total interaksi (Scan + Chat)</p>
+          </div>
+
+          {/* Activity Breakdown */}
+          <div className="mt-4 pt-3 border-t border-white/10 grid grid-cols-3 gap-2">
+            <div className="bg-white/5 rounded-lg px-3 py-2 text-center">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">DGTNZ</p>
+              <p className="text-base font-bold text-white tabular-nums">{loading ? "..." : stats.totalScanDefault}</p>
+            </div>
+            <div className="bg-white/5 rounded-lg px-3 py-2 text-center">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">Fraud</p>
+              <p className="text-base font-bold text-white tabular-nums">{loading ? "..." : stats.totalScanFraud}</p>
+            </div>
+            <div className="bg-white/5 rounded-lg px-3 py-2 text-center">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">Otaru</p>
+              <p className="text-base font-bold text-white tabular-nums">{loading ? "..." : stats.totalChatMessages}</p>
+            </div>
           </div>
         </motion.div>
 
@@ -552,7 +597,7 @@ const DashboardTab = () => {
               <p className="text-sm text-gray-500">Memuat data...</p>
             </div>
           </div>
-        ) : weeklyData.some(d => d.count > 0) ? (
+        ) : weeklyData.some((d: any) => (d.scans || 0) + (d.chats || 0) > 0) ? (
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weeklyData}>
@@ -579,14 +624,8 @@ const DashboardTab = () => {
                   }}
                   labelStyle={{ color: '#fff', fontWeight: 'bold' }}
                 />
-                <Bar dataKey="count" radius={[4, 4, 4, 4]} barSize={40}>
-                  {weeklyData.map((entry: any, index: number) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={entry.count > 0 ? '#fff' : '#222'}
-                    />
-                  ))}
-                </Bar>
+                <Bar dataKey="scans" name="Scans" stackId="a" radius={[0, 0, 0, 0]} barSize={40} fill="#fff" />
+                <Bar dataKey="chats" name="Otaru Chat" stackId="a" radius={[4, 4, 0, 0]} barSize={40} fill="#818cf8" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -600,9 +639,65 @@ const DashboardTab = () => {
           </div>
         )}
 
-        <div className="mt-4 pt-4 border-t border-white/10">
-          <p className="text-xs text-gray-500">
-            Menghitung: <span className="font-medium text-white">DGTNZ Default + Deteksi Fraud</span>
+        <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm bg-white" />
+            <span className="text-xs text-gray-500">Scans (DGTNZ + Fraud)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm bg-indigo-400" />
+            <span className="text-xs text-gray-500">Otaru Chat</span>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ── Otaru Monitor Card ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.45 }}
+        className="border border-white/10 rounded-xl p-6 bg-gradient-to-br from-[#111] to-[#0d0d0d] relative overflow-hidden group"
+      >
+        <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-indigo-500/5 blur-3xl group-hover:bg-indigo-500/10 transition-colors pointer-events-none" />
+
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/10">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Otaru AI Monitor</span>
+          </div>
+          <span className="text-[10px] bg-indigo-500/10 text-indigo-300 px-2 py-1 rounded-full font-semibold border border-indigo-500/20">AI Chat</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <MessageSquare className="w-4 h-4 text-indigo-400" />
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">Total Sessions</span>
+            </div>
+            <div className="text-3xl font-black text-white tabular-nums">
+              {loading ? "..." : stats.totalChatSessions}
+            </div>
+            <p className="text-[10px] text-gray-600 mt-1">Percakapan dengan Otaru</p>
+          </div>
+
+          <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <Activity className="w-4 h-4 text-blue-400" />
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">Total Messages</span>
+            </div>
+            <div className="text-3xl font-black text-white tabular-nums">
+              {loading ? "..." : stats.totalChatMessages}
+            </div>
+            <p className="text-[10px] text-gray-600 mt-1">Pesan user ke Otaru</p>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-3 border-t border-white/5">
+          <p className="text-[11px] text-gray-500">
+            <Sparkles className="w-3 h-3 inline mr-1 text-indigo-400" />
+            Otaru menganalisis dokumen tanpa menyimpan file di server
           </p>
         </div>
       </motion.div>
