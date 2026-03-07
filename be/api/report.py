@@ -237,10 +237,10 @@ def _generate_pdf(user_email: str, report_data: dict, months_data: list[dict]) -
 
 
 def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, pdf_filename: str):
-    """Send email with PDF attachment via SMTP."""
+    """Send email with PDF attachment via SMTP. Returns True on success, error string on failure."""
     if not SMTP_USER or not SMTP_PASS:
         print("⚠️ SMTP not configured, skipping email")
-        return False
+        return "SMTP_USER or SMTP_PASS not set in env"
 
     msg = MIMEMultipart()
     msg["From"] = SMTP_FROM
@@ -266,8 +266,9 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         print(f"✅ Email sent to {to_email}")
         return True
     except Exception as e:
-        print(f"❌ Email send failed: {e}")
-        return False
+        err = f"SMTP error: {type(e).__name__}: {e}"
+        print(f"❌ Email send failed to {to_email}: {err}")
+        return err
 
 
 # ── API Endpoints ────────────────────────────────────────────────────────────
@@ -608,15 +609,17 @@ async def cron_send_all_reports(
             </div>
             """
 
-            success = _send_email(
+            result = _send_email(
                 email,
                 f"📊 DGTNZ Monthly Report — {today.strftime('%B %Y')}",
                 body_html, pdf_bytes, filename
             )
-            if success:
+            if result is True:
                 sent += 1
             else:
                 skipped += 1
+                if isinstance(result, str):
+                    errors.append(f"{email}: {result}")
 
         except Exception as e:
             errors.append(f"{email}: {str(e)}")
@@ -825,17 +828,19 @@ async def cron_send_newsletter(
             continue
 
         try:
-            success = _send_email(
+            result = _send_email(
                 to_email=email,
                 subject="🚀 What's New in DGTNZ — March 2026 Update",
                 body_html=newsletter_html,
                 pdf_bytes=b"",  # No PDF attachment for newsletter
                 pdf_filename="",
             )
-            if success:
+            if result is True:
                 sent += 1
             else:
                 skipped += 1
+                if isinstance(result, str):
+                    errors.append(f"{email}: {result}")
         except Exception as e:
             errors.append(f"{email}: {str(e)}")
             skipped += 1
@@ -845,6 +850,59 @@ async def cron_send_newsletter(
         "sent": sent,
         "skipped": skipped,
         "total_users": len(users),
-        "errors": errors[:5] if errors else [],
+        "errors": errors[:10] if errors else [],
+    }
+
+
+# ── Test Single Email ─────────────────────────────────────────────────────────
+
+@router.post("/cron/test-email")
+async def cron_test_email(request: Request):
+    """
+    Send a test email to a single address. For debugging SMTP.
+    Usage: curl -X POST 'https://api-ocr.xyz/api/report/cron/test-email?to=okitr52@gmail.com' \
+      -H 'Authorization: Bearer YOUR_SECRET'
+    """
+    auth = request.headers.get("Authorization", "")
+    token = auth.replace("Bearer ", "").strip()
+    if not CLEANUP_SECRET or token != CLEANUP_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid or missing secret")
+
+    to = request.query_params.get("to", "")
+    if not to:
+        return {"error": "Missing ?to=email@example.com"}
+
+    # Debug info
+    debug = {
+        "smtp_host": SMTP_HOST,
+        "smtp_port": SMTP_PORT,
+        "smtp_user": SMTP_USER[:8] + "..." if SMTP_USER else "(empty)",
+        "smtp_pass_set": bool(SMTP_PASS),
+        "smtp_from": SMTP_FROM,
+        "to": to,
+    }
+
+    test_html = f"""
+    <div style="font-family: Arial; max-width: 500px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #0a0a0a;">✅ DGTNZ Test Email</h2>
+        <p style="color: #6b7280;">This is a test email from the DGTNZ platform.</p>
+        <p style="color: #374151;">If you can read this, SMTP is working!</p>
+        <hr style="border: 1px solid #e5e7eb; margin: 16px 0;">
+        <p style="color: #9ca3af; font-size: 11px;">Sent at {datetime.now().isoformat()}</p>
+    </div>
+    """
+
+    result = _send_email(
+        to_email=to,
+        subject="✅ DGTNZ Test Email",
+        body_html=test_html,
+        pdf_bytes=b"",
+        pdf_filename="",
+    )
+
+    return {
+        "success": result is True,
+        "error": result if isinstance(result, str) else None,
+        "debug": debug,
     }
 
