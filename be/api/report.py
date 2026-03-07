@@ -146,13 +146,13 @@ def _generate_pdf(user_email: str, report_data: dict, months_data: list[dict]) -
 
     # Title style
     title_style = ParagraphStyle("Title", parent=styles["Title"], fontSize=22,
-                                  textColor=dark, spaceAfter=10)
+                                 textColor=dark, spaceAfter=10)
     subtitle_style = ParagraphStyle("Subtitle", parent=styles["Normal"], fontSize=10,
-                                     textColor=gray, spaceAfter=20)
+                                    textColor=gray, spaceAfter=20)
     heading_style = ParagraphStyle("Heading", parent=styles["Heading2"], fontSize=14,
-                                    textColor=dark, spaceAfter=8, spaceBefore=16)
+                                   textColor=dark, spaceAfter=8, spaceBefore=16)
     body_style = ParagraphStyle("Body", parent=styles["Normal"], fontSize=10,
-                                 textColor=dark, spaceAfter=4)
+                                textColor=dark, spaceAfter=4)
 
     # Header
     elements.append(Paragraph("📊 DGTNZ Annual Performance Report", title_style))
@@ -261,13 +261,21 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         msg.attach(part)
     else:
         # If no attachment, send raw SMTP string to bypass strict Node.js parser bugs
-        # Python's MIMEText often uses \n instead of \r\n, crashing the Sumopod server.
+        # Generate ID and Date
+        msg_id = make_msgid(domain="ocr.web.id")
+        date_str = formatdate(localtime=True)
+        
+        # Ensure the HTML body strictly uses \r\n (CRLF) to prevent Node.js parser panic
+        safe_body_html = body_html.replace("\r\n", "\n").replace("\n", "\r\n")
+
         raw_msg = (
             f"From: {SMTP_FROM}\r\n"
             f"To: {to_email}\r\n"
             f"Subject: {subject}\r\n"
+            f"Message-ID: {msg_id}\r\n"
+            f"Date: {date_str}\r\n"
             f"Content-Type: text/html; charset=utf-8\r\n\r\n"
-            f"{body_html}"
+            f"{safe_body_html}"
         )
 
     try:
@@ -698,14 +706,12 @@ async def cron_send_newsletter(
     <body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: 'Segoe UI', Arial, sans-serif;">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
         
-        <!-- Banner -->
         <tr>
           <td style="padding: 0;">
             <img src="{banner_url}" alt="DGTNZ OCR Platform" style="width: 100%; height: auto; display: block;" />
           </td>
         </tr>
 
-        <!-- Header -->
         <tr>
           <td style="background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); padding: 32px 32px 24px; text-align: center;">
             <h1 style="color: #ffffff; font-size: 24px; margin: 0 0 8px;">🚀 What's New in DGTNZ</h1>
@@ -713,7 +719,6 @@ async def cron_send_newsletter(
           </td>
         </tr>
 
-        <!-- Greeting -->
         <tr>
           <td style="padding: 28px 32px 8px;">
             <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0;">
@@ -724,7 +729,6 @@ async def cron_send_newsletter(
           </td>
         </tr>
 
-        <!-- Feature 1: Fraud Detection -->
         <tr>
           <td style="padding: 16px 32px;">
             <table width="100%" cellpadding="0" cellspacing="0" style="background: #f0fdf4; border-radius: 10px; border-left: 4px solid #10b981;">
@@ -744,7 +748,6 @@ async def cron_send_newsletter(
           </td>
         </tr>
 
-        <!-- Feature 2: Annual Report -->
         <tr>
           <td style="padding: 4px 32px 16px;">
             <table width="100%" cellpadding="0" cellspacing="0" style="background: #eff6ff; border-radius: 10px; border-left: 4px solid #3b82f6;">
@@ -761,7 +764,6 @@ async def cron_send_newsletter(
           </td>
         </tr>
 
-        <!-- Feature 3: Dashboard -->
         <tr>
           <td style="padding: 4px 32px 16px;">
             <table width="100%" cellpadding="0" cellspacing="0" style="background: #fdf4ff; border-radius: 10px; border-left: 4px solid #a855f7;">
@@ -778,7 +780,6 @@ async def cron_send_newsletter(
           </td>
         </tr>
 
-        <!-- Feature 4: Performance -->
         <tr>
           <td style="padding: 4px 32px 16px;">
             <table width="100%" cellpadding="0" cellspacing="0" style="background: #fff7ed; border-radius: 10px; border-left: 4px solid #f97316;">
@@ -795,7 +796,6 @@ async def cron_send_newsletter(
           </td>
         </tr>
 
-        <!-- Feature 5: Pagination -->
         <tr>
           <td style="padding: 4px 32px 16px;">
             <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8fafc; border-radius: 10px; border-left: 4px solid #64748b;">
@@ -812,7 +812,6 @@ async def cron_send_newsletter(
           </td>
         </tr>
 
-        <!-- CTA Button -->
         <tr>
           <td style="padding: 24px 32px; text-align: center;">
             <a href="https://ocr.wtf" 
@@ -825,7 +824,6 @@ async def cron_send_newsletter(
           </td>
         </tr>
 
-        <!-- Footer -->
         <tr>
           <td style="background: #f9fafb; padding: 20px 32px; border-top: 1px solid #e5e7eb;">
             <p style="color: #9ca3af; font-size: 11px; margin: 0; text-align: center; line-height: 1.6;">
@@ -928,4 +926,3 @@ async def cron_test_email(request: Request):
         "error": result if isinstance(result, str) else None,
         "debug": debug,
     }
-
