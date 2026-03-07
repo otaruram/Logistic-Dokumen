@@ -10,6 +10,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email import encoders
+from email.utils import formatdate, make_msgid
 from datetime import datetime, date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -246,6 +247,8 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
     msg["From"] = SMTP_FROM
     msg["To"] = to_email
     msg["Subject"] = subject
+    msg["Date"] = formatdate(localtime=True)
+    msg["Message-ID"] = make_msgid(domain="ocr.web.id")
 
     msg.attach(MIMEText(body_html, "html"))
 
