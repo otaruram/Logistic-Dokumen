@@ -278,9 +278,9 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         
         # Kirim.email / Sumopod expects implicit SSL on 465
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, local_hostname="ocr.web.id") as server:
-            server.ehlo("ocr.web.id")
             server.login(SMTP_USER, SMTP_PASS)
-            server.send_message(msg)
+            # Use sendmail directly to precisely control the envelope sender and receiver strings
+            server.sendmail(SMTP_FROM, [to_email], msg.as_string())
             
         print(f"✅ Email sent to {to_email}")
         return True
