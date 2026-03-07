@@ -278,6 +278,7 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         
         # Kirim.email / Sumopod expects implicit SSL on 465
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, local_hostname="ocr.web.id") as server:
+            server.set_debuglevel(1)
             server.login(SMTP_USER, SMTP_PASS)
             
             if pdf_bytes and pdf_filename:
