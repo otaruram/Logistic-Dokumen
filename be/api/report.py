@@ -243,40 +243,31 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         print("⚠️ SMTP not configured, skipping email")
         return "SMTP_USER or SMTP_PASS not set in env"
 
+    # Bungkus SEMUA email dengan MIMEMultipart agar Node.js parser di server SMTP 
+    # memprosesnya dengan jalur yang sama seperti email berlampiran
+    msg = MIMEMultipart("mixed")
+    msg["From"] = SMTP_FROM
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg["Date"] = formatdate(localtime=True)
+    msg["Message-ID"] = make_msgid(domain="ocr.web.id")
+    msg["Reply-To"] = SMTP_FROM
+
+    # Pastikan body HTML pakai CRLF yang konsisten
+    safe_body_html = body_html.replace("\r\n", "\n").replace("\n", "\r\n")
+    
+    # Masukkan HTML ke bagian MIMEText
+    alt_part = MIMEMultipart("alternative")
+    alt_part.attach(MIMEText(safe_body_html, "html"))
+    msg.attach(alt_part)
+
+    # Tambahkan PDF hanya jika tersedia
     if pdf_bytes and pdf_filename:
-        msg = MIMEMultipart()
-        msg["From"] = SMTP_FROM
-        msg["To"] = to_email
-        msg["Subject"] = subject
-        msg["Date"] = formatdate(localtime=True)
-        msg["Message-ID"] = make_msgid(domain="ocr.web.id")
-        msg["Reply-To"] = SMTP_FROM
-
-        msg.attach(MIMEText(body_html, "html"))
-
         part = MIMEBase("application", "pdf")
         part.set_payload(pdf_bytes)
         encoders.encode_base64(part)
         part.add_header("Content-Disposition", f'attachment; filename="{pdf_filename}"')
         msg.attach(part)
-    else:
-        # If no attachment, send raw SMTP string to bypass strict Node.js parser bugs
-        # Generate ID and Date
-        msg_id = make_msgid(domain="ocr.web.id")
-        date_str = formatdate(localtime=True)
-        
-        # Ensure the HTML body strictly uses \r\n (CRLF) to prevent Node.js parser panic
-        safe_body_html = body_html.replace("\r\n", "\n").replace("\n", "\r\n")
-
-        raw_msg = (
-            f"From: {SMTP_FROM}\r\n"
-            f"To: {to_email}\r\n"
-            f"Subject: {subject}\r\n"
-            f"Message-ID: {msg_id}\r\n"
-            f"Date: {date_str}\r\n"
-            f"Content-Type: text/html; charset=utf-8\r\n\r\n"
-            f"{safe_body_html}"
-        )
 
     try:
         import ssl
@@ -284,16 +275,13 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
         
-        # Kirim.email / Sumopod expects implicit SSL on 465
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, local_hostname="ocr.web.id") as server:
             server.set_debuglevel(1)
             server.login(SMTP_USER, SMTP_PASS)
             
-            if pdf_bytes and pdf_filename:
-                server.sendmail(SMTP_FROM, [to_email], msg.as_string())
-            else:
-                server.sendmail(SMTP_FROM, [to_email], raw_msg.encode('utf-8'))
-                
+            # Gunakan send_message() alih-alih sendmail()
+            server.send_message(msg)
+            
         print(f"✅ Email sent to {to_email}")
         return True
     except Exception as e:
