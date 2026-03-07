@@ -249,12 +249,13 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
 
     msg.attach(MIMEText(body_html, "html"))
 
-    # PDF attachment
-    part = MIMEBase("application", "pdf")
-    part.set_payload(pdf_bytes)
-    encoders.encode_base64(part)
-    part.add_header("Content-Disposition", f"attachment; filename={pdf_filename}")
-    msg.attach(part)
+    # PDF attachment (skip if empty — e.g. newsletter)
+    if pdf_bytes and pdf_filename:
+        part = MIMEBase("application", "pdf")
+        part.set_payload(pdf_bytes)
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", f"attachment; filename={pdf_filename}")
+        msg.attach(part)
 
     try:
         import ssl
@@ -627,3 +628,223 @@ async def cron_send_all_reports(
         "skipped": skipped,
         "errors": errors[:5] if errors else [],
     }
+
+
+# ── Newsletter / Feature Announcement Blast ──────────────────────────────────
+
+@router.post("/cron/newsletter")
+async def cron_send_newsletter(
+    request: Request,
+):
+    """
+    Send feature announcement newsletter to ALL registered users.
+    Protected by CLEANUP_SECRET.
+
+    VPS one-time cron:
+    0 9 13 3 * curl -s -X POST https://api-ocr.xyz/api/report/cron/newsletter \
+      -H "Authorization: Bearer YOUR_CLEANUP_SECRET"
+    """
+    auth = request.headers.get("Authorization", "")
+    token = auth.replace("Bearer ", "").strip()
+    if not CLEANUP_SECRET or token != CLEANUP_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid or missing secret")
+
+    if not SMTP_USER or not SMTP_PASS:
+        return {"message": "SMTP not configured", "sent": 0}
+
+    supabase_admin = get_supabase_admin()
+    if not supabase_admin:
+        raise HTTPException(status_code=500, detail="Supabase not available")
+
+    try:
+        users_res = supabase_admin.table("profiles").select("id, email").execute()
+        users = users_res.data or []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch users: {e}")
+
+    # Banner image URL (hosted via API static)
+    banner_url = "https://api-ocr.xyz/static/newsletter_banner.png"
+
+    newsletter_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: 'Segoe UI', Arial, sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+        
+        <!-- Banner -->
+        <tr>
+          <td style="padding: 0;">
+            <img src="{banner_url}" alt="DGTNZ OCR Platform" style="width: 100%; height: auto; display: block;" />
+          </td>
+        </tr>
+
+        <!-- Header -->
+        <tr>
+          <td style="background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); padding: 32px 32px 24px; text-align: center;">
+            <h1 style="color: #ffffff; font-size: 24px; margin: 0 0 8px;">🚀 What's New in DGTNZ</h1>
+            <p style="color: #9ca3af; font-size: 14px; margin: 0;">March 2026 — Platform Update</p>
+          </td>
+        </tr>
+
+        <!-- Greeting -->
+        <tr>
+          <td style="padding: 28px 32px 8px;">
+            <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0;">
+              Hi there! 👋<br><br>
+              We've been working hard to make DGTNZ even better. Here are the exciting new features
+              we've shipped this month:
+            </p>
+          </td>
+        </tr>
+
+        <!-- Feature 1: Fraud Detection -->
+        <tr>
+          <td style="padding: 16px 32px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background: #f0fdf4; border-radius: 10px; border-left: 4px solid #10b981;">
+              <tr>
+                <td style="padding: 16px 20px;">
+                  <h3 style="color: #065f46; font-size: 15px; margin: 0 0 6px;">🛡️ Smart Fraud Detection</h3>
+                  <p style="color: #374151; font-size: 13px; margin: 0; line-height: 1.5;">
+                    AI-powered document authenticity verification with 3-tier confidence scoring: 
+                    <strong style="color: #10b981;">Verified</strong>, 
+                    <strong style="color: #f59e0b;">Processing</strong>, and 
+                    <strong style="color: #ef4444;">Tampered</strong>. 
+                    Low-confidence documents are automatically flagged.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Feature 2: Annual Report -->
+        <tr>
+          <td style="padding: 4px 32px 16px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background: #eff6ff; border-radius: 10px; border-left: 4px solid #3b82f6;">
+              <tr>
+                <td style="padding: 16px 20px;">
+                  <h3 style="color: #1e40af; font-size: 15px; margin: 0 0 6px;">📊 Annual Performance Report</h3>
+                  <p style="color: #374151; font-size: 13px; margin: 0; line-height: 1.5;">
+                    Download professional PDF reports with monthly trust score trends, revenue analytics, 
+                    and document statistics. Also available via automated email delivery.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Feature 3: Dashboard -->
+        <tr>
+          <td style="padding: 4px 32px 16px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background: #fdf4ff; border-radius: 10px; border-left: 4px solid #a855f7;">
+              <tr>
+                <td style="padding: 16px 20px;">
+                  <h3 style="color: #6b21a8; font-size: 15px; margin: 0 0 6px;">📈 Enhanced Dashboard</h3>
+                  <p style="color: #374151; font-size: 13px; margin: 0; line-height: 1.5;">
+                    Period selector (All Time / Monthly), real-time trust score, currency toggle (IDR/USD), 
+                    and monthly performance bar charts — all in one view.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Feature 4: Performance -->
+        <tr>
+          <td style="padding: 4px 32px 16px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background: #fff7ed; border-radius: 10px; border-left: 4px solid #f97316;">
+              <tr>
+                <td style="padding: 16px 20px;">
+                  <h3 style="color: #9a3412; font-size: 15px; margin: 0 0 6px;">⚡ 2x Faster Scanning</h3>
+                  <p style="color: #374151; font-size: 13px; margin: 0; line-height: 1.5;">
+                    Optimized OCR pipeline with intelligent image preprocessing. 
+                    Documents are now processed nearly twice as fast with lower server resource usage.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Feature 5: Pagination -->
+        <tr>
+          <td style="padding: 4px 32px 16px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8fafc; border-radius: 10px; border-left: 4px solid #64748b;">
+              <tr>
+                <td style="padding: 16px 20px;">
+                  <h3 style="color: #334155; font-size: 15px; margin: 0 0 6px;">📄 Paginated History</h3>
+                  <p style="color: #374151; font-size: 13px; margin: 0; line-height: 1.5;">
+                    Scan history and fraud logs now display 10 records per page with smooth pagination. 
+                    Navigate through your records easily with numbered page buttons.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- CTA Button -->
+        <tr>
+          <td style="padding: 24px 32px; text-align: center;">
+            <a href="https://ocr.wtf" 
+               style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #8b5cf6); 
+                      color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px; 
+                      font-size: 15px; font-weight: 600; letter-spacing: 0.3px;
+                      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
+              Try It Now →
+            </a>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background: #f9fafb; padding: 20px 32px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #9ca3af; font-size: 11px; margin: 0; text-align: center; line-height: 1.6;">
+              You are receiving this email because you have an account on DGTNZ OCR Platform.<br>
+              © 2026 DGTNZ — Powered by <a href="https://ocr.wtf" style="color: #3b82f6; text-decoration: none;">ocr.web.id</a>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </body>
+    </html>
+    """
+
+    sent = 0
+    skipped = 0
+    errors = []
+
+    for user in users:
+        email = user.get("email")
+        if not email:
+            skipped += 1
+            continue
+
+        try:
+            success = _send_email(
+                to_email=email,
+                subject="🚀 What's New in DGTNZ — March 2026 Update",
+                body_html=newsletter_html,
+                pdf_bytes=b"",  # No PDF attachment for newsletter
+                pdf_filename="",
+            )
+            if success:
+                sent += 1
+            else:
+                skipped += 1
+        except Exception as e:
+            errors.append(f"{email}: {str(e)}")
+            skipped += 1
+
+    return {
+        "message": "Newsletter blast completed",
+        "sent": sent,
+        "skipped": skipped,
+        "total_users": len(users),
+        "errors": errors[:5] if errors else [],
+    }
+
