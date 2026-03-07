@@ -8,8 +8,9 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Install system dependencies required for PDF processing
+# Install system dependencies required for PDF processing and healthchecks
 RUN apt-get update && apt-get install -y \
+    curl \
     poppler-utils \
     tesseract-ocr \
     tesseract-ocr-ind \
