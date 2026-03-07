@@ -47,7 +47,14 @@ async def check_and_deduct_credits(
     Verify the user has enough credits and deduct SCAN_COST.
     Returns the new credit balance.
     Raises HTTPException(402) when insufficient.
+    Admin gets infinite credits (no deduction).
     """
+    from config.settings import settings
+
+    # Admin bypass — infinite credits
+    if hasattr(user, "email") and user.email == settings.ADMIN_EMAIL:
+        return 9999
+
     supabase_admin = get_supabase_admin()
 
     if supabase_admin:

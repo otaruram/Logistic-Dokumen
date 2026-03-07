@@ -160,37 +160,55 @@ async def trigger_daily_credit_reset(authorization: Optional[str] = Header(None)
     """
     Reset all user credits to 10 daily at 00:00 UTC
     Requires authorization header with secret key
+    Admin user is exempt (keeps infinite credits)
     """
     try:
         # Verify authorization
         if not authorization or authorization != f"Bearer {CLEANUP_SECRET}":
             raise HTTPException(status_code=401, detail="Unauthorized")
         
-        # Reset ALL users' credits to 10 in profiles table (Supabase - source of truth)
-        result = supabase_admin.table("profiles")\
-            .update({"credits": 10})\
-            .neq("credits", 10)\
-            .execute()
+        # Get admin email to exclude
+        admin_email = os.getenv("ADMIN_EMAIL", "okitr52@gmail.com")
         
+        # Find admin user ID to exclude from reset
+        admin_id = None
+        try:
+            auth_users = supabase_admin.auth.admin.list_users()
+            for u in auth_users:
+                if u.email == admin_email:
+                    admin_id = u.id
+                    break
+        except Exception:
+            pass
+        
+        # Reset ALL non-admin users' credits to 10
+        query = supabase_admin.table("profiles")\
+            .update({"credits": 10})\
+            .neq("credits", 10)
+        
+        # Exclude admin from reset
+        if admin_id:
+            query = query.neq("id", admin_id)
+        
+        result = query.execute()
         updated_count = len(result.data) if result.data else 0
         
-        # Also reset local users table for consistency
-        try:
-            supabase_admin.table("users")\
-                .update({"credits": 10})\
-                .neq("credits", 10)\
-                .execute()
-        except Exception:
-            pass  # Local table may not exist
+        # Ensure admin has high credits
+        if admin_id:
+            try:
+                supabase_admin.table("profiles").update({"credits": 9999}).eq("id", admin_id).execute()
+            except Exception:
+                pass
         
         response = {
             "timestamp": datetime.now().isoformat(),
             "users_updated": updated_count,
             "new_credit_value": 10,
-            "message": "Daily credit reset completed — all users set to 10 credits"
+            "admin_excluded": admin_email,
+            "message": "Daily credit reset completed — all users set to 10 credits (admin excluded)"
         }
         
-        print(f"✅ Daily credit reset: {updated_count} users updated to 10 credits")
+        print(f"✅ Daily credit reset: {updated_count} users updated to 10 credits (admin excluded)")
         return response
         
     except HTTPException:
