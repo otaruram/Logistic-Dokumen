@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Activity, ShieldCheck, TrendingUp, AlertTriangle, Sparkles, MessageSquare, RefreshCw } from "lucide-react";
+import { Activity, ShieldCheck, TrendingUp, AlertTriangle, Sparkles, MessageSquare, RefreshCw, FileText, Mail, Download, Calendar } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -378,6 +378,9 @@ const DashboardTab = () => {
   const [loading, setLoading] = useState(true);
   const [currency, setCurrency] = useState<"IDR" | "USD">("IDR");
   const [usdRate, setUsdRate] = useState(USD_RATE_FALLBACK);
+  const [period, setPeriod] = useState<"all" | "current" | "last" | "3months">("all");
+  const [monthlyHistory, setMonthlyHistory] = useState<any[]>([]);
+  const [reportLoading, setReportLoading] = useState(false);
   const isMounted = useRef(true);
 
   // Fetch USD rate on mount
@@ -559,12 +562,121 @@ const DashboardTab = () => {
     };
   }, [fetchDashboardData]);
 
+  // Fetch period-filtered data when period changes
+  useEffect(() => {
+    if (period === "all") return; // 'all' uses the default fetchDashboardData
+    const fetchPeriodData = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const res = await fetch(`${API_URL}/api/report/period-data?period=${period}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (res.ok) {
+          const d = await res.json();
+          if (isMounted.current) {
+            setStats(prev => ({
+              ...prev,
+              trustScore: d.trust_score ?? prev.trustScore,
+              totalNominalVerified: d.total_revenue ?? prev.totalNominalVerified,
+              verifiedDocuments: d.verified ?? prev.verifiedDocuments,
+              processingDocuments: d.processing ?? prev.processingDocuments,
+              tamperedDocuments: d.tampered ?? prev.tamperedDocuments,
+              totalDocuments: d.total_docs ?? prev.totalDocuments,
+            }));
+          }
+        }
+      } catch (e) { console.error("Period data fetch error:", e); }
+    };
+    fetchPeriodData();
+  }, [period]);
+
+  // Fetch monthly history for annual report
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const res = await fetch(`${API_URL}/api/report/monthly-history?months=12`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (res.ok) {
+          const d = await res.json();
+          if (isMounted.current) setMonthlyHistory(d.history || []);
+        }
+      } catch (e) { console.error("History fetch error:", e); }
+    };
+    fetchHistory();
+  }, []);
+
+  const handleDownloadPDF = async () => {
+    setReportLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch(`${API_URL}/api/report/download-pdf`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `DGTNZ_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success("PDF downloaded!");
+      } else {
+        toast.error("Failed to generate PDF");
+      }
+    } catch { toast.error("PDF download error"); }
+    finally { setReportLoading(false); }
+  };
+
+  const handleSendEmail = async () => {
+    setReportLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch(`${API_URL}/api/report/send-email-report`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.ok) {
+        const d = await res.json();
+        toast.success(d.message);
+      } else {
+        toast.error("Failed to send email");
+      }
+    } catch { toast.error("Email send error"); }
+    finally { setReportLoading(false); }
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] p-6 space-y-6 text-white font-sans pb-32">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="border-b border-white/10 pb-4">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-sm text-gray-400 mt-1">Monitor aktivitas dan performa finansial Anda</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-sm text-gray-400 mt-1">Monitor aktivitas dan performa finansial Anda</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-gray-500" />
+            {(["all", "current", "last", "3months"] as const).map(p => (
+              <button
+                key={p}
+                onClick={() => { setPeriod(p); if (p === "all") fetchDashboardData(true); }}
+                className={`px-3 py-1.5 text-xs rounded-full font-medium transition-all ${period === p
+                    ? 'bg-white text-black'
+                    : 'border border-white/10 text-gray-400 hover:bg-white/5'
+                  }`}
+              >
+                {p === "all" ? "All Time" : p === "current" ? "Bulan Ini" : p === "last" ? "Bulan Lalu" : "3 Bulan"}
+              </button>
+            ))}
+          </div>
+        </div>
       </motion.div>
 
       {/* Top Banner Grid */}
@@ -589,6 +701,119 @@ const DashboardTab = () => {
       <CleanupCard stats={stats} loading={loading} />
       <SecurityInfoCard />
       <FreeTierCard stats={stats} loading={loading} />
+
+      {/* Annual Performance Report */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
+        className="border border-white/10 rounded-xl p-6 bg-gradient-to-br from-[#111] to-[#0d0d0d] relative overflow-hidden"
+      >
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-blue-500/5 blur-3xl pointer-events-none" />
+        <div className="flex items-center justify-between mb-6 relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/10">
+              <FileText className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">Annual Performance Report</h3>
+              <p className="text-xs text-gray-500">Ringkasan performa bulanan dalam 12 bulan terakhir</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleDownloadPDF}
+              disabled={reportLoading}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-gray-300 disabled:opacity-50"
+            >
+              <Download className="w-3.5 h-3.5" />
+              PDF
+            </button>
+            <button
+              onClick={handleSendEmail}
+              disabled={reportLoading}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 transition-colors text-blue-300 disabled:opacity-50"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              Email
+            </button>
+          </div>
+        </div>
+
+        {/* Monthly History Chart */}
+        {monthlyHistory.length > 0 ? (
+          <div className="relative z-10">
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyHistory.map(m => ({
+                  month: m.period_start?.slice(0, 7) || "",
+                  score: m.trust_score || 0,
+                  verified: m.verified || 0,
+                  processing: m.processing || 0,
+                  tampered: m.tampered || 0,
+                }))}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={{ stroke: '#222' }} tickLine={false} />
+                  <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    cursor={{ fill: '#ffffff05' }}
+                    contentStyle={{ border: '1px solid #333', backgroundColor: '#000', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
+                  />
+                  <Bar dataKey="verified" name="Verified" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="processing" name="Processing" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="tampered" name="Tampered" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-3 flex items-center gap-4">
+              {[
+                { label: "Verified", color: "bg-green-500" },
+                { label: "Processing", color: "bg-yellow-500" },
+                { label: "Tampered", color: "bg-red-500" },
+              ].map(item => (
+                <div key={item.label} className="flex items-center gap-1.5">
+                  <div className={`w-2.5 h-2.5 rounded-sm ${item.color}`} />
+                  <span className="text-[10px] text-gray-500">{item.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Monthly Summary Table */}
+            <div className="mt-4 pt-4 border-t border-white/10 overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-gray-500 uppercase tracking-wider">
+                    <th className="text-left py-2 px-2">Period</th>
+                    <th className="text-center py-2 px-2">Score</th>
+                    <th className="text-right py-2 px-2">Revenue</th>
+                    <th className="text-center py-2 px-1">✅</th>
+                    <th className="text-center py-2 px-1">⏳</th>
+                    <th className="text-center py-2 px-1">❌</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthlyHistory.slice(-6).map((m, i) => (
+                    <tr key={i} className="border-t border-white/5 text-gray-300">
+                      <td className="py-2 px-2 font-mono">{m.period_start?.slice(0, 7)}</td>
+                      <td className="py-2 px-2 text-center font-bold">{m.trust_score}</td>
+                      <td className="py-2 px-2 text-right">{formatCurrency(m.total_revenue || 0)}</td>
+                      <td className="py-2 px-1 text-center text-green-400">{m.verified}</td>
+                      <td className="py-2 px-1 text-center text-yellow-400">{m.processing}</td>
+                      <td className="py-2 px-1 text-center text-red-400">{m.tampered}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="h-32 flex items-center justify-center border border-dashed border-white/10 rounded-lg relative z-10">
+            <div className="text-center">
+              <FileText className="w-10 h-10 text-gray-800 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">Belum ada data untuk report</p>
+              <p className="text-xs text-gray-600 mt-1">Gunakan fitur scan untuk mulai mengumpulkan data</p>
+            </div>
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 };

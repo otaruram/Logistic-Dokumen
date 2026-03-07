@@ -464,7 +464,7 @@ async def save_scan_with_signature(
             confidence = structured.get("confidence", "low")
             fraud_status = confidence_to_status(confidence)
 
-            # LOW confidence → save to local DB as tampered (for counter), but skip Supabase
+            # LOW confidence → save to local DB + Supabase as tampered
             if confidence == "low":
                 tampered_scan = Scan(
                     user_id=current_user.id,
@@ -489,6 +489,20 @@ async def save_scan_with_signature(
                 db.add(tampered_scan)
                 db.commit()
                 db.refresh(tampered_scan)
+
+                # Sync tampered to Supabase so dashboard counter works
+                content_hash = hashlib.sha256(content).hexdigest()
+                sync_to_supabase(
+                    user_id=str(current_user.id),
+                    filename=file.filename or "scan.jpg",
+                    image_url=image_url,
+                    content_hash=content_hash,
+                    recipient_name=recipient_name,
+                    signature_url=signature_url,
+                    structured=structured,
+                    ocr_result=ocr_result,
+                    is_fraud=True,
+                )
 
                 print(f"🚫 FRAUD REJECTED (tampered) - id={tampered_scan.id}, confidence=low, file={file.filename}")
                 return {
