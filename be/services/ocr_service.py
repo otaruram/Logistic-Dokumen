@@ -158,6 +158,20 @@ class OCRService:
                 return "Error: Tesseract OCR tidak ditemukan.", 0.0, 0.0
 
             img = Image.open(image_path)
+
+            # ── Pre-processing: reduce RAM usage ──
+            # 1. Convert to grayscale (reduces memory ~66%, improves OCR)
+            if img.mode != "L":
+                img = img.convert("L")
+
+            # 2. Resize large images (max 2000px on longest side)
+            MAX_DIM = 2000
+            w, h = img.size
+            if max(w, h) > MAX_DIM:
+                ratio = MAX_DIM / max(w, h)
+                img = img.resize((int(w * ratio), int(h * ratio)), Image.LANCZOS)
+                print(f"📐 Resized image from {w}x{h} → {img.size[0]}x{img.size[1]}")
+
             data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
             text = pytesseract.image_to_string(img, lang='ind+eng')
 
