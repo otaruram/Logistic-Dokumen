@@ -263,9 +263,11 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
     try:
         import ssl
         context = ssl.create_default_context()
-        # Sumopod/Kirim.email often prefers STARTTLS over direct SSL depending on port
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls(context=context)
+        # To prevent strict SMTP servers from crashing on TLS verify
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context) as server:
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
         print(f"✅ Email sent to {to_email}")
