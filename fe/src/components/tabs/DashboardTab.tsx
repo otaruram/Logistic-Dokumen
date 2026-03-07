@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Activity, ShieldCheck, TrendingUp, AlertTriangle, Sparkles, MessageSquare } from "lucide-react";
+import { Activity, ShieldCheck, TrendingUp, AlertTriangle, Sparkles, MessageSquare, RefreshCw } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import {
 } from "recharts";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const USD_RATE_FALLBACK = 16000; // Fallback IDR/USD rate
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -154,7 +155,10 @@ const TrustScoreCard = ({ stats, loading }: { stats: DashboardStats; loading: bo
   );
 };
 
-const NominalVerifiedCard = ({ stats, loading, formatCurrency }: { stats: DashboardStats; loading: boolean; formatCurrency: (n: number) => string }) => (
+const NominalVerifiedCard = ({ stats, loading, currency, onToggleCurrency, formatCurrency }: {
+  stats: DashboardStats; loading: boolean; currency: "IDR" | "USD";
+  onToggleCurrency: () => void; formatCurrency: (n: number) => string;
+}) => (
   <motion.div
     initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
     className="border border-white/10 rounded-xl p-6 bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] relative overflow-hidden group"
@@ -162,21 +166,30 @@ const NominalVerifiedCard = ({ stats, loading, formatCurrency }: { stats: Dashbo
     <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-white/10 transition-colors" />
     <div className="flex items-start justify-between relative z-10">
       <div className="flex-1">
-        <div className="flex items-center gap-2 mb-4">
-          <TrendingUp className="w-5 h-5 text-gray-300" />
-          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Total Pendapatan Valid</span>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-gray-300" />
+            <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Total Pendapatan Valid</span>
+          </div>
+          <button
+            onClick={onToggleCurrency}
+            className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-gray-300"
+          >
+            <RefreshCw className="w-3 h-3" />
+            {currency}
+          </button>
         </div>
         <div className="text-3xl font-bold text-white mb-2 tracking-tight">
           {loading ? "..." : formatCurrency(stats.totalNominalVerified)}
         </div>
         <p className="text-xs text-green-400 flex items-center gap-1">
-          <TrendingUp className="w-3 h-3" />Dihitung dari {stats.verifiedDocuments} dokumen tervalidasi
+          <TrendingUp className="w-3 h-3" />Dihitung dari {stats.verifiedDocuments + stats.processingDocuments} dokumen (verified + processing)
         </p>
       </div>
     </div>
     <div className="mt-8 pt-4 border-t border-white/10 grid grid-cols-3 gap-2 text-center relative z-10">
       {[
-        { label: "Verified", value: stats.verifiedDocuments, color: "text-white" },
+        { label: "Verified", value: stats.verifiedDocuments, color: "text-green-400" },
         { label: "Processing", value: stats.processingDocuments, color: "text-yellow-500" },
         { label: "Tampered", value: stats.tamperedDocuments, color: "text-red-500" },
       ].map((item) => (
@@ -363,10 +376,27 @@ const DashboardTab = () => {
   });
   const [weeklyData, setWeeklyData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currency, setCurrency] = useState<"IDR" | "USD">("IDR");
+  const [usdRate, setUsdRate] = useState(USD_RATE_FALLBACK);
   const isMounted = useRef(true);
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
+  // Fetch USD rate on mount
+  useEffect(() => {
+    fetch("https://api.exchangerate-api.com/v4/latest/USD")
+      .then(r => r.json())
+      .then(d => { if (d?.rates?.IDR) setUsdRate(d.rates.IDR); })
+      .catch(() => setUsdRate(USD_RATE_FALLBACK));
+  }, []);
+
+  const toggleCurrency = () => setCurrency(prev => prev === "IDR" ? "USD" : "IDR");
+
+  const formatCurrency = (amountIDR: number) => {
+    if (currency === "USD") {
+      const usd = amountIDR / usdRate;
+      return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(usd);
+    }
+    return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amountIDR);
+  };
 
   const fetchDashboardData = useCallback(async (silent = false) => {
     try {
@@ -377,22 +407,38 @@ const DashboardTab = () => {
       if (error || !session) { toast.error("Anda harus login terlebih dahulu"); setLoading(false); return; }
       const userId = session.user.id;
 
-      // 1. Trust Score
-      const { data: scoreData, error: scoreError } = await supabase.rpc("calculate_logistics_trust_score", { p_user_id: userId });
-      if (scoreError) console.error("Error fetching score:", scoreError);
-
-      // 2. Finance data
-      const { data: financeData } = await supabase.from("extracted_finance_data").select("nominal_amount").eq("user_id", userId);
-      const totalVerif = financeData ? financeData.reduce((sum, item) => sum + Number(item.nominal_amount), 0) : 0;
-
-      // 3. Document status
+      // 1. Document status counts
       const { data: docs } = await supabase.from("documents").select("status").eq("user_id", userId);
       let verified = 0, tampered = 0, processing = 0;
       docs?.forEach((doc) => {
         if (doc.status === "verified") verified++;
-        if (doc.status === "tampered") tampered++;
-        if (doc.status === "processing") processing++;
+        else if (doc.status === "tampered") tampered++;
+        else if (doc.status === "processing") processing++;
       });
+
+      // 2. Trust Score — calculated from document statuses
+      // verified=100pts, processing=50pts, tampered=0pts, max 1000
+      let calculatedTrustScore = 0;
+      try {
+        const { data: scoreData, error: scoreError } = await supabase.rpc("calculate_logistics_trust_score", { p_user_id: userId });
+        if (scoreError) throw scoreError;
+        calculatedTrustScore = scoreData || 0;
+      } catch {
+        // Fallback: calculate locally if RPC fails
+        const totalDocs = verified + processing + tampered;
+        if (totalDocs > 0) {
+          const rawScore = (verified * 100 + processing * 50 + tampered * 0) / totalDocs;
+          calculatedTrustScore = Math.min(Math.round(rawScore * 10), 1000);
+        }
+      }
+      // Force 0 if all docs are tampered
+      if (verified === 0 && processing === 0 && tampered > 0) calculatedTrustScore = 0;
+
+      // 3. Finance data — only verified + processing count towards revenue
+      const { data: financeData } = await supabase.from("extracted_finance_data").select("nominal_amount, field_confidence").eq("user_id", userId);
+      const totalVerif = financeData
+        ? financeData.filter(f => f.field_confidence !== "low").reduce((sum, item) => sum + Number(item.nominal_amount || 0), 0)
+        : 0;
 
       // 4. Credits
       let credits = 0;
@@ -422,7 +468,8 @@ const DashboardTab = () => {
         if (scansRes.ok) {
           const scansData: Array<{ status: string; created_at: string; is_fraud_scan: boolean }> = await scansRes.json();
           scansData.forEach(s => {
-            if (s.status === 'completed') {
+            const validStatuses = ['completed', 'verified', 'processing', 'tampered'];
+            if (validStatuses.includes(s.status)) {
               if (s.is_fraud_scan) totalScanFraud++; else totalScanDefault++;
               if (s.created_at) {
                 const scanDate = new Date(s.created_at);
@@ -466,7 +513,7 @@ const DashboardTab = () => {
 
       if (isMounted.current) {
         setStats({
-          trustScore: scoreData || 0, totalNominalVerified: totalVerif, totalDocuments: docs?.length || 0,
+          trustScore: calculatedTrustScore, totalNominalVerified: totalVerif, totalDocuments: docs?.length || 0,
           verifiedDocuments: verified, tamperedDocuments: tampered, processingDocuments: processing,
           totalActivity, totalScanDefault, totalScanFraud, totalChatSessions, totalChatMessages,
           credits, nextCleanupDays: apiCleanupDays, nextCleanupDate: apiCleanupDate,
@@ -529,7 +576,7 @@ const DashboardTab = () => {
       {/* Main Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <TrustScoreCard stats={stats} loading={loading} />
-        <NominalVerifiedCard stats={stats} loading={loading} formatCurrency={formatCurrency} />
+        <NominalVerifiedCard stats={stats} loading={loading} currency={currency} onToggleCurrency={toggleCurrency} formatCurrency={formatCurrency} />
       </div>
 
       {/* Weekly Usage Chart */}
