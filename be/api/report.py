@@ -260,15 +260,15 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         part.add_header("Content-Disposition", f'attachment; filename="{pdf_filename}"')
         msg.attach(part)
     else:
-        # If no attachment, send simple MIMEText 
-        # (Prevents Node.js parsers from crashing on empty Multipart boundaries)
-        msg = MIMEText(body_html, "html")
-        msg["From"] = SMTP_FROM
-        msg["To"] = to_email
-        msg["Subject"] = subject
-        msg["Date"] = formatdate(localtime=True)
-        msg["Message-ID"] = make_msgid(domain="ocr.web.id")
-        msg["Reply-To"] = SMTP_FROM
+        # If no attachment, send raw SMTP string to bypass strict Node.js parser bugs
+        # Python's MIMEText often uses \n instead of \r\n, crashing the Sumopod server.
+        raw_msg = (
+            f"From: {SMTP_FROM}\r\n"
+            f"To: {to_email}\r\n"
+            f"Subject: {subject}\r\n"
+            f"Content-Type: text/html; charset=utf-8\r\n\r\n"
+            f"{body_html}"
+        )
 
     try:
         import ssl
@@ -279,8 +279,12 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         # Kirim.email / Sumopod expects implicit SSL on 465
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, local_hostname="ocr.web.id") as server:
             server.login(SMTP_USER, SMTP_PASS)
-            server.send_message(msg)
             
+            if pdf_bytes and pdf_filename:
+                server.sendmail(SMTP_FROM, [to_email], msg.as_string())
+            else:
+                server.sendmail(SMTP_FROM, [to_email], raw_msg.encode('utf-8'))
+                
         print(f"✅ Email sent to {to_email}")
         return True
     except Exception as e:
