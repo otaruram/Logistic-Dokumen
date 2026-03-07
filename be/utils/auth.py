@@ -102,13 +102,16 @@ async def get_current_user(
                 
                 if not user:
                     # Create user if doesn't exist — use Supabase auth UID as local ID
+                    now = datetime.utcnow()
                     user = User(
                         id=str(user_response.user.id),
                         email=email,
                         username=email.split('@')[0],
                         hashed_password="",  # No password for OAuth users
                         credits=10,  # Initial 10 credits (daily reset)
-                        is_active=True
+                        is_active=True,
+                        created_at=now,
+                        updated_at=now,
                     )
                     db.add(user)
                     db.commit()
