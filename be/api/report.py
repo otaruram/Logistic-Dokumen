@@ -262,14 +262,23 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
 
     try:
         import ssl
+        
+        # Kirim.email (Sumopod) often drops implicit SSL on 465 with a Node.js exception.
+        # We force port 587 (or use whatever is configured) but use explicit STARTTLS.
+        port = 587 if SMTP_PORT == 465 else SMTP_PORT
+        
         context = ssl.create_default_context()
-        # To prevent strict SMTP servers from crashing on TLS verify
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
         
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context) as server:
+        # Pass local_hostname to satisfy strict EHLO checks
+        with smtplib.SMTP(SMTP_HOST, port, local_hostname="ocr.web.id") as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
+            
         print(f"✅ Email sent to {to_email}")
         return True
     except Exception as e:
