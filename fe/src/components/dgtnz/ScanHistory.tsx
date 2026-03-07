@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { FileDown, Cloud, Search, Trash2, CheckCircle2, XCircle, Clock, Pencil, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,11 @@ export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: 
     const [filterDate, setFilterDate] = useState("all");
     const [filterMonth, setFilterMonth] = useState("all");
     const [filterYear, setFilterYear] = useState("all");
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
+
+    // Reset to page 1 when records change
+    useEffect(() => { setCurrentPage(1); }, [records.length]);
 
     const filteredRecords = records.filter(record => {
         const matchesSearch = record.namaPenerima.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,6 +75,10 @@ export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: 
         }
         return true;
     });
+
+    // Pagination
+    const totalPages = Math.ceil(filteredRecords.length / ITEMS_PER_PAGE);
+    const paginatedRecords = filteredRecords.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     const handleExportExcel = () => {
         if (filteredRecords.length === 0) return;
@@ -192,10 +201,10 @@ export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: 
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredRecords.length > 0 ? (
-                            filteredRecords.map((record, idx) => (
+                        {paginatedRecords.length > 0 ? (
+                            paginatedRecords.map((record, idx) => (
                                 <TableRow key={record.id} className="border-white/5 hover:bg-white/[0.02]">
-                                    <TableCell className="text-gray-500">{idx + 1}</TableCell>
+                                    <TableCell className="text-gray-500">{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}</TableCell>
                                     <TableCell className="font-mono text-sm text-gray-400">{record.tanggal}</TableCell>
                                     <TableCell className="font-medium text-white">
                                         <div className="flex items-center gap-2">
@@ -275,6 +284,49 @@ export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: 
                     </TableBody>
                 </Table>
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="p-4 border-t border-white/10 flex items-center justify-between">
+                    <p className="text-xs text-gray-500">
+                        Halaman {currentPage} dari {totalPages} ({filteredRecords.length} record)
+                    </p>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="px-2 py-1 text-xs rounded border border-white/10 text-gray-400 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                            ←
+                        </button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                            .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                            .map((page, idx, arr) => (
+                                <span key={page}>
+                                    {idx > 0 && arr[idx - 1] !== page - 1 && (
+                                        <span className="text-gray-600 px-1">...</span>
+                                    )}
+                                    <button
+                                        onClick={() => setCurrentPage(page)}
+                                        className={`w-7 h-7 text-xs rounded ${currentPage === page
+                                                ? 'bg-white text-black font-bold'
+                                                : 'border border-white/10 text-gray-400 hover:bg-white/5'
+                                            }`}
+                                    >
+                                        {page}
+                                    </button>
+                                </span>
+                            ))}
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-2 py-1 text-xs rounded border border-white/10 text-gray-400 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                            →
+                        </button>
+                    </div>
+                </div>
+            )}
         </Card>
     );
 };

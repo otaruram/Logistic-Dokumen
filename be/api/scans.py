@@ -464,11 +464,35 @@ async def save_scan_with_signature(
             confidence = structured.get("confidence", "low")
             fraud_status = confidence_to_status(confidence)
 
-            # LOW confidence → REJECT immediately, don't save
+            # LOW confidence → save to local DB as tampered (for counter), but skip Supabase
             if confidence == "low":
-                print(f"🚫 FRAUD REJECTED (tampered) - confidence=low, file={file.filename}")
+                tampered_scan = Scan(
+                    user_id=current_user.id,
+                    original_filename=file.filename,
+                    file_path="imagekit",
+                    file_size=len(content),
+                    file_type=file.content_type,
+                    imagekit_url=image_url,
+                    recipient_name=recipient_name,
+                    signature_url=signature_url,
+                    extracted_text=extracted,
+                    confidence_score=ocr_result.get("confidence_score", 0),
+                    processing_time=ocr_result.get("processing_time", 0),
+                    status="tampered",
+                    is_fraud_scan=True,
+                    fraud_nominal_total=structured.get("nominal_total") or 0,
+                    fraud_nama_klien=structured.get("nama_klien"),
+                    fraud_nomor_surat_jalan=structured.get("nomor_surat_jalan"),
+                    fraud_tanggal_jatuh_tempo=structured.get("tanggal_jatuh_tempo"),
+                    fraud_confidence="low",
+                )
+                db.add(tampered_scan)
+                db.commit()
+                db.refresh(tampered_scan)
+
+                print(f"🚫 FRAUD REJECTED (tampered) - id={tampered_scan.id}, confidence=low, file={file.filename}")
                 return {
-                    "id": None,
+                    "id": tampered_scan.id,
                     "file_path": image_url,
                     "imagekit_url": image_url,
                     "extracted_text": extracted,
