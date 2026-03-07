@@ -243,39 +243,40 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         print("⚠️ SMTP not configured, skipping email")
         return "SMTP_USER or SMTP_PASS not set in env"
 
-    msg = MIMEMultipart()
-    msg["From"] = SMTP_FROM
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg["Date"] = formatdate(localtime=True)
-    msg["Message-ID"] = make_msgid(domain="ocr.web.id")
-
-    msg.attach(MIMEText(body_html, "html"))
-
-    # PDF attachment (skip if empty — e.g. newsletter)
+    # Build MIME message correctly based on attachments
     if pdf_bytes and pdf_filename:
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_FROM
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg["Date"] = formatdate(localtime=True)
+        msg["Message-ID"] = make_msgid(domain="ocr.web.id")
+
+        msg.attach(MIMEText(body_html, "html"))
+
         part = MIMEBase("application", "pdf")
         part.set_payload(pdf_bytes)
         encoders.encode_base64(part)
         part.add_header("Content-Disposition", f"attachment; filename={pdf_filename}")
         msg.attach(part)
+    else:
+        # If no attachment, send simple MIMEText 
+        # (Prevents Node.js parsers from crashing on empty Multipart boundaries)
+        msg = MIMEText(body_html, "html")
+        msg["From"] = SMTP_FROM
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg["Date"] = formatdate(localtime=True)
+        msg["Message-ID"] = make_msgid(domain="ocr.web.id")
 
     try:
         import ssl
-        
-        # Kirim.email (Sumopod) often drops implicit SSL on 465 with a Node.js exception.
-        # We force port 587 (or use whatever is configured) but use explicit STARTTLS.
-        port = 587 if SMTP_PORT == 465 else SMTP_PORT
-        
         context = ssl.create_default_context()
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
         
-        # Pass local_hostname to satisfy strict EHLO checks
-        with smtplib.SMTP(SMTP_HOST, port, local_hostname="ocr.web.id") as server:
-            server.ehlo()
-            server.starttls(context=context)
-            server.ehlo()
+        # Kirim.email / Sumopod expects implicit SSL on 465
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context) as server:
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
             
