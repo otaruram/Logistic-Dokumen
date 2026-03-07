@@ -155,7 +155,7 @@ def _generate_pdf(user_email: str, report_data: dict, months_data: list[dict]) -
                                 textColor=dark, spaceAfter=4)
 
     # Header
-    elements.append(Paragraph("📊 DGTNZ Annual Performance Report", title_style))
+    elements.append(Paragraph("DGTNZ Annual Performance Report", title_style))
     elements.append(Paragraph(
         f"User: {user_email} | Generated: {datetime.now().strftime('%d %B %Y, %H:%M')}",
         subtitle_style
@@ -200,7 +200,7 @@ def _generate_pdf(user_email: str, report_data: dict, months_data: list[dict]) -
         elements.append(Paragraph("Monthly Performance History", heading_style))
         elements.append(Spacer(1, 3*mm))
 
-        history_data = [["Period", "Score", "Revenue", "✓", "⏳", "✗"]]
+        history_data = [["Period", "Score", "Revenue", "Verified", "Processing", "Tampered"]]
         for m in months_data:
             history_data.append([
                 f"{m['period_start'][:7]}",
@@ -240,13 +240,13 @@ def _generate_pdf(user_email: str, report_data: dict, months_data: list[dict]) -
 def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, pdf_filename: str):
     """Send email with PDF attachment via SMTP. Returns True on success, error string on failure."""
     if not SMTP_USER or not SMTP_PASS:
-        print("⚠️ SMTP not configured, skipping email")
+        print("SMTP not configured, skipping email")
         return "SMTP_USER or SMTP_PASS not set in env"
 
-    # Bungkus SEMUA email dengan MIMEMultipart agar Node.js parser di server SMTP 
-    # memprosesnya dengan jalur yang sama seperti email berlampiran
     msg = MIMEMultipart("mixed")
-    msg["From"] = SMTP_FROM
+    
+    # Perbaikan: Tambahkan Display Name agar format email lebih kokoh diproses parser Node.js
+    msg["From"] = f"DGTNZ System <{SMTP_FROM}>"
     msg["To"] = to_email
     msg["Subject"] = subject
     msg["Date"] = formatdate(localtime=True)
@@ -282,11 +282,11 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
             # Gunakan send_message() alih-alih sendmail()
             server.send_message(msg)
             
-        print(f"✅ Email sent to {to_email}")
+        print(f"Email sent to {to_email}")
         return True
     except Exception as e:
         err = f"SMTP error: {type(e).__name__}: {e}"
-        print(f"❌ Email send failed to {to_email}: {err}")
+        print(f"Email send failed to {to_email}: {err}")
         return err
 
 
@@ -473,7 +473,7 @@ async def send_email_report(
 
     body_html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #0a0a0a;">📊 Your DGTNZ Monthly Report</h2>
+        <h2 style="color: #0a0a0a;">Your DGTNZ Monthly Report</h2>
         <p style="color: #6b7280;">Hi {current_user.email.split('@')[0]},</p>
         <p style="color: #374151;">
             Your performance report for period <strong>{start.strftime('%d %b %Y')}</strong> — 
@@ -491,9 +491,9 @@ async def send_email_report(
             <tr>
                 <td style="padding: 10px;">Documents</td>
                 <td style="padding: 10px; text-align: right;">
-                    ✅ {current_data.get('verified', 0)} |
-                    ⏳ {current_data.get('processing', 0)} |
-                    ❌ {current_data.get('tampered', 0)}
+                    Verified: {current_data.get('verified', 0)} |
+                    Processing: {current_data.get('processing', 0)} |
+                    Tampered: {current_data.get('tampered', 0)}
                 </td>
             </tr>
         </table>
@@ -504,7 +504,8 @@ async def send_email_report(
     </div>
     """
 
-    success = _send_email(current_user.email, f"📊 DGTNZ Report — {today.strftime('%B %Y')}", body_html, pdf_bytes, filename)
+    # Subject tanpa emoji
+    success = _send_email(current_user.email, f"DGTNZ Report - {today.strftime('%B %Y')}", body_html, pdf_bytes, filename)
 
     if success is True:
         return {"message": "Report sent to your email", "email": current_user.email}
@@ -524,13 +525,7 @@ async def cron_send_all_reports(
 ):
     """
     Cron endpoint: auto-send monthly email reports to ALL active users.
-    Protected by CLEANUP_SECRET Bearer token (same as cleanup cron).
-    
-    VPS crontab example:
-    0 9 1 * * curl -s -X POST https://api-ocr.xyz/api/report/cron/send-all \
-      -H "Authorization: Bearer YOUR_CLEANUP_SECRET"
     """
-    # Auth check — same secret as cleanup cron
     auth = request.headers.get("Authorization", "")
     token = auth.replace("Bearer ", "").strip()
     if not CLEANUP_SECRET or token != CLEANUP_SECRET:
@@ -543,7 +538,6 @@ async def cron_send_all_reports(
     if not supabase_admin:
         raise HTTPException(status_code=500, detail="Supabase not available")
 
-    # Get all users
     try:
         users_res = supabase_admin.table("profiles").select("id, email").execute()
         users = users_res.data or []
@@ -563,7 +557,6 @@ async def cron_send_all_reports(
             continue
 
         try:
-            # Get join date
             try:
                 auth_user = supabase_admin.auth.admin.get_user_by_id(user_id)
                 join_date = datetime.fromisoformat(
@@ -572,7 +565,6 @@ async def cron_send_all_reports(
             except Exception:
                 join_date = today
 
-            # Current period
             start, end = _get_billing_period(join_date, today)
             current_data = _fetch_report_data(user_id, start, end)
 
@@ -580,7 +572,6 @@ async def cron_send_all_reports(
                 skipped += 1
                 continue
 
-            # History
             history = []
             current_date = today
             for _ in range(12):
@@ -600,7 +591,7 @@ async def cron_send_all_reports(
 
             body_html = f"""
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #0a0a0a;">📊 Your Monthly DGTNZ Report</h2>
+                <h2 style="color: #0a0a0a;">Your Monthly DGTNZ Report</h2>
                 <p style="color: #6b7280;">Hi {email.split('@')[0]},</p>
                 <p style="color: #374151;">
                     Your automatic monthly report for <strong>{start.strftime('%d %b %Y')}</strong> — 
@@ -618,7 +609,7 @@ async def cron_send_all_reports(
                     <tr>
                         <td style="padding: 8px;">Docs</td>
                         <td style="padding: 8px; text-align: right;">
-                            ✅{current_data.get('verified', 0)} ⏳{current_data.get('processing', 0)} ❌{current_data.get('tampered', 0)}
+                            Verified: {current_data.get('verified', 0)} | Processing: {current_data.get('processing', 0)} | Tampered: {current_data.get('tampered', 0)}
                         </td>
                     </tr>
                 </table>
@@ -628,9 +619,10 @@ async def cron_send_all_reports(
             </div>
             """
 
+            # Subject tanpa emoji
             result = _send_email(
                 email,
-                f"📊 DGTNZ Monthly Report — {today.strftime('%B %Y')}",
+                f"DGTNZ Monthly Report - {today.strftime('%B %Y')}",
                 body_html, pdf_bytes, filename
             )
             if result is True:
@@ -661,10 +653,6 @@ async def cron_send_newsletter(
     """
     Send feature announcement newsletter to ALL registered users.
     Protected by CLEANUP_SECRET.
-
-    VPS one-time cron:
-    0 9 13 3 * curl -s -X POST https://api-ocr.xyz/api/report/cron/newsletter \
-      -H "Authorization: Bearer YOUR_CLEANUP_SECRET"
     """
     auth = request.headers.get("Authorization", "")
     token = auth.replace("Bearer ", "").strip()
@@ -684,7 +672,6 @@ async def cron_send_newsletter(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch users: {e}")
 
-    # Banner image URL (hosted via API static)
     banner_url = "https://api-ocr.xyz/static/newsletter_banner.png"
 
     newsletter_html = f"""
@@ -693,125 +680,50 @@ async def cron_send_newsletter(
     <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
     <body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: 'Segoe UI', Arial, sans-serif;">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
-        
         <tr>
           <td style="padding: 0;">
             <img src="{banner_url}" alt="DGTNZ OCR Platform" style="width: 100%; height: auto; display: block;" />
           </td>
         </tr>
-
         <tr>
           <td style="background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); padding: 32px 32px 24px; text-align: center;">
-            <h1 style="color: #ffffff; font-size: 24px; margin: 0 0 8px;">🚀 What's New in DGTNZ</h1>
+            <h1 style="color: #ffffff; font-size: 24px; margin: 0 0 8px;">What's New in DGTNZ</h1>
             <p style="color: #9ca3af; font-size: 14px; margin: 0;">March 2026 — Platform Update</p>
           </td>
         </tr>
-
         <tr>
           <td style="padding: 28px 32px 8px;">
             <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0;">
-              Hi there! 👋<br><br>
+              Hi there!<br><br>
               We've been working hard to make DGTNZ even better. Here are the exciting new features
               we've shipped this month:
             </p>
           </td>
         </tr>
-
         <tr>
           <td style="padding: 16px 32px;">
             <table width="100%" cellpadding="0" cellspacing="0" style="background: #f0fdf4; border-radius: 10px; border-left: 4px solid #10b981;">
               <tr>
                 <td style="padding: 16px 20px;">
-                  <h3 style="color: #065f46; font-size: 15px; margin: 0 0 6px;">🛡️ Smart Fraud Detection</h3>
+                  <h3 style="color: #065f46; font-size: 15px; margin: 0 0 6px;">Smart Fraud Detection</h3>
                   <p style="color: #374151; font-size: 13px; margin: 0; line-height: 1.5;">
-                    AI-powered document authenticity verification with 3-tier confidence scoring: 
-                    <strong style="color: #10b981;">Verified</strong>, 
-                    <strong style="color: #f59e0b;">Processing</strong>, and 
-                    <strong style="color: #ef4444;">Tampered</strong>. 
-                    Low-confidence documents are automatically flagged.
+                    AI-powered document authenticity verification with 3-tier confidence scoring.
                   </p>
                 </td>
               </tr>
             </table>
           </td>
         </tr>
-
-        <tr>
-          <td style="padding: 4px 32px 16px;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background: #eff6ff; border-radius: 10px; border-left: 4px solid #3b82f6;">
-              <tr>
-                <td style="padding: 16px 20px;">
-                  <h3 style="color: #1e40af; font-size: 15px; margin: 0 0 6px;">📊 Annual Performance Report</h3>
-                  <p style="color: #374151; font-size: 13px; margin: 0; line-height: 1.5;">
-                    Download professional PDF reports with monthly trust score trends, revenue analytics, 
-                    and document statistics. Also available via automated email delivery.
-                  </p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <tr>
-          <td style="padding: 4px 32px 16px;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background: #fdf4ff; border-radius: 10px; border-left: 4px solid #a855f7;">
-              <tr>
-                <td style="padding: 16px 20px;">
-                  <h3 style="color: #6b21a8; font-size: 15px; margin: 0 0 6px;">📈 Enhanced Dashboard</h3>
-                  <p style="color: #374151; font-size: 13px; margin: 0; line-height: 1.5;">
-                    Period selector (All Time / Monthly), real-time trust score, currency toggle (IDR/USD), 
-                    and monthly performance bar charts — all in one view.
-                  </p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <tr>
-          <td style="padding: 4px 32px 16px;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background: #fff7ed; border-radius: 10px; border-left: 4px solid #f97316;">
-              <tr>
-                <td style="padding: 16px 20px;">
-                  <h3 style="color: #9a3412; font-size: 15px; margin: 0 0 6px;">⚡ 2x Faster Scanning</h3>
-                  <p style="color: #374151; font-size: 13px; margin: 0; line-height: 1.5;">
-                    Optimized OCR pipeline with intelligent image preprocessing. 
-                    Documents are now processed nearly twice as fast with lower server resource usage.
-                  </p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <tr>
-          <td style="padding: 4px 32px 16px;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8fafc; border-radius: 10px; border-left: 4px solid #64748b;">
-              <tr>
-                <td style="padding: 16px 20px;">
-                  <h3 style="color: #334155; font-size: 15px; margin: 0 0 6px;">📄 Paginated History</h3>
-                  <p style="color: #374151; font-size: 13px; margin: 0; line-height: 1.5;">
-                    Scan history and fraud logs now display 10 records per page with smooth pagination. 
-                    Navigate through your records easily with numbered page buttons.
-                  </p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
         <tr>
           <td style="padding: 24px 32px; text-align: center;">
             <a href="https://ocr.web.id" 
                style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #8b5cf6); 
                       color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px; 
-                      font-size: 15px; font-weight: 600; letter-spacing: 0.3px;
-                      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
-              Try It Now →
+                      font-size: 15px; font-weight: 600;">
+              Try It Now
             </a>
           </td>
         </tr>
-
         <tr>
           <td style="background: #f9fafb; padding: 20px 32px; border-top: 1px solid #e5e7eb;">
             <p style="color: #9ca3af; font-size: 11px; margin: 0; text-align: center; line-height: 1.6;">
@@ -820,7 +732,6 @@ async def cron_send_newsletter(
             </p>
           </td>
         </tr>
-
       </table>
     </body>
     </html>
@@ -837,11 +748,12 @@ async def cron_send_newsletter(
             continue
 
         try:
+            # Subject tanpa emoji
             result = _send_email(
                 to_email=email,
-                subject="🚀 What's New in DGTNZ — March 2026 Update",
+                subject="What's New in DGTNZ - March 2026 Update",
                 body_html=newsletter_html,
-                pdf_bytes=b"",  # No PDF attachment for newsletter
+                pdf_bytes=b"",
                 pdf_filename="",
             )
             if result is True:
@@ -869,8 +781,6 @@ async def cron_send_newsletter(
 async def cron_test_email(request: Request):
     """
     Send a test email to a single address. For debugging SMTP.
-    Usage: curl -X POST 'https://api-ocr.xyz/api/report/cron/test-email?to=okitr52@gmail.com' \
-      -H 'Authorization: Bearer YOUR_SECRET'
     """
     auth = request.headers.get("Authorization", "")
     token = auth.replace("Bearer ", "").strip()
@@ -881,7 +791,6 @@ async def cron_test_email(request: Request):
     if not to:
         return {"error": "Missing ?to=email@example.com"}
 
-    # Debug info
     debug = {
         "smtp_host": SMTP_HOST,
         "smtp_port": SMTP_PORT,
@@ -893,17 +802,18 @@ async def cron_test_email(request: Request):
 
     test_html = f"""
     <div style="font-family: Arial; max-width: 500px; margin: 0 auto; padding: 24px;">
-        <h2 style="color: #0a0a0a;">✅ DGTNZ Test Email</h2>
+        <h2 style="color: #0a0a0a;">DGTNZ Test Email</h2>
         <p style="color: #6b7280;">This is a test email from the DGTNZ platform.</p>
-        <p style="color: #374151;">If you can read this, SMTP is working!</p>
+        <p style="color: #374151;">If you can read this, SMTP is working perfectly without emojis!</p>
         <hr style="border: 1px solid #e5e7eb; margin: 16px 0;">
         <p style="color: #9ca3af; font-size: 11px;">Sent at {datetime.now().isoformat()}</p>
     </div>
     """
 
+    # Subject tanpa emoji
     result = _send_email(
         to_email=to,
-        subject="✅ DGTNZ Test Email",
+        subject="DGTNZ Test Email",
         body_html=test_html,
         pdf_bytes=b"",
         pdf_filename="",
