@@ -10,8 +10,8 @@ from pathlib import Path
 
 router = APIRouter()
 
-# Secret key for cleanup endpoint (set in .env)
-CLEANUP_SECRET = "your-secret-cleanup-key-here"  # Change this!
+# Secret key for cleanup endpoint (set CLEANUP_SECRET in .env)
+CLEANUP_SECRET = os.getenv("CLEANUP_SECRET", "")
 
 @router.post("/monthly-cleanup")
 async def trigger_monthly_cleanup(authorization: Optional[str] = Header(None)):

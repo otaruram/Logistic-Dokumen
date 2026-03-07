@@ -163,7 +163,13 @@ async def save_fraud_scan(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """Dedicated endpoint for FRAUD scans — always is_fraud_scan=True"""
+    """Dedicated endpoint for FRAUD scans — always is_fraud_scan=True
+    
+    Confidence → Status mapping:
+      low  (0-1 fields) → tampered  → REJECTED, not saved
+      medium (2 fields) → processing → saved, needs manual review
+      high (3+ fields)  → verified   → saved, document is authentic
+    """
     print(f"🔴 FRAUD SCAN Request - Recipient: {recipient_name}, File: {file.filename}")
 
     # 1. Check & deduct credits
@@ -177,8 +183,29 @@ async def save_fraud_scan(
             content, file.filename or "fraud_scan.jpg"
         )
         structured = ocr_result.get("structured_fields", {})
+        confidence = structured.get("confidence", "low")
+        fraud_status = confidence_to_status(confidence)
 
-        # 3. Save to local DB
+        # 3. LOW confidence → REJECT immediately, don't save anywhere
+        if confidence == "low":
+            print(f"🚫 FRAUD REJECTED (tampered) - confidence=low, file={file.filename}")
+            return {
+                "id": None,
+                "file_path": image_url,
+                "imagekit_url": image_url,
+                "extracted_text": extracted,
+                "recipient_name": recipient_name,
+                "signature_url": signature_url,
+                "status": "tampered",
+                "is_fraud_scan": True,
+                "field_confidence": "low",
+                "fraud_status": "tampered",
+                "credits_remaining": new_balance,
+                "rejected": True,
+                "rejection_reason": "Document has insufficient verifiable fields. Authenticity cannot be confirmed — flagged as tampered.",
+            }
+
+        # 4. MEDIUM or HIGH → Save to local DB
         new_scan = Scan(
             user_id=current_user.id,
             original_filename=file.filename,
@@ -191,17 +218,14 @@ async def save_fraud_scan(
             extracted_text=extracted,
             confidence_score=ocr_result.get("confidence_score", 0),
             processing_time=ocr_result.get("processing_time", 0),
-            status="completed",
+            status=fraud_status,  # "processing" or "verified"
             is_fraud_scan=True,
             fraud_nominal_total=structured.get("nominal_total") or 0,
             fraud_nama_klien=structured.get("nama_klien"),
             fraud_nomor_surat_jalan=structured.get("nomor_surat_jalan"),
             fraud_tanggal_jatuh_tempo=structured.get("tanggal_jatuh_tempo"),
-            fraud_confidence=structured.get("confidence", "low"),
+            fraud_confidence=confidence,
         )
-        # Map confidence to fraud verification status
-        fraud_status = confidence_to_status(structured.get("confidence", "low"))
-        new_scan.status = fraud_status
         db.add(new_scan)
         db.commit()
         db.refresh(new_scan)
@@ -219,9 +243,9 @@ async def save_fraud_scan(
             last_log.reference_id = new_scan.id
             db.commit()
 
-        print(f"✅ FRAUD scan saved: id={new_scan.id}")
+        print(f"✅ FRAUD scan saved: id={new_scan.id}, status={fraud_status}, confidence={confidence}")
 
-        # 4. Supabase sync
+        # 5. Supabase sync (only for medium/high)
         content_hash = hashlib.sha256(content).hexdigest()
         sync_to_supabase(
             user_id=str(current_user.id),
@@ -244,9 +268,10 @@ async def save_fraud_scan(
             "signature_url": signature_url,
             "status": fraud_status,
             "is_fraud_scan": True,
-            "field_confidence": structured.get("confidence", "low"),
+            "field_confidence": confidence,
             "fraud_status": fraud_status,
             "credits_remaining": new_balance,
+            "rejected": False,
         }
 
     except HTTPException:
@@ -256,3 +281,4 @@ async def save_fraud_scan(
         import traceback
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Fraud scan failed: {str(e)}")
+
