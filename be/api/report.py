@@ -12,7 +12,7 @@ from email.mime.text import MIMEText
 from email import encoders
 from datetime import datetime, date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -490,3 +490,140 @@ async def send_email_report(
     else:
         # Even if email fails, return the PDF download URL
         return {"message": "Email not configured. Download PDF manually.", "email_sent": False}
+
+
+# ── Cron: Auto-send email reports ────────────────────────────────────────────
+
+CLEANUP_SECRET = os.getenv("CLEANUP_SECRET", "")
+
+
+@router.post("/cron/send-all")
+async def cron_send_all_reports(
+    request: Request,
+):
+    """
+    Cron endpoint: auto-send monthly email reports to ALL active users.
+    Protected by CLEANUP_SECRET Bearer token (same as cleanup cron).
+    
+    VPS crontab example:
+    0 9 1 * * curl -s -X POST https://api-ocr.xyz/api/report/cron/send-all \
+      -H "Authorization: Bearer YOUR_CLEANUP_SECRET"
+    """
+    # Auth check — same secret as cleanup cron
+    auth = request.headers.get("Authorization", "")
+    token = auth.replace("Bearer ", "").strip()
+    if not CLEANUP_SECRET or token != CLEANUP_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid or missing secret")
+
+    if not SMTP_USER or not SMTP_PASS:
+        return {"message": "SMTP not configured", "sent": 0, "skipped": 0}
+
+    supabase_admin = get_supabase_admin()
+    if not supabase_admin:
+        raise HTTPException(status_code=500, detail="Supabase not available")
+
+    # Get all users
+    try:
+        users_res = supabase_admin.table("profiles").select("id, email").execute()
+        users = users_res.data or []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch users: {e}")
+
+    today = date.today()
+    sent = 0
+    skipped = 0
+    errors = []
+
+    for user in users:
+        user_id = user.get("id")
+        email = user.get("email")
+        if not email or not user_id:
+            skipped += 1
+            continue
+
+        try:
+            # Get join date
+            try:
+                auth_user = supabase_admin.auth.admin.get_user_by_id(user_id)
+                join_date = datetime.fromisoformat(
+                    auth_user.user.created_at.replace("Z", "+00:00")
+                ).date()
+            except Exception:
+                join_date = today
+
+            # Current period
+            start, end = _get_billing_period(join_date, today)
+            current_data = _fetch_report_data(user_id, start, end)
+
+            if not current_data or current_data.get("total_docs", 0) == 0:
+                skipped += 1
+                continue
+
+            # History
+            history = []
+            current_date = today
+            for _ in range(12):
+                s, e = _get_billing_period(join_date, current_date)
+                if s < join_date:
+                    break
+                data = _fetch_report_data(user_id, s, e)
+                if data:
+                    history.append(data)
+                current_date = s - timedelta(days=1)
+                if current_date < join_date:
+                    break
+            history.reverse()
+
+            pdf_bytes = _generate_pdf(email, current_data, history)
+            filename = f"DGTNZ_Report_{today.strftime('%Y%m%d')}.pdf"
+
+            body_html = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #0a0a0a;">📊 Your Monthly DGTNZ Report</h2>
+                <p style="color: #6b7280;">Hi {email.split('@')[0]},</p>
+                <p style="color: #374151;">
+                    Your automatic monthly report for <strong>{start.strftime('%d %b %Y')}</strong> — 
+                    <strong>{end.strftime('%d %b %Y')}</strong> is ready.
+                </p>
+                <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                    <tr style="background: #0a0a0a; color: white;">
+                        <td style="padding: 8px;">Trust Score</td>
+                        <td style="padding: 8px; text-align: right;">{current_data.get('trust_score', 0)} / 1000</td>
+                    </tr>
+                    <tr style="background: #f3f4f6;">
+                        <td style="padding: 8px;">Revenue</td>
+                        <td style="padding: 8px; text-align: right;">Rp {current_data.get('total_revenue', 0):,.0f}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">Docs</td>
+                        <td style="padding: 8px; text-align: right;">
+                            ✅{current_data.get('verified', 0)} ⏳{current_data.get('processing', 0)} ❌{current_data.get('tampered', 0)}
+                        </td>
+                    </tr>
+                </table>
+                <p style="color: #9ca3af; font-size: 11px;">
+                    Auto-generated by DGTNZ (ocr.wtf). PDF attached.
+                </p>
+            </div>
+            """
+
+            success = _send_email(
+                email,
+                f"📊 DGTNZ Monthly Report — {today.strftime('%B %Y')}",
+                body_html, pdf_bytes, filename
+            )
+            if success:
+                sent += 1
+            else:
+                skipped += 1
+
+        except Exception as e:
+            errors.append(f"{email}: {str(e)}")
+            skipped += 1
+
+    return {
+        "message": f"Monthly report cron completed",
+        "sent": sent,
+        "skipped": skipped,
+        "errors": errors[:5] if errors else [],
+    }

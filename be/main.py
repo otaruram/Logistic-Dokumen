@@ -32,6 +32,8 @@ app.add_middleware(
         "https://logistic-dokumen.vercel.app",
         "https://ocr.wtf",
         "https://www.ocr.wtf",
+        "https://ocr.web.id",
+        "https://www.ocr.web.id",
     ],
     allow_credentials=True,
     allow_methods=["*"],

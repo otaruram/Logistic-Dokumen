@@ -164,16 +164,17 @@ class OCRService:
             if img.mode != "L":
                 img = img.convert("L")
 
-            # 2. Resize large images (max 2000px on longest side)
-            MAX_DIM = 2000
+            # 2. Resize large images (max 1500px on longest side — balanced speed/quality)
+            MAX_DIM = 1500
             w, h = img.size
             if max(w, h) > MAX_DIM:
                 ratio = MAX_DIM / max(w, h)
                 img = img.resize((int(w * ratio), int(h * ratio)), Image.LANCZOS)
                 print(f"📐 Resized image from {w}x{h} → {img.size[0]}x{img.size[1]}")
 
-            data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
-            text = pytesseract.image_to_string(img, lang='ind+eng')
+            # Single Tesseract call — extract text + confidence from data dict
+            data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT, lang='ind+eng')
+            text = " ".join(w for w in data['text'] if w.strip())
 
             confidences = [int(conf) for conf in data['conf'] if int(conf) > 0]
             avg_confidence = sum(confidences) / len(confidences) if confidences else 0

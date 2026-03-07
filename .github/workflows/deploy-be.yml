@@ -45,11 +45,17 @@ jobs:
             
             # Rebuild and restart the Docker containers
             echo "Rebuilding and restarting Docker containers..."
-            docker compose down
+            docker compose down --remove-orphans
             docker compose build backend
             docker compose up -d
             
+            # Clean up old Docker images to save disk space
+            echo "Cleaning up old Docker images..."
+            docker image prune -f
+            docker builder prune -f --filter "until=24h"
+            
             # Check status
             docker ps | grep logistic-document
+            df -h / | tail -1
             
             echo "✅ Deployment completed successfully!"

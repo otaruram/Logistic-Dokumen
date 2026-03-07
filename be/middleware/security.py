@@ -16,12 +16,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     # Rate limits per endpoint (requests per minute)
     RATE_LIMITS = {
         "/api/scans/upload": 10,           # OCR: 10 req/min
+        "/api/scans/save-with-signature": 10, # Scan + fraud: 10 req/min
         "/api/quiz/generate": 5,           # Quiz: 5 req/min
         "/api/invoices/create": 20,        # Invoice: 20 req/min
         "/api/tools/compress-pdf": 10,     # PDF tools: 10 req/min
         "/api/reviews/submit": 3,          # Reviews: 3 req/min
         "/api/auth/register": 5,           # Register: 5 req/min
         "/api/auth/login": 10,             # Login: 10 req/min
+        "/api/report/download-pdf": 5,     # PDF report: 5 req/min
+        "/api/report/send-email-report": 3, # Email report: 3 req/min
+        "/api/report/cron/send-all": 1,    # Cron auto-email: 1 req/min
     }
     
     # Global rate limit (per IP)
