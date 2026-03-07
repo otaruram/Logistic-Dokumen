@@ -105,7 +105,7 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
             keterangan: d.extracted_text || "-",
             fotoUrl: d.imagekit_url || d.file_path || "",
             tandaTangan: d.signature_url || "",
-            status: d.status === 'completed' ? 'verified' : (d.status === 'failed' || d.status === 'tampered' ? 'tampered' : 'processing'),
+            status: d.status === 'verified' ? 'verified' : (d.status === 'tampered' ? 'tampered' : d.status === 'processing' ? 'processing' : 'verified'),
             isFraudScan: true,
             fraudFields: d.fraud_fields || null,
           }));
@@ -262,11 +262,26 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
 
       const resJson = await res.json();
 
-      setFraudStep("Menyimpan hasil ke database...");
-      await new Promise(r => setTimeout(r, 600)); // short delay for UX
+      // Handle rejected (tampered) scans
+      if (resJson.rejected) {
+        toast.dismiss();
+        toast.error("🚫 Dokumen Ditolak (Tampered)", {
+          description: resJson.rejection_reason || "Confidence rendah, dokumen tidak tersimpan.",
+          duration: 6000,
+        });
+        setUploadedImage(null);
+        setPreviewUrl(null);
+        setFraudStep("");
+        setIsProcessing(false);
+        return;
+      }
 
+      setFraudStep("Menyimpan hasil ke database...");
+      await new Promise(r => setTimeout(r, 600));
+
+      const statusLabel = resJson.fraud_status === 'verified' ? '✅ Verified' : resJson.fraud_status === 'processing' ? '🟡 Processing' : '🔴 Tampered';
       toast.dismiss();
-      toast.success("🛡️ Deteksi Fraud selesai!", { description: `Confidence: ${resJson.field_confidence || "low"}` });
+      toast.success(`🛡️ Deteksi Fraud selesai! ${statusLabel}`, { description: `Confidence: ${resJson.field_confidence || "low"}` });
 
       // Dispatch event to notify dashboard of scan completion
       window.dispatchEvent(new CustomEvent('scan-completed'));
@@ -274,7 +289,7 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
       setUploadedImage(null);
       setPreviewUrl(null);
       setFraudStep("");
-      setHistoryTab("fraud"); // Auto-switch to fraud history tab
+      setHistoryTab("fraud");
       loadAllRecords();
 
       setTimeout(() => {

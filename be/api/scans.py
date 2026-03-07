@@ -431,7 +431,15 @@ async def save_scan_with_signature(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """Save scan to DB with recipient name and signature."""
+    """Save scan to DB with recipient name and signature.
+    
+    For fraud scans, applies confidence-based status:
+      low  → tampered → REJECTED, not saved
+      medium → processing → saved, needs review
+      high → verified → saved, authentic
+    """
+    from services.scan_helpers import confidence_to_status
+
     fraud_query = request.query_params.get("fraud", "false")
     is_fraud = is_fraud_scan.lower() == "true" or fraud_query.lower() == "true"
 
@@ -451,29 +459,68 @@ async def save_scan_with_signature(
         )
         structured = ocr_result.get("structured_fields", {})
 
-        # 3. Create scan record
-        new_scan = Scan(
-            user_id=current_user.id,
-            original_filename=file.filename,
-            file_path="imagekit",
-            file_size=len(content),
-            file_type=file.content_type,
-            imagekit_url=image_url,
-            recipient_name=recipient_name,
-            signature_url=signature_url,
-            extracted_text=extracted,
-            confidence_score=ocr_result.get("confidence_score", 0),
-            processing_time=ocr_result.get("processing_time", 0),
-            status="completed",
-            is_fraud_scan=is_fraud,
-        )
-
+        # 3. For fraud scans, apply confidence-based status
         if is_fraud:
-            new_scan.fraud_nominal_total = structured.get("nominal_total") or 0
-            new_scan.fraud_nama_klien = structured.get("nama_klien")
-            new_scan.fraud_nomor_surat_jalan = structured.get("nomor_surat_jalan")
-            new_scan.fraud_tanggal_jatuh_tempo = structured.get("tanggal_jatuh_tempo")
-            new_scan.fraud_confidence = structured.get("confidence", "low")
+            confidence = structured.get("confidence", "low")
+            fraud_status = confidence_to_status(confidence)
+
+            # LOW confidence → REJECT immediately, don't save
+            if confidence == "low":
+                print(f"🚫 FRAUD REJECTED (tampered) - confidence=low, file={file.filename}")
+                return {
+                    "id": None,
+                    "file_path": image_url,
+                    "imagekit_url": image_url,
+                    "extracted_text": extracted,
+                    "recipient_name": recipient_name,
+                    "signature_url": signature_url,
+                    "status": "tampered",
+                    "is_fraud_scan": True,
+                    "field_confidence": "low",
+                    "fraud_status": "tampered",
+                    "credits_remaining": new_balance,
+                    "rejected": True,
+                    "rejection_reason": "Document has insufficient verifiable fields. Authenticity cannot be confirmed — flagged as tampered.",
+                }
+
+            # MEDIUM or HIGH → save with correct status
+            new_scan = Scan(
+                user_id=current_user.id,
+                original_filename=file.filename,
+                file_path="imagekit",
+                file_size=len(content),
+                file_type=file.content_type,
+                imagekit_url=image_url,
+                recipient_name=recipient_name,
+                signature_url=signature_url,
+                extracted_text=extracted,
+                confidence_score=ocr_result.get("confidence_score", 0),
+                processing_time=ocr_result.get("processing_time", 0),
+                status=fraud_status,  # "processing" or "verified"
+                is_fraud_scan=True,
+                fraud_nominal_total=structured.get("nominal_total") or 0,
+                fraud_nama_klien=structured.get("nama_klien"),
+                fraud_nomor_surat_jalan=structured.get("nomor_surat_jalan"),
+                fraud_tanggal_jatuh_tempo=structured.get("tanggal_jatuh_tempo"),
+                fraud_confidence=confidence,
+            )
+        else:
+            # Default (non-fraud) scan — always "completed"
+            new_scan = Scan(
+                user_id=current_user.id,
+                original_filename=file.filename,
+                file_path="imagekit",
+                file_size=len(content),
+                file_type=file.content_type,
+                imagekit_url=image_url,
+                recipient_name=recipient_name,
+                signature_url=signature_url,
+                extracted_text=extracted,
+                confidence_score=ocr_result.get("confidence_score", 0),
+                processing_time=ocr_result.get("processing_time", 0),
+                status="completed",
+                is_fraud_scan=False,
+            )
 
         db.add(new_scan)
         db.commit()
@@ -489,6 +536,8 @@ async def save_scan_with_signature(
         if last_log and last_log.reference_id is None:
             last_log.reference_id = new_scan.id
             db.commit()
+
+        print(f"✅ Scan saved: id={new_scan.id}, is_fraud={is_fraud}, status={new_scan.status}")
 
         # 4. Supabase sync
         content_hash = hashlib.sha256(content).hexdigest()
@@ -511,10 +560,12 @@ async def save_scan_with_signature(
             "extracted_text": extracted,
             "recipient_name": recipient_name,
             "signature_url": signature_url,
-            "status": "completed",
+            "status": new_scan.status,
             "is_fraud_scan": bool(new_scan.is_fraud_scan),
             "field_confidence": getattr(new_scan, "fraud_confidence", None) or "low",
+            "fraud_status": new_scan.status if is_fraud else None,
             "credits_remaining": new_balance,
+            "rejected": False,
         }
 
     except HTTPException:
