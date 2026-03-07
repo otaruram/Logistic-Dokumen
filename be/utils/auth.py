@@ -101,8 +101,9 @@ async def get_current_user(
                 user = db.query(User).filter(User.email == email).first()
                 
                 if not user:
-                    # Create user if doesn't exist
+                    # Create user if doesn't exist — use Supabase auth UID as local ID
                     user = User(
+                        id=str(user_response.user.id),
                         email=email,
                         username=email.split('@')[0],
                         hashed_password="",  # No password for OAuth users
