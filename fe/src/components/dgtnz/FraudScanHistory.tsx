@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
-import { FileDown, Cloud, Search, Trash2, CheckCircle2, XCircle, Clock, Pencil, ShieldAlert } from "lucide-react";
+import { FileDown, Cloud, Search, Trash2, CheckCircle2, XCircle, Clock, Pencil, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -54,7 +54,45 @@ export const FraudScanHistory = ({ records, onDelete, onEdit, onExportGoogleDriv
     const [filterYear, setFilterYear] = useState("all");
     const [filterStatus, setFilterStatus] = useState("all");
     const [currentPage, setCurrentPage] = useState(1);
+    const [analyzingId, setAnalyzingId] = useState<number | string | null>(null);
+    const [insightData, setInsightData] = useState<{ id: number | string; text: string } | null>(null);
     const ITEMS_PER_PAGE = 10;
+
+    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+    const handleAnalyze = async (record: ScanRecord) => {
+        setAnalyzingId(record.id);
+        setInsightData(null);
+        try {
+            const { data: { session } } = await (await import("@/lib/supabaseClient")).supabase.auth.getSession();
+            if (!session) return;
+
+            const res = await fetch(`${API_URL}/api/insight/analyze`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                    scan_type: "fraud",
+                    extracted_text: record.keterangan || "",
+                    confidence: record.fraudFields?.confidence || "low",
+                    status: record.status,
+                    nominal_total: record.fraudFields?.nominal_total || 0,
+                    nama_klien: record.fraudFields?.nama_klien || null,
+                    nomor_surat_jalan: record.fraudFields?.nomor_surat_jalan || null,
+                    tanggal_jatuh_tempo: record.fraudFields?.tanggal_jatuh_tempo || null,
+                    recipient_name: record.namaPenerima || null,
+                }),
+            });
+            const json = await res.json();
+            setInsightData({ id: record.id, text: json.analysis || "Analisis tidak tersedia." });
+        } catch {
+            setInsightData({ id: record.id, text: "❌ Gagal menganalisis. Coba lagi nanti." });
+        } finally {
+            setAnalyzingId(null);
+        }
+    };
 
     // Reset to page 1 when records change
     useEffect(() => { setCurrentPage(1); }, [records.length]);
@@ -315,81 +353,102 @@ export const FraudScanHistory = ({ records, onDelete, onEdit, onExportGoogleDriv
                     <TableBody>
                         {paginatedRecords.length > 0 ? (
                             paginatedRecords.map((record, idx) => (
-                                <TableRow key={record.id} className="border-white/5 hover:bg-white/[0.02]">
-                                    <TableCell className="text-gray-500">{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}</TableCell>
-                                    <TableCell className="font-mono text-sm text-gray-400">{record.tanggal}</TableCell>
-                                    <TableCell className="font-medium text-white">
-                                        <div className="flex items-center gap-2">
-                                            {record.namaPenerima}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        {record.fotoUrl ? (
-                                            <a href={record.fotoUrl} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-red-500/30 transition-all">
-                                                <img src={record.fotoUrl} alt="Scan" className="w-full h-full object-cover" />
-                                            </a>
-                                        ) : (
-                                            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Img</div>
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        {record.tandaTangan ? (
-                                            <a href={record.tandaTangan} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-red-500/30 transition-all bg-white">
-                                                <img src={record.tandaTangan} alt="Sig" className="w-full h-full object-contain p-1" />
-                                            </a>
-                                        ) : (
-                                            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Sig</div>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-sm max-w-xs">
-                                        <div className="space-y-1.5">
-                                            {record.fraudFields ? (
-                                                <>
-                                                    {record.fraudFields.nominal_total != null && (
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] text-gray-500 uppercase w-14 flex-shrink-0">Nominal</span>
-                                                            <span className="text-xs font-semibold text-white">
-                                                                Rp {record.fraudFields.nominal_total.toLocaleString('id-ID')}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    {record.fraudFields.nama_klien && (
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] text-gray-500 uppercase w-14 flex-shrink-0">Klien</span>
-                                                            <span className="text-xs text-gray-300 truncate max-w-[150px]">{record.fraudFields.nama_klien}</span>
-                                                        </div>
-                                                    )}
-                                                    {record.fraudFields.nomor_surat_jalan && (
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] text-gray-500 uppercase w-14 flex-shrink-0">SJ No.</span>
-                                                            <span className="text-xs text-gray-300 font-mono">{record.fraudFields.nomor_surat_jalan}</span>
-                                                        </div>
-                                                    )}
-                                                    {record.fraudFields.tanggal_jatuh_tempo && (
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] text-gray-500 uppercase w-14 flex-shrink-0">Tempo</span>
-                                                            <span className="text-xs text-gray-300">{record.fraudFields.tanggal_jatuh_tempo}</span>
-                                                        </div>
-                                                    )}
-                                                </>
+                                <React.Fragment key={record.id}>
+                                    <TableRow className="border-white/5 hover:bg-white/[0.02]">
+                                        <TableCell className="text-gray-500">{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}</TableCell>
+                                        <TableCell className="font-mono text-sm text-gray-400">{record.tanggal}</TableCell>
+                                        <TableCell className="font-medium text-white">
+                                            <div className="flex items-center gap-2">
+                                                {record.namaPenerima}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            {record.fotoUrl ? (
+                                                <a href={record.fotoUrl} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-red-500/30 transition-all">
+                                                    <img src={record.fotoUrl} alt="Scan" className="w-full h-full object-cover" />
+                                                </a>
                                             ) : (
-                                                <p className="text-gray-500 text-xs truncate">{record.keterangan || "-"}</p>
+                                                <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Img</div>
                                             )}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>{getConfidenceBadge(record.fraudFields?.confidence ?? undefined)}</TableCell>
-                                    <TableCell>{getStatusBadge(record.status)}</TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <button onClick={() => onEdit(record)} className="p-2 hover:bg-yellow-500/20 rounded-full transition-colors" title="Edit">
-                                                <Pencil className="w-4 h-4 text-yellow-500" />
-                                            </button>
-                                            <button onClick={() => onDelete(record.id)} className="p-2 hover:bg-red-900/20 rounded-full transition-colors" title="Delete">
-                                                <Trash2 className="w-4 h-4 text-red-400" />
-                                            </button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
+                                        </TableCell>
+                                        <TableCell>
+                                            {record.tandaTangan ? (
+                                                <a href={record.tandaTangan} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-red-500/30 transition-all bg-white">
+                                                    <img src={record.tandaTangan} alt="Sig" className="w-full h-full object-contain p-1" />
+                                                </a>
+                                            ) : (
+                                                <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Sig</div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-sm max-w-xs">
+                                            <div className="space-y-1.5">
+                                                {record.fraudFields ? (
+                                                    <>
+                                                        {record.fraudFields.nominal_total != null && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-[10px] text-gray-500 uppercase w-14 flex-shrink-0">Nominal</span>
+                                                                <span className="text-xs font-semibold text-white">
+                                                                    Rp {record.fraudFields.nominal_total.toLocaleString('id-ID')}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        {record.fraudFields.nama_klien && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-[10px] text-gray-500 uppercase w-14 flex-shrink-0">Klien</span>
+                                                                <span className="text-xs text-gray-300 truncate max-w-[150px]">{record.fraudFields.nama_klien}</span>
+                                                            </div>
+                                                        )}
+                                                        {record.fraudFields.nomor_surat_jalan && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-[10px] text-gray-500 uppercase w-14 flex-shrink-0">SJ No.</span>
+                                                                <span className="text-xs text-gray-300 font-mono">{record.fraudFields.nomor_surat_jalan}</span>
+                                                            </div>
+                                                        )}
+                                                        {record.fraudFields.tanggal_jatuh_tempo && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-[10px] text-gray-500 uppercase w-14 flex-shrink-0">Tempo</span>
+                                                                <span className="text-xs text-gray-300">{record.fraudFields.tanggal_jatuh_tempo}</span>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <p className="text-gray-500 text-xs truncate">{record.keterangan || "-"}</p>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>{getConfidenceBadge(record.fraudFields?.confidence ?? undefined)}</TableCell>
+                                        <TableCell>{getStatusBadge(record.status)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button onClick={() => handleAnalyze(record)} disabled={analyzingId === record.id} className="p-2 hover:bg-purple-500/20 rounded-full transition-colors" title="Analyze with Otaru">
+                                                    {analyzingId === record.id ? <Loader2 className="w-4 h-4 text-purple-400 animate-spin" /> : <Sparkles className="w-4 h-4 text-purple-400" />}
+                                                </button>
+                                                <button onClick={() => onEdit(record)} className="p-2 hover:bg-yellow-500/20 rounded-full transition-colors" title="Edit">
+                                                    <Pencil className="w-4 h-4 text-yellow-500" />
+                                                </button>
+                                                <button onClick={() => onDelete(record.id)} className="p-2 hover:bg-red-900/20 rounded-full transition-colors" title="Delete">
+                                                    <Trash2 className="w-4 h-4 text-red-400" />
+                                                </button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                    {insightData?.id === record.id && (
+                                        <TableRow>
+                                            <TableCell colSpan={9} className="p-0">
+                                                <div className="mx-4 my-2 p-4 rounded-lg bg-purple-500/5 border border-purple-500/20">
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <Sparkles className="w-4 h-4 text-purple-400" />
+                                                        <span className="text-sm font-bold text-purple-300">Otaru AI Insight</span>
+                                                        <button onClick={() => setInsightData(null)} className="ml-auto text-xs text-gray-500 hover:text-white">✕</button>
+                                                    </div>
+                                                    <div className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">
+                                                        {insightData.text}
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </React.Fragment>
                             ))
                         ) : (
                             <TableRow>

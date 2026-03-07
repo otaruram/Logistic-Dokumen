@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
-import { FileDown, Cloud, Search, Trash2, CheckCircle2, XCircle, Clock, Pencil, ShieldAlert } from "lucide-react";
+import { FileDown, Cloud, Search, Trash2, CheckCircle2, XCircle, Clock, Pencil, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -53,7 +53,45 @@ export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: 
     const [filterMonth, setFilterMonth] = useState("all");
     const [filterYear, setFilterYear] = useState("all");
     const [currentPage, setCurrentPage] = useState(1);
+    const [analyzingId, setAnalyzingId] = useState<number | string | null>(null);
+    const [insightData, setInsightData] = useState<{ id: number | string; text: string } | null>(null);
     const ITEMS_PER_PAGE = 10;
+
+    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+    const handleAnalyze = async (record: ScanRecord) => {
+        setAnalyzingId(record.id);
+        setInsightData(null);
+        try {
+            const { data: { session } } = await (await import("@/lib/supabaseClient")).supabase.auth.getSession();
+            if (!session) return;
+
+            const res = await fetch(`${API_URL}/api/insight/analyze`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                    scan_type: "dgtnz",
+                    extracted_text: record.keterangan || "",
+                    confidence: record.fraudFields?.confidence || "medium",
+                    status: record.status,
+                    nominal_total: record.fraudFields?.nominal_total || 0,
+                    nama_klien: record.fraudFields?.nama_klien || null,
+                    nomor_surat_jalan: record.fraudFields?.nomor_surat_jalan || null,
+                    tanggal_jatuh_tempo: record.fraudFields?.tanggal_jatuh_tempo || null,
+                    recipient_name: record.namaPenerima || null,
+                }),
+            });
+            const json = await res.json();
+            setInsightData({ id: record.id, text: json.analysis || "Analisis tidak tersedia." });
+        } catch {
+            setInsightData({ id: record.id, text: "❌ Gagal menganalisis. Coba lagi nanti." });
+        } finally {
+            setAnalyzingId(null);
+        }
+    };
 
     // Reset to page 1 when records change
     useEffect(() => { setCurrentPage(1); }, [records.length]);
@@ -203,76 +241,97 @@ export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: 
                     <TableBody>
                         {paginatedRecords.length > 0 ? (
                             paginatedRecords.map((record, idx) => (
-                                <TableRow key={record.id} className="border-white/5 hover:bg-white/[0.02]">
-                                    <TableCell className="text-gray-500">{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}</TableCell>
-                                    <TableCell className="font-mono text-sm text-gray-400">{record.tanggal}</TableCell>
-                                    <TableCell className="font-medium text-white">
-                                        <div className="flex items-center gap-2">
-                                            {record.namaPenerima}
-                                            {record.isFraudScan && (
-                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-500/20 border border-red-500/40 text-red-400 text-[10px] font-bold flex-shrink-0">
-                                                    <ShieldAlert className="w-2.5 h-2.5" />FRAUD
-                                                </span>
+                                <React.Fragment key={record.id}>
+                                    <TableRow className="border-white/5 hover:bg-white/[0.02]">
+                                        <TableCell className="text-gray-500">{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}</TableCell>
+                                        <TableCell className="font-mono text-sm text-gray-400">{record.tanggal}</TableCell>
+                                        <TableCell className="font-medium text-white">
+                                            <div className="flex items-center gap-2">
+                                                {record.namaPenerima}
+                                                {record.isFraudScan && (
+                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-500/20 border border-red-500/40 text-red-400 text-[10px] font-bold flex-shrink-0">
+                                                        <ShieldAlert className="w-2.5 h-2.5" />FRAUD
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            {record.fotoUrl ? (
+                                                <a href={record.fotoUrl} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-all">
+                                                    <img src={record.fotoUrl} alt="Scan" className="w-full h-full object-cover" />
+                                                </a>
+                                            ) : (
+                                                <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Img</div>
                                             )}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        {record.fotoUrl ? (
-                                            <a href={record.fotoUrl} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-all">
-                                                <img src={record.fotoUrl} alt="Scan" className="w-full h-full object-cover" />
-                                            </a>
-                                        ) : (
-                                            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Img</div>
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        {record.tandaTangan ? (
-                                            <a href={record.tandaTangan} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-all bg-white">
-                                                <img src={record.tandaTangan} alt="Sig" className="w-full h-full object-contain p-1" />
-                                            </a>
-                                        ) : (
-                                            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Sig</div>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-gray-400 text-sm max-w-xs" title={record.keterangan}>
-                                        <div className="space-y-1">
-                                            <p className="truncate">{record.keterangan}</p>
-                                            {record.isFraudScan && record.fraudFields && (
-                                                <div className="flex flex-wrap gap-1 mt-1">
-                                                    {record.fraudFields.nominal_total && (
-                                                        <span className="text-[10px] bg-white/5 text-gray-300 px-1.5 py-0.5 rounded">
-                                                            Rp {record.fraudFields.nominal_total.toLocaleString('id-ID')}
-                                                        </span>
-                                                    )}
-                                                    {record.fraudFields.nama_klien && (
-                                                        <span className="text-[10px] bg-white/5 text-gray-300 px-1.5 py-0.5 rounded truncate max-w-[120px]">
-                                                            {record.fraudFields.nama_klien}
-                                                        </span>
-                                                    )}
-                                                    {record.fraudFields.confidence && (
-                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${record.fraudFields.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
-                                                            record.fraudFields.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                                'bg-gray-500/20 text-gray-400'
-                                                            }`}>
-                                                            {record.fraudFields.confidence}
-                                                        </span>
-                                                    )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {record.tandaTangan ? (
+                                                <a href={record.tandaTangan} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-all bg-white">
+                                                    <img src={record.tandaTangan} alt="Sig" className="w-full h-full object-contain p-1" />
+                                                </a>
+                                            ) : (
+                                                <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Sig</div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-gray-400 text-sm max-w-xs" title={record.keterangan}>
+                                            <div className="space-y-1">
+                                                <p className="truncate">{record.keterangan}</p>
+                                                {record.isFraudScan && record.fraudFields && (
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {record.fraudFields.nominal_total && (
+                                                            <span className="text-[10px] bg-white/5 text-gray-300 px-1.5 py-0.5 rounded">
+                                                                Rp {record.fraudFields.nominal_total.toLocaleString('id-ID')}
+                                                            </span>
+                                                        )}
+                                                        {record.fraudFields.nama_klien && (
+                                                            <span className="text-[10px] bg-white/5 text-gray-300 px-1.5 py-0.5 rounded truncate max-w-[120px]">
+                                                                {record.fraudFields.nama_klien}
+                                                            </span>
+                                                        )}
+                                                        {record.fraudFields.confidence && (
+                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${record.fraudFields.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
+                                                                record.fraudFields.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                    'bg-gray-500/20 text-gray-400'
+                                                                }`}>
+                                                                {record.fraudFields.confidence}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>{getStatusBadge(record.status)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button onClick={() => handleAnalyze(record)} disabled={analyzingId === record.id} className="p-2 hover:bg-purple-500/20 rounded-full transition-colors" title="Analyze with Otaru">
+                                                    {analyzingId === record.id ? <Loader2 className="w-4 h-4 text-purple-400 animate-spin" /> : <Sparkles className="w-4 h-4 text-purple-400" />}
+                                                </button>
+                                                <button onClick={() => onEdit(record)} className="p-2 hover:bg-yellow-500/20 rounded-full transition-colors" title="Edit">
+                                                    <Pencil className="w-4 h-4 text-yellow-500" />
+                                                </button>
+                                                <button onClick={() => onDelete(record.id)} className="p-2 hover:bg-red-900/20 rounded-full transition-colors" title="Delete">
+                                                    <Trash2 className="w-4 h-4 text-red-400" />
+                                                </button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                    {insightData?.id === record.id && (
+                                        <TableRow>
+                                            <TableCell colSpan={8} className="p-0">
+                                                <div className="mx-4 my-2 p-4 rounded-lg bg-purple-500/5 border border-purple-500/20">
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <Sparkles className="w-4 h-4 text-purple-400" />
+                                                        <span className="text-sm font-bold text-purple-300">Otaru AI Insight</span>
+                                                        <button onClick={() => setInsightData(null)} className="ml-auto text-xs text-gray-500 hover:text-white">✕</button>
+                                                    </div>
+                                                    <div className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">
+                                                        {insightData.text}
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>{getStatusBadge(record.status)}</TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <button onClick={() => onEdit(record)} className="p-2 hover:bg-yellow-500/20 rounded-full transition-colors" title="Edit">
-                                                <Pencil className="w-4 h-4 text-yellow-500" />
-                                            </button>
-                                            <button onClick={() => onDelete(record.id)} className="p-2 hover:bg-red-900/20 rounded-full transition-colors" title="Delete">
-                                                <Trash2 className="w-4 h-4 text-red-400" />
-                                            </button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </React.Fragment>
                             ))
                         ) : (
                             <TableRow>
@@ -286,47 +345,49 @@ export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: 
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-                <div className="p-4 border-t border-white/10 flex items-center justify-between">
-                    <p className="text-xs text-gray-500">
-                        Halaman {currentPage} dari {totalPages} ({filteredRecords.length} record)
-                    </p>
-                    <div className="flex items-center gap-1">
-                        <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            className="px-2 py-1 text-xs rounded border border-white/10 text-gray-400 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                            ←
-                        </button>
-                        {Array.from({ length: totalPages }, (_, i) => i + 1)
-                            .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
-                            .map((page, idx, arr) => (
-                                <span key={page}>
-                                    {idx > 0 && arr[idx - 1] !== page - 1 && (
-                                        <span className="text-gray-600 px-1">...</span>
-                                    )}
-                                    <button
-                                        onClick={() => setCurrentPage(page)}
-                                        className={`w-7 h-7 text-xs rounded ${currentPage === page
+            {
+                totalPages > 1 && (
+                    <div className="p-4 border-t border-white/10 flex items-center justify-between">
+                        <p className="text-xs text-gray-500">
+                            Halaman {currentPage} dari {totalPages} ({filteredRecords.length} record)
+                        </p>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-2 py-1 text-xs rounded border border-white/10 text-gray-400 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                                ←
+                            </button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                                .map((page, idx, arr) => (
+                                    <span key={page}>
+                                        {idx > 0 && arr[idx - 1] !== page - 1 && (
+                                            <span className="text-gray-600 px-1">...</span>
+                                        )}
+                                        <button
+                                            onClick={() => setCurrentPage(page)}
+                                            className={`w-7 h-7 text-xs rounded ${currentPage === page
                                                 ? 'bg-white text-black font-bold'
                                                 : 'border border-white/10 text-gray-400 hover:bg-white/5'
-                                            }`}
-                                    >
-                                        {page}
-                                    </button>
-                                </span>
-                            ))}
-                        <button
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                            className="px-2 py-1 text-xs rounded border border-white/10 text-gray-400 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                            →
-                        </button>
+                                                }`}
+                                        >
+                                            {page}
+                                        </button>
+                                    </span>
+                                ))}
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-2 py-1 text-xs rounded border border-white/10 text-gray-400 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                                →
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
-        </Card>
+                )
+            }
+        </Card >
     );
 };

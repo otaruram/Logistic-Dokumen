@@ -186,11 +186,51 @@ async def save_fraud_scan(
         confidence = structured.get("confidence", "low")
         fraud_status = confidence_to_status(confidence)
 
-        # 3. LOW confidence → REJECT immediately, don't save anywhere
+        # 3. LOW confidence → Save as tampered (for Otaru analysis) but flag as rejected
         if confidence == "low":
-            print(f"🚫 FRAUD REJECTED (tampered) - confidence=low, file={file.filename}")
+            print(f"🚫 FRAUD TAMPERED - confidence=low, file={file.filename} (saved for analysis)")
+            
+            # Save to local DB so it appears in fraud history
+            tampered_scan = Scan(
+                user_id=current_user.id,
+                original_filename=file.filename,
+                file_path="imagekit",
+                file_size=len(content),
+                file_type=file.content_type,
+                imagekit_url=image_url,
+                recipient_name=recipient_name,
+                signature_url=signature_url,
+                extracted_text=extracted,
+                confidence_score=ocr_result.get("confidence_score", 0),
+                processing_time=ocr_result.get("processing_time", 0),
+                status="tampered",
+                is_fraud_scan=True,
+                fraud_nominal_total=structured.get("nominal_total") or 0,
+                fraud_nama_klien=structured.get("nama_klien"),
+                fraud_nomor_surat_jalan=structured.get("nomor_surat_jalan"),
+                fraud_tanggal_jatuh_tempo=structured.get("tanggal_jatuh_tempo"),
+                fraud_confidence="low",
+            )
+            db.add(tampered_scan)
+            db.commit()
+            db.refresh(tampered_scan)
+
+            # Sync to Supabase too
+            content_hash = hashlib.sha256(content).hexdigest()
+            sync_to_supabase(
+                user_id=str(current_user.id),
+                filename=file.filename or "fraud_scan.jpg",
+                image_url=image_url,
+                content_hash=content_hash,
+                recipient_name=recipient_name,
+                signature_url=signature_url,
+                structured=structured,
+                ocr_result=ocr_result,
+                is_fraud=True,
+            )
+
             return {
-                "id": None,
+                "id": tampered_scan.id,
                 "file_path": image_url,
                 "imagekit_url": image_url,
                 "extracted_text": extracted,
