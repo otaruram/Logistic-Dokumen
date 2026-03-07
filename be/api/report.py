@@ -257,7 +257,7 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         part = MIMEBase("application", "pdf")
         part.set_payload(pdf_bytes)
         encoders.encode_base64(part)
-        part.add_header("Content-Disposition", f"attachment; filename={pdf_filename}")
+        part.add_header("Content-Disposition", f'attachment; filename="{pdf_filename}"')
         msg.attach(part)
     else:
         # If no attachment, send simple MIMEText 
@@ -279,8 +279,7 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         # Kirim.email / Sumopod expects implicit SSL on 465
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, local_hostname="ocr.web.id") as server:
             server.login(SMTP_USER, SMTP_PASS)
-            # Use sendmail directly to precisely control the envelope sender and receiver strings
-            server.sendmail(SMTP_FROM, [to_email], msg.as_string())
+            server.send_message(msg)
             
         print(f"✅ Email sent to {to_email}")
         return True
@@ -506,7 +505,7 @@ async def send_email_report(
 
     success = _send_email(current_user.email, f"📊 DGTNZ Report — {today.strftime('%B %Y')}", body_html, pdf_bytes, filename)
 
-    if success:
+    if success is True:
         return {"message": "Report sent to your email", "email": current_user.email}
     else:
         # Even if email fails, return the PDF download URL
