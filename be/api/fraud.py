@@ -15,6 +15,7 @@ from services.scan_helpers import (
     upload_and_ocr,
     sync_to_supabase,
     get_supabase_admin,
+    confidence_to_status,
 )
 
 router = APIRouter()
@@ -198,6 +199,9 @@ async def save_fraud_scan(
             fraud_tanggal_jatuh_tempo=structured.get("tanggal_jatuh_tempo"),
             fraud_confidence=structured.get("confidence", "low"),
         )
+        # Map confidence to fraud verification status
+        fraud_status = confidence_to_status(structured.get("confidence", "low"))
+        new_scan.status = fraud_status
         db.add(new_scan)
         db.commit()
         db.refresh(new_scan)
@@ -238,9 +242,10 @@ async def save_fraud_scan(
             "extracted_text": extracted,
             "recipient_name": recipient_name,
             "signature_url": signature_url,
-            "status": "completed",
+            "status": fraud_status,
             "is_fraud_scan": True,
             "field_confidence": structured.get("confidence", "low"),
+            "fraud_status": fraud_status,
             "credits_remaining": new_balance,
         }
 

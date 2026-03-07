@@ -18,6 +18,16 @@ from services.imagekit_qr_service import ImageKitQRService
 SCAN_COST = 1  # Credit cost per scan
 
 
+def confidence_to_status(confidence: str) -> str:
+    """Map field confidence to fraud verification status.
+    low  (0-1 fields found) → tampered  (ditolak)
+    medium (2 fields found) → processing (diterima, perlu review)
+    high (3+ fields found)  → verified   (terverifikasi)
+    """
+    mapping = {"low": "tampered", "medium": "processing", "high": "verified"}
+    return mapping.get(confidence, "tampered")
+
+
 # ── Credit helpers ───────────────────────────────────────────────────────────
 
 def get_supabase_admin():
@@ -163,7 +173,7 @@ def sync_to_supabase(
             "file_name": filename,
             "file_url": image_url,
             "doc_hash": content_hash,
-            "status": "verified",
+            "status": confidence_to_status(structured.get("confidence", "low")),
         }
         doc_result = supabase_admin.table("documents").insert(doc_data).execute()
         if doc_result.data:
@@ -207,7 +217,7 @@ def sync_to_supabase(
                 "tanggal_jatuh_tempo": structured.get("tanggal_jatuh_tempo"),
                 "field_confidence": structured.get("confidence", "low"),
                 "doc_hash": content_hash,
-                "status": "verified",
+                "status": confidence_to_status(structured.get("confidence", "low")),
             }
             supabase_admin.table("fraud_scans").insert(fraud_data).execute()
             print(f"✅ Fraud scan saved to Supabase fraud_scans")
