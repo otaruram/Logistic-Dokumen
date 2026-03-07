@@ -243,7 +243,6 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         print("⚠️ SMTP not configured, skipping email")
         return "SMTP_USER or SMTP_PASS not set in env"
 
-    # Build MIME message correctly based on attachments
     if pdf_bytes and pdf_filename:
         msg = MIMEMultipart()
         msg["From"] = SMTP_FROM
@@ -251,6 +250,7 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         msg["Subject"] = subject
         msg["Date"] = formatdate(localtime=True)
         msg["Message-ID"] = make_msgid(domain="ocr.web.id")
+        msg["Reply-To"] = SMTP_FROM
 
         msg.attach(MIMEText(body_html, "html"))
 
@@ -268,6 +268,7 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         msg["Subject"] = subject
         msg["Date"] = formatdate(localtime=True)
         msg["Message-ID"] = make_msgid(domain="ocr.web.id")
+        msg["Reply-To"] = SMTP_FROM
 
     try:
         import ssl
@@ -276,7 +277,8 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         context.verify_mode = ssl.CERT_NONE
         
         # Kirim.email / Sumopod expects implicit SSL on 465
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context) as server:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, local_hostname="ocr.web.id") as server:
+            server.ehlo("ocr.web.id")
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
             
