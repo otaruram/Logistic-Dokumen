@@ -24,9 +24,9 @@ from services.scan_helpers import get_supabase_admin
 
 router = APIRouter()
 
-# ── SMTP config (Sumopod / ocr.web.id) ───────────────────────────────────────
+# ── SMTP config (Fallback to Gmail/Resend via env) ───────────────────────────
 
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.sumopod.com")
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
@@ -39,17 +39,14 @@ def _get_billing_period(join_date: date, target_date: date | None = None):
     """Calculate billing period (month cycle) from user join date."""
     today = target_date or date.today()
     day = join_date.day
-    # Current period start
     try:
         period_start = today.replace(day=day)
     except ValueError:
-        # Handle months with fewer days
         import calendar
         last_day = calendar.monthrange(today.year, today.month)[1]
         period_start = today.replace(day=min(day, last_day))
     
     if period_start > today:
-        # Go back one month
         if today.month == 1:
             period_start = period_start.replace(year=today.year - 1, month=12)
         else:
@@ -58,7 +55,6 @@ def _get_billing_period(join_date: date, target_date: date | None = None):
             last_day = calendar.monthrange(today.year, prev_month)[1]
             period_start = today.replace(month=prev_month, day=min(day, last_day))
     
-    # Period end = start + ~1 month
     if period_start.month == 12:
         period_end = period_start.replace(year=period_start.year + 1, month=1) - timedelta(days=1)
     else:
@@ -79,7 +75,6 @@ def _fetch_report_data(user_id: str, period_start: date, period_end: date):
     start_iso = period_start.isoformat()
     end_iso = (period_end + timedelta(days=1)).isoformat()
     
-    # Documents
     docs_res = supabase_admin.table("documents").select("status, created_at").eq(
         "user_id", user_id
     ).gte("created_at", start_iso).lt("created_at", end_iso).execute()
@@ -89,7 +84,6 @@ def _fetch_report_data(user_id: str, period_start: date, period_end: date):
     processing = sum(1 for d in docs if d["status"] == "processing")
     tampered = sum(1 for d in docs if d["status"] == "tampered")
     
-    # Finance
     finance_res = supabase_admin.table("extracted_finance_data").select(
         "nominal_amount, field_confidence"
     ).eq("user_id", user_id).gte("created_at", start_iso).lt("created_at", end_iso).execute()
@@ -101,7 +95,6 @@ def _fetch_report_data(user_id: str, period_start: date, period_end: date):
         if f.get("field_confidence") != "low"
     )
     
-    # Trust score
     total_docs = verified + processing + tampered
     if total_docs > 0:
         trust_score = min(round((verified * 100 + processing * 50) / total_docs * 10), 1000)
@@ -136,39 +129,22 @@ def _generate_pdf(user_email: str, report_data: dict, months_data: list[dict]) -
     styles = getSampleStyleSheet()
     elements = []
 
-    # Colors
     dark = HexColor("#0a0a0a")
-    green = HexColor("#10b981")
-    yellow = HexColor("#f59e0b")
-    red = HexColor("#ef4444")
     gray = HexColor("#6b7280")
     white = HexColor("#ffffff")
 
-    # Title style
-    title_style = ParagraphStyle("Title", parent=styles["Title"], fontSize=22,
-                                 textColor=dark, spaceAfter=10)
-    subtitle_style = ParagraphStyle("Subtitle", parent=styles["Normal"], fontSize=10,
-                                    textColor=gray, spaceAfter=20)
-    heading_style = ParagraphStyle("Heading", parent=styles["Heading2"], fontSize=14,
-                                   textColor=dark, spaceAfter=8, spaceBefore=16)
-    body_style = ParagraphStyle("Body", parent=styles["Normal"], fontSize=10,
-                                textColor=dark, spaceAfter=4)
+    title_style = ParagraphStyle("Title", parent=styles["Title"], fontSize=22, textColor=dark, spaceAfter=10)
+    subtitle_style = ParagraphStyle("Subtitle", parent=styles["Normal"], fontSize=10, textColor=gray, spaceAfter=20)
+    heading_style = ParagraphStyle("Heading", parent=styles["Heading2"], fontSize=14, textColor=dark, spaceAfter=8, spaceBefore=16)
+    body_style = ParagraphStyle("Body", parent=styles["Normal"], fontSize=10, textColor=dark, spaceAfter=4)
 
-    # Header
     elements.append(Paragraph("DGTNZ Annual Performance Report", title_style))
-    elements.append(Paragraph(
-        f"User: {user_email} | Generated: {datetime.now().strftime('%d %B %Y, %H:%M')}",
-        subtitle_style
-    ))
+    elements.append(Paragraph(f"User: {user_email} | Generated: {datetime.now().strftime('%d %B %Y, %H:%M')}", subtitle_style))
     elements.append(Spacer(1, 5*mm))
 
-    # Current Period Summary
     if report_data:
         elements.append(Paragraph("Current Period Summary", heading_style))
-        elements.append(Paragraph(
-            f"Period: {report_data['period_start']} — {report_data['period_end']}",
-            body_style
-        ))
+        elements.append(Paragraph(f"Period: {report_data['period_start']} — {report_data['period_end']}", body_style))
         elements.append(Spacer(1, 3*mm))
 
         summary_data = [
@@ -194,7 +170,6 @@ def _generate_pdf(user_email: str, report_data: dict, months_data: list[dict]) -
         ]))
         elements.append(t)
 
-    # Monthly History
     if months_data:
         elements.append(Spacer(1, 8*mm))
         elements.append(Paragraph("Monthly Performance History", heading_style))
@@ -225,7 +200,6 @@ def _generate_pdf(user_email: str, report_data: dict, months_data: list[dict]) -
         ]))
         elements.append(ht)
 
-    # Footer
     elements.append(Spacer(1, 15*mm))
     elements.append(Paragraph(
         "This report was automatically generated by DGTNZ OCR Platform (ocr.web.id). "
@@ -238,38 +212,31 @@ def _generate_pdf(user_email: str, report_data: dict, months_data: list[dict]) -
 
 
 def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, pdf_filename: str):
-    """Send email with PDF attachment via SMTP using plain text injection to bypass Prisma limits."""
+    """Send email with HTML and optional PDF attachment via SMTP."""
     if not SMTP_USER or not SMTP_PASS:
         print("SMTP not configured, skipping email")
         return "SMTP_USER or SMTP_PASS not set in env"
 
-    # Gunakan format multipart/mixed sebagai wadah utama (untuk text + attachment)
     msg = MIMEMultipart("mixed")
-    
-    # Hapus Display Name sementara untuk menghindari parser rewel di Sumopod
-    msg["From"] = SMTP_FROM
+    # Tampilkan display name jika dari Gmail atau Resend
+    msg["From"] = f"DGTNZ System <{SMTP_FROM}>" 
     msg["To"] = to_email
     msg["Subject"] = subject
     msg["Date"] = formatdate(localtime=True)
     msg["Message-ID"] = make_msgid(domain="ocr.web.id")
     msg["Reply-To"] = SMTP_FROM
 
-    # Bagian Alternative untuk menampung Plain Text dan HTML
     alt_part = MIMEMultipart("alternative")
     
-    # 1. SUNTIKAN PLAIN TEXT (Umpan wajib untuk parser database Sumopod)
-    plain_text = "This is an automated email from DGTNZ OCR Platform. Please view this email using an HTML-compatible client. Download the attached PDF for full details."
+    plain_text = "This is an automated email from DGTNZ OCR Platform. Please view this email using an HTML-compatible client."
     alt_part.attach(MIMEText(plain_text, "plain", "utf-8"))
     
-    # 2. SUNTIKAN HTML
     safe_body_html = body_html.replace("\r\n", "\n").replace("\n", "\r\n")
     html_part = MIMEText(safe_body_html, "html", "utf-8")
     alt_part.attach(html_part)
     
-    # Masukkan bagian teks (plain+html) ke dalam wadah utama
     msg.attach(alt_part)
 
-    # Tambahkan PDF hanya jika tersedia
     if pdf_bytes and pdf_filename:
         part = MIMEBase("application", "pdf")
         part.set_payload(pdf_bytes)
@@ -303,7 +270,6 @@ async def get_period_data(
     period: str = Query("all", regex="^(all|current|last|3months)$"),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Get dashboard data filtered by billing period."""
     supabase_admin = get_supabase_admin()
     if not supabase_admin:
         raise HTTPException(status_code=500, detail="Supabase not available")
@@ -331,7 +297,7 @@ async def get_period_data(
             prev_day = start - timedelta(days=1)
             start, _ = _get_billing_period(join_date, prev_day)
         end = today
-    else:  # all
+    else:
         start = join_date
         end = today
 
@@ -353,7 +319,6 @@ async def get_monthly_history(
     months: int = Query(12, ge=1, le=24),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Get monthly history for annual report (up to 24 months)."""
     supabase_admin = get_supabase_admin()
     if not supabase_admin:
         raise HTTPException(status_code=500, detail="Supabase not available")
@@ -389,7 +354,6 @@ async def get_monthly_history(
 async def download_report_pdf(
     current_user: User = Depends(get_current_active_user),
 ):
-    """Generate and download annual report PDF."""
     supabase_admin = get_supabase_admin()
     if not supabase_admin:
         raise HTTPException(status_code=500, detail="Supabase not available")
@@ -435,7 +399,6 @@ async def download_report_pdf(
 async def send_email_report(
     current_user: User = Depends(get_current_active_user),
 ):
-    """Generate PDF report and send via email to user."""
     supabase_admin = get_supabase_admin()
     if not supabase_admin:
         raise HTTPException(status_code=500, detail="Supabase not available")
@@ -514,14 +477,10 @@ async def send_email_report(
 
 CLEANUP_SECRET = os.getenv("CLEANUP_SECRET", "")
 
-
 @router.post("/cron/send-all")
 async def cron_send_all_reports(
     request: Request,
 ):
-    """
-    Cron endpoint: auto-send monthly email reports to ALL active users.
-    """
     auth = request.headers.get("Authorization", "")
     token = auth.replace("Bearer ", "").strip()
     if not CLEANUP_SECRET or token != CLEANUP_SECRET:
@@ -647,8 +606,8 @@ async def cron_send_newsletter(
     test_email: str = Query(None, description="If set, only sends to this email for testing"),
 ):
     """
-    Send feature announcement newsletter.
-    Gunakan ?test_email=email@kamu.com untuk testing agar tidak meledak ke semua user.
+    Send feature announcement newsletter with modern SaaS design.
+    Gunakan ?test_email=email@kamu.com untuk testing.
     """
     auth = request.headers.get("Authorization", "")
     token = auth.replace("Bearer ", "").strip()
@@ -662,7 +621,7 @@ async def cron_send_newsletter(
     if not supabase_admin:
         raise HTTPException(status_code=500, detail="Supabase not available")
 
-    # Fitur Filter Testing
+    # Fitur Filter Testing agar tidak nge-blast ke semua orang saat tes
     if test_email:
         users = [{"id": "test_mode", "email": test_email}]
         print(f"🛠️ Menjalankan mode TEST Newsletter, mengirim HANYA ke: {test_email}")
@@ -675,68 +634,6 @@ async def cron_send_newsletter(
 
     banner_url = "https://api-ocr.xyz/static/newsletter_banner.png"
 
-    # HTML Diperbaiki agar lebih bersih dan rapi di semua client
-    newsletter_html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-    <body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: 'Segoe UI', Arial, sans-serif;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
-        <tr>
-          <td style="padding: 0; text-align: center; background: #0a0a0a;">
-            <img src="{banner_url}" alt="DGTNZ OCR Platform Update" style="width: 100%; max-width: 600px; height: auto; display: block;" />
-          </td>
-        </tr>
-        <tr>
-          <td style="background: #0a0a0a; padding: 32px 32px 24px; text-align: center;">
-            <h1 style="color: #ffffff; font-size: 24px; margin: 0 0 8px;">What's New in DGTNZ</h1>
-            <p style="color: #9ca3af; font-size: 14px; margin: 0;">March 2026 Platform Update</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 28px 32px 8px;">
-            <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0;">
-              Hi there!<br><br>
-              We've been working hard to make DGTNZ even better. Here are the exciting new features
-              we've shipped this month:
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 16px 32px;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981;">
-              <tr>
-                <td style="padding: 16px 20px;">
-                  <h3 style="color: #065f46; font-size: 15px; margin: 0 0 6px;">Smart Fraud Detection</h3>
-                  <p style="color: #374151; font-size: 13px; margin: 0; line-height: 1.5;">
-                    AI-powered document authenticity verification with 3-tier confidence scoring.
-                  </p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 24px 32px; text-align: center;">
-            <a href="https://ocr.web.id" 
-               style="display: inline-block; background-color: #3b82f6; color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: bold;">
-              Try It Now
-            </a>
-          </td>
-        </tr>
-        <tr>
-          <td style="background: #f9fafb; padding: 20px 32px; border-top: 1px solid #e5e7eb;">
-            <p style="color: #9ca3af; font-size: 11px; margin: 0; text-align: center; line-height: 1.6;">
-              You are receiving this email because you have an account on DGTNZ OCR Platform.<br>
-              © 2026 DGTNZ — Powered by <a href="https://ocr.web.id" style="color: #3b82f6; text-decoration: none;">ocr.web.id</a>
-            </p>
-          </td>
-        </tr>
-      </table>
-    </body>
-    </html>
-    """
-
     sent = 0
     skipped = 0
     errors = []
@@ -747,10 +644,122 @@ async def cron_send_newsletter(
             skipped += 1
             continue
 
+        # HTML di-generate di dalam loop agar sapaan (Hi {nama}) dinamis per user
+        user_name = email.split('@')[0]
+        
+        newsletter_html = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>DGTNZ Update</title>
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color: #f3f4f6; padding: 40px 0;">
+                <tr>
+                    <td align="center">
+                        <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
+                            
+                            <tr>
+                                <td style="background-color: #111827; text-align: center;">
+                                    <img src="{banner_url}" alt="DGTNZ OCR Platform" style="width: 100%; max-width: 600px; height: auto; display: block;" />
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td style="padding: 40px 40px 20px 40px; text-align: center;">
+                                    <h1 style="margin: 0; color: #111827; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">🚀 Platform Update</h1>
+                                    <p style="margin: 8px 0 0 0; color: #6b7280; font-size: 15px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">March 2026</p>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td style="padding: 0 40px 20px 40px;">
+                                    <p style="margin: 0; color: #374151; font-size: 16px; line-height: 24px;">
+                                        Hi <strong>{user_name}</strong>,<br><br>
+                                        We've been working hard behind the scenes to make the DGTNZ OCR Platform faster, smarter, and more reliable. Here are the exciting new features we've shipped for you this month:
+                                    </p>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td style="padding: 10px 40px;">
+                                    
+                                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom: 16px; background-color: #f0fdf4; border-radius: 12px; border-left: 6px solid #10b981;">
+                                        <tr>
+                                            <td style="padding: 20px;">
+                                                <h3 style="margin: 0 0 8px 0; color: #065f46; font-size: 16px; font-weight: 700;">🛡️ Smart Fraud Detection</h3>
+                                                <p style="margin: 0; color: #374151; font-size: 14px; line-height: 22px;">
+                                                    AI-powered document authenticity verification with 3-tier confidence scoring. Low-confidence documents are now automatically flagged for your review.
+                                                </p>
+                                            </td>
+                                        </tr>
+                                    </table>
+
+                                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom: 16px; background-color: #eff6ff; border-radius: 12px; border-left: 6px solid #3b82f6;">
+                                        <tr>
+                                            <td style="padding: 20px;">
+                                                <h3 style="margin: 0 0 8px 0; color: #1e40af; font-size: 16px; font-weight: 700;">📊 Automated PDF Reports</h3>
+                                                <p style="margin: 0; color: #374151; font-size: 14px; line-height: 22px;">
+                                                    Receive professional monthly PDF reports straight to your inbox, detailing your trust score trends, revenue analytics, and document processing stats.
+                                                </p>
+                                            </td>
+                                        </tr>
+                                    </table>
+
+                                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom: 16px; background-color: #fff7ed; border-radius: 12px; border-left: 6px solid #f97316;">
+                                        <tr>
+                                            <td style="padding: 20px;">
+                                                <h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 16px; font-weight: 700;">⚡ 2x Faster Scanning Engine</h3>
+                                                <p style="margin: 0; color: #374151; font-size: 14px; line-height: 22px;">
+                                                    Our optimized OCR pipeline and intelligent image preprocessing now cut document processing time in half.
+                                                </p>
+                                            </td>
+                                        </tr>
+                                    </table>
+
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td align="center" style="padding: 30px 40px 40px 40px;">
+                                    <a href="https://ocr.web.id/dashboard" target="_blank" style="display: inline-block; background-color: #2563eb; color: #ffffff; font-size: 16px; font-weight: bold; text-decoration: none; padding: 16px 32px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">
+                                        Explore New Features
+                                    </a>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td style="padding: 0 40px;">
+                                    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 0;" />
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td style="padding: 30px 40px; text-align: center; background-color: #f9fafb;">
+                                    <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 13px; line-height: 20px;">
+                                        You're receiving this email because you're a registered user at DGTNZ.
+                                    </p>
+                                    <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                                        © 2026 DGTNZ OCR Platform.<br>
+                                        <a href="https://ocr.web.id" style="color: #6b7280; text-decoration: underline;">ocr.web.id</a>
+                                    </p>
+                                </td>
+                            </tr>
+
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        """
+
         try:
             result = _send_email(
                 to_email=email,
-                subject="What's New in DGTNZ - March 2026 Update",
+                subject="🚀 What's New in DGTNZ - March 2026 Update",
                 body_html=newsletter_html,
                 pdf_bytes=b"",
                 pdf_filename="",
@@ -778,9 +787,6 @@ async def cron_send_newsletter(
 
 @router.post("/cron/test-email")
 async def cron_test_email(request: Request):
-    """
-    Send a test email to a single address. For debugging SMTP.
-    """
     auth = request.headers.get("Authorization", "")
     token = auth.replace("Bearer ", "").strip()
     if not CLEANUP_SECRET or token != CLEANUP_SECRET:
@@ -803,7 +809,7 @@ async def cron_test_email(request: Request):
     <div style="font-family: Arial; max-width: 500px; margin: 0 auto; padding: 24px;">
         <h2 style="color: #0a0a0a;">DGTNZ Test Email</h2>
         <p style="color: #6b7280;">This is a test email from the DGTNZ platform.</p>
-        <p style="color: #374151;">If you can read this, SMTP is working perfectly!</p>
+        <p style="color: #374151;">If you can read this, SMTP is working perfectly with the new setup!</p>
         <hr style="border: 1px solid #e5e7eb; margin: 16px 0;">
         <p style="color: #9ca3af; font-size: 11px;">Sent at {datetime.now().isoformat()}</p>
     </div>
@@ -811,7 +817,7 @@ async def cron_test_email(request: Request):
 
     result = _send_email(
         to_email=to,
-        subject="DGTNZ Test Email",
+        subject="DGTNZ Setup Status",
         body_html=test_html,
         pdf_bytes=b"",
         pdf_filename="",
