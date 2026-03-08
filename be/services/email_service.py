@@ -75,8 +75,8 @@ def get_base_email_template(content: str, email_to: str) -> str:
               
               <!-- Header -->
               <tr>
-                <td style="background-color: #2c3e50; padding: 24px 32px; text-align: center; border-bottom: 4px solid #3498db;">
-                  <h1 style="color: #ffffff; font-size: 24px; margin: 0; font-weight: 700; letter-spacing: 1px;">{BRAND_NAME}</h1>
+                <td style="padding: 24px 32px; text-align: left; border-bottom: 1px solid #e5e7eb;">
+                  <h1 style="color: #111827; font-size: 24px; margin: 0; font-weight: 800; letter-spacing: -0.5px;">{BRAND_NAME}</h1>
                 </td>
               </tr>
 
@@ -206,12 +206,12 @@ def get_newsletter_email_html(email: str, banner_url: str) -> str:
         </table>
 
         <div style="text-align: center; margin: 32px 0 16px;">
-            <a href="https://otaru.id" style="display: inline-block; background-color: #3498db; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; padding: 12px 24px; border-radius: 6px; box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);">
-                Jelajahi Fitur Baru
+            <a href="https://otaru.id" style="display: inline-block; background-color: #111827; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; padding: 12px 28px; border-radius: 4px; border: 1px solid #111827;">
+                Mulai Gunakan
             </a>
         </div>
 
-        <p style="color: #374151; font-size: 15px; margin: 32px 0 0;">Salam Semangat,</p>
-        <p style="color: #1f2937; font-size: 15px; font-weight: 600; margin: 4px 0 0;">Tim {BRAND_NAME}</p>
+        <p style="color: #374151; font-size: 15px; margin: 32px 0 0;">Salam hangat,</p>
+        <p style="color: #111827; font-size: 15px; font-weight: 700; margin: 4px 0 0;">Tim {BRAND_NAME}</p>
     """
     return get_base_email_template(content, email)
