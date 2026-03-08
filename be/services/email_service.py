@@ -206,7 +206,7 @@ def get_newsletter_email_html(email: str, banner_url: str) -> str:
         </table>
 
         <div style="text-align: center; margin: 32px 0 16px;">
-            <a href="https://otaru.id" style="display: inline-block; background-color: #111827; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; padding: 12px 28px; border-radius: 4px; border: 1px solid #111827;">
+            <a href="https://ocr.we.id" style="display: inline-block; background-color: #111827; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; padding: 12px 28px; border-radius: 4px; border: 1px solid #111827;">
                 Mulai Gunakan
             </a>
         </div>
