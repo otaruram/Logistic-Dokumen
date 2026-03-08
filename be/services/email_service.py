@@ -73,12 +73,7 @@ def get_base_email_template(content: str, email_to: str) -> str:
           <td align="center">
             <table cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
               
-              <!-- Header -->
-              <tr>
-                <td style="padding: 24px 32px; text-align: left; border-bottom: 1px solid #e5e7eb;">
-                  <h1 style="color: #111827; font-size: 24px; margin: 0; font-weight: 800; letter-spacing: -0.5px;">{BRAND_NAME}</h1>
-                </td>
-              </tr>
+              <!-- Removed text header as per user request -->
 
               <!-- Content -->
               <tr>
