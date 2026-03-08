@@ -61,52 +61,29 @@ def send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes = N
         print(f"❌ Email send failed to {to_email}: {err}")
         return err
 
+
 def get_base_email_template(content: str, email_to: str) -> str:
-    """Wraps content in a Dicoding-style email template."""
+    """Wraps content in a Digdaya/Dicoding-style clean email template."""
     return f"""
     <!DOCTYPE html>
     <html>
     <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-    <body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: 'Segoe UI', Arial, sans-serif;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5; padding: 20px 0;">
+    <body style="margin: 0; padding: 0; background-color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; color: #000000;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #ffffff; padding: 10px 0;">
         <tr>
           <td align="center">
-            <table cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-              
-              <!-- Header -->
+            <table cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%; background: #ffffff;">
               <tr>
-                <td style="padding: 24px 32px; text-align: left; border-bottom: 1px solid #e5e7eb;">
-                  <h1 style="color: #111827; font-size: 24px; margin: 0; font-weight: 800; letter-spacing: -0.5px;">{BRAND_NAME}</h1>
-                </td>
-              </tr>
-
-              <!-- Content -->
-              <tr>
-                <td style="padding: 32px;">
+                <td style="padding: 0 24px; text-align: left;">
                   {content}
                 </td>
               </tr>
-
-              <!-- Footer -->
               <tr>
-                <td style="background-color: #2c3e50; padding: 32px; text-align: center; color: #cbd5e1;">
-                  <h4 style="color: #ffffff; font-size: 16px; margin: 0 0 16px;">Temukan kami</h4>
-                  <p style="margin: 0 0 16px; font-size: 14px;">
-                    {BRAND_NAME} Space, Bandung, Indonesia
-                  </p>
-                  <p style="margin: 0 0 24px; font-size: 14px;">
-                    &copy; {date.today().year} {BRAND_NAME} Indonesia
-                  </p>
-                  <hr style="border: 0; border-top: 1px solid #475569; margin: 0 0 24px;">
-                  <p style="margin: 0 0 8px; font-size: 12px; color: #94a3b8;">
-                    Keanggotaan & Berlangganan
-                  </p>
-                  <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">
-                    Pesan ini dikirim untuk <a href="mailto:{email_to}" style="color: #3498db; text-decoration: none;">{email_to}</a> karena Anda terdaftar dalam keanggotaan {BRAND_NAME} Indonesia.
-                  </p>
+                <td style="padding: 0 24px 24px; text-align: left;">
+                  <p style="margin: 0 0 4px; font-size: 14px; color: #000000;">Salam hangat,</p>
+                  <p style="margin: 0; font-size: 14px; font-weight: bold; color: #000000;">Tim {BRAND_NAME}</p>
                 </td>
               </tr>
-
             </table>
           </td>
         </tr>
@@ -115,103 +92,140 @@ def get_base_email_template(content: str, email_to: str) -> str:
     </html>
     """
 
+
 def get_report_email_html(email: str, start: date, end: date, current_data: dict) -> str:
-    username = email.split('@')[0]
+    # Sapaan kapital seperti Digdaya
+    username = email.split('@')[0].upper()
     content = f"""
-        <p style="color: #374151; font-size: 15px; margin: 0 0 16px;">Halo <strong>{username}</strong>,</p>
-        <p style="color: #374151; font-size: 15px; margin: 0 0 24px; line-height: 1.6;">
-            Berikut adalah laporan bulanan performa Anda untuk periode <strong>{start.strftime('%d %b %Y')}</strong> hingga <strong>{end.strftime('%d %b %Y')}</strong>. Laporan versi PDF telah kami lampirkan pada email ini.
+        <p style="font-size: 14px; margin: 0 0 16px; color: #000000;">Halo, {username}</p>
+        
+        <p style="font-size: 14px; margin: 0 0 24px; line-height: 1.6; color: #000000;">
+            Berikut adalah laporan bulanan performa Anda di <strong>{BRAND_NAME}</strong> untuk periode <strong>{start.strftime('%d %b %Y')}</strong> hingga <strong>{end.strftime('%d %b %Y')}</strong>. Laporan versi PDF lengkap telah kami lampirkan pada email ini.
         </p>
         
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 24px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-            <tr style="background-color: #f8fafc; border-bottom: 1px solid #e5e7eb;">
-                <td style="padding: 12px 16px; font-weight: 600; color: #1f2937;">Skor Kepercayaan</td>
-                <td style="padding: 12px 16px; text-align: right; font-weight: 600; color: #3b82f6;">{current_data.get('trust_score', 0)} / 1000</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #e5e7eb;">
-                <td style="padding: 12px 16px; color: #4b5563;">Pendapatan</td>
-                <td style="padding: 12px 16px; text-align: right; color: #10b981; font-weight: 500;">Rp {current_data.get('total_revenue', 0):,.0f}</td>
-            </tr>
-            <tr>
-                <td style="padding: 12px 16px; color: #4b5563;">Statistik Dokumen</td>
-                <td style="padding: 12px 16px; text-align: right; color: #4b5563;">
-                    <span style="color: #10b981;">✅ {current_data.get('verified', 0)}</span> &nbsp;|&nbsp;
-                    <span style="color: #f59e0b;">⏳ {current_data.get('processing', 0)}</span> &nbsp;|&nbsp;
-                    <span style="color: #ef4444;">❌ {current_data.get('tampered', 0)}</span>
-                </td>
-            </tr>
-        </table>
+        <hr style="border: 0; border-top: 2px solid #374151; margin: 24px 0;">
         
-        <p style="color: #6b7280; font-size: 14px; margin: 0; line-height: 1.5;">
+        <div style="text-align: center;">
+            <h3 style="font-size: 16px; margin: 0 0 16px; color: #000000;">
+                Ringkasan Laporan <span style="background-color: #fef08a; padding: 2px 4px;">{start.strftime('%B %Y')}</span>
+            </h3>
+        </div>
+        
+        <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 24px; margin: 0 auto 24px; text-align: center; max-width: 450px;">
+            <p style="font-size: 14px; margin: 0 0 8px; font-weight: bold; color: #000000;">Skor Kepercayaan</p>
+            <p style="font-size: 18px; margin: 0 0 16px; font-weight: bold; color: #dc2626;">{current_data.get('trust_score', 0)} / 1000</p>
+            
+            <p style="font-size: 14px; margin: 0 0 8px; font-weight: bold; color: #000000;">Pendapatan Tercatat</p>
+            <p style="font-size: 18px; margin: 0 0 16px; font-weight: bold; color: #1d4ed8;">Rp {current_data.get('total_revenue', 0):,.0f}</p>
+            
+            <p style="font-size: 14px; margin: 0 0 8px; font-weight: bold; color: #000000;">Statistik Dokumen</p>
+            <p style="font-size: 14px; margin: 0; color: #374151;">
+                ✅ Terverifikasi: {current_data.get('verified', 0)} | 
+                ⏳ Diproses: {current_data.get('processing', 0)} | 
+                ❌ Dimanipulasi: {current_data.get('tampered', 0)}
+            </p>
+        </div>
+        
+        <hr style="border: 0; border-top: 1px solid #d1d5db; margin: 24px 0;">
+        
+        <p style="font-size: 14px; margin: 0 0 16px; line-height: 1.6; color: #000000;">
             Terima kasih telah mempercayakan pengelolaan dokumen Anda pada {BRAND_NAME}. 
-            Jika ada pertanyaan lebih lanjut, jangan ragu untuk menghubungi tim dukungan kami.
+            Semoga laporan ini dapat membantu mengevaluasi dan memperkuat produktivitasmu. Semangat ✨
         </p>
-        <br>
-        <p style="color: #374151; font-size: 15px; margin: 0;">Salam Semangat,</p>
-        <p style="color: #1f2937; font-size: 15px; font-weight: 600; margin: 4px 0 0;">Tim {BRAND_NAME}</p>
+        
+        <hr style="border: 0; border-top: 2px solid #374151; margin: 24px 0;">
+        
+        <div style="text-align: left;">
+            <h3 style="font-size: 16px; margin: 0 0 8px; color: #000000;">Butuh Bantuan?</h3>
+            <p style="font-size: 14px; margin: 0 0 24px; line-height: 1.6; color: #000000;">
+                Jika mengalami kendala atau memiliki pertanyaan, silakan balas pesan ini.
+            </p>
+        </div>
     """
     return get_base_email_template(content, email)
 
+
 def get_newsletter_email_html(email: str, banner_url: str) -> str:
-    username = email.split('@')[0]
+    # Sapaan kapital
+    username = email.split('@')[0].upper()
     content = f"""
         <div style="margin-bottom: 24px;">
-            <img src="{banner_url}" alt="{BRAND_NAME} Update" style="width: 100%; height: auto; border-radius: 8px; display: block;" />
+            <img src="{banner_url}" alt="Banner Update" style="width: 100%; height: auto; display: block;" />
         </div>
         
-        <p style="color: #374151; font-size: 15px; margin: 0 0 16px;">Halo <strong>{username}</strong>,</p>
+        <p style="font-size: 14px; margin: 0 0 16px; color: #000000;">Halo, {username}</p>
         
-        <p style="color: #374151; font-size: 15px; margin: 0 0 24px; line-height: 1.6;">
-            Kami telah bekerja keras untuk membuat pengalaman Anda di <strong>{BRAND_NAME}</strong> menjadi lebih baik, cepat, dan handal. 
-            Berikut adalah beberapa fitur dan pembaruan terbaru bulan ini yang dirancang khusus untuk meningkatkan produktivitas Anda:
+        <p style="font-size: 14px; margin: 0 0 16px; line-height: 1.6; color: #000000;">
+            Terima kasih atas antusiasme kamu dalam menggunakan <strong>{BRAND_NAME}</strong>! 🚀
         </p>
 
-        <!-- Feature 1 -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px; border: 1px solid #e5e7eb; border-radius: 8px; border-left: 4px solid #10b981;">
-            <tr>
-                <td style="padding: 16px; background-color: #f8fafc;">
-                    <h3 style="color: #065f46; font-size: 16px; margin: 0 0 8px;">🛡️ Deteksi Penipuan Cerdas</h3>
-                    <p style="color: #4b5563; font-size: 14px; margin: 0; line-height: 1.5;">
-                        Verifikasi keaslian dokumen berbasis AI dengan sistem skor 3 tingkat: Terverifikasi, 
-                        Diproses, dan Dimanipulasi. Dokumen dengan tingkat kepercayaan rendah akan ditandai secara otomatis.
-                    </p>
-                </td>
-            </tr>
-        </table>
+        <p style="font-size: 14px; margin: 0 0 16px; line-height: 1.6; color: #000000;">
+            Pembaruan bulan ini lebih istimewa karena semua pengguna akan mendapat akses fitur secara gratis.
+        </p>
 
-        <!-- Feature 2 -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px; border: 1px solid #e5e7eb; border-radius: 8px; border-left: 4px solid #3b82f6;">
-            <tr>
-                <td style="padding: 16px; background-color: #f8fafc;">
-                    <h3 style="color: #1e40af; font-size: 16px; margin: 0 0 8px;">📊 Laporan PDF Otomatis</h3>
-                    <p style="color: #4b5563; font-size: 14px; margin: 0; line-height: 1.5;">
-                        Dapatkan laporan profesional setiap bulan langsung di kotak masuk Anda. 
-                        Laporan ini mencakup tren skor kepercayaan, analitik pendapatan, dan statistik pemrosesan dokumen.
-                    </p>
-                </td>
-            </tr>
-        </table>
+        <p style="font-size: 14px; margin: 0 0 24px; line-height: 1.6; color: #000000;">
+            Kami selaku pengembang sangat antusias dan berharap kamu menjadi salah satu yang memanfaatkannya. 
+            <span style="background-color: #fef08a; padding: 2px 4px; font-weight: bold;">{BRAND_NAME}</span> terus berinovasi dalam menyediakan teknologi yang dibutuhkan oleh para talenta digital.
+        </p>
 
-        <!-- Feature 3 -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px; border: 1px solid #e5e7eb; border-radius: 8px; border-left: 4px solid #f97316;">
-            <tr>
-                <td style="padding: 16px; background-color: #f8fafc;">
-                    <h3 style="color: #9a3412; font-size: 16px; margin: 0 0 8px;">⚡ Mesin Pemindai 2x Lebih Cepat</h3>
-                    <p style="color: #4b5563; font-size: 14px; margin: 0; line-height: 1.5;">
-                        Pipeline OCR kami telah dioptimalkan dengan prapemrosesan gambar yang cerdas. 
-                        Kini, waktu pemrosesan dokumen Anda dipangkas hingga setengahnya!
-                    </p>
-                </td>
-            </tr>
-        </table>
+        <hr style="border: 0; border-top: 2px solid #374151; margin: 24px 0;">
 
-        <div style="text-align: center; margin: 32px 0 16px;">
-            <a href="https://ocr.we.id" style="display: inline-block; background-color: #111827; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; padding: 12px 28px; border-radius: 4px; border: 1px solid #111827;">
-                Mulai Gunakan
+        <div style="text-align: center;">
+            <h3 style="font-size: 16px; margin: 0 0 16px; color: #000000;">
+                Mulai eksplorasimu <span style="background-color: #fef08a; padding: 2px 4px;">di</span> {BRAND_NAME}
+            </h3>
+        </div>
+
+        <p style="font-size: 14px; margin: 0 0 16px; line-height: 1.6; color: #000000;">
+            Sebagai bentuk dukungan untuk membantu peserta mempersiapkan dokumen dan strategi terbaik, 
+            <span style="background-color: #fef08a; padding: 2px 4px; font-weight: bold;">{BRAND_NAME}</span> menyediakan fitur baru.
+        </p>
+        
+        <p style="font-size: 14px; margin: 0 0 8px; line-height: 1.6; color: #000000;">
+            Melalui pembaruan ini, kamu akan mendapatkan:
+        </p>
+
+        <ul style="font-size: 14px; line-height: 1.6; margin-bottom: 24px; padding-left: 20px; color: #000000;">
+            <li>Mengoptimalkan produktivitas dengan <strong>Deteksi Penipuan Cerdas</strong> berbasis AI.</li>
+            <li>Mempercepat proses evaluasi dengan <strong>Laporan PDF Otomatis</strong>.</li>
+            <li>Memperkuat kualitas solusi dengan <strong>Mesin Pemindai 2x Lebih Cepat</strong>.</li>
+        </ul>
+
+        <hr style="border: 0; border-top: 1px solid #d1d5db; margin: 24px 0;">
+
+        <div style="text-align: center;">
+            <h3 style="font-size: 16px; margin: 0 0 16px; color: #000000;">Status Fitur</h3>
+            <p style="font-size: 14px; margin: 0 0 16px; color: #000000;">Fitur ini telah diaktifkan untuk akunmu.</p>
+            
+            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 24px; margin: 0 auto 24px; text-align: center; max-width: 450px;">
+                <p style="font-size: 14px; margin: 0 0 8px; font-weight: bold; color: #000000;">Status Keanggotaan</p>
+                <p style="font-size: 18px; margin: 0 0 8px; font-weight: bold; color: #dc2626;">AKTIF - PRO TIER</p>
+                <p style="font-size: 12px; margin: 0; color: #6b7280;">Batas Akhir Akses Gratis: 31 Desember 2026 pukul 23:59:59 WIB</p>
+            </div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #d1d5db; margin: 24px 0;">
+
+        <div style="text-align: center;">
+            <h3 style="font-size: 16px; margin: 0 0 16px; color: #000000;">Panduan Akses Dashboard</h3>
+            <p style="font-size: 14px; margin: 0 0 16px; color: #000000;">Akses fitur terbaru dapat dilakukan melalui tautan berikut.</p>
+            
+            <a href="https://ocr.web.id" style="display: inline-block; background-color: #1d4ed8; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: bold; padding: 12px 32px; border-radius: 6px; margin-bottom: 24px;">
+                Buka Dashboard
             </a>
         </div>
 
-        <p style="color: #374151; font-size: 15px; margin: 32px 0 0;">Salam hangat,</p>
-        <p style="color: #111827; font-size: 15px; font-weight: 700; margin: 4px 0 0;">Tim {BRAND_NAME}</p>
+        <p style="font-size: 14px; margin: 0 0 16px; line-height: 1.6; color: #000000;">
+            Semoga pembaruan ini dapat membantu memperkuat produktivitasmu. Semangat ✨
+        </p>
+
+        <hr style="border: 0; border-top: 2px solid #374151; margin: 24px 0;">
+
+        <div style="text-align: left;">
+            <h3 style="font-size: 16px; margin: 0 0 8px; color: #000000;">Butuh Bantuan?</h3>
+            <p style="font-size: 14px; margin: 0 0 24px; line-height: 1.6; color: #000000;">
+                Jika mengalami kendala atau memiliki pertanyaan, silakan balas pesan ini.
+            </p>
+        </div>
     """
     return get_base_email_template(content, email)
