@@ -1,6 +1,6 @@
 """
 Monthly/Annual Report — PDF generation + Email delivery.
-Uses ReportLab for PDF and SMTP (Sumopod) for email.
+Uses ReportLab for PDF and SMTP for email.
 """
 
 import io
@@ -238,27 +238,35 @@ def _generate_pdf(user_email: str, report_data: dict, months_data: list[dict]) -
 
 
 def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, pdf_filename: str):
-    """Send email with PDF attachment via SMTP. Returns True on success, error string on failure."""
+    """Send email with PDF attachment via SMTP using plain text injection to bypass Prisma limits."""
     if not SMTP_USER or not SMTP_PASS:
         print("SMTP not configured, skipping email")
         return "SMTP_USER or SMTP_PASS not set in env"
 
+    # Gunakan format multipart/mixed sebagai wadah utama (untuk text + attachment)
     msg = MIMEMultipart("mixed")
     
-    # Perbaikan: Tambahkan Display Name agar format email lebih kokoh diproses parser Node.js
-    msg["From"] = f"DGTNZ System <{SMTP_FROM}>"
+    # Hapus Display Name sementara untuk menghindari parser rewel di Sumopod
+    msg["From"] = SMTP_FROM
     msg["To"] = to_email
     msg["Subject"] = subject
     msg["Date"] = formatdate(localtime=True)
     msg["Message-ID"] = make_msgid(domain="ocr.web.id")
     msg["Reply-To"] = SMTP_FROM
 
-    # Pastikan body HTML pakai CRLF yang konsisten
-    safe_body_html = body_html.replace("\r\n", "\n").replace("\n", "\r\n")
-    
-    # Masukkan HTML ke bagian MIMEText
+    # Bagian Alternative untuk menampung Plain Text dan HTML
     alt_part = MIMEMultipart("alternative")
-    alt_part.attach(MIMEText(safe_body_html, "html"))
+    
+    # 1. SUNTIKAN PLAIN TEXT (Umpan wajib untuk parser database Sumopod)
+    plain_text = "This is an automated email from DGTNZ OCR Platform. Please view this email using an HTML-compatible client. Download the attached PDF for full details."
+    alt_part.attach(MIMEText(plain_text, "plain", "utf-8"))
+    
+    # 2. SUNTIKAN HTML
+    safe_body_html = body_html.replace("\r\n", "\n").replace("\n", "\r\n")
+    html_part = MIMEText(safe_body_html, "html", "utf-8")
+    alt_part.attach(html_part)
+    
+    # Masukkan bagian teks (plain+html) ke dalam wadah utama
     msg.attach(alt_part)
 
     # Tambahkan PDF hanya jika tersedia
@@ -278,8 +286,6 @@ def _send_email(to_email: str, subject: str, body_html: str, pdf_bytes: bytes, p
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, local_hostname="ocr.web.id") as server:
             server.set_debuglevel(1)
             server.login(SMTP_USER, SMTP_PASS)
-            
-            # Gunakan send_message() alih-alih sendmail()
             server.send_message(msg)
             
         print(f"Email sent to {to_email}")
@@ -304,7 +310,6 @@ async def get_period_data(
 
     user_id = str(current_user.id)
 
-    # Get user join date from Supabase auth
     try:
         auth_user = supabase_admin.auth.admin.get_user_by_id(user_id)
         join_date = datetime.fromisoformat(auth_user.user.created_at.replace("Z", "+00:00")).date()
@@ -316,12 +321,10 @@ async def get_period_data(
     if period == "current":
         start, end = _get_billing_period(join_date, today)
     elif period == "last":
-        # Go to previous period
         curr_start, _ = _get_billing_period(join_date, today)
         prev_day = curr_start - timedelta(days=1)
         start, end = _get_billing_period(join_date, prev_day)
     elif period == "3months":
-        # Go back 3 periods
         curr_start, _ = _get_billing_period(join_date, today)
         start = curr_start
         for _ in range(2):
@@ -366,7 +369,6 @@ async def get_monthly_history(
     today = date.today()
     history = []
 
-    # Walk back through billing periods
     current_date = today
     for _ in range(months):
         start, end = _get_billing_period(join_date, current_date)
@@ -375,12 +377,11 @@ async def get_monthly_history(
         data = _fetch_report_data(user_id, start, end)
         if data:
             history.append(data)
-        # Go to previous period
         current_date = start - timedelta(days=1)
         if current_date < join_date:
             break
 
-    history.reverse()  # Oldest first
+    history.reverse()
     return {"history": history, "join_date": join_date.isoformat()}
 
 
@@ -403,11 +404,9 @@ async def download_report_pdf(
 
     today = date.today()
 
-    # Current period
     start, end = _get_billing_period(join_date, today)
     current_data = _fetch_report_data(user_id, start, end)
 
-    # History (12 months)
     history = []
     current_date = today
     for _ in range(12):
@@ -453,7 +452,6 @@ async def send_email_report(
     start, end = _get_billing_period(join_date, today)
     current_data = _fetch_report_data(user_id, start, end)
 
-    # History
     history = []
     current_date = today
     for _ in range(12):
@@ -504,13 +502,11 @@ async def send_email_report(
     </div>
     """
 
-    # Subject tanpa emoji
     success = _send_email(current_user.email, f"DGTNZ Report - {today.strftime('%B %Y')}", body_html, pdf_bytes, filename)
 
     if success is True:
         return {"message": "Report sent to your email", "email": current_user.email}
     else:
-        # Even if email fails, return the PDF download URL
         return {"message": "Email not configured. Download PDF manually.", "email_sent": False}
 
 
@@ -619,7 +615,6 @@ async def cron_send_all_reports(
             </div>
             """
 
-            # Subject tanpa emoji
             result = _send_email(
                 email,
                 f"DGTNZ Monthly Report - {today.strftime('%B %Y')}",
@@ -649,10 +644,11 @@ async def cron_send_all_reports(
 @router.post("/cron/newsletter")
 async def cron_send_newsletter(
     request: Request,
+    test_email: str = Query(None, description="If set, only sends to this email for testing"),
 ):
     """
-    Send feature announcement newsletter to ALL registered users.
-    Protected by CLEANUP_SECRET.
+    Send feature announcement newsletter.
+    Gunakan ?test_email=email@kamu.com untuk testing agar tidak meledak ke semua user.
     """
     auth = request.headers.get("Authorization", "")
     token = auth.replace("Bearer ", "").strip()
@@ -666,14 +662,20 @@ async def cron_send_newsletter(
     if not supabase_admin:
         raise HTTPException(status_code=500, detail="Supabase not available")
 
-    try:
-        users_res = supabase_admin.table("profiles").select("id, email").execute()
-        users = users_res.data or []
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch users: {e}")
+    # Fitur Filter Testing
+    if test_email:
+        users = [{"id": "test_mode", "email": test_email}]
+        print(f"🛠️ Menjalankan mode TEST Newsletter, mengirim HANYA ke: {test_email}")
+    else:
+        try:
+            users_res = supabase_admin.table("profiles").select("id, email").execute()
+            users = users_res.data or []
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to fetch users: {e}")
 
     banner_url = "https://api-ocr.xyz/static/newsletter_banner.png"
 
+    # HTML Diperbaiki agar lebih bersih dan rapi di semua client
     newsletter_html = f"""
     <!DOCTYPE html>
     <html>
@@ -681,14 +683,14 @@ async def cron_send_newsletter(
     <body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: 'Segoe UI', Arial, sans-serif;">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
         <tr>
-          <td style="padding: 0;">
-            <img src="{banner_url}" alt="DGTNZ OCR Platform" style="width: 100%; height: auto; display: block;" />
+          <td style="padding: 0; text-align: center; background: #0a0a0a;">
+            <img src="{banner_url}" alt="DGTNZ OCR Platform Update" style="width: 100%; max-width: 600px; height: auto; display: block;" />
           </td>
         </tr>
         <tr>
-          <td style="background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); padding: 32px 32px 24px; text-align: center;">
+          <td style="background: #0a0a0a; padding: 32px 32px 24px; text-align: center;">
             <h1 style="color: #ffffff; font-size: 24px; margin: 0 0 8px;">What's New in DGTNZ</h1>
-            <p style="color: #9ca3af; font-size: 14px; margin: 0;">March 2026 — Platform Update</p>
+            <p style="color: #9ca3af; font-size: 14px; margin: 0;">March 2026 Platform Update</p>
           </td>
         </tr>
         <tr>
@@ -702,7 +704,7 @@ async def cron_send_newsletter(
         </tr>
         <tr>
           <td style="padding: 16px 32px;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background: #f0fdf4; border-radius: 10px; border-left: 4px solid #10b981;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981;">
               <tr>
                 <td style="padding: 16px 20px;">
                   <h3 style="color: #065f46; font-size: 15px; margin: 0 0 6px;">Smart Fraud Detection</h3>
@@ -717,9 +719,7 @@ async def cron_send_newsletter(
         <tr>
           <td style="padding: 24px 32px; text-align: center;">
             <a href="https://ocr.web.id" 
-               style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #8b5cf6); 
-                      color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px; 
-                      font-size: 15px; font-weight: 600;">
+               style="display: inline-block; background-color: #3b82f6; color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: bold;">
               Try It Now
             </a>
           </td>
@@ -748,7 +748,6 @@ async def cron_send_newsletter(
             continue
 
         try:
-            # Subject tanpa emoji
             result = _send_email(
                 to_email=email,
                 subject="What's New in DGTNZ - March 2026 Update",
@@ -767,10 +766,10 @@ async def cron_send_newsletter(
             skipped += 1
 
     return {
-        "message": "Newsletter blast completed",
+        "message": "Newsletter test run completed" if test_email else "Newsletter blast completed",
         "sent": sent,
         "skipped": skipped,
-        "total_users": len(users),
+        "total_users_processed": len(users),
         "errors": errors[:10] if errors else [],
     }
 
@@ -804,13 +803,12 @@ async def cron_test_email(request: Request):
     <div style="font-family: Arial; max-width: 500px; margin: 0 auto; padding: 24px;">
         <h2 style="color: #0a0a0a;">DGTNZ Test Email</h2>
         <p style="color: #6b7280;">This is a test email from the DGTNZ platform.</p>
-        <p style="color: #374151;">If you can read this, SMTP is working perfectly without emojis!</p>
+        <p style="color: #374151;">If you can read this, SMTP is working perfectly!</p>
         <hr style="border: 1px solid #e5e7eb; margin: 16px 0;">
         <p style="color: #9ca3af; font-size: 11px;">Sent at {datetime.now().isoformat()}</p>
     </div>
     """
 
-    # Subject tanpa emoji
     result = _send_email(
         to_email=to,
         subject="DGTNZ Test Email",
