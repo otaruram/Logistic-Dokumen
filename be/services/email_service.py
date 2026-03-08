@@ -73,7 +73,12 @@ def get_base_email_template(content: str, email_to: str) -> str:
           <td align="center">
             <table cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
               
-              <!-- Removed text header as per user request -->
+              <!-- Header -->
+              <tr>
+                <td style="padding: 24px 32px; text-align: left; border-bottom: 1px solid #e5e7eb;">
+                  <h1 style="color: #111827; font-size: 24px; margin: 0; font-weight: 800; letter-spacing: -0.5px;">{BRAND_NAME}</h1>
+                </td>
+              </tr>
 
               <!-- Content -->
               <tr>
@@ -87,7 +92,7 @@ def get_base_email_template(content: str, email_to: str) -> str:
                 <td style="background-color: #2c3e50; padding: 32px; text-align: center; color: #cbd5e1;">
                   <h4 style="color: #ffffff; font-size: 16px; margin: 0 0 16px;">Temukan kami</h4>
                   <p style="margin: 0 0 16px; font-size: 14px;">
-                    {BRAND_NAME} Space, Jakarta, Indonesia
+                    {BRAND_NAME} Space, Bandung, Indonesia
                   </p>
                   <p style="margin: 0 0 24px; font-size: 14px;">
                     &copy; {date.today().year} {BRAND_NAME} Indonesia
