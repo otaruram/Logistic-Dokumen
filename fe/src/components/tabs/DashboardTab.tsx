@@ -287,36 +287,6 @@ const SecurityInfoCard = () => (
   </motion.div>
 );
 
-const FreeTierCard = ({ stats, loading }: { stats: DashboardStats; loading: boolean }) => (
-  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="border border-white/10 rounded-xl p-6 bg-[#111]">
-    <div className="space-y-2">
-      <div className="flex items-start gap-3">
-        <div className="w-6 h-6 bg-white flex items-center justify-center flex-shrink-0 rounded-full mt-0.5">
-          <span className="text-black text-xs font-bold">!</span>
-        </div>
-        <div className="flex-1">
-          <h4 className="font-bold text-white mb-1">Gratis Selamanya</h4>
-          <p className="text-sm text-gray-400 mb-3">
-            Credits direset otomatis setiap hari jam <strong>00:00</strong>. Data fraud dihapus setiap <strong>30 hari</strong>.
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: "Kredit", value: loading ? "..." : <>{stats.credits}<span className="text-sm text-gray-500">/10</span></> },
-              { label: "Aktivitas", value: loading ? "..." : stats.totalActivity },
-              { label: "Dokumen", value: loading ? "..." : stats.totalDocuments },
-            ].map((item) => (
-              <div key={item.label} className="bg-white/5 rounded-lg px-3 py-2 border border-white/10 text-center">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">{item.label}</p>
-                <p className="text-lg font-bold text-white tabular-nums">{item.value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  </motion.div>
-);
-
 // ── Main Component ───────────────────────────────────────────────────────────
 
 const DashboardTab = () => {

@@ -27,6 +27,7 @@ from config.settings import settings
 from services.telegram_service import (
     get_dashboard_summary,
     get_link_by_chat_id,
+    get_recent_fraud_history,
     link_chat_to_user,
     process_fraud_scan_from_telegram,
 )
@@ -47,7 +48,8 @@ def _api_call(method: str, payload: dict[str, Any]) -> dict[str, Any]:
 def _main_menu_keyboard() -> dict[str, Any]:
     return {
         "keyboard": [
-            [{"text": "/dashboard"}, {"text": "/menu"}],
+            [{"text": "/dashboard"}, {"text": "/history"}],
+            [{"text": "/menu"}],
         ],
         "resize_keyboard": True,
     }
@@ -113,6 +115,7 @@ async def _handle_start(chat_id: int, message: dict[str, Any], text: str) -> Non
             "<b>✅ Akun Berhasil Terhubung Permanen</b>\n"
             "Sekarang Anda bisa:\n"
             "• <code>/dashboard</code> untuk cek analitik\n"
+            "• <code>/history</code> untuk log fraud terbaru\n"
             "• Kirim foto untuk <b>Fraud Scan</b>\n"
             "• <code>/menu</code> untuk lihat perintah",
             use_keyboard=True,
@@ -125,11 +128,50 @@ def _handle_menu(chat_id: int) -> None:
     send_message(
         chat_id,
         "<b>📌 Menu OtaruChain Bot</b>\n"
-        "<code>/dashboard</code>  → Logistics Trust Score, revenue valid, status fraud\n"
-        "<i>Kirim foto</i>  → Jalankan Fraud Scan ketat\n"
-        "<code>/menu</code>       → Tampilkan menu ini",
+        "<code>/dashboard</code> → Logistics Trust Score, revenue valid, status fraud\n"
+        "<code>/history</code>   → Log historis fraud terbaru\n"
+        "<i>Kirim foto</i>       → Jalankan Fraud Scan ketat\n"
+        "<code>/menu</code>      → Tampilkan menu ini",
         use_keyboard=True,
     )
+
+
+def _handle_history(chat_id: int) -> None:
+    link = get_link_by_chat_id(chat_id)
+    if not link:
+        send_message(chat_id, "<b>🔐 Akun belum terhubung.</b> Gunakan <code>/start &lt;tele_key&gt;</code> dari web.", use_keyboard=True)
+        return
+
+    try:
+        logs = get_recent_fraud_history(link["user_id"], limit=5)
+        if not logs:
+            send_message(
+                chat_id,
+                "<b>🧾 Histori Fraud</b>\nBelum ada data scan fraud.",
+                use_keyboard=True,
+            )
+            return
+
+        lines = ["<b>🧾 Histori Fraud Terbaru (5)</b>"]
+        for i, row in enumerate(logs, start=1):
+            status = str(row.get("status", "processing"))
+            badge = {
+                "verified": "✅ VERIFIED",
+                "processing": "🟡 PROCESSING",
+                "tampered": "🚫 TAMPERED",
+            }.get(status, f"ℹ️ {status.upper()}")
+            nominal = _format_idr(float(row.get("nominal_total") or 0))
+            lines.append(
+                f"\n<b>{i}.</b> {badge}\n"
+                f"• Klien: {row.get('nama_klien') or '-'}\n"
+                f"• Surat Jalan: {row.get('nomor_surat_jalan') or '-'}\n"
+                f"• Nominal: {nominal}\n"
+                f"• Confidence: {row.get('field_confidence') or '-'}"
+            )
+
+        send_message(chat_id, "".join(lines), use_keyboard=True)
+    except Exception as e:
+        send_message(chat_id, f"<b>❌ Gagal ambil histori fraud</b>\n{str(e)}", use_keyboard=True)
 
 
 def _handle_dashboard(chat_id: int) -> None:
@@ -156,7 +198,7 @@ def _handle_dashboard(chat_id: int) -> None:
             f"<b>Tampered:</b> {summary['tampered_documents']}\n"
             f"<b>Fraud Scans:</b> {summary['total_fraud_scans']}\n"
             f"<b>Risk Level:</b> {risk}\n"
-            f"<b>Credits:</b> {summary['credits']}"
+            f"<b>Credits:</b> {summary['credits']}/10"
         )
         send_message(chat_id, msg, use_keyboard=True)
     except Exception as e:
@@ -192,6 +234,8 @@ async def _handle_photo(chat_id: int, message: dict[str, Any]) -> None:
             filename=filename,
         )
 
+        summary = get_dashboard_summary(link["user_id"])
+
         status = str(result.get("status", "processing"))
         status_badge = {
             "verified": "✅ VERIFIED",
@@ -208,8 +252,12 @@ async def _handle_photo(chat_id: int, message: dict[str, Any]) -> None:
             f"<b>Nominal:</b> {nominal_text}\n"
             f"<b>Klien:</b> {result.get('nama_klien') or '-'}\n"
             f"<b>Surat Jalan:</b> {result.get('nomor_surat_jalan') or '-'}\n"
-            f"<b>Credits sisa:</b> {result['credits_remaining']}"
+            f"<b>Credits sisa:</b> {result['credits_remaining']}/10\n"
+            f"<b>Trust Score:</b> {summary['trust_score']}/1000\n"
+            f"<b>Total Fraud Logs:</b> {summary['total_fraud_scans']}"
         )
+        if result.get("cached"):
+            response += "\n\n<i>⚡ Hasil diambil dari cache (dokumen sama).</i>"
         send_message(chat_id, response, use_keyboard=True)
     except Exception as e:
         send_message(chat_id, f"<b>❌ Fraud scan gagal</b>\n{str(e)}", use_keyboard=True)
@@ -237,6 +285,10 @@ async def handle_update(update: dict[str, Any]) -> None:
 
     if text.startswith("/dashboard"):
         _handle_dashboard(chat_id)
+        return
+
+    if text.startswith("/history"):
+        _handle_history(chat_id)
         return
 
     if message.get("photo"):

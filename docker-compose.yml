@@ -73,6 +73,8 @@ services:
     volumes:
       - ./be/uploads:/app/uploads
     restart: unless-stopped
+    healthcheck:
+      disable: true
     depends_on:
       - redis
       - backend
@@ -96,6 +98,8 @@ services:
     volumes:
       - ./be/uploads:/app/uploads
     restart: unless-stopped
+    healthcheck:
+      disable: true
     depends_on:
       - backend
       - redis

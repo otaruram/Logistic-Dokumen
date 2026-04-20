@@ -96,8 +96,16 @@ async def process_job(job: dict):
             supabase_admin.table("extracted_finance_data").insert(finance_data).execute()
 
         # 4. Deduct 1 credit from Supabase profiles
-        profile = supabase_admin.table("profiles").select("credits").eq("id", user_id).single().execute()
-        current_credits = profile.data.get("credits", 0) if profile.data else 0
+        profile = (
+            supabase_admin.table("profiles")
+            .select("credits")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        profile_rows = getattr(profile, "data", None) or []
+        profile_data = profile_rows[0] if profile_rows and isinstance(profile_rows[0], dict) else {}
+        current_credits = int(profile_data.get("credits", 0) or 0)
         new_credits = max(0, current_credits - SCAN_COST)
         supabase_admin.table("profiles").update({"credits": new_credits}).eq("id", user_id).execute()
 

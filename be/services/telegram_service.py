@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+import time
 from typing import Any, Optional
 
 from fastapi import HTTPException
@@ -22,6 +23,12 @@ from services.scan_helpers import (
     upload_and_ocr,
     SCAN_COST,
 )
+
+
+_DASHBOARD_CACHE_TTL = 60
+_FRAUD_CACHE_TTL = 300
+_dashboard_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+_fraud_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 
 
 def generate_tele_key() -> str:
@@ -120,16 +127,62 @@ def _get_profile_credits(user_id: str) -> int:
     return int(data.get("credits", 0) or 0)
 
 
+def _ensure_profile_credits(user_id: str) -> int:
+    """Ensure profile exists and has at least default credits for Telegram flow."""
+    sb = get_supabase_admin()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase admin is not configured")
+
+    profile = (
+        sb.table("profiles")
+        .select("id,credits")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
+    rows = getattr(profile, "data", None) or []
+    if not rows:
+        try:
+            sb.table("profiles").insert({"id": user_id, "credits": 10}).execute()
+        except Exception:
+            # If profile has additional required fields, keep default for Telegram flow
+            # and let web profile sync populate it later.
+            return 10
+        return 10
+
+    data = rows[0] if isinstance(rows[0], dict) else {}
+    credits = data.get("credits")
+    if credits is None:
+        sb.table("profiles").update({"credits": 10}).eq("id", user_id).execute()
+        return 10
+    return int(credits or 0)
+
+
 def _set_profile_credits(user_id: str, credits: int) -> None:
     sb = get_supabase_admin()
     if not sb:
         raise HTTPException(status_code=500, detail="Supabase admin is not configured")
-    sb.table("profiles").update({"credits": credits}).eq("id", user_id).execute()
+    res = sb.table("profiles").update({"credits": credits}).eq("id", user_id).execute()
+    rows = getattr(res, "data", None) or []
+    if not rows:
+        try:
+            sb.table("profiles").insert({"id": user_id, "credits": credits}).execute()
+        except Exception:
+            pass
 
 
 async def process_fraud_scan_from_telegram(*, user_id: str, recipient_name: str, signature_url: str, content: bytes, filename: str) -> dict[str, Any]:
     """Run fraud OCR pipeline from Telegram photo bytes and sync to Supabase tables."""
-    credits = _get_profile_credits(user_id)
+    content_hash = hashlib.sha256(content).hexdigest()
+    cache_key = f"{user_id}:{content_hash}"
+    now = time.time()
+    cached = _fraud_cache.get(cache_key)
+    if cached and now - cached[0] <= _FRAUD_CACHE_TTL:
+        cached_payload = dict(cached[1])
+        cached_payload["cached"] = True
+        return cached_payload
+
+    credits = _ensure_profile_credits(user_id)
     if credits < SCAN_COST:
         raise HTTPException(status_code=402, detail=f"Insufficient credits. Need {SCAN_COST}, available {credits}")
 
@@ -141,7 +194,6 @@ async def process_fraud_scan_from_telegram(*, user_id: str, recipient_name: str,
     confidence = structured.get("confidence", "low")
     fraud_status = confidence_to_status(confidence)
 
-    content_hash = hashlib.sha256(content).hexdigest()
     sync_to_supabase(
         user_id=user_id,
         filename=filename,
@@ -154,7 +206,7 @@ async def process_fraud_scan_from_telegram(*, user_id: str, recipient_name: str,
         is_fraud=True,
     )
 
-    return {
+    result = {
         "status": fraud_status,
         "confidence": confidence,
         "credits_remaining": new_balance,
@@ -164,11 +216,20 @@ async def process_fraud_scan_from_telegram(*, user_id: str, recipient_name: str,
         "nomor_surat_jalan": structured.get("nomor_surat_jalan"),
         "tanggal_jatuh_tempo": structured.get("tanggal_jatuh_tempo"),
         "excerpt": (extracted or "")[:240],
+        "cached": False,
     }
+    _fraud_cache[cache_key] = (now, dict(result))
+    _dashboard_cache.pop(user_id, None)
+    return result
 
 
 def get_dashboard_summary(user_id: str) -> dict[str, Any]:
     """Read fraud-focused dashboard summary for Telegram bot."""
+    now = time.time()
+    cached = _dashboard_cache.get(user_id)
+    if cached and now - cached[0] <= _DASHBOARD_CACHE_TTL:
+        return dict(cached[1])
+
     sb = get_supabase_admin()
     if not sb:
         raise HTTPException(status_code=500, detail="Supabase admin is not configured")
@@ -206,22 +267,49 @@ def get_dashboard_summary(user_id: str) -> dict[str, Any]:
     fraud_count_res = sb.table("fraud_scans").select("id", count="exact").eq("user_id", user_id).execute()
     total_fraud_scans = int(getattr(fraud_count_res, "count", 0) or 0)
 
-    profile = (
-        sb.table("profiles")
-        .select("credits")
-        .eq("id", user_id)
-        .limit(1)
-        .execute()
-    )
-    profile_rows = getattr(profile, "data", None) or []
-    profile_data = profile_rows[0] if profile_rows and isinstance(profile_rows[0], dict) else {}
+    profile_credits = _ensure_profile_credits(user_id)
 
-    return {
+    result = {
         "trust_score": trust_score,
         "total_revenue_valid": total_revenue_valid,
         "verified_documents": verified,
         "processing_documents": processing,
         "tampered_documents": tampered,
         "total_fraud_scans": total_fraud_scans,
-        "credits": int(profile_data.get("credits", 0) or 0),
+        "credits": profile_credits,
     }
+    _dashboard_cache[user_id] = (now, dict(result))
+    return result
+
+
+def get_recent_fraud_history(user_id: str, *, limit: int = 5) -> list[dict[str, Any]]:
+    """Get recent fraud scan logs for Telegram history command."""
+    sb = get_supabase_admin()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase admin is not configured")
+
+    res = (
+        sb.table("fraud_scans")
+        .select("id,created_at,status,nominal_total,nama_klien,nomor_surat_jalan,field_confidence")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    rows = getattr(res, "data", None) or []
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        result.append(
+            {
+                "id": row.get("id"),
+                "created_at": row.get("created_at"),
+                "status": row.get("status") or "processing",
+                "nominal_total": row.get("nominal_total") or 0,
+                "nama_klien": row.get("nama_klien") or "-",
+                "nomor_surat_jalan": row.get("nomor_surat_jalan") or "-",
+                "field_confidence": row.get("field_confidence") or "low",
+            }
+        )
+    return result

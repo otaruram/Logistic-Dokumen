@@ -28,10 +28,18 @@ async def get_user_credits(current_user: User = Depends(get_current_active_user)
     
     try:
         if supabase_admin:
-            profile_res = supabase_admin.table("profiles").select("credits").eq("id", str(current_user.id)).single().execute()
-            if profile_res.data:
+            profile_res = (
+                supabase_admin.table("profiles")
+                .select("credits")
+                .eq("id", str(current_user.id))
+                .limit(1)
+                .execute()
+            )
+            rows = getattr(profile_res, "data", None) or []
+            if rows:
+                profile_data = rows[0] if isinstance(rows[0], dict) else {}
                 return {
-                    "credits": profile_res.data.get("credits", 0),
+                    "credits": profile_data.get("credits", 0),
                     "user_id": current_user.id
                 }
     except Exception as e:

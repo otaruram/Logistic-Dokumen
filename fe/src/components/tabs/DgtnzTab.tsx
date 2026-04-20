@@ -423,7 +423,7 @@ export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: 
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
-          <h2 className="text-xl font-bold text-white">dgtnz.wtf</h2>
+          <h2 className="text-xl font-bold text-white">feature.wtf</h2>
           <p className="text-xs text-gray-400">Scan & digitize dokumen dengan OCR</p>
         </div>
       </div>
@@ -448,7 +448,7 @@ export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: 
             }`}
         >
           <ShieldAlert className="w-4 h-4" />
-          Deteksi Fraud
+          Mode Analisis
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isFraudMode ? 'bg-white/20' : 'bg-red-500/20 text-red-400'}`}>
             AI
           </span>
@@ -468,7 +468,7 @@ export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: 
             <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
               <ShieldAlert className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-semibold text-red-300">Mode Deteksi Fraud Aktif</p>
+                <p className="text-sm font-semibold text-red-300">Mode Analisis Aktif</p>
                 <p className="text-xs text-gray-400 mt-0.5">
                   Dokumen akan dianalisis AI untuk mengekstrak <strong className="text-gray-300">Nominal Total, Nama Klien, Nomor Surat Jalan, dan Tanggal Jatuh Tempo</strong>. Hasil tersimpan di tabel riwayat dengan indikator khusus 🔴.
                 </p>
@@ -542,7 +542,7 @@ export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: 
               ) : (
                 <span className="flex items-center gap-2">
                   {isFraudMode ? (
-                    <><ShieldAlert className="w-5 h-5" /> Analisis Fraud</>
+                    <><ShieldAlert className="w-5 h-5" /> Analisis Dokumen</>
                   ) : (
                     <>🚀 Proses Scan</>
                   )}
@@ -563,7 +563,7 @@ export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: 
             }`}
         >
           <FileCheck className="w-4 h-4" />
-          DGTNZ Default
+          Riwayat Dokumen
           {defaultRecords.length > 0 && (
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${historyTab === "default" ? 'bg-black/10' : 'bg-white/10'
               }`}>{defaultRecords.length}</span>
@@ -577,7 +577,7 @@ export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: 
             }`}
         >
           <ShieldAlert className="w-4 h-4" />
-          Deteksi Fraud
+          Riwayat Analisis
           {fraudRecords.length > 0 && (
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${historyTab === "fraud" ? 'bg-white/20' : 'bg-red-500/20 text-red-400'
               }`}>{fraudRecords.length}</span>
