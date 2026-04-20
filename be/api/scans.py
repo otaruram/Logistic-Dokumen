@@ -241,16 +241,18 @@ async def batch_upload_scans(
         supabase_admin.table("profiles")
         .select("credits")
         .eq("id", str(current_user.id))
-        .single()
+        .limit(1)
         .execute()
     )
-    if not profile.data:
+    profile_rows = profile.data or []
+    if not profile_rows:
         supabase_admin.table("profiles").insert(
             {"id": str(current_user.id), "email": current_user.email, "credits": 10}
         ).execute()
         current_credits = 10
     else:
-        current_credits = profile.data.get("credits", 0)
+        profile_data = profile_rows[0] if isinstance(profile_rows[0], dict) else {}
+        current_credits = profile_data.get("credits", 0)
 
     total_cost = len(files) * SCAN_COST
     if current_credits < total_cost:

@@ -106,8 +106,17 @@ def _get_profile_credits(user_id: str) -> int:
     if not sb:
         raise HTTPException(status_code=500, detail="Supabase admin is not configured")
 
-    profile = sb.table("profiles").select("credits").eq("id", user_id).single().execute()
-    data = getattr(profile, "data", None) or {}
+    profile = (
+        sb.table("profiles")
+        .select("credits")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
+    rows = getattr(profile, "data", None) or []
+    if not rows:
+        return 0
+    data = rows[0] if isinstance(rows[0], dict) else {}
     return int(data.get("credits", 0) or 0)
 
 
@@ -197,8 +206,15 @@ def get_dashboard_summary(user_id: str) -> dict[str, Any]:
     fraud_count_res = sb.table("fraud_scans").select("id", count="exact").eq("user_id", user_id).execute()
     total_fraud_scans = int(getattr(fraud_count_res, "count", 0) or 0)
 
-    profile = sb.table("profiles").select("credits").eq("id", user_id).single().execute()
-    profile_data = getattr(profile, "data", None) or {}
+    profile = (
+        sb.table("profiles")
+        .select("credits")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
+    profile_rows = getattr(profile, "data", None) or []
+    profile_data = profile_rows[0] if profile_rows and isinstance(profile_rows[0], dict) else {}
 
     return {
         "trust_score": trust_score,

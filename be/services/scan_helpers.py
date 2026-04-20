@@ -63,13 +63,15 @@ async def check_and_deduct_credits(
             supabase_admin.table("profiles")
             .select("credits")
             .eq("id", str(user.id))
-            .single()
+            .limit(1)
             .execute()
         )
-        profile = resp.data
-        if not profile:
-            raise HTTPException(status_code=404, detail="User profile not found.")
-        available = int(profile.get("credits") or 0)
+        profile_rows = resp.data or []
+        if not profile_rows:
+            available = 0
+        else:
+            profile = profile_rows[0] if isinstance(profile_rows[0], dict) else {}
+            available = int(profile.get("credits") or 0)
     else:
         available = int(getattr(user, "credits", 0) or 0)
 

@@ -573,7 +573,6 @@ const DashboardTab = () => {
       {/* Info Cards */}
       <CleanupCard stats={stats} loading={loading} />
       <SecurityInfoCard />
-      <FreeTierCard stats={stats} loading={loading} />
     </div>
   );
 };

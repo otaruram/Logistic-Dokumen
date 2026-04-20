@@ -4,8 +4,9 @@ Endpoints: user management, activity monitoring, token/ban/retention controls
 """
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Any
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 from models.models import User, Scan
 from utils.auth import get_current_active_user
@@ -79,9 +80,12 @@ async def get_admin_stats(
     # Total users from profiles
     try:
         profiles = sb.table("profiles").select("id, credits, updated_at").execute()
-        total_users = len(profiles.data) if profiles.data else 0
+        p_data = getattr(profiles, "data", None)
+        total_users = len(p_data) if p_data else 0
     except Exception:
-        profiles = type('obj', (object,), {'data': []})()
+        class DummyProfiles:
+            data: list = []
+        profiles = DummyProfiles()
         total_users = 0
 
     # Total scans (local DB)
@@ -110,11 +114,11 @@ async def get_admin_stats(
 
     # Active today (profiles updated today)
     today = datetime.utcnow().date().isoformat()
-    active_today = 0
-    if profiles.data:
-        for p in profiles.data:
-            if p.get("updated_at", "").startswith(today):
-                active_today += 1
+    p_data = getattr(profiles, "data", None)
+    if isinstance(p_data, list):
+        active_today = sum(1 for p in p_data if isinstance(p, dict) and p.get("updated_at", "").startswith(today))
+    else:
+        active_today = 0
 
     return {
         "total_users": total_users,
@@ -198,20 +202,23 @@ async def get_user_activity(
     # Fraud scans from Supabase
     try:
         fraud_res = sb.table("fraud_scans").select("id, created_at, status").eq("user_id", user_id).order("created_at", desc=True).limit(20).execute()
-        fraud_scans = fraud_res.data or []
+        f_data = getattr(fraud_res, "data", None)
+        fraud_scans = [item for item in f_data] if f_data else []
     except Exception:
         fraud_scans = []
 
     # Chat sessions + messages
     try:
         sessions_res = sb.table("chat_sessions").select("id, title, created_at, updated_at").eq("user_id", user_id).order("updated_at", desc=True).limit(20).execute()
-        chat_sessions = sessions_res.data or []
+        s_data = getattr(sessions_res, "data", None)
+        chat_sessions = [item for item in s_data] if s_data else []
     except Exception:
         chat_sessions = []
 
     total_messages = 0
     try:
-        for s in chat_sessions[:5]:
+        for i in range(min(5, len(chat_sessions))):
+            s = chat_sessions[i]  # pyre-ignore
             msg_res = sb.table("chat_messages").select("id", count="exact").eq("session_id", s["id"]).execute()
             total_messages += msg_res.count if msg_res.count else 0
     except Exception:
@@ -231,8 +238,8 @@ async def get_user_activity(
         "total_chat_sessions": len(chat_sessions),
         "total_messages": total_messages,
         "credits": profile.get("credits", 0) if profile else 0,
-        "recent_fraud_scans": fraud_scans[:10],
-        "recent_chat_sessions": chat_sessions[:10],
+        "recent_fraud_scans": [fraud_scans[i] for i in range(min(10, len(fraud_scans)))],  # pyre-ignore
+        "recent_chat_sessions": [chat_sessions[i] for i in range(min(10, len(chat_sessions)))],  # pyre-ignore
     }
 
 

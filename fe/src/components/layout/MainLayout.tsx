@@ -124,7 +124,7 @@ const MainLayout = () => {
                 >
                   <div className="flex items-center gap-2">
                     <FileCheck className="w-4 h-4 text-white" />
-                    <span className="font-semibold text-white">DGTNZ</span>
+                    <span className="font-semibold text-white">Dokumen</span>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">Scan dokumen standar dengan OCR.</p>
                 </button>
@@ -139,18 +139,11 @@ const MainLayout = () => {
                 >
                   <div className="flex items-center gap-2">
                     <ShieldAlert className="w-4 h-4 text-red-400" />
-                    <span className="font-semibold text-red-300">Fraud Detection</span>
+                    <span className="font-semibold text-red-300">Deteksi Fraud</span>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">Deteksi anomali + validasi field kritikal.</p>
                 </button>
               </div>
-
-              <button
-                onClick={() => setShowFeaturePopup(false)}
-                className="mt-4 w-full rounded-lg border border-white/10 bg-transparent hover:bg-white/5 text-gray-300 py-2 text-sm"
-              >
-                Batal
-              </button>
             </motion.div>
           </>
         )}

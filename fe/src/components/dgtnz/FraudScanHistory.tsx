@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import { appCache, cacheKeys } from "@/lib/cacheService";
 import {
     Table,
     TableBody,
@@ -66,6 +67,21 @@ export const FraudScanHistory = ({ records, onDelete, onExportGoogleDrive }: Fra
             const { data: { session } } = await (await import("@/lib/supabaseClient")).supabase.auth.getSession();
             if (!session) return;
 
+            const cacheKey = cacheKeys.fraudAnalysis(session.user.id, String(record.id));
+            
+            // Check cache first
+            const cachedInsight = appCache.get<{ analysis: string }>(cacheKey, {
+                scan_type: "fraud",
+                extracted_text: record.keterangan,
+                status: record.status,
+            });
+            
+            if (cachedInsight) {
+                setInsightData({ id: record.id, text: cachedInsight.analysis || "Analisis tidak tersedia." });
+                setAnalyzingId(null);
+                return;
+            }
+
             const res = await fetch(`${API_URL}/api/insight/analyze`, {
                 method: "POST",
                 headers: {
@@ -85,6 +101,10 @@ export const FraudScanHistory = ({ records, onDelete, onExportGoogleDrive }: Fra
                 }),
             });
             const json = await res.json();
+            
+            // Cache the result
+            appCache.set(cacheKey, { analysis: json.analysis });
+            
             setInsightData({ id: record.id, text: json.analysis || "Analisis tidak tersedia." });
         } catch {
             setInsightData({ id: record.id, text: "❌ Gagal menganalisis. Coba lagi nanti." });
