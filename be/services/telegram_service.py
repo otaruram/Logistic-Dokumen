@@ -1,0 +1,211 @@
+"""
+Telegram integration service helpers.
+
+Handles:
+- Telegram link lookup/update in Supabase table `telegram_links`
+- Fraud scan processing from Telegram photo uploads
+- Dashboard summary retrieval for Telegram bot commands
+"""
+
+from __future__ import annotations
+
+import hashlib
+import secrets
+from typing import Any, Optional
+
+from fastapi import HTTPException
+
+from services.scan_helpers import (
+    confidence_to_status,
+    get_supabase_admin,
+    sync_to_supabase,
+    upload_and_ocr,
+    SCAN_COST,
+)
+
+
+def generate_tele_key() -> str:
+    """Generate a permanent connection key for Telegram linking."""
+    return secrets.token_urlsafe(24)
+
+
+def validate_nik(nik: str) -> bool:
+    """Basic Indonesian NIK validation: 16 numeric digits."""
+    return isinstance(nik, str) and nik.isdigit() and len(nik) == 16
+
+
+def hash_nik(nik: str, *, salt: str) -> str:
+    return hashlib.sha256(f"{salt}:{nik}".encode("utf-8")).hexdigest()
+
+
+def get_link_by_key(tele_key: str) -> Optional[dict[str, Any]]:
+    sb = get_supabase_admin()
+    if not sb:
+        return None
+
+    res = (
+        sb.table("telegram_links")
+        .select("id,user_id,tele_key,is_linked,telegram_chat_id,nik_last4")
+        .eq("tele_key", tele_key)
+        .limit(1)
+        .execute()
+    )
+    data = getattr(res, "data", None) or []
+    return data[0] if data else None
+
+
+def get_link_by_chat_id(chat_id: int) -> Optional[dict[str, Any]]:
+    sb = get_supabase_admin()
+    if not sb:
+        return None
+
+    res = (
+        sb.table("telegram_links")
+        .select("id,user_id,tele_key,is_linked,telegram_chat_id,nik_last4")
+        .eq("telegram_chat_id", str(chat_id))
+        .eq("is_linked", True)
+        .limit(1)
+        .execute()
+    )
+    data = getattr(res, "data", None) or []
+    return data[0] if data else None
+
+
+def link_chat_to_user(*, tele_key: str, chat_id: int, telegram_user_id: Optional[int], username: Optional[str]) -> dict[str, Any]:
+    sb = get_supabase_admin()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase admin is not configured")
+
+    link = get_link_by_key(tele_key)
+    if not link:
+        raise HTTPException(status_code=404, detail="Invalid tele key")
+
+    payload = {
+        "is_linked": True,
+        "telegram_chat_id": str(chat_id),
+        "telegram_user_id": str(telegram_user_id) if telegram_user_id is not None else None,
+        "telegram_username": username,
+        "linked_at": "now()",
+    }
+
+    (
+        sb.table("telegram_links")
+        .update(payload)
+        .eq("id", link["id"])
+        .execute()
+    )
+
+    updated = get_link_by_key(tele_key)
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update telegram link")
+    return updated
+
+
+def _get_profile_credits(user_id: str) -> int:
+    sb = get_supabase_admin()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase admin is not configured")
+
+    profile = sb.table("profiles").select("credits").eq("id", user_id).single().execute()
+    data = getattr(profile, "data", None) or {}
+    return int(data.get("credits", 0) or 0)
+
+
+def _set_profile_credits(user_id: str, credits: int) -> None:
+    sb = get_supabase_admin()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase admin is not configured")
+    sb.table("profiles").update({"credits": credits}).eq("id", user_id).execute()
+
+
+async def process_fraud_scan_from_telegram(*, user_id: str, recipient_name: str, signature_url: str, content: bytes, filename: str) -> dict[str, Any]:
+    """Run fraud OCR pipeline from Telegram photo bytes and sync to Supabase tables."""
+    credits = _get_profile_credits(user_id)
+    if credits < SCAN_COST:
+        raise HTTPException(status_code=402, detail=f"Insufficient credits. Need {SCAN_COST}, available {credits}")
+
+    new_balance = credits - SCAN_COST
+    _set_profile_credits(user_id, new_balance)
+
+    image_url, extracted, ocr_result = await upload_and_ocr(content, filename, folder="/telegram-fraud")
+    structured = ocr_result.get("structured_fields", {})
+    confidence = structured.get("confidence", "low")
+    fraud_status = confidence_to_status(confidence)
+
+    content_hash = hashlib.sha256(content).hexdigest()
+    sync_to_supabase(
+        user_id=user_id,
+        filename=filename,
+        image_url=image_url,
+        content_hash=content_hash,
+        recipient_name=recipient_name,
+        signature_url=signature_url,
+        structured=structured,
+        ocr_result=ocr_result,
+        is_fraud=True,
+    )
+
+    return {
+        "status": fraud_status,
+        "confidence": confidence,
+        "credits_remaining": new_balance,
+        "image_url": image_url,
+        "nominal_total": structured.get("nominal_total"),
+        "nama_klien": structured.get("nama_klien"),
+        "nomor_surat_jalan": structured.get("nomor_surat_jalan"),
+        "tanggal_jatuh_tempo": structured.get("tanggal_jatuh_tempo"),
+        "excerpt": (extracted or "")[:240],
+    }
+
+
+def get_dashboard_summary(user_id: str) -> dict[str, Any]:
+    """Read fraud-focused dashboard summary for Telegram bot."""
+    sb = get_supabase_admin()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase admin is not configured")
+
+    docs_res = sb.table("documents").select("status").eq("user_id", user_id).execute()
+    docs = getattr(docs_res, "data", None) or []
+
+    verified = sum(1 for d in docs if d.get("status") == "verified")
+    processing = sum(1 for d in docs if d.get("status") == "processing")
+    tampered = sum(1 for d in docs if d.get("status") == "tampered")
+
+    trust_score = 0
+    try:
+        rpc = sb.rpc("calculate_logistics_trust_score", {"p_user_id": user_id}).execute()
+        trust_score = int(getattr(rpc, "data", 0) or 0)
+    except Exception:
+        total_docs = verified + processing + tampered
+        if total_docs > 0:
+            raw_score = (verified * 100 + processing * 50) / total_docs
+            trust_score = min(round(raw_score * 10), 1000)
+
+    finance = (
+        sb.table("extracted_finance_data")
+        .select("nominal_amount,field_confidence")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    finance_rows = getattr(finance, "data", None) or []
+    total_revenue_valid = sum(
+        float(row.get("nominal_amount") or 0)
+        for row in finance_rows
+        if row.get("field_confidence") != "low"
+    )
+
+    fraud_count_res = sb.table("fraud_scans").select("id", count="exact").eq("user_id", user_id).execute()
+    total_fraud_scans = int(getattr(fraud_count_res, "count", 0) or 0)
+
+    profile = sb.table("profiles").select("credits").eq("id", user_id).single().execute()
+    profile_data = getattr(profile, "data", None) or {}
+
+    return {
+        "trust_score": trust_score,
+        "total_revenue_valid": total_revenue_valid,
+        "verified_documents": verified,
+        "processing_documents": processing,
+        "tampered_documents": tampered,
+        "total_fraud_scans": total_fraud_scans,
+        "credits": int(profile_data.get("credits", 0) or 0),
+    }

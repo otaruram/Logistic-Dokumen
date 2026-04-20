@@ -331,10 +331,17 @@ async def update_scan(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """Update scan details (recipient, content)."""
+    """Update scan details (recipient, content). Fraud scans are immutable."""
     scan = db.query(Scan).filter(Scan.id == scan_id, Scan.user_id == current_user.id).first()
     if not scan:
         raise HTTPException(status_code=404, detail="Scan not found")
+
+    # Tight fraud rule: a fraud scan cannot be edited by users after it is saved.
+    if scan.is_fraud_scan:
+        raise HTTPException(
+            status_code=403,
+            detail="Fraud scan markers (verified/tampered/processing) are locked and cannot be edited.",
+        )
 
     if scan_update.recipient_name is not None:
         scan.recipient_name = scan_update.recipient_name

@@ -306,9 +306,11 @@ export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: 
                                                 <button onClick={() => handleAnalyze(record)} disabled={analyzingId === record.id} className="p-2 hover:bg-purple-500/20 rounded-full transition-colors" title="Analyze with Otaru">
                                                     {analyzingId === record.id ? <Loader2 className="w-4 h-4 text-purple-400 animate-spin" /> : <Sparkles className="w-4 h-4 text-purple-400" />}
                                                 </button>
-                                                <button onClick={() => onEdit(record)} className="p-2 hover:bg-yellow-500/20 rounded-full transition-colors" title="Edit">
-                                                    <Pencil className="w-4 h-4 text-yellow-500" />
-                                                </button>
+                                                {!record.isFraudScan && (
+                                                    <button onClick={() => onEdit(record)} className="p-2 hover:bg-yellow-500/20 rounded-full transition-colors" title="Edit">
+                                                        <Pencil className="w-4 h-4 text-yellow-500" />
+                                                    </button>
+                                                )}
                                                 <button onClick={() => onDelete(record.id)} className="p-2 hover:bg-red-900/20 rounded-full transition-colors" title="Delete">
                                                     <Trash2 className="w-4 h-4 text-red-400" />
                                                 </button>

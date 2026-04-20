@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
-import { FileDown, Cloud, Search, Trash2, CheckCircle2, XCircle, Clock, Pencil, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
+import { FileDown, Cloud, Search, Trash2, CheckCircle2, XCircle, Clock, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -43,11 +43,10 @@ interface ScanRecord {
 interface FraudScanHistoryProps {
     records: ScanRecord[];
     onDelete: (id: number | string) => void;
-    onEdit: (record: ScanRecord) => void;
     onExportGoogleDrive: () => void;
 }
 
-export const FraudScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: FraudScanHistoryProps) => {
+export const FraudScanHistory = ({ records, onDelete, onExportGoogleDrive }: FraudScanHistoryProps) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterDate, setFilterDate] = useState("all");
     const [filterMonth, setFilterMonth] = useState("all");
@@ -422,9 +421,6 @@ export const FraudScanHistory = ({ records, onDelete, onEdit, onExportGoogleDriv
                                             <div className="flex justify-end gap-2">
                                                 <button onClick={() => handleAnalyze(record)} disabled={analyzingId === record.id} className="p-2 hover:bg-purple-500/20 rounded-full transition-colors" title="Analyze with Otaru">
                                                     {analyzingId === record.id ? <Loader2 className="w-4 h-4 text-purple-400 animate-spin" /> : <Sparkles className="w-4 h-4 text-purple-400" />}
-                                                </button>
-                                                <button onClick={() => onEdit(record)} className="p-2 hover:bg-yellow-500/20 rounded-full transition-colors" title="Edit">
-                                                    <Pencil className="w-4 h-4 text-yellow-500" />
                                                 </button>
                                                 <button onClick={() => onDelete(record.id)} className="p-2 hover:bg-red-900/20 rounded-full transition-colors" title="Delete">
                                                     <Trash2 className="w-4 h-4 text-red-400" />

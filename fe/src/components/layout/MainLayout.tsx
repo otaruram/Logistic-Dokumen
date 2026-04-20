@@ -2,10 +2,8 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "./Header";
 import DashboardTab from "../tabs/DashboardTab";
-import DgtnzTab from "../tabs/DgtnzTab";
 import OptionsTab from "../tabs/OptionsTab";
 import ProfileTab from "../tabs/ProfileTab";
-import OtaruChatPage from "@/pages/OtaruChatPage";
 import AdminTab from "../tabs/AdminTab";
 import BottomNavigation from "../ui/bottom-navigation";
 import { useTabNavigation } from "@/hooks/use-tab-navigation";
@@ -15,7 +13,6 @@ const ADMIN_EMAIL = "okitr52@gmail.com";
 const MainLayout = () => {
   const {
     activeTab,
-    setActiveTab,
     handleTabClick,
     getActiveTabId,
   } = useTabNavigation();
@@ -44,10 +41,6 @@ const MainLayout = () => {
         return <DashboardTab />;
       case "admin":
         return isAdmin ? <AdminTab /> : <DashboardTab />;
-      case "dgtnz":
-        return <DgtnzTab onBack={() => setActiveTab("dashboard")} />;
-      case "otaru":
-        return <OtaruChatPage />;
       case "options":
         return <OptionsTab />;
       case "profile":

@@ -597,7 +597,6 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
               <FraudScanHistory
                 records={fraudRecords}
                 onDelete={handleDelete}
-                onEdit={handleEdit}
                 onExportGoogleDrive={handleExportDrive}
               />
             </motion.div>

@@ -121,3 +121,44 @@ ON public.extracted_finance_data FOR SELECT TO authenticated
 USING (
   (auth.jwt() ->> 'role') = 'lender'
 );
+
+
+-- ==========================================
+-- 5. TELEGRAM LINKAGE (NIK + PERMANENT KEY)
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS public.telegram_links (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+        tele_key TEXT NOT NULL UNIQUE,
+        nik_hash TEXT NOT NULL,
+        nik_last4 TEXT NOT NULL,
+        is_linked BOOLEAN NOT NULL DEFAULT FALSE,
+        telegram_chat_id TEXT,
+        telegram_user_id TEXT,
+        telegram_username TEXT,
+        linked_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_telegram_links_user_id ON public.telegram_links(user_id);
+CREATE INDEX IF NOT EXISTS idx_telegram_links_chat_id ON public.telegram_links(telegram_chat_id);
+
+ALTER TABLE public.telegram_links ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own telegram link" ON public.telegram_links;
+CREATE POLICY "Users can view own telegram link"
+ON public.telegram_links FOR SELECT TO authenticated
+USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own telegram link" ON public.telegram_links;
+CREATE POLICY "Users can insert own telegram link"
+ON public.telegram_links FOR INSERT TO authenticated
+WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own telegram link" ON public.telegram_links;
+CREATE POLICY "Users can update own telegram link"
+ON public.telegram_links FOR UPDATE TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);

@@ -113,6 +113,10 @@ class Settings:
     
     # Google Drive API
     GOOGLE_API_KEY: str = os.getenv('GOOGLE_API_KEY', '')
+
+    # Telegram Bot
+    TELEGRAM_BOT_TOKEN: str = os.getenv('TELEGRAM_BOT_TOKEN', '')
+    TELEGRAM_BOT_USERNAME: str = os.getenv('TELEGRAM_BOT_USERNAME', 'otaruchain_bot')
     
     # File Upload
     UPLOAD_DIR: str = 'uploads'

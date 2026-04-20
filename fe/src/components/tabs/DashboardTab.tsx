@@ -1,11 +1,11 @@
 import { motion } from "framer-motion";
-import { Activity, ShieldCheck, TrendingUp, AlertTriangle, Sparkles, MessageSquare, RefreshCw, FileText, Mail, Download, Calendar } from "lucide-react";
+import { Activity, ShieldCheck, TrendingUp, AlertTriangle, RefreshCw, Calendar } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import {
   PieChart, Pie, Cell, ResponsiveContainer,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip
 } from "recharts";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -21,10 +21,7 @@ interface DashboardStats {
   tamperedDocuments: number;
   processingDocuments: number;
   totalActivity: number;
-  totalScanDefault: number;
   totalScanFraud: number;
-  totalChatSessions: number;
-  totalChatMessages: number;
   credits: number;
   nextCleanupDays: number;
   nextCleanupDate: string;
@@ -51,13 +48,13 @@ const TotalActivityCard = ({ stats, loading }: { stats: DashboardStats; loading:
       <div className="text-6xl font-black tracking-tighter text-white tabular-nums">
         {loading ? <span className="text-gray-600 animate-pulse">—</span> : stats.totalActivity}
       </div>
-      <p className="text-xs text-gray-500 mt-1 font-medium">Total interaksi (Scan + Chat)</p>
+      <p className="text-xs text-gray-500 mt-1 font-medium">Total aktivitas fraud scan</p>
     </div>
     <div className="mt-4 pt-3 border-t border-white/10 grid grid-cols-3 gap-2">
       {[
-        { label: "DGTNZ", value: stats.totalScanDefault },
         { label: "Fraud", value: stats.totalScanFraud },
-        { label: "Otaru", value: stats.totalChatMessages },
+        { label: "Verified", value: stats.verifiedDocuments },
+        { label: "Tampered", value: stats.tamperedDocuments },
       ].map((item) => (
         <div key={item.label} className="bg-white/5 rounded-lg px-3 py-2 text-center">
           <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">{item.label}</p>
@@ -94,10 +91,10 @@ const CreditsCard = ({ stats, loading }: { stats: DashboardStats; loading: boole
       <p className="text-xs text-gray-500 mt-2 font-medium">Reset setiap hari jam 00:00</p>
     </div>
     <div className="mt-4 pt-3 border-t border-gray-200 grid grid-cols-2 gap-2">
-      {[{ label: "DGTNZ Default", cost: "1 kredit" }, { label: "Deteksi Fraud", cost: "1 kredit" }].map((item) => (
+      {[{ label: "Deteksi Fraud", cost: "1 kredit" }, { label: "Validasi Signature", cost: "Included" }].map((item) => (
         <div key={item.label} className="bg-gray-50 rounded-lg px-3 py-2">
           <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">{item.label}</p>
-          <p className="text-sm font-bold text-black">{item.cost}<span className="text-gray-400 font-normal">/scan</span></p>
+          <p className="text-sm font-bold text-black">{item.cost}<span className="text-gray-400 font-normal">{item.cost === "Included" ? "" : "/scan"}</span></p>
         </div>
       ))}
     </div>
@@ -219,7 +216,7 @@ const WeeklyUsageChart = ({ weeklyData, loading }: { weeklyData: any[]; loading:
           <p className="text-sm text-gray-500">Memuat data...</p>
         </div>
       </div>
-    ) : weeklyData.some((d: any) => (d.scans || 0) + (d.chats || 0) > 0) ? (
+    ) : weeklyData.some((d: any) => (d.scans || 0) > 0) ? (
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={weeklyData}>
@@ -231,8 +228,7 @@ const WeeklyUsageChart = ({ weeklyData, loading }: { weeklyData: any[]; loading:
               contentStyle={{ border: '1px solid #333', backgroundColor: '#000', borderRadius: '8px', color: '#fff' }}
               labelStyle={{ color: '#fff', fontWeight: 'bold' }}
             />
-            <Bar dataKey="scans" name="Scans" stackId="a" radius={[0, 0, 0, 0]} barSize={40} fill="#fff" />
-            <Bar dataKey="chats" name="Otaru Chat" stackId="a" radius={[4, 4, 0, 0]} barSize={40} fill="#818cf8" />
+            <Bar dataKey="scans" name="Fraud Scans" radius={[4, 4, 0, 0]} barSize={40} fill="#fff" />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -249,51 +245,8 @@ const WeeklyUsageChart = ({ weeklyData, loading }: { weeklyData: any[]; loading:
     <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-4">
       <div className="flex items-center gap-1.5">
         <div className="w-3 h-3 rounded-sm bg-white" />
-        <span className="text-xs text-gray-500">Scans (DGTNZ + Fraud)</span>
+        <span className="text-xs text-gray-500">Fraud Scans</span>
       </div>
-      <div className="flex items-center gap-1.5">
-        <div className="w-3 h-3 rounded-sm bg-indigo-400" />
-        <span className="text-xs text-gray-500">Otaru Chat</span>
-      </div>
-    </div>
-  </motion.div>
-);
-
-const OtaruMonitorCard = ({ stats, loading }: { stats: DashboardStats; loading: boolean }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
-    className="border border-white/10 rounded-xl p-6 bg-gradient-to-br from-[#111] to-[#0d0d0d] relative overflow-hidden group"
-  >
-    <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-indigo-500/5 blur-3xl group-hover:bg-indigo-500/10 transition-colors pointer-events-none" />
-    <div className="flex items-center justify-between mb-5">
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/10">
-          <Sparkles className="w-4 h-4 text-white" />
-        </div>
-        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Otaru AI Monitor</span>
-      </div>
-      <span className="text-[10px] bg-indigo-500/10 text-indigo-300 px-2 py-1 rounded-full font-semibold border border-indigo-500/20">AI Chat</span>
-    </div>
-    <div className="grid grid-cols-2 gap-4">
-      {[
-        { icon: <MessageSquare className="w-4 h-4 text-indigo-400" />, label: "Total Sessions", value: stats.totalChatSessions, desc: "Percakapan dengan Otaru" },
-        { icon: <Activity className="w-4 h-4 text-blue-400" />, label: "Total Messages", value: stats.totalChatMessages, desc: "Pesan user ke Otaru" },
-      ].map((item) => (
-        <div key={item.label} className="bg-white/5 rounded-xl p-4 border border-white/5">
-          <div className="flex items-center gap-2 mb-2">
-            {item.icon}
-            <span className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">{item.label}</span>
-          </div>
-          <div className="text-3xl font-black text-white tabular-nums">{loading ? "..." : item.value}</div>
-          <p className="text-[10px] text-gray-600 mt-1">{item.desc}</p>
-        </div>
-      ))}
-    </div>
-    <div className="mt-4 pt-3 border-t border-white/5">
-      <p className="text-[11px] text-gray-500">
-        <Sparkles className="w-3 h-3 inline mr-1 text-indigo-400" />
-        Otaru menganalisis dokumen tanpa menyimpan file di server
-      </p>
     </div>
   </motion.div>
 );
@@ -306,7 +259,7 @@ const CleanupCard = ({ stats, loading }: { stats: DashboardStats; loading: boole
       </div>
       <div className="flex-1">
         <h3 className="text-lg font-bold text-white mb-2">Pembersihan Bulanan</h3>
-        <p className="text-sm text-gray-400 mb-3">Data DGTNZ Default &amp; Fraud + ImageKit dihapus otomatis setiap bulan untuk menghemat storage.</p>
+        <p className="text-sm text-gray-400 mb-3">Data fraud dan ImageKit dihapus otomatis setiap bulan untuk menghemat storage.</p>
         <div className="flex flex-wrap items-center gap-4 text-sm mb-3">
           <div><span className="text-gray-500">Next cleanup:</span><span className="ml-2 font-bold text-white">{loading ? "..." : `${stats.nextCleanupDays} hari`}</span></div>
           <div className="h-4 w-px bg-white/10" />
@@ -344,7 +297,7 @@ const FreeTierCard = ({ stats, loading }: { stats: DashboardStats; loading: bool
         <div className="flex-1">
           <h4 className="font-bold text-white mb-1">Gratis Selamanya</h4>
           <p className="text-sm text-gray-400 mb-3">
-            Credits direset otomatis setiap hari jam <strong>00:00</strong>. Data DGTNZ Default &amp; Fraud dihapus setiap <strong>30 hari</strong>.
+            Credits direset otomatis setiap hari jam <strong>00:00</strong>. Data fraud dihapus setiap <strong>30 hari</strong>.
           </p>
           <div className="grid grid-cols-3 gap-2">
             {[
@@ -370,8 +323,7 @@ const DashboardTab = () => {
   const [stats, setStats] = useState<DashboardStats>({
     trustScore: 0, totalNominalVerified: 0, totalDocuments: 0,
     verifiedDocuments: 0, tamperedDocuments: 0, processingDocuments: 0,
-    totalActivity: 0, totalScanDefault: 0, totalScanFraud: 0,
-    totalChatSessions: 0, totalChatMessages: 0,
+    totalActivity: 0, totalScanFraud: 0,
     credits: 0, nextCleanupDays: 0, nextCleanupDate: "",
   });
   const [weeklyData, setWeeklyData] = useState<any[]>([]);
@@ -379,8 +331,6 @@ const DashboardTab = () => {
   const [currency, setCurrency] = useState<"IDR" | "USD">("IDR");
   const [usdRate, setUsdRate] = useState(USD_RATE_FALLBACK);
   const [period, setPeriod] = useState<"all" | "current" | "last" | "3months">("all");
-  const [monthlyHistory, setMonthlyHistory] = useState<any[]>([]);
-  const [reportLoading, setReportLoading] = useState(false);
   const isMounted = useRef(true);
 
   // Fetch USD rate on mount
@@ -464,7 +414,7 @@ const DashboardTab = () => {
       const monday = new Date(now); monday.setDate(now.getDate() + (dayOfWeek === 0 ? -6 : 1 - dayOfWeek)); monday.setHours(0, 0, 0, 0);
       const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23, 59, 59, 999);
       const dailyCounts = [0, 0, 0, 0, 0, 0, 0];
-      let totalScanDefault = 0, totalScanFraud = 0;
+      let totalScanFraud = 0;
 
       try {
         const scansRes = await fetch(`${API_URL}/api/scans`, { headers: { Authorization: `Bearer ${session.access_token}` } });
@@ -473,7 +423,7 @@ const DashboardTab = () => {
           scansData.forEach(s => {
             const validStatuses = ['completed', 'verified', 'processing', 'tampered'];
             if (validStatuses.includes(s.status)) {
-              if (s.is_fraud_scan) totalScanFraud++; else totalScanDefault++;
+              if (s.is_fraud_scan) totalScanFraud++;
               if (s.created_at) {
                 const scanDate = new Date(s.created_at);
                 if (scanDate >= monday && scanDate <= sunday) {
@@ -486,22 +436,9 @@ const DashboardTab = () => {
         }
       } catch (e) { console.error('Could not fetch scans:', e); }
 
-      // 7. Chatbot stats
-      let totalChatSessions = 0, totalChatMessages = 0;
-      let chatWeeklyCounts = [0, 0, 0, 0, 0, 0, 0];
-      try {
-        const chatRes = await fetch(`${API_URL}/api/chatbot/stats`, { headers: { Authorization: `Bearer ${session.access_token}` } });
-        if (chatRes.ok) {
-          const chatStats = await chatRes.json();
-          totalChatSessions = chatStats.total_sessions ?? 0;
-          totalChatMessages = chatStats.total_messages ?? 0;
-          chatWeeklyCounts = chatStats.weekly_counts ?? [0, 0, 0, 0, 0, 0, 0];
-        }
-      } catch (e) { console.error('Could not fetch chatbot stats:', e); }
-
-      const weeklyChartData = dayNames.map((label, i) => ({ day: label, scans: dailyCounts[i], chats: chatWeeklyCounts[i] }));
+      const weeklyChartData = dayNames.map((label, i) => ({ day: label, scans: dailyCounts[i] }));
       if (isMounted.current) setWeeklyData(weeklyChartData);
-      const totalActivity = totalScanDefault + totalScanFraud + totalChatMessages;
+      const totalActivity = totalScanFraud;
 
       // 8. Cleanup API override
       let apiCleanupDays = nextCleanupDays, apiCleanupDate = nextCleanupDateStr;
@@ -518,7 +455,7 @@ const DashboardTab = () => {
         setStats({
           trustScore: calculatedTrustScore, totalNominalVerified: totalVerif, totalDocuments: docs?.length || 0,
           verifiedDocuments: verified, tamperedDocuments: tampered, processingDocuments: processing,
-          totalActivity, totalScanDefault, totalScanFraud, totalChatSessions, totalChatMessages,
+          totalActivity, totalScanFraud,
           credits, nextCleanupDays: apiCleanupDays, nextCleanupDate: apiCleanupDate,
         });
         setLoading(false);
@@ -591,67 +528,6 @@ const DashboardTab = () => {
     fetchPeriodData();
   }, [period]);
 
-  // Fetch monthly history for annual report
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        const res = await fetch(`${API_URL}/api/report/monthly-history?months=12`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (res.ok) {
-          const d = await res.json();
-          if (isMounted.current) setMonthlyHistory(d.history || []);
-        }
-      } catch (e) { console.error("History fetch error:", e); }
-    };
-    fetchHistory();
-  }, []);
-
-  const handleDownloadPDF = async () => {
-    setReportLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const res = await fetch(`${API_URL}/api/report/download-pdf`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `DGTNZ_Report_${new Date().toISOString().split('T')[0]}.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success("PDF downloaded!");
-      } else {
-        toast.error("Failed to generate PDF");
-      }
-    } catch { toast.error("PDF download error"); }
-    finally { setReportLoading(false); }
-  };
-
-  const handleSendEmail = async () => {
-    setReportLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const res = await fetch(`${API_URL}/api/report/send-email-report`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      if (res.ok) {
-        const d = await res.json();
-        toast.success(d.message);
-      } else {
-        toast.error("Failed to send email");
-      }
-    } catch { toast.error("Email send error"); }
-    finally { setReportLoading(false); }
-  };
-
   return (
     <div className="min-h-screen bg-[#0a0a0a] p-6 space-y-6 text-white font-sans pb-32">
       {/* Header */}
@@ -694,126 +570,10 @@ const DashboardTab = () => {
       {/* Weekly Usage Chart */}
       <WeeklyUsageChart weeklyData={weeklyData} loading={loading} />
 
-      {/* Otaru Monitor */}
-      <OtaruMonitorCard stats={stats} loading={loading} />
-
       {/* Info Cards */}
       <CleanupCard stats={stats} loading={loading} />
       <SecurityInfoCard />
       <FreeTierCard stats={stats} loading={loading} />
-
-      {/* Annual Performance Report */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
-        className="border border-white/10 rounded-xl p-6 bg-gradient-to-br from-[#111] to-[#0d0d0d] relative overflow-hidden"
-      >
-        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-blue-500/5 blur-3xl pointer-events-none" />
-        <div className="flex items-center justify-between mb-6 relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/10">
-              <FileText className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-white">Annual Performance Report</h3>
-              <p className="text-xs text-gray-500">Ringkasan performa bulanan dalam 12 bulan terakhir</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleDownloadPDF}
-              disabled={reportLoading}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-gray-300 disabled:opacity-50"
-            >
-              <Download className="w-3.5 h-3.5" />
-              PDF
-            </button>
-            <button
-              onClick={handleSendEmail}
-              disabled={reportLoading}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 transition-colors text-blue-300 disabled:opacity-50"
-            >
-              <Mail className="w-3.5 h-3.5" />
-              Email
-            </button>
-          </div>
-        </div>
-
-        {/* Monthly History Chart */}
-        {monthlyHistory.length > 0 ? (
-          <div className="relative z-10">
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyHistory.map(m => ({
-                  month: m.period_start?.slice(0, 7) || "",
-                  score: m.trust_score || 0,
-                  verified: m.verified || 0,
-                  processing: m.processing || 0,
-                  tampered: m.tampered || 0,
-                }))}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={{ stroke: '#222' }} tickLine={false} />
-                  <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    cursor={{ fill: '#ffffff05' }}
-                    contentStyle={{ border: '1px solid #333', backgroundColor: '#000', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
-                  />
-                  <Bar dataKey="verified" name="Verified" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="processing" name="Processing" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="tampered" name="Tampered" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-3 flex items-center gap-4">
-              {[
-                { label: "Verified", color: "bg-green-500" },
-                { label: "Processing", color: "bg-yellow-500" },
-                { label: "Tampered", color: "bg-red-500" },
-              ].map(item => (
-                <div key={item.label} className="flex items-center gap-1.5">
-                  <div className={`w-2.5 h-2.5 rounded-sm ${item.color}`} />
-                  <span className="text-[10px] text-gray-500">{item.label}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Monthly Summary Table */}
-            <div className="mt-4 pt-4 border-t border-white/10 overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-gray-500 uppercase tracking-wider">
-                    <th className="text-left py-2 px-2">Period</th>
-                    <th className="text-center py-2 px-2">Score</th>
-                    <th className="text-right py-2 px-2">Revenue</th>
-                    <th className="text-center py-2 px-1">✅</th>
-                    <th className="text-center py-2 px-1">⏳</th>
-                    <th className="text-center py-2 px-1">❌</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {monthlyHistory.slice(-6).map((m, i) => (
-                    <tr key={i} className="border-t border-white/5 text-gray-300">
-                      <td className="py-2 px-2 font-mono">{m.period_start?.slice(0, 7)}</td>
-                      <td className="py-2 px-2 text-center font-bold">{m.trust_score}</td>
-                      <td className="py-2 px-2 text-right">{formatCurrency(m.total_revenue || 0)}</td>
-                      <td className="py-2 px-1 text-center text-green-400">{m.verified}</td>
-                      <td className="py-2 px-1 text-center text-yellow-400">{m.processing}</td>
-                      <td className="py-2 px-1 text-center text-red-400">{m.tampered}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : (
-          <div className="h-32 flex items-center justify-center border border-dashed border-white/10 rounded-lg relative z-10">
-            <div className="text-center">
-              <FileText className="w-10 h-10 text-gray-800 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">Belum ada data untuk report</p>
-              <p className="text-xs text-gray-600 mt-1">Gunakan fitur scan untuk mulai mengumpulkan data</p>
-            </div>
-          </div>
-        )}
-      </motion.div>
     </div>
   );
 };

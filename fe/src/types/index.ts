@@ -1,5 +1,5 @@
 // Tab types
-export type TabType = "dashboard" | "dgtnz" | "options" | "profile" | "otaru" | "admin";
+export type TabType = "dashboard" | "options" | "profile" | "admin";
 
 export type FeatureType = "dgtnz";
 
