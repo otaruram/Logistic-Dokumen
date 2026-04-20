@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
-import { FileDown, Cloud, Search, Trash2, CheckCircle2, XCircle, Clock, Pencil, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
+import { FileDown, Search, Trash2, CheckCircle2, XCircle, Clock, Pencil, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -45,10 +45,9 @@ interface ScanHistoryProps {
     records: ScanRecord[];
     onDelete: (id: number | string) => void;
     onEdit: (record: ScanRecord) => void;
-    onExportGoogleDrive: () => void;
 }
 
-export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: ScanHistoryProps) => {
+export const ScanHistory = ({ records, onDelete, onEdit }: ScanHistoryProps) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterDate, setFilterDate] = useState("all");
     const [filterMonth, setFilterMonth] = useState("all");
@@ -68,13 +67,9 @@ export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: 
             if (!session) return;
 
             const cacheKey = cacheKeys.dgtnzAnalysis(session.user.id, String(record.id));
-            
-            // Check cache first
-            const cachedInsight = appCache.get<{ analysis: string }>(cacheKey, {
-                scan_type: "dgtnz",
-                extracted_text: record.keterangan,
-                status: record.status,
-            });
+
+            // Check cache first (key + TTL based)
+            const cachedInsight = appCache.get<{ analysis: string }>(cacheKey);
             
             if (cachedInsight) {
                 setInsightData({ id: record.id, text: cachedInsight.analysis || "Analisis tidak tersedia." });
@@ -185,9 +180,6 @@ export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: 
                     <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!records.length} className="border-white/10 hover:bg-white/5 text-gray-300">
                         <FileDown className="w-4 h-4 mr-2" /> Excel
                     </Button>
-                    <Button variant="outline" size="sm" onClick={onExportGoogleDrive} disabled={!records.length} className="border-white/10 hover:bg-white/5 text-gray-300">
-                        <Cloud className="w-4 h-4 mr-2" /> Drive
-                    </Button>
                 </div>
             </div>
 
@@ -277,18 +269,18 @@ export const ScanHistory = ({ records, onDelete, onEdit, onExportGoogleDrive }: 
                                         </TableCell>
                                         <TableCell>
                                             {record.fotoUrl ? (
-                                                <a href={record.fotoUrl} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-all">
+                                                <div className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10">
                                                     <img src={record.fotoUrl} alt="Scan" className="w-full h-full object-cover" />
-                                                </a>
+                                                </div>
                                             ) : (
                                                 <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Img</div>
                                             )}
                                         </TableCell>
                                         <TableCell>
                                             {record.tandaTangan ? (
-                                                <a href={record.tandaTangan} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-all bg-white">
+                                                <div className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 bg-white">
                                                     <img src={record.tandaTangan} alt="Sig" className="w-full h-full object-contain p-1" />
-                                                </a>
+                                                </div>
                                             ) : (
                                                 <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Sig</div>
                                             )}

@@ -67,13 +67,9 @@ export const FraudScanHistory = ({ records, onDelete }: FraudScanHistoryProps) =
             if (!session) return;
 
             const cacheKey = cacheKeys.fraudAnalysis(session.user.id, String(record.id));
-            
-            // Check cache first
-            const cachedInsight = appCache.get<{ analysis: string }>(cacheKey, {
-                scan_type: "fraud",
-                extracted_text: record.keterangan,
-                status: record.status,
-            });
+
+            // Check cache first (key + TTL based)
+            const cachedInsight = appCache.get<{ analysis: string }>(cacheKey);
             
             if (cachedInsight) {
                 setInsightData({ id: record.id, text: cachedInsight.analysis || "Analisis tidak tersedia." });

@@ -4,12 +4,12 @@ Provides contextual business intelligence and fraud scoring explanations.
 """
 
 import os
+import re
+import time
+import hashlib
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 from typing import Optional
-
-from config.database import get_db
 from models.models import User
 from utils.auth import get_current_active_user
 
@@ -48,73 +48,59 @@ class ScanInsightRequest(BaseModel):
 
 # ── System prompts ─────────────────────────────────────────────────────────
 
-FRAUD_SYSTEM_PROMPT = """You are "Otaru", an expert fraud detection analyst for Indonesian logistics & financial documents.
-You work for the DGTNZ OCR Platform (ocr.web.id).
+FRAUD_SYSTEM_PROMPT = """You are Otaru, fraud analyst for Indonesian logistics documents.
 
-Your job is to analyze a fraud scan result and provide a CLEAR, ACTIONABLE report.
+Output rules (WAJIB):
+- Bahasa Indonesia.
+- Ringkas dan ketat (maksimal 8 bullet).
+- Setiap baris harus diawali bullet symbol "•".
+- DILARANG pakai karakter heading/list markdown seperti #, -, *.
+- Fokus ke keputusan dan tindakan, jangan narasi panjang.
 
-Use the following structure (in Bahasa Indonesia):
-
-## 🔍 Alasan Skor Confidence: {confidence}
-Explain specifically WHY the confidence is at this level. Which fields were detected and which were NOT?
-
-## ⚠️ Penilaian Risiko
-What does this score mean for document authenticity? Is the document likely genuine, suspicious, or fraudulent?
-Explain red flags found in the extracted text (inconsistent numbers, missing key fields, unusual formats).
-
-## 💡 Saran Perbaikan
-How can the user improve the scan quality or document completeness? Be specific (e.g. "foto lebih terang", "pastikan nomor surat jalan terlihat jelas").
-
-## 🎯 Rekomendasi Tindakan
-Give a clear final recommendation: VERIFIKASI (proceed), REVIEW MANUAL (needs human check), or TOLAK (reject).
-Explain why.
-
-Rules:
-- Always respond in Bahasa Indonesia
-- Be professional but approachable
-- Use emojis sparingly for visual clarity
-- If nominal_total is 0 or null, mention that no financial amount was detected
-- Keep response concise — max 400 words
+Isi yang wajib ada:
+• Alasan confidence dan field yang ketemu/tidak ketemu.
+• Risiko dokumen (rendah/sedang/tinggi) dengan 1 alasan utama.
+• 2-3 saran perbaikan scan/dokumen paling penting.
+• Rekomendasi final: VERIFIKASI / REVIEW MANUAL / TOLAK + alasan singkat.
 """
 
-DGTNZ_SYSTEM_PROMPT = """You are "Otaru", a logistics & supply chain business analyst specialized in Indonesian UMKM, supply chain, logistics, and banking.
-You work for the DGTNZ OCR Platform (ocr.web.id).
+DGTNZ_SYSTEM_PROMPT = """You are Otaru, logistics business analyst for Indonesian UMKM.
 
-Your job is to analyze a scanned logistics document and provide BUSINESS INTELLIGENCE insights.
+Output rules (WAJIB):
+- Bahasa Indonesia.
+- Ringkas dan ketat (maksimal 8 bullet).
+- Setiap baris harus diawali bullet symbol "•".
+- DILARANG pakai karakter heading/list markdown seperti #, -, *.
+- Fokus pada keputusan bisnis praktis.
 
-Use the following structure (in Bahasa Indonesia):
-
-## 📄 Ringkasan Dokumen
-Quick summary: what type of document is this? What are the key details?
-
-## 💰 Insight Keuangan
-- Total nominal detected and its cash flow impact
-- Payment terms analysis (if due date is found)
-- Revenue/expense classification
-
-## 🏢 Analisis Supplier/Klien
-- Who is the client/supplier? What can you infer about them?
-- If it's a known company pattern (PT, CV, UD, Toko), note it
-- Reliability assessment based on document completeness
-
-## 🚚 Supply Chain & Logistik
-- Delivery timeline risks based on dates and document type
-- Route/distribution optimization suggestions
-- Inventory management implications
-
-## ✅ Action Items
-Give 3-5 concrete next steps for the business owner:
-- Filing, payment scheduling, follow-ups, etc.
-- Banking: if the amount is significant, suggest financing options
-- UMKM tips: how to leverage this data for growth
-
-Rules:
-- Always respond in Bahasa Indonesia
-- Be professional but approachable, like a trusted business advisor
-- Use emojis sparingly for visual clarity
-- If data is limited, still provide useful general advice based on available info
-- Keep response concise — max 500 words
+Isi yang wajib ada:
+• Ringkasan dokumen paling penting (1-2 poin).
+• Insight keuangan utama dari nominal/tempo.
+• Risiko operasional/logistik utama.
+• 3 action items paling berdampak.
 """
+
+
+_INSIGHT_CACHE_TTL = 600
+_insight_cache: dict[str, tuple[float, dict]] = {}
+
+
+def _normalize_bullet_lines(text: str) -> str:
+    """Normalize LLM output to concise bullet-only format without markdown markers."""
+    cleaned = (text or "").replace("\r", "\n")
+    # Remove markdown heading/list markers.
+    cleaned = re.sub(r"^[\s#>*-]+", "", cleaned, flags=re.MULTILINE)
+    lines = [ln.strip() for ln in cleaned.split("\n") if ln.strip()]
+
+    normalized: list[str] = []
+    for ln in lines:
+        if ln.startswith("•"):
+            normalized.append(ln)
+        else:
+            normalized.append(f"• {ln}")
+
+    # Keep output tight.
+    return "\n".join(normalized[:8])
 
 
 # ── API Endpoint ───────────────────────────────────────────────────────────
@@ -129,6 +115,24 @@ async def analyze_scan(
     Returns markdown-formatted insights.
     """
     client = _get_ai_client()
+
+    cache_payload = {
+        "scan_type": req.scan_type,
+        "extracted_text": (req.extracted_text or "")[:1800],
+        "confidence": req.confidence,
+        "status": req.status,
+        "nominal_total": req.nominal_total,
+        "nama_klien": req.nama_klien,
+        "nomor_surat_jalan": req.nomor_surat_jalan,
+        "tanggal_jatuh_tempo": req.tanggal_jatuh_tempo,
+        "recipient_name": req.recipient_name,
+        "rejection_reason": req.rejection_reason,
+    }
+    cache_key = hashlib.sha256(str(cache_payload).encode("utf-8")).hexdigest()
+    now = time.time()
+    cached = _insight_cache.get(cache_key)
+    if cached and now - cached[0] <= _INSIGHT_CACHE_TTL:
+        return dict(cached[1])
 
     # Build context message from scan data
     fields_info = []
@@ -183,16 +187,18 @@ async def analyze_scan(
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message},
             ],
-            max_tokens=1024,
+            max_tokens=420,
         )
-        analysis = completion.choices[0].message.content
+        analysis = _normalize_bullet_lines(completion.choices[0].message.content or "")
 
-        return {
+        result = {
             "analysis": analysis,
             "scan_type": req.scan_type,
             "confidence": req.confidence,
             "status": req.status,
         }
+        _insight_cache[cache_key] = (now, dict(result))
+        return result
 
     except Exception as e:
         print(f"❌ Scan insight error: {e}")

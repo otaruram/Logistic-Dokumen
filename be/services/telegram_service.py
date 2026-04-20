@@ -26,9 +26,7 @@ from services.scan_helpers import (
 
 
 _DASHBOARD_CACHE_TTL = 60
-_FRAUD_CACHE_TTL = 300
 _dashboard_cache: dict[str, tuple[float, dict[str, Any]]] = {}
-_fraud_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 
 
 def generate_tele_key() -> str:
@@ -174,13 +172,6 @@ def _set_profile_credits(user_id: str, credits: int) -> None:
 async def process_fraud_scan_from_telegram(*, user_id: str, recipient_name: str, signature_url: str, content: bytes, filename: str) -> dict[str, Any]:
     """Run fraud OCR pipeline from Telegram photo bytes and sync to Supabase tables."""
     content_hash = hashlib.sha256(content).hexdigest()
-    cache_key = f"{user_id}:{content_hash}"
-    now = time.time()
-    cached = _fraud_cache.get(cache_key)
-    if cached and now - cached[0] <= _FRAUD_CACHE_TTL:
-        cached_payload = dict(cached[1])
-        cached_payload["cached"] = True
-        return cached_payload
 
     credits = _ensure_profile_credits(user_id)
     if credits < SCAN_COST:
@@ -255,7 +246,6 @@ async def process_fraud_scan_from_telegram(*, user_id: str, recipient_name: str,
         "excerpt": (extracted or "")[:240],
         "cached": False,
     }
-    _fraud_cache[cache_key] = (now, dict(result))
     _dashboard_cache.pop(user_id, None)
     return result
 
