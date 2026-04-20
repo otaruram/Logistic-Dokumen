@@ -162,3 +162,27 @@ CREATE POLICY "Users can update own telegram link"
 ON public.telegram_links FOR UPDATE TO authenticated
 USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
+
+-- ==========================================
+-- 6. FRAUD_SCANS — Universal Invoice Fields
+--    Migration: add new columns if not exist
+-- ==========================================
+
+ALTER TABLE public.fraud_scans
+    ADD COLUMN IF NOT EXISTS doc_type         TEXT,
+    ADD COLUMN IF NOT EXISTS nomor_dokumen    TEXT,
+    ADD COLUMN IF NOT EXISTS tanggal_terbit   DATE,
+    ADD COLUMN IF NOT EXISTS nama_penjual     TEXT,
+    ADD COLUMN IF NOT EXISTS nominal_subtotal NUMERIC,
+    ADD COLUMN IF NOT EXISTS nominal_ppn      NUMERIC,
+    ADD COLUMN IF NOT EXISTS metode_bayar     TEXT,
+    ADD COLUMN IF NOT EXISTS terminal_id      TEXT,
+    ADD COLUMN IF NOT EXISTS no_referensi     TEXT;
+
+-- also populate nomor_dokumen from nomor_surat_jalan for existing rows
+UPDATE public.fraud_scans
+    SET nomor_dokumen = nomor_surat_jalan
+    WHERE nomor_dokumen IS NULL AND nomor_surat_jalan IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_fraud_scans_doc_type     ON public.fraud_scans(doc_type);
+CREATE INDEX IF NOT EXISTS idx_fraud_scans_nomor_dok    ON public.fraud_scans(nomor_dokumen);

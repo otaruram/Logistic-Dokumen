@@ -69,6 +69,16 @@ async def get_fraud_scan_history(
                     "tanggal_jatuh_tempo": r.get("tanggal_jatuh_tempo"),
                     "field_confidence": r.get("field_confidence", "low"),
                     "doc_hash": r.get("doc_hash"),
+                    # Universal invoice fields
+                    "doc_type": r.get("doc_type"),
+                    "nomor_dokumen": r.get("nomor_dokumen"),
+                    "tanggal_terbit": r.get("tanggal_terbit"),
+                    "nama_penjual": r.get("nama_penjual"),
+                    "nominal_subtotal": r.get("nominal_subtotal"),
+                    "nominal_ppn": r.get("nominal_ppn"),
+                    "metode_bayar": r.get("metode_bayar"),
+                    "terminal_id": r.get("terminal_id"),
+                    "no_referensi": r.get("no_referensi"),
                 }
                 for r in records
             ],
@@ -187,23 +197,33 @@ async def save_fraud_scan(
         structured = ocr_result.get("structured_fields", {})
         confidence = structured.get("confidence", "low")
         fraud_status = confidence_to_status(confidence)
+        doc_type = structured.get("doc_type", "unknown")
 
-        # Strict fraud gate: require all core fields to pass verification.
-        critical_fields = {
-            "nominal_total": bool(structured.get("nominal_total")),
-            "nama_klien": bool(structured.get("nama_klien")),
-            "nomor_surat_jalan": bool(structured.get("nomor_surat_jalan")),
-            "tanggal_jatuh_tempo": bool(structured.get("tanggal_jatuh_tempo")),
-        }
-        missing_fields = [k for k, ok in critical_fields.items() if not ok]
-        rejection_reason = "Document has insufficient verifiable fields. Authenticity cannot be confirmed — flagged as tampered."
-        if missing_fields:
+        # Universal doc-type-aware fraud gate:
+        # Count the meaningful fields present regardless of document type.
+        check_fields = [
+            "nominal_total", "nomor_dokumen", "nama_penjual", "nama_klien",
+            "tanggal_terbit", "metode_bayar", "no_referensi", "terminal_id",
+            # Legacy fallback fields still supported
+            "nomor_surat_jalan", "tanggal_jatuh_tempo",
+        ]
+        filled = [k for k in check_fields if structured.get(k)]
+        # Override confidence based on universal field count (AI may already set it,
+        # but we enforce minimum standard: ≥4 = high, 2-3 = medium, ≤1 = low)
+        if len(filled) >= 4:
+            confidence = "high"
+        elif len(filled) >= 2:
+            confidence = "medium"
+        else:
             confidence = "low"
-            fraud_status = "tampered"
+        fraud_status = confidence_to_status(confidence)
+
+        rejection_reason = None
+        if confidence == "low":
             rejection_reason = (
-                "Strict fraud validation failed. Missing fields: "
-                + ", ".join(missing_fields)
-                + ". Document flagged as tampered."
+                f"Dokumen [{doc_type}] tidak memiliki cukup field yang terverifikasi "
+                f"(ditemukan: {len(filled)} dari minimal 2). "
+                "Keaslian tidak dapat dikonfirmasi — ditandai sebagai tampered."
             )
 
         # 3. LOW confidence → Save as tampered (for Otaru analysis) but flag as rejected

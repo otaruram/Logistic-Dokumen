@@ -33,10 +33,21 @@ interface ScanRecord {
     status: "processing" | "verified" | "tampered" | "pending" | "approved" | "rejected";
     isFraudScan?: boolean;
     fraudFields?: {
-        nominal_total?: number | null;
-        nama_klien?: string | null;
-        nomor_surat_jalan?: string | null;
+        // Universal invoice fields
+        doc_type?: string | null;
+        nomor_dokumen?: string | null;
+        tanggal_terbit?: string | null;
         tanggal_jatuh_tempo?: string | null;
+        nama_penjual?: string | null;
+        nama_klien?: string | null;
+        nominal_subtotal?: number | null;
+        nominal_ppn?: number | null;
+        nominal_total?: number | null;
+        metode_bayar?: string | null;
+        terminal_id?: string | null;
+        no_referensi?: string | null;
+        // Legacy
+        nomor_surat_jalan?: string | null;
         confidence?: string;
     } | null;
 }
@@ -395,30 +406,92 @@ export const FraudScanHistory = ({ records, onDelete }: FraudScanHistoryProps) =
                                             <div className="space-y-1.5">
                                                 {record.fraudFields ? (
                                                     <>
+                                                        {/* Doc type badge */}
+                                                        {record.fraudFields.doc_type && record.fraudFields.doc_type !== "unknown" && (
+                                                            <span className="inline-block text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 tracking-wide">
+                                                                {record.fraudFields.doc_type.replace(/_/g, " ")}
+                                                            </span>
+                                                        )}
+                                                        {/* Nominal total */}
                                                         {record.fraudFields.nominal_total != null && (
                                                             <div className="flex items-center gap-1.5">
-                                                                <span className="text-[10px] text-gray-500 uppercase w-14 flex-shrink-0">Nominal</span>
+                                                                <span className="text-[10px] text-gray-500 uppercase w-16 flex-shrink-0">Total</span>
                                                                 <span className="text-xs font-semibold text-white">
                                                                     Rp {record.fraudFields.nominal_total.toLocaleString('id-ID')}
                                                                 </span>
                                                             </div>
                                                         )}
+                                                        {/* Subtotal + PPN */}
+                                                        {record.fraudFields.nominal_subtotal != null && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-[10px] text-gray-500 uppercase w-16 flex-shrink-0">Subtotal</span>
+                                                                <span className="text-xs text-gray-400">Rp {record.fraudFields.nominal_subtotal.toLocaleString('id-ID')}</span>
+                                                            </div>
+                                                        )}
+                                                        {record.fraudFields.nominal_ppn != null && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-[10px] text-gray-500 uppercase w-16 flex-shrink-0">PPN</span>
+                                                                <span className="text-xs text-gray-400">Rp {record.fraudFields.nominal_ppn.toLocaleString('id-ID')}</span>
+                                                            </div>
+                                                        )}
+                                                        {/* Document number (nomor_dokumen preferred, fallback to nomor_surat_jalan) */}
+                                                        {(record.fraudFields.nomor_dokumen || record.fraudFields.nomor_surat_jalan) && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-[10px] text-gray-500 uppercase w-16 flex-shrink-0">No. Dok</span>
+                                                                <span className="text-xs text-gray-300 font-mono truncate max-w-[140px]">
+                                                                    {record.fraudFields.nomor_dokumen || record.fraudFields.nomor_surat_jalan}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        {/* Seller */}
+                                                        {record.fraudFields.nama_penjual && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-[10px] text-gray-500 uppercase w-16 flex-shrink-0">Penjual</span>
+                                                                <span className="text-xs text-gray-300 truncate max-w-[140px]">{record.fraudFields.nama_penjual}</span>
+                                                            </div>
+                                                        )}
+                                                        {/* Client */}
                                                         {record.fraudFields.nama_klien && (
                                                             <div className="flex items-center gap-1.5">
-                                                                <span className="text-[10px] text-gray-500 uppercase w-14 flex-shrink-0">Klien</span>
-                                                                <span className="text-xs text-gray-300 truncate max-w-[150px]">{record.fraudFields.nama_klien}</span>
+                                                                <span className="text-[10px] text-gray-500 uppercase w-16 flex-shrink-0">Klien</span>
+                                                                <span className="text-xs text-gray-300 truncate max-w-[140px]">{record.fraudFields.nama_klien}</span>
                                                             </div>
                                                         )}
-                                                        {record.fraudFields.nomor_surat_jalan && (
+                                                        {/* Issue date */}
+                                                        {record.fraudFields.tanggal_terbit && (
                                                             <div className="flex items-center gap-1.5">
-                                                                <span className="text-[10px] text-gray-500 uppercase w-14 flex-shrink-0">SJ No.</span>
-                                                                <span className="text-xs text-gray-300 font-mono">{record.fraudFields.nomor_surat_jalan}</span>
+                                                                <span className="text-[10px] text-gray-500 uppercase w-16 flex-shrink-0">Terbit</span>
+                                                                <span className="text-xs text-gray-300">{record.fraudFields.tanggal_terbit}</span>
                                                             </div>
                                                         )}
+                                                        {/* Due date */}
                                                         {record.fraudFields.tanggal_jatuh_tempo && (
                                                             <div className="flex items-center gap-1.5">
-                                                                <span className="text-[10px] text-gray-500 uppercase w-14 flex-shrink-0">Tempo</span>
+                                                                <span className="text-[10px] text-gray-500 uppercase w-16 flex-shrink-0">Tempo</span>
                                                                 <span className="text-xs text-gray-300">{record.fraudFields.tanggal_jatuh_tempo}</span>
+                                                            </div>
+                                                        )}
+                                                        {/* Payment method */}
+                                                        {record.fraudFields.metode_bayar && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-[10px] text-gray-500 uppercase w-16 flex-shrink-0">Bayar</span>
+                                                                <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-green-500/20 text-green-300">
+                                                                    {record.fraudFields.metode_bayar}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        {/* Reference / approval code (EDC) */}
+                                                        {record.fraudFields.no_referensi && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-[10px] text-gray-500 uppercase w-16 flex-shrink-0">Ref</span>
+                                                                <span className="text-xs text-gray-300 font-mono">{record.fraudFields.no_referensi}</span>
+                                                            </div>
+                                                        )}
+                                                        {/* Terminal ID (EDC only) */}
+                                                        {record.fraudFields.terminal_id && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-[10px] text-gray-500 uppercase w-16 flex-shrink-0">TID</span>
+                                                                <span className="text-xs text-gray-300 font-mono">{record.fraudFields.terminal_id}</span>
                                                             </div>
                                                         )}
                                                     </>

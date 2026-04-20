@@ -26,10 +26,19 @@ interface ScanRecord {
   status: "processing" | "verified" | "tampered" | "pending" | "approved" | "rejected";
   isFraudScan?: boolean;
   fraudFields?: {
-    nominal_total?: number | null;
-    nama_klien?: string | null;
-    nomor_surat_jalan?: string | null;
+    doc_type?: string | null;
+    nomor_dokumen?: string | null;
+    tanggal_terbit?: string | null;
     tanggal_jatuh_tempo?: string | null;
+    nama_penjual?: string | null;
+    nama_klien?: string | null;
+    nominal_subtotal?: number | null;
+    nominal_ppn?: number | null;
+    nominal_total?: number | null;
+    metode_bayar?: string | null;
+    terminal_id?: string | null;
+    no_referensi?: string | null;
+    nomor_surat_jalan?: string | null;
     confidence?: string;
   };
 }
@@ -120,10 +129,19 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
           status: d.status === 'verified' ? 'verified' : (d.status === 'tampered' ? 'tampered' : 'processing'),
           isFraudScan: true,
           fraudFields: {
-            nominal_total: d.nominal_total,
-            nama_klien: d.nama_klien,
-            nomor_surat_jalan: d.nomor_surat_jalan,
+            doc_type: d.doc_type,
+            nomor_dokumen: d.nomor_dokumen,
+            tanggal_terbit: d.tanggal_terbit,
             tanggal_jatuh_tempo: d.tanggal_jatuh_tempo,
+            nama_penjual: d.nama_penjual,
+            nama_klien: d.nama_klien,
+            nominal_subtotal: d.nominal_subtotal,
+            nominal_ppn: d.nominal_ppn,
+            nominal_total: d.nominal_total,
+            metode_bayar: d.metode_bayar,
+            terminal_id: d.terminal_id,
+            no_referensi: d.no_referensi,
+            nomor_surat_jalan: d.nomor_surat_jalan,
             confidence: d.field_confidence || "low",
           },
         }));

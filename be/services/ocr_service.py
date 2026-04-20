@@ -53,66 +53,159 @@ except Exception as e:
     print(f"Groq Setup Failed: {e}")
 
 
-STRUCTURED_EXTRACTION_PROMPT = """You are an OCR post-processor for Indonesian logistics documents (Surat Jalan / Delivery Orders / Invoices).
+STRUCTURED_EXTRACTION_PROMPT = """You are an OCR post-processor for Indonesian financial documents. You can handle ALL types:
+- Invoice / Faktur (Bank Indonesia standard, corporate invoice)
+- Surat Jalan / Delivery Order
+- Struk EDC / Mesin POS (DEBIT/CREDIT card receipt)
+- Bon / Nota Manual (handwritten or printed store receipt)
+- Kuitansi (payment acknowledgement)
+- Nota Toko / Kasir (cashier receipt, minimarket, warung)
+- QRIS / E-wallet receipt (GoPay, OVO, Dana, LinkAja, ShopeePay)
+- Faktur Pajak (tax invoice with NPWP)
 
-Extract these specific fields from the given OCR text and return ONLY a valid JSON object:
+Extract these fields from the OCR text and return ONLY a valid JSON object:
 {
-  "nominal_total": <integer in IDR, no dots/commas, e.g. 1500000>,
-  "nama_klien": "<string: company/person name, null if not found>",
-  "nomor_surat_jalan": "<string: document/delivery order number, null if not found>",
-  "tanggal_jatuh_tempo": "<string: due date in YYYY-MM-DD format, null if not found>",
-  "confidence": "<string: 'high' if 3+ fields found, 'medium' if 2 fields, 'low' if 0-1 fields>"
+  "doc_type": "<one of: invoice|surat_jalan|struk_edc|bon_manual|kuitansi|nota_toko|qris|faktur_pajak|unknown>",
+  "nomor_dokumen": "<string: invoice/receipt/SJ/transaction number, null if not found>",
+  "tanggal_terbit": "<string: document issue date in YYYY-MM-DD, null if not found>",
+  "tanggal_jatuh_tempo": "<string: due/payment date in YYYY-MM-DD, null if not found — mainly for invoice/kuitansi>",
+  "nama_penjual": "<string: seller/merchant/toko/bank name, null if not found>",
+  "nama_klien": "<string: buyer/recipient/customer name, null if not found>",
+  "nominal_subtotal": <integer IDR subtotal before tax, null if not found>,
+  "nominal_ppn": <integer IDR PPN/tax amount, null if not found>,
+  "nominal_total": <integer IDR grand total — REQUIRED, extract from Total/Jumlah/Grand Total/Amount/Tagihan>,
+  "metode_bayar": "<string: TUNAI/DEBIT/KREDIT/TRANSFER/QRIS/OVO/GOPAY/DANA/null>",
+  "terminal_id": "<string: EDC terminal ID or merchant ID, null if not applicable>",
+  "no_referensi": "<string: approval/authorization/reference/trace number for EDC or transfer, null if not found>",
+  "confidence": "<'high' if 4+ fields non-null, 'medium' if 2-3 fields non-null, 'low' if 0-1 fields non-null>"
 }
 
-Rules:
-- nominal_total: Look for keywords like Total, Jumlah, Grand Total, Amount, Nominal followed by Rp or numbers
-- nama_klien: Look for Penerima, Kepada, Customer, Client, PT., CV., UD., Toko, or company names
-- nomor_surat_jalan: Look for No., Nomor, SJ, SJ-, SJ/, No.SJ, Nomor Surat Jalan, Invoice No.
-- tanggal_jatuh_tempo: Look for Jatuh Tempo, Due Date, Tgl. Tempo, Batas Pembayaran
-- If a field is truly not present, use null (not empty string)
+Extraction rules by document type:
+- invoice/faktur_pajak: nomor_dokumen=Invoice No./No.Faktur, nama_klien=Kepada/Bill To/Yth., tanggal_jatuh_tempo=Jatuh Tempo/Due Date, nominal_ppn=PPN 11%
+- surat_jalan: nomor_dokumen=No.SJ/Nomor Surat Jalan, nama_klien=Penerima/Kepada, tanggal_terbit=Tanggal SJ
+- struk_edc: nomor_dokumen=No.Transaksi/Trace, terminal_id=TID/MID, no_referensi=Approval/Auth Code, metode_bayar=DEBIT/CREDIT, nama_penjual=Merchant Name
+- bon_manual/nota_toko: nama_penjual=nama toko di header, tanggal_terbit=Tanggal/Tgl, nominal_total=Total/Jumlah
+- kuitansi: nama_klien=Yang Membayar/Dari, nama_penjual=Yang Menerima, nominal_total=Telah Diterima/Sebesar Rp
+- qris: metode_bayar=QRIS, no_referensi=ID Transaksi/Order ID, nama_penjual=Merchant
+
+General rules:
+- nominal values: integer IDR, strip all dots/commas ("1.500.000" → 1500000)
+- dates: normalize to YYYY-MM-DD; if only DD/MM/YYYY given, convert it
+- If field not found: use null, never empty string
+- confidence counts: doc_type + nomor_dokumen + nama_penjual + nominal_total + any other non-null field
 - Return ONLY the JSON object, no explanation"""
 
 
+def _normalize_date(raw_date: str) -> str:
+    """Normalize various date formats to YYYY-MM-DD."""
+    parts = re.split(r'[/\-\.]', raw_date.strip())
+    if len(parts) == 3:
+        try:
+            if len(parts[2]) == 4:  # DD/MM/YYYY
+                return f"{parts[2]}-{parts[1].zfill(2)}-{parts[0].zfill(2)}"
+            elif len(parts[0]) == 4:  # YYYY-MM-DD
+                return raw_date.strip()
+        except Exception:
+            pass
+    return raw_date.strip()
+
+
 def _regex_fallback_extraction(text: str) -> dict:
-    """Regex-based fuzzy extraction as fallback when AI fails."""
-    result = {
-        "nominal_total": None,
-        "nama_klien": None,
-        "nomor_surat_jalan": None,
+    """Regex-based universal extraction as fallback when AI fails."""
+    result: dict = {
+        "doc_type": "unknown",
+        "nomor_dokumen": None,
+        "tanggal_terbit": None,
         "tanggal_jatuh_tempo": None,
-        "confidence": "low"
+        "nama_penjual": None,
+        "nama_klien": None,
+        "nominal_subtotal": None,
+        "nominal_ppn": None,
+        "nominal_total": None,
+        "metode_bayar": None,
+        "terminal_id": None,
+        "no_referensi": None,
+        "confidence": "low",
     }
 
-    # Nominal patterns
+    # ── Document type detection ──────────────────────────────────────────────
+    text_lower = text.lower()
+    if re.search(r'faktur\s*pajak|npwp|pkp', text_lower):
+        result["doc_type"] = "faktur_pajak"
+    elif re.search(r'surat\s*jalan|delivery\s*order|\bsj\b', text_lower):
+        result["doc_type"] = "surat_jalan"
+    elif re.search(r'tid\s*:|mid\s*:|terminal\s*id|approval\s*code|auth\s*code|debit|kredit\s*card', text_lower):
+        result["doc_type"] = "struk_edc"
+    elif re.search(r'qris|gopay|ovo\b|dana\b|shopeepay|linkaja|e-?wallet', text_lower):
+        result["doc_type"] = "qris"
+    elif re.search(r'kuitansi|telah\s*diterima\s*dari|yang\s*membayar', text_lower):
+        result["doc_type"] = "kuitansi"
+    elif re.search(r'invoice|faktur|bill\s*to|due\s*date|jatuh\s*tempo', text_lower):
+        result["doc_type"] = "invoice"
+    elif re.search(r'\bkasir\b|\bstruk\b|\bnota\b|\bbon\b|minimarket|indomaret|alfamart', text_lower):
+        result["doc_type"] = "nota_toko"
+    else:
+        result["doc_type"] = "bon_manual"
+
+    # ── Nominal total ────────────────────────────────────────────────────────
     nominal_patterns = [
-        r'(?:total|jumlah|grand\s*total|amount|nominal)[:\s]*Rp\.?\s*([\d.,]+)',
+        r'(?:grand\s*total|total\s*tagihan|total\s*bayar|total\s*pembayaran)[:\s]*Rp\.?\s*([\d.,]+)',
+        r'(?:total|jumlah|amount|tagihan)[:\s]*Rp\.?\s*([\d.,]+)',
+        r'(?:telah\s*diterima|sebesar\s*Rp)[:\s]*Rp?\.?\s*([\d.,]+)',
         r'Rp\.?\s*([\d.,]+)',
         r'(?:total|jumlah)[:\s]*([\d.,]+)',
     ]
     for pat in nominal_patterns:
         match = re.search(pat, text, re.IGNORECASE)
         if match:
-            raw = match.group(1).replace('.', '').replace(',', '')
-            if raw.isdigit() and len(raw) >= 4:
+            raw = match.group(1).replace('.', '').replace(',', '').strip()
+            if raw.isdigit() and len(raw) >= 3:
                 result["nominal_total"] = int(raw)
                 break
 
-    # Surat Jalan number patterns
-    sj_patterns = [
-        r'(?:no\.?\s*sj|nomor\s*sj|surat\s*jalan\s*no\.?|invoice\s*no\.?)[:\s]*([A-Z0-9/\-\.]+)',
-        r'\bSJ[/\-]([A-Z0-9/\-\.]+)',
-        r'(?:no\.|nomor)[:\s]*([A-Z0-9/\-\.]{5,20})',
+    # ── Subtotal + PPN ───────────────────────────────────────────────────────
+    sub_match = re.search(r'(?:subtotal|sub\s*total|dpp)[:\s]*Rp?\.?\s*([\d.,]+)', text, re.IGNORECASE)
+    if sub_match:
+        raw = sub_match.group(1).replace('.', '').replace(',', '')
+        if raw.isdigit():
+            result["nominal_subtotal"] = int(raw)
+
+    ppn_match = re.search(r'(?:ppn|vat|tax)[\s\d%]*[:\s]*Rp?\.?\s*([\d.,]+)', text, re.IGNORECASE)
+    if ppn_match:
+        raw = ppn_match.group(1).replace('.', '').replace(',', '')
+        if raw.isdigit():
+            result["nominal_ppn"] = int(raw)
+
+    # ── Document number ──────────────────────────────────────────────────────
+    doc_num_patterns = [
+        r'(?:no\.?\s*faktur|invoice\s*no\.?|no\.?\s*invoice)[:\s]*([A-Z0-9/\-\.]+)',
+        r'(?:no\.?\s*sj|nomor\s*sj|surat\s*jalan\s*no\.?)[:\s]*([A-Z0-9/\-\.]+)',
+        r'(?:no\.?\s*kuitansi|receipt\s*no\.?)[:\s]*([A-Z0-9/\-\.]+)',
+        r'(?:no\.?\s*transaksi|transaction\s*id)[:\s]*([A-Z0-9/\-\.]+)',
+        r'(?:no\.|nomor)[:\s]*([A-Z0-9/\-\.]{5,25})',
     ]
-    for pat in sj_patterns:
+    for pat in doc_num_patterns:
         match = re.search(pat, text, re.IGNORECASE)
         if match:
-            result["nomor_surat_jalan"] = match.group(0).strip()[:50]
+            result["nomor_dokumen"] = match.group(1).strip()[:50]
             break
 
-    # Client name patterns
+    # ── Seller / merchant name ───────────────────────────────────────────────
+    seller_patterns = [
+        r'(?:merchant|toko|nama\s*toko|penjual|dari\s*:)[:\s]*([^\n]{3,60})',
+        r'^([A-Z][^\n]{3,50})(?:\s*\n)',  # first line often merchant name
+        r'(?:PT\.|CV\.|UD\.|Toko\s|PD\.\s)([^\n]{2,50})',
+    ]
+    for pat in seller_patterns:
+        match = re.search(pat, text, re.IGNORECASE | re.MULTILINE)
+        if match:
+            result["nama_penjual"] = match.group(1).strip()[:100]
+            break
+
+    # ── Client / buyer name ──────────────────────────────────────────────────
     client_patterns = [
-        r'(?:kepada|penerima|customer|client|ditujukan\s*kepada)[:\s]*([^\n]{3,60})',
-        r'(?:PT\.|CV\.|UD\.|Toko\s|PD\.)\s*([^\n]{2,40})',
+        r'(?:kepada\s*yth\.?|kepada|penerima|customer|client|bill\s*to|ditujukan\s*kepada|yang\s*membayar)[:\s]*([^\n]{3,80})',
+        r'(?:PT\.|CV\.|UD\.|Toko\s|PD\.\s)([^\n]{2,50})',
     ]
     for pat in client_patterns:
         match = re.search(pat, text, re.IGNORECASE)
@@ -120,30 +213,52 @@ def _regex_fallback_extraction(text: str) -> dict:
             result["nama_klien"] = match.group(1).strip()[:100]
             break
 
-    # Due date patterns
-    date_patterns = [
+    # ── Dates ────────────────────────────────────────────────────────────────
+    issue_date_patterns = [
+        r'(?:tanggal|tgl\.?|date|tanggal\s*terbit)[:\s]*(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})',
+        r'(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{4})',
+    ]
+    for pat in issue_date_patterns:
+        match = re.search(pat, text, re.IGNORECASE)
+        if match:
+            result["tanggal_terbit"] = _normalize_date(match.group(1))
+            break
+
+    due_date_patterns = [
         r'(?:jatuh\s*tempo|due\s*date|tgl\.?\s*tempo|batas\s*pembayaran)[:\s]*(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})',
         r'(?:jatuh\s*tempo|due\s*date)[:\s]*(\d{4}-\d{2}-\d{2})',
     ]
-    for pat in date_patterns:
+    for pat in due_date_patterns:
         match = re.search(pat, text, re.IGNORECASE)
         if match:
-            raw_date = match.group(1)
-            # Normalize to YYYY-MM-DD
-            parts = re.split(r'[/\-\.]', raw_date)
-            if len(parts) == 3:
-                try:
-                    if len(parts[2]) == 4:  # DD/MM/YYYY
-                        result["tanggal_jatuh_tempo"] = f"{parts[2]}-{parts[1].zfill(2)}-{parts[0].zfill(2)}"
-                    else:  # YYYY-MM-DD
-                        result["tanggal_jatuh_tempo"] = raw_date
-                except:
-                    result["tanggal_jatuh_tempo"] = raw_date
+            result["tanggal_jatuh_tempo"] = _normalize_date(match.group(1))
             break
 
-    # Determine confidence
-    found = sum(1 for v in result.values() if v is not None and v != "low")
-    result["confidence"] = "high" if found >= 3 else ("medium" if found >= 2 else "low")
+    # ── Payment method ───────────────────────────────────────────────────────
+    pay_match = re.search(
+        r'\b(tunai|cash|debit|kredit|credit|transfer|qris|gopay|ovo|dana|shopeepay|linkaja)\b',
+        text, re.IGNORECASE
+    )
+    if pay_match:
+        result["metode_bayar"] = pay_match.group(1).upper()
+
+    # ── EDC-specific ─────────────────────────────────────────────────────────
+    tid_match = re.search(r'(?:tid|terminal\s*id|mid|merchant\s*id)[:\s]*([A-Z0-9]{4,20})', text, re.IGNORECASE)
+    if tid_match:
+        result["terminal_id"] = tid_match.group(1).strip()
+
+    ref_match = re.search(
+        r'(?:approval|auth\s*code|authorization|kode\s*autorisasi|trace|ref(?:erence)?)[:\s#]*([A-Z0-9]{4,20})',
+        text, re.IGNORECASE
+    )
+    if ref_match:
+        result["no_referensi"] = ref_match.group(1).strip()
+
+    # ── Confidence score ─────────────────────────────────────────────────────
+    core_keys = ["nomor_dokumen", "nama_penjual", "nama_klien", "nominal_total",
+                 "tanggal_terbit", "metode_bayar", "no_referensi", "terminal_id"]
+    found = sum(1 for k in core_keys if result.get(k) is not None)
+    result["confidence"] = "high" if found >= 4 else ("medium" if found >= 2 else "low")
     return result
 
 
