@@ -68,7 +68,16 @@ async def check_and_deduct_credits(
         )
         profile_rows = resp.data or []
         if not profile_rows:
-            available = 0
+            # New user — auto-initialize profile with default credits
+            DEFAULT_CREDITS = 10
+            try:
+                supabase_admin.table("profiles").upsert(
+                    {"id": str(user.id), "credits": DEFAULT_CREDITS},
+                    on_conflict="id",
+                ).execute()
+            except Exception as e:
+                print(f"[credits] Failed to auto-init profile for {user.id}: {e}")
+            available = DEFAULT_CREDITS
         else:
             profile = profile_rows[0] if isinstance(profile_rows[0], dict) else {}
             available = int(profile.get("credits") or 0)

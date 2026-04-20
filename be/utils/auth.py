@@ -116,6 +116,14 @@ async def get_current_user(
                     db.add(user)
                     db.commit()
                     db.refresh(user)
+                    # Also ensure Supabase profiles row exists with initial credits
+                    try:
+                        supabase_admin.table("profiles").upsert(
+                            {"id": str(user_response.user.id), "credits": 10},
+                            on_conflict="id",
+                        ).execute()
+                    except Exception as profile_err:
+                        print(f"⚠️ Could not init Supabase profile for {email}: {profile_err}")
                 
                 return user
         except Exception as e:
