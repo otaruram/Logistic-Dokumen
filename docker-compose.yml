@@ -79,6 +79,29 @@ services:
     networks:
       - logistic-document-network
 
+  # Telegram Bot Worker - handles Telegram commands and fraud photo scans
+  telegram-worker:
+    build:
+      context: ./be
+      dockerfile: Dockerfile
+    container_name: logistic-telegram-worker
+    command: python -m workers.telegram_bot_worker
+    env_file:
+      - ./be/.env
+    environment:
+      - PYTHON_ENV=production
+      - REDIS_HOST=logistic-document-redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+    volumes:
+      - ./be/uploads:/app/uploads
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - logistic-document-network
+
 
   # Nginx Reverse Proxy (Optional - for production)
   # Uncomment this section if you want to use nginx

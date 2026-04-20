@@ -18,7 +18,6 @@ Notes:
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 from typing import Any, Optional
 
@@ -45,8 +44,29 @@ def _api_call(method: str, payload: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
-def send_message(chat_id: int, text: str) -> None:
-    _api_call("sendMessage", {"chat_id": chat_id, "text": text})
+def _main_menu_keyboard() -> dict[str, Any]:
+    return {
+        "keyboard": [
+            [{"text": "/dashboard"}, {"text": "/menu"}],
+        ],
+        "resize_keyboard": True,
+    }
+
+
+def _format_idr(amount: float) -> str:
+    return f"Rp {int(amount):,}".replace(",", ".")
+
+
+def send_message(chat_id: int, text: str, *, use_keyboard: bool = False) -> None:
+    payload: dict[str, Any] = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+    if use_keyboard:
+        payload["reply_markup"] = _main_menu_keyboard()
+    _api_call("sendMessage", payload)
 
 
 def get_updates(offset: Optional[int]) -> list[dict[str, Any]]:
@@ -71,7 +91,10 @@ async def _handle_start(chat_id: int, message: dict[str, Any], text: str) -> Non
     if len(parts) < 2:
         send_message(
             chat_id,
-            "Masukkan tele key dari web.\nContoh: /start YOUR_TELE_KEY",
+            "<b>🔐 Hubungkan Akun Dulu</b>\n"
+            "Masukkan tele key dari web.\n"
+            "Contoh: <code>/start YOUR_TELE_KEY</code>",
+            use_keyboard=True,
         )
         return
 
@@ -87,65 +110,75 @@ async def _handle_start(chat_id: int, message: dict[str, Any], text: str) -> Non
         )
         send_message(
             chat_id,
-            "Akun berhasil terhubung permanen.\n"
-            "Sekarang Anda bisa pakai:\n"
-            "- /dashboard\n"
-            "- kirim foto untuk Fraud Scan\n"
-            "- /menu",
+            "<b>✅ Akun Berhasil Terhubung Permanen</b>\n"
+            "Sekarang Anda bisa:\n"
+            "• <code>/dashboard</code> untuk cek analitik\n"
+            "• Kirim foto untuk <b>Fraud Scan</b>\n"
+            "• <code>/menu</code> untuk lihat perintah",
+            use_keyboard=True,
         )
     except Exception as e:
-        send_message(chat_id, f"Gagal link akun: {str(e)}")
+        send_message(chat_id, f"<b>❌ Gagal link akun</b>\n{str(e)}", use_keyboard=True)
 
 
 def _handle_menu(chat_id: int) -> None:
     send_message(
         chat_id,
-        "Perintah tersedia:\n"
-        "/dashboard - cek Logistics Trust Score, revenue valid, tampered\n"
-        "Kirim foto - jalankan Fraud Scan\n"
-        "/menu - tampilkan menu ini",
+        "<b>📌 Menu OtaruChain Bot</b>\n"
+        "<code>/dashboard</code>  → Logistics Trust Score, revenue valid, status fraud\n"
+        "<i>Kirim foto</i>  → Jalankan Fraud Scan ketat\n"
+        "<code>/menu</code>       → Tampilkan menu ini",
+        use_keyboard=True,
     )
 
 
 def _handle_dashboard(chat_id: int) -> None:
     link = get_link_by_chat_id(chat_id)
     if not link:
-        send_message(chat_id, "Akun belum terhubung. Gunakan /start <tele_key> dari web.")
+        send_message(chat_id, "<b>🔐 Akun belum terhubung.</b> Gunakan <code>/start &lt;tele_key&gt;</code> dari web.", use_keyboard=True)
         return
 
     try:
         summary = get_dashboard_summary(link["user_id"])
+        if summary["tampered_documents"] > summary["verified_documents"]:
+            risk = "🔴 Tinggi"
+        elif summary["tampered_documents"] > 0:
+            risk = "🟡 Sedang"
+        else:
+            risk = "🟢 Rendah"
+
         msg = (
-            "Dashboard Fraud Summary\n"
-            f"Logistics Trust Score: {summary['trust_score']}/1000\n"
-            f"Total Pendapatan Valid: Rp {int(summary['total_revenue_valid']):,}\n"
-            f"Verified: {summary['verified_documents']}\n"
-            f"Processing: {summary['processing_documents']}\n"
-            f"Tampered: {summary['tampered_documents']}\n"
-            f"Fraud Scans: {summary['total_fraud_scans']}\n"
-            f"Credits: {summary['credits']}"
+            "<b>📊 Fraud Dashboard</b>\n"
+            f"<b>Logistics Trust Score:</b> {summary['trust_score']}/1000\n"
+            f"<b>Total Pendapatan Valid:</b> {_format_idr(summary['total_revenue_valid'])}\n"
+            f"<b>Verified:</b> {summary['verified_documents']}\n"
+            f"<b>Processing:</b> {summary['processing_documents']}\n"
+            f"<b>Tampered:</b> {summary['tampered_documents']}\n"
+            f"<b>Fraud Scans:</b> {summary['total_fraud_scans']}\n"
+            f"<b>Risk Level:</b> {risk}\n"
+            f"<b>Credits:</b> {summary['credits']}"
         )
-        send_message(chat_id, msg.replace(",", "."))
+        send_message(chat_id, msg, use_keyboard=True)
     except Exception as e:
-        send_message(chat_id, f"Gagal ambil dashboard: {str(e)}")
+        send_message(chat_id, f"<b>❌ Gagal ambil dashboard</b>\n{str(e)}", use_keyboard=True)
 
 
 async def _handle_photo(chat_id: int, message: dict[str, Any]) -> None:
     link = get_link_by_chat_id(chat_id)
     if not link:
-        send_message(chat_id, "Akun belum terhubung. Gunakan /start <tele_key> dari web.")
+        send_message(chat_id, "<b>🔐 Akun belum terhubung.</b> Gunakan <code>/start &lt;tele_key&gt;</code> dari web.", use_keyboard=True)
         return
 
     photos = message.get("photo") or []
     if not photos:
-        send_message(chat_id, "Foto tidak valid.")
+        send_message(chat_id, "<b>❌ Foto tidak valid.</b>", use_keyboard=True)
         return
 
     file_id = photos[-1]["file_id"]
     caption = (message.get("caption") or "").strip()
     recipient_name = caption if caption else "Telegram User"
 
-    send_message(chat_id, "Memproses Fraud Scan... tunggu sebentar.")
+    send_message(chat_id, "<b>🔍 Memproses Fraud Scan...</b> tunggu sebentar ya.", use_keyboard=True)
 
     try:
         content = get_file_bytes(file_id)
@@ -159,18 +192,27 @@ async def _handle_photo(chat_id: int, message: dict[str, Any]) -> None:
             filename=filename,
         )
 
+        status = str(result.get("status", "processing"))
+        status_badge = {
+            "verified": "✅ VERIFIED",
+            "processing": "🟡 PROCESSING",
+            "tampered": "🚫 TAMPERED",
+        }.get(status, f"ℹ️ {status.upper()}")
+        nominal = result.get("nominal_total")
+        nominal_text = _format_idr(float(nominal)) if nominal not in (None, "", 0) else "-"
+
         response = (
-            "Fraud Scan selesai\n"
-            f"Status: {result['status']}\n"
-            f"Confidence: {result['confidence']}\n"
-            f"Nominal: {result.get('nominal_total') or '-'}\n"
-            f"Klien: {result.get('nama_klien') or '-'}\n"
-            f"Surat Jalan: {result.get('nomor_surat_jalan') or '-'}\n"
-            f"Credits sisa: {result['credits_remaining']}"
+            "<b>🧾 Fraud Scan Selesai</b>\n"
+            f"<b>Status:</b> {status_badge}\n"
+            f"<b>Confidence:</b> {result.get('confidence', '-')}\n"
+            f"<b>Nominal:</b> {nominal_text}\n"
+            f"<b>Klien:</b> {result.get('nama_klien') or '-'}\n"
+            f"<b>Surat Jalan:</b> {result.get('nomor_surat_jalan') or '-'}\n"
+            f"<b>Credits sisa:</b> {result['credits_remaining']}"
         )
-        send_message(chat_id, response)
+        send_message(chat_id, response, use_keyboard=True)
     except Exception as e:
-        send_message(chat_id, f"Fraud scan gagal: {str(e)}")
+        send_message(chat_id, f"<b>❌ Fraud scan gagal</b>\n{str(e)}", use_keyboard=True)
 
 
 async def handle_update(update: dict[str, Any]) -> None:
