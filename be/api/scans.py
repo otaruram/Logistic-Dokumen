@@ -474,23 +474,29 @@ async def save_scan_with_signature(
         if is_fraud:
             confidence = structured.get("confidence", "low")
             fraud_status = confidence_to_status(confidence)
+            doc_type = structured.get("doc_type", "unknown")
 
-            # Strict fraud gate: all core fields must be present to avoid false verified/processing.
-            critical_fields = {
-                "nominal_total": bool(structured.get("nominal_total")),
-                "nama_klien": bool(structured.get("nama_klien")),
-                "nomor_surat_jalan": bool(structured.get("nomor_surat_jalan")),
-                "tanggal_jatuh_tempo": bool(structured.get("tanggal_jatuh_tempo")),
-            }
-            missing_fields = [k for k, ok in critical_fields.items() if not ok]
-            rejection_reason = "Document has insufficient verifiable fields. Authenticity cannot be confirmed — flagged as tampered."
-            if missing_fields:
+            # Universal invoice gate: count filled fields across ALL document types
+            check_fields = [
+                "nominal_total", "nomor_dokumen", "nama_penjual", "nama_klien",
+                "tanggal_terbit", "metode_bayar", "no_referensi", "terminal_id",
+                "nomor_surat_jalan", "tanggal_jatuh_tempo",
+            ]
+            filled = [k for k in check_fields if structured.get(k)]
+            if len(filled) >= 4:
+                confidence = "high"
+            elif len(filled) >= 2:
+                confidence = "medium"
+            else:
                 confidence = "low"
-                fraud_status = "tampered"
+            fraud_status = confidence_to_status(confidence)
+
+            rejection_reason = None
+            if confidence == "low":
                 rejection_reason = (
-                    "Strict fraud validation failed. Missing fields: "
-                    + ", ".join(missing_fields)
-                    + ". Document flagged as tampered."
+                    f"Dokumen [{doc_type}] tidak memiliki cukup field yang terverifikasi "
+                    f"(ditemukan: {len(filled)} dari minimal 2). "
+                    "Keaslian tidak dapat dikonfirmasi — ditandai sebagai tampered."
                 )
 
             # LOW confidence → save to local DB + Supabase as tampered
