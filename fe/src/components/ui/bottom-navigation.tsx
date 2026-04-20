@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { LayoutDashboard, Menu, User, Shield } from "lucide-react";
+import { LayoutDashboard, Scan, Sparkles, User, Shield } from "lucide-react";
 import { NAVIGATION_TABS } from "@/constants";
 import { TabType } from "@/types";
 
@@ -12,7 +12,8 @@ interface BottomNavigationProps {
 
 const TAB_ICONS = {
   dashboard: LayoutDashboard,
-  options: Menu,
+  dgtnz: Scan,
+  otaru: Sparkles,
   profile: User,
   admin: Shield,
 } as const;

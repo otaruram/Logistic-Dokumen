@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "./Header";
 import DashboardTab from "../tabs/DashboardTab";
-import OptionsTab from "../tabs/OptionsTab";
+import DgtnzTab from "../tabs/DgtnzTab";
 import ProfileTab from "../tabs/ProfileTab";
+import OtaruChatPage from "@/pages/OtaruChatPage";
 import AdminTab from "../tabs/AdminTab";
 import BottomNavigation from "../ui/bottom-navigation";
 import { useTabNavigation } from "@/hooks/use-tab-navigation";
@@ -41,8 +42,10 @@ const MainLayout = () => {
         return <DashboardTab />;
       case "admin":
         return isAdmin ? <AdminTab /> : <DashboardTab />;
-      case "options":
-        return <OptionsTab />;
+      case "dgtnz":
+        return <DgtnzTab onBack={() => handleTabClick("dashboard")} />;
+      case "otaru":
+        return <OtaruChatPage />;
       case "profile":
         return <ProfileTab />;
       default:

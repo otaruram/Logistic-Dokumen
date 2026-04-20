@@ -1,8 +1,9 @@
 // Navigation tab configuration
 export const NAVIGATION_TABS = [
   { id: "dashboard" as const, label: "Dashboard" },
-  { id: "options" as const, label: "Other" },
-  { id: "profile" as const, label: "Account" },
+  { id: "dgtnz" as const, label: "Feature" },
+  { id: "otaru" as const, label: "Otaru" },
+  { id: "profile" as const, label: "Profile" },
 ] as const;
 
 

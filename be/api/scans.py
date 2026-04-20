@@ -5,6 +5,8 @@ Export routes → api/exports.py
 Batch routes  → api/batch_scans.py
 """
 
+# pyright: reportGeneralTypeIssues=false, reportAssignmentType=false, reportArgumentType=false
+
 import os
 import hashlib
 from datetime import datetime, timedelta
@@ -47,16 +49,16 @@ async def process_scan_background(scan_id: int, file_path: str, db: Session):
         result = await OCRService.process_image(file_path, use_ai_enhancement=True)
         scan = db.query(Scan).filter(Scan.id == scan_id).first()
         if scan:
-            scan.extracted_text = result["enhanced_text"]
-            scan.confidence_score = result["confidence_score"]
-            scan.processing_time = result["processing_time"]
-            scan.status = "completed"
+            setattr(scan, "extracted_text", result["enhanced_text"])
+            setattr(scan, "confidence_score", result["confidence_score"])
+            setattr(scan, "processing_time", result["processing_time"])
+            setattr(scan, "status", "completed")
             db.commit()
     except Exception as e:
         scan = db.query(Scan).filter(Scan.id == scan_id).first()
         if scan:
-            scan.status = "failed"
-            scan.error_message = str(e)
+            setattr(scan, "status", "failed")
+            setattr(scan, "error_message", str(e))
             db.commit()
 
 
@@ -91,7 +93,7 @@ async def upload_scan(
     db.commit()
     db.refresh(new_scan)
 
-    current_user.credits -= SCAN_COST
+    setattr(current_user, "credits", int(getattr(current_user, "credits", 0)) - SCAN_COST)
     credit_log = CreditHistory(
         user_id=current_user.id,
         amount=-SCAN_COST,
@@ -344,9 +346,9 @@ async def update_scan(
         )
 
     if scan_update.recipient_name is not None:
-        scan.recipient_name = scan_update.recipient_name
+        setattr(scan, "recipient_name", scan_update.recipient_name)
     if scan_update.extracted_text is not None:
-        scan.extracted_text = scan_update.extracted_text
+        setattr(scan, "extracted_text", scan_update.extracted_text)
 
     db.commit()
     db.refresh(scan)
@@ -471,6 +473,24 @@ async def save_scan_with_signature(
             confidence = structured.get("confidence", "low")
             fraud_status = confidence_to_status(confidence)
 
+            # Strict fraud gate: all core fields must be present to avoid false verified/processing.
+            critical_fields = {
+                "nominal_total": bool(structured.get("nominal_total")),
+                "nama_klien": bool(structured.get("nama_klien")),
+                "nomor_surat_jalan": bool(structured.get("nomor_surat_jalan")),
+                "tanggal_jatuh_tempo": bool(structured.get("tanggal_jatuh_tempo")),
+            }
+            missing_fields = [k for k, ok in critical_fields.items() if not ok]
+            rejection_reason = "Document has insufficient verifiable fields. Authenticity cannot be confirmed — flagged as tampered."
+            if missing_fields:
+                confidence = "low"
+                fraud_status = "tampered"
+                rejection_reason = (
+                    "Strict fraud validation failed. Missing fields: "
+                    + ", ".join(missing_fields)
+                    + ". Document flagged as tampered."
+                )
+
             # LOW confidence → save to local DB + Supabase as tampered
             if confidence == "low":
                 tampered_scan = Scan(
@@ -525,7 +545,7 @@ async def save_scan_with_signature(
                     "fraud_status": "tampered",
                     "credits_remaining": new_balance,
                     "rejected": True,
-                    "rejection_reason": "Document has insufficient verifiable fields. Authenticity cannot be confirmed — flagged as tampered.",
+                    "rejection_reason": rejection_reason,
                 }
 
             # MEDIUM or HIGH → save with correct status

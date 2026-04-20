@@ -2,6 +2,8 @@
 Fraud scan routes — /api/scans/fraud-history, /debug-fraud, /save-fraud
 """
 
+# pyright: reportGeneralTypeIssues=false
+
 import hashlib
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
@@ -186,6 +188,24 @@ async def save_fraud_scan(
         confidence = structured.get("confidence", "low")
         fraud_status = confidence_to_status(confidence)
 
+        # Strict fraud gate: require all core fields to pass verification.
+        critical_fields = {
+            "nominal_total": bool(structured.get("nominal_total")),
+            "nama_klien": bool(structured.get("nama_klien")),
+            "nomor_surat_jalan": bool(structured.get("nomor_surat_jalan")),
+            "tanggal_jatuh_tempo": bool(structured.get("tanggal_jatuh_tempo")),
+        }
+        missing_fields = [k for k, ok in critical_fields.items() if not ok]
+        rejection_reason = "Document has insufficient verifiable fields. Authenticity cannot be confirmed — flagged as tampered."
+        if missing_fields:
+            confidence = "low"
+            fraud_status = "tampered"
+            rejection_reason = (
+                "Strict fraud validation failed. Missing fields: "
+                + ", ".join(missing_fields)
+                + ". Document flagged as tampered."
+            )
+
         # 3. LOW confidence → Save as tampered (for Otaru analysis) but flag as rejected
         if confidence == "low":
             print(f"🚫 FRAUD TAMPERED - confidence=low, file={file.filename} (saved for analysis)")
@@ -242,7 +262,7 @@ async def save_fraud_scan(
                 "fraud_status": "tampered",
                 "credits_remaining": new_balance,
                 "rejected": True,
-                "rejection_reason": "Document has insufficient verifiable fields. Authenticity cannot be confirmed — flagged as tampered.",
+                "rejection_reason": rejection_reason,
             }
 
         # 4. MEDIUM or HIGH → Save to local DB

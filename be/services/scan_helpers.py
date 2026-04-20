@@ -52,7 +52,8 @@ async def check_and_deduct_credits(
     from config.settings import settings
 
     # Admin bypass — infinite credits
-    if hasattr(user, "email") and user.email == settings.ADMIN_EMAIL:
+    user_email = getattr(user, "email", None)
+    if isinstance(user_email, str) and user_email == settings.ADMIN_EMAIL:
         return 9999
 
     supabase_admin = get_supabase_admin()
@@ -68,9 +69,9 @@ async def check_and_deduct_credits(
         profile = resp.data
         if not profile:
             raise HTTPException(status_code=404, detail="User profile not found.")
-        available = profile.get("credits", 0)
+        available = int(profile.get("credits") or 0)
     else:
-        available = user.credits
+        available = int(getattr(user, "credits", 0) or 0)
 
     if available < SCAN_COST:
         raise HTTPException(
@@ -85,10 +86,10 @@ async def check_and_deduct_credits(
             "id", str(user.id)
         ).execute()
     else:
-        user.credits -= SCAN_COST
+        setattr(user, "credits", new_balance)
         db.commit()
 
-    user.credits = new_balance  # keep local object in sync
+    setattr(user, "credits", new_balance)  # keep local object in sync
 
     # Log
     credit_log = CreditHistory(
