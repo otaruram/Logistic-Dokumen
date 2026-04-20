@@ -330,15 +330,15 @@ export const FraudScanHistory = ({ records, onDelete }: FraudScanHistoryProps) =
                         </SelectContent>
                     </Select>
 
-                    {/* Year 2025-2040 */}
+                    {/* Year 2026-2050 */}
                     <Select value={filterYear} onValueChange={setFilterYear}>
                         <SelectTrigger className="w-[90px] bg-[#111] border-white/10 text-white h-10">
                             <SelectValue placeholder="Thn" />
                         </SelectTrigger>
                         <SelectContent className="bg-[#111] border-white/10 text-white">
                             <SelectItem value="all">All</SelectItem>
-                            {Array.from({ length: 16 }, (_, i) => (
-                                <SelectItem key={i} value={String(2025 + i)}>{2025 + i}</SelectItem>
+                            {Array.from({ length: 25 }, (_, i) => (
+                                <SelectItem key={i} value={String(2026 + i)}>{2026 + i}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>

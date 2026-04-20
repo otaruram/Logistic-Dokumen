@@ -92,33 +92,11 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
             fraudFields: null,
           }));
 
-        const fraudMapped: ScanRecord[] = data
-          .filter((d: any) => d.is_fraud_scan)
-          .map((d: any, i: number) => ({
-            id: d.id,
-            no: i + 1,
-            tanggal: new Date(d.created_at).toLocaleDateString('id-ID'),
-            namaPenerima: d.recipient_name || "-",
-            keterangan: d.extracted_text || "-",
-            fotoUrl: d.imagekit_url || d.file_path || "",
-            tandaTangan: d.signature_url || "",
-            status: d.status === 'verified' ? 'verified' : (d.status === 'tampered' ? 'tampered' : d.status === 'processing' ? 'processing' : 'verified'),
-            isFraudScan: true,
-            fraudFields: d.fraud_fields || null,
-          }));
-
         setRecords(defaultMapped);
-
-        // If fraud scans found in /api/scans, use those
-        if (fraudMapped.length > 0) {
-          console.log("[DgtnzTab] Using fraud records from /api/scans:", fraudMapped.length);
-          setFraudRecords(fraudMapped);
-        } else {
-          // Fallback: try loading from dedicated fraud_scans table via Supabase
-          console.log("[DgtnzTab] No fraud records in /api/scans, trying Supabase fraud_scans...");
-          await loadFraudFromSupabase(session.access_token);
-        }
       }
+
+      // Always load fraud records from Supabase fraud_scans table (single source of truth for both Web + Telegram)
+      await loadFraudFromSupabase(session.access_token);
     } catch (e) {
       console.error("Failed to load records:", e);
     }
@@ -202,7 +180,6 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
       setPreviewUrl(null);
       setRecipientName("");
       setSignatureData("");
-      setHistoryTab("default"); // Auto-switch to default history tab
       loadAllRecords();
 
       setTimeout(() => {

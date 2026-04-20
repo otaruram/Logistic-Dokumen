@@ -300,8 +300,21 @@ const DashboardTab = () => {
   const [loading, setLoading] = useState(true);
   const [currency, setCurrency] = useState<"IDR" | "USD">("IDR");
   const [usdRate, setUsdRate] = useState(USD_RATE_FALLBACK);
-  const [period, setPeriod] = useState<"all" | "current" | "last" | "3months">("all");
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [showYearPicker, setShowYearPicker] = useState(false);
   const isMounted = useRef(true);
+  const yearPickerRef = useRef<HTMLDivElement>(null);
+
+  // Close year picker on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (yearPickerRef.current && !yearPickerRef.current.contains(e.target as Node)) {
+        setShowYearPicker(false);
+      }
+    };
+    if (showYearPicker) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showYearPicker]);
 
   // Fetch USD rate on mount
   useEffect(() => {
@@ -330,13 +343,17 @@ const DashboardTab = () => {
       if (error || !session) { toast.error("Anda harus login terlebih dahulu"); setLoading(false); return; }
       const userId = session.user.id;
 
-      // 1. Document status counts
-      const { data: docs } = await supabase.from("documents").select("status").eq("user_id", userId);
+      // 1. Status counts from fraud_scans (single source of truth — includes both Web and Telegram)
+      const fraudQuery = supabase.from("fraud_scans").select("status, created_at, nominal_total").eq("user_id", userId);
+      if (selectedYear) {
+        fraudQuery.gte("created_at", `${selectedYear}-01-01T00:00:00`).lte("created_at", `${selectedYear}-12-31T23:59:59`);
+      }
+      const { data: allFraud } = await fraudQuery;
       let verified = 0, tampered = 0, processing = 0;
-      docs?.forEach((doc) => {
-        if (doc.status === "verified") verified++;
-        else if (doc.status === "tampered") tampered++;
-        else if (doc.status === "processing") processing++;
+      (allFraud || []).forEach((f: any) => {
+        if (f.status === "verified") verified++;
+        else if (f.status === "tampered") tampered++;
+        else if (f.status === "processing") processing++;
       });
 
       // 2. Trust Score — calculated from document statuses
@@ -355,11 +372,8 @@ const DashboardTab = () => {
         }
       }
 
-      // 3. Finance data — include all accepted fraud logs including tampered
-      const { data: financeData } = await supabase.from("extracted_finance_data").select("nominal_amount, field_confidence").eq("user_id", userId);
-      const totalVerif = financeData
-        ? financeData.reduce((sum, item) => sum + Number(item.nominal_amount || 0), 0)
-        : 0;
+      // 3. Revenue — sum nominal_total from fraud_scans directly (covers both Web + Telegram)
+      const totalVerif = (allFraud || []).reduce((sum: number, f: any) => sum + Number(f.nominal_total || 0), 0);
 
       // 4. Credits
       let credits = 0;
@@ -384,27 +398,21 @@ const DashboardTab = () => {
       const dailyCounts = [0, 0, 0, 0, 0, 0, 0];
       let totalScanFraud = 0;
 
-      try {
-        const { data: fraudScans } = await supabase
-          .from("fraud_scans")
-          .select("created_at,status")
-          .eq("user_id", userId);
+      // Re-use allFraud data (already fetched for status counts)
+      (allFraud || []).forEach((s: any) => {
+        const status = s.status || "processing";
+        const validStatuses = ['verified', 'processing', 'tampered'];
+        if (!validStatuses.includes(status)) return;
+        totalScanFraud++;
 
-        (fraudScans || []).forEach((s: { created_at?: string | null; status?: string | null }) => {
-          const status = s.status || "processing";
-          const validStatuses = ['verified', 'processing', 'tampered'];
-          if (!validStatuses.includes(status)) return;
-          totalScanFraud++;
-
-          if (s.created_at) {
-            const scanDate = new Date(s.created_at);
-            if (scanDate >= monday && scanDate <= sunday) {
-              const idx = scanDate.getDay() === 0 ? 6 : scanDate.getDay() - 1;
-              dailyCounts[idx]++;
-            }
+        if (s.created_at) {
+          const scanDate = new Date(s.created_at);
+          if (scanDate >= monday && scanDate <= sunday) {
+            const idx = scanDate.getDay() === 0 ? 6 : scanDate.getDay() - 1;
+            dailyCounts[idx]++;
           }
-        });
-      } catch (e) { console.error('Could not fetch scans:', e); }
+        }
+      });
 
       const weeklyChartData = dayNames.map((label, i) => ({ day: label, scans: dailyCounts[i] }));
       if (isMounted.current) setWeeklyData(weeklyChartData);
@@ -423,7 +431,7 @@ const DashboardTab = () => {
 
       if (isMounted.current) {
         setStats({
-          trustScore: calculatedTrustScore, totalNominalVerified: totalVerif, totalDocuments: docs?.length || 0,
+          trustScore: calculatedTrustScore, totalNominalVerified: totalVerif, totalDocuments: (allFraud || []).length,
           verifiedDocuments: verified, tamperedDocuments: tampered, processingDocuments: processing,
           totalActivity, totalScanFraud,
           credits, nextCleanupDays: apiCleanupDays, nextCleanupDate: apiCleanupDate,
@@ -435,7 +443,7 @@ const DashboardTab = () => {
       console.error("Dashboard fetch error:", error);
       if (isMounted.current) setLoading(false);
     }
-  }, []);
+  }, [selectedYear]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -477,35 +485,6 @@ const DashboardTab = () => {
     };
   }, [fetchDashboardData]);
 
-  // Fetch period-filtered data when period changes
-  useEffect(() => {
-    if (period === "all") return; // 'all' uses the default fetchDashboardData
-    const fetchPeriodData = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        const res = await fetch(`${API_URL}/api/report/period-data?period=${period}`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (res.ok) {
-          const d = await res.json();
-          if (isMounted.current) {
-            setStats(prev => ({
-              ...prev,
-              trustScore: d.trust_score ?? prev.trustScore,
-              totalNominalVerified: d.total_revenue ?? prev.totalNominalVerified,
-              verifiedDocuments: d.verified ?? prev.verifiedDocuments,
-              processingDocuments: d.processing ?? prev.processingDocuments,
-              tamperedDocuments: d.tampered ?? prev.tamperedDocuments,
-              totalDocuments: d.total_docs ?? prev.totalDocuments,
-            }));
-          }
-        }
-      } catch (e) { console.error("Period data fetch error:", e); }
-    };
-    fetchPeriodData();
-  }, [period]);
-
   return (
     <div className="min-h-screen bg-[#0a0a0a] p-6 space-y-6 text-white font-sans pb-32">
       {/* Header */}
@@ -515,20 +494,41 @@ const DashboardTab = () => {
             <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-sm text-gray-400 mt-1">Monitor aktivitas dan performa finansial Anda</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-500" />
-            {(["all", "current", "last", "3months"] as const).map(p => (
-              <button
-                key={p}
-                onClick={() => { setPeriod(p); if (p === "all") fetchDashboardData(true); }}
-                className={`px-3 py-1.5 text-xs rounded-full font-medium transition-all ${period === p
-                    ? 'bg-white text-black'
-                    : 'border border-white/10 text-gray-400 hover:bg-white/5'
+          <div className="relative" ref={yearPickerRef}>
+            <button
+              onClick={() => setShowYearPicker(prev => !prev)}
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-full font-medium transition-all border ${
+                selectedYear ? 'bg-white text-black border-white' : 'border-white/10 text-gray-400 hover:bg-white/5'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              {selectedYear || 'Semua Tahun'}
+            </button>
+            {showYearPicker && (
+              <div className="absolute right-0 top-full mt-2 z-50 bg-[#111] border border-white/10 rounded-xl p-3 shadow-2xl w-[220px] max-h-[280px] overflow-y-auto">
+                <button
+                  onClick={() => { setSelectedYear(null); setShowYearPicker(false); }}
+                  className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
+                    !selectedYear ? 'bg-white text-black font-bold' : 'text-gray-300 hover:bg-white/10'
                   }`}
-              >
-                {p === "all" ? "All Time" : p === "current" ? "Bulan Ini" : p === "last" ? "Bulan Lalu" : "3 Bulan"}
-              </button>
-            ))}
+                >
+                  Semua Tahun
+                </button>
+                <div className="grid grid-cols-3 gap-1 mt-2">
+                  {Array.from({ length: 25 }, (_, i) => 2026 + i).map(yr => (
+                    <button
+                      key={yr}
+                      onClick={() => { setSelectedYear(yr); setShowYearPicker(false); }}
+                      className={`px-2 py-1.5 text-xs rounded-lg font-medium transition-all ${
+                        selectedYear === yr ? 'bg-white text-black' : 'text-gray-400 hover:bg-white/10'
+                      }`}
+                    >
+                      {yr}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </motion.div>

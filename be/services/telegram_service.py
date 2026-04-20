@@ -196,6 +196,7 @@ async def process_fraud_scan_from_telegram(*, user_id: str, recipient_name: str,
         ocr_result=ocr_result,
         is_fraud=True,
     )
+    print(f"✅ [Telegram] sync_to_supabase completed for user={user_id}, file={filename}, status={fraud_status}")
 
     # Ensure a fraud history row exists even if sync helper insert is skipped by DB constraints.
     sb = get_supabase_admin()
@@ -230,9 +231,12 @@ async def process_fraud_scan_from_telegram(*, user_id: str, recipient_name: str,
                     "doc_hash": content_hash,
                     "status": fraud_status,
                 }
-                sb.table("fraud_scans").insert(fallback_payload).execute()
-        except Exception:
-            pass
+                res = sb.table("fraud_scans").insert(fallback_payload).execute()
+                print(f"✅ [Telegram] Fallback fraud_scans insert for user={user_id}, rows={len(getattr(res, 'data', None) or [])}")
+            else:
+                print(f"ℹ️ [Telegram] fraud_scans row already exists for hash={content_hash[:16]}...")
+        except Exception as e:
+            print(f"❌ [Telegram] Fallback fraud_scans insert FAILED for user={user_id}: {e}")
 
     result = {
         "status": fraud_status,
