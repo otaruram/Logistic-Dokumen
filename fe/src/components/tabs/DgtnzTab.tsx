@@ -1,20 +1,18 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Loader2, ShieldAlert, FileCheck } from "lucide-react";
+import { ArrowLeft, Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ScanUpload } from "../dgtnz/ScanUpload";
 import { ValidationZone } from "../dgtnz/ValidationZone";
-import { ScanHistory } from "../dgtnz/ScanHistory";
 import { FraudScanHistory } from "../dgtnz/FraudScanHistory";
 import { EditScanDialog } from "../dgtnz/EditScanDialog";
 import { ScanSuccessDialog } from "../dgtnz/ScanSuccessDialog";
-import { DriveSuccessDialog } from "../dgtnz/DriveSuccessDialog";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 // Scan mode
-type ScanMode = "default" | "fraud";
+type ScanMode = "fraud";
 
 // Interfaces
 interface ScanRecord {
@@ -36,9 +34,9 @@ interface ScanRecord {
   };
 }
 
-export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: () => void; initialMode?: ScanMode }) {
+export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?: ScanMode }) {
   // Core state
-  const [scanMode, setScanMode] = useState<ScanMode>(initialMode);
+  const [scanMode] = useState<ScanMode>("fraud");
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -51,21 +49,15 @@ export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: 
   const [fraudStep, setFraudStep] = useState<string>("");
 
   // History tab state
-  const [historyTab, setHistoryTab] = useState<"default" | "fraud">("default");
+  const [historyTab] = useState<"fraud">("fraud");
 
   // Dialog States
   const [editingRecord, setEditingRecord] = useState<any>(null);
   const [successUrl, setSuccessUrl] = useState<string | null>(null);
-  const [driveSuccessLink, setDriveSuccessLink] = useState<string | null>(null);
 
   useEffect(() => {
     loadAllRecords();
   }, []);
-
-  useEffect(() => {
-    setScanMode(initialMode);
-    setHistoryTab(initialMode === "fraud" ? "fraud" : "default");
-  }, [initialMode]);
 
   const loadAllRecords = async () => {
     try {
@@ -267,20 +259,6 @@ export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: 
 
       const resJson = await res.json();
 
-      // Handle rejected (tampered) scans
-      if (resJson.rejected) {
-        toast.dismiss();
-        toast.error("🚫 Dokumen Ditolak (Tampered)", {
-          description: resJson.rejection_reason || "Confidence rendah, dokumen tidak tersimpan.",
-          duration: 6000,
-        });
-        setUploadedImage(null);
-        setPreviewUrl(null);
-        setFraudStep("");
-        setIsProcessing(false);
-        return;
-      }
-
       setFraudStep("Menyimpan hasil ke database...");
       await new Promise(r => setTimeout(r, 600));
 
@@ -294,7 +272,6 @@ export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: 
       setUploadedImage(null);
       setPreviewUrl(null);
       setFraudStep("");
-      setHistoryTab("fraud");
       loadAllRecords();
 
       setTimeout(() => {
@@ -310,10 +287,7 @@ export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: 
     }
   };
 
-  const handleProcess = () => {
-    if (scanMode === "fraud") return handleFraudProcess();
-    return handleDefaultProcess();
-  };
+  const handleProcess = () => handleFraudProcess();
 
   const handleDelete = async (id: number | string) => {
     try {
@@ -377,37 +351,6 @@ export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: 
     }
   };
 
-  const handleExportDrive = async () => {
-    try {
-      toast.loading("Preparing premium export...");
-      const { supabase } = await import("@/lib/supabaseClient");
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session || !session.provider_token) {
-        toast.dismiss();
-        toast.error("Please login with Google to use Drive Export");
-        return;
-      }
-
-      const res = await fetch(`${API_BASE_URL}/api/scans/export-drive-direct`, {
-        method: 'POST',
-        headers: {
-          "Authorization": `Bearer ${session.access_token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ access_token: session.provider_token })
-      });
-
-      if (!res.ok) throw new Error("Export failed");
-      const data = await res.json();
-      toast.dismiss();
-      setDriveSuccessLink(data.web_view_link);
-    } catch {
-      toast.dismiss();
-      toast.error("Export failed. Make sure you logged in via Google.");
-    }
-  };
-
   const isFraudMode = scanMode === "fraud";
 
   // Default records = records (already filtered non-fraud from backend)
@@ -428,31 +371,13 @@ export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: 
         </div>
       </div>
 
-      {/* Mode Switcher */}
+      {/* Mode Badge */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2 p-1 rounded-xl bg-white/5 border border-white/10 w-fit">
-        <button
-          onClick={() => { setScanMode("default"); setHistoryTab("default"); }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${!isFraudMode
-            ? "bg-white text-black shadow"
-            : "text-gray-400 hover:text-white"
-            }`}
-        >
-          <FileCheck className="w-4 h-4" />
-          Scan Dokumen
-        </button>
-        <button
-          onClick={() => { setScanMode("fraud"); setHistoryTab("fraud"); }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isFraudMode
-            ? "bg-red-500 text-white shadow"
-            : "text-gray-400 hover:text-white"
-            }`}
-        >
+        <div className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-red-500 text-white shadow">
           <ShieldAlert className="w-4 h-4" />
           Mode Analisis
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isFraudMode ? 'bg-white/20' : 'bg-red-500/20 text-red-400'}`}>
-            AI
-          </span>
-        </button>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-white/20">AI</span>
+        </div>
       </motion.div>
 
       {/* Fraud Mode Banner */}
@@ -553,59 +478,26 @@ export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: 
         </motion.div>
       </div>
 
-      {/* History Tab Switcher */}
+      {/* History Badge */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="flex gap-2 p-1 rounded-xl bg-white/5 border border-white/10 w-fit">
-        <button
-          onClick={() => setHistoryTab("default")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${historyTab === "default"
-            ? "bg-white text-black shadow"
-            : "text-gray-400 hover:text-white"
-            }`}
-        >
-          <FileCheck className="w-4 h-4" />
-          Riwayat Dokumen
-          {defaultRecords.length > 0 && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${historyTab === "default" ? 'bg-black/10' : 'bg-white/10'
-              }`}>{defaultRecords.length}</span>
-          )}
-        </button>
-        <button
-          onClick={() => setHistoryTab("fraud")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${historyTab === "fraud"
-            ? "bg-red-500 text-white shadow"
-            : "text-gray-400 hover:text-white"
-            }`}
-        >
+        <div className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-red-500 text-white shadow">
           <ShieldAlert className="w-4 h-4" />
           Riwayat Analisis
           {fraudRecords.length > 0 && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${historyTab === "fraud" ? 'bg-white/20' : 'bg-red-500/20 text-red-400'
-              }`}>{fraudRecords.length}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-white/20">{fraudRecords.length}</span>
           )}
-        </button>
+        </div>
       </motion.div>
 
       {/* Scan History */}
       <motion.div id="scan-history-section" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
         <AnimatePresence mode="wait">
-          {historyTab === "default" ? (
-            <motion.div key="default-history" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.2 }}>
-              <ScanHistory
-                records={defaultRecords}
-                onDelete={handleDelete}
-                onEdit={handleEdit}
-                onExportGoogleDrive={handleExportDrive}
-              />
-            </motion.div>
-          ) : (
-            <motion.div key="fraud-history" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.2 }}>
-              <FraudScanHistory
-                records={fraudRecords}
-                onDelete={handleDelete}
-                onExportGoogleDrive={handleExportDrive}
-              />
-            </motion.div>
-          )}
+          <motion.div key="fraud-history" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.2 }}>
+            <FraudScanHistory
+              records={fraudRecords}
+              onDelete={handleDelete}
+            />
+          </motion.div>
         </AnimatePresence>
       </motion.div>
 
@@ -622,11 +514,6 @@ export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: 
         imageUrl={successUrl || ""}
       />
 
-      <DriveSuccessDialog
-        open={!!driveSuccessLink}
-        onOpenChange={(open) => !open && setDriveSuccessLink(null)}
-        fileUrl={driveSuccessLink || ""}
-      />
     </div>
   );
 }

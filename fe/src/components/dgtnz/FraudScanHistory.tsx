@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
-import { FileDown, Cloud, Search, Trash2, CheckCircle2, XCircle, Clock, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
+import { FileDown, Search, Trash2, CheckCircle2, XCircle, Clock, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -44,10 +44,9 @@ interface ScanRecord {
 interface FraudScanHistoryProps {
     records: ScanRecord[];
     onDelete: (id: number | string) => void;
-    onExportGoogleDrive: () => void;
 }
 
-export const FraudScanHistory = ({ records, onDelete, onExportGoogleDrive }: FraudScanHistoryProps) => {
+export const FraudScanHistory = ({ records, onDelete }: FraudScanHistoryProps) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterDate, setFilterDate] = useState("all");
     const [filterMonth, setFilterMonth] = useState("all");
@@ -249,9 +248,6 @@ export const FraudScanHistory = ({ records, onDelete, onExportGoogleDrive }: Fra
                         <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!records.length} className="border-white/10 hover:bg-white/5 text-gray-300">
                             <FileDown className="w-4 h-4 mr-2" /> Excel
                         </Button>
-                        <Button variant="outline" size="sm" onClick={onExportGoogleDrive} disabled={!records.length} className="border-white/10 hover:bg-white/5 text-gray-300">
-                            <Cloud className="w-4 h-4 mr-2" /> Drive
-                        </Button>
                     </div>
                 </div>
 
@@ -383,18 +379,18 @@ export const FraudScanHistory = ({ records, onDelete, onExportGoogleDrive }: Fra
                                         </TableCell>
                                         <TableCell>
                                             {record.fotoUrl ? (
-                                                <a href={record.fotoUrl} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-red-500/30 transition-all">
+                                                <div className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10">
                                                     <img src={record.fotoUrl} alt="Scan" className="w-full h-full object-cover" />
-                                                </a>
+                                                </div>
                                             ) : (
                                                 <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Img</div>
                                             )}
                                         </TableCell>
                                         <TableCell>
                                             {record.tandaTangan ? (
-                                                <a href={record.tandaTangan} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-red-500/30 transition-all bg-white">
+                                                <div className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 bg-white">
                                                     <img src={record.tandaTangan} alt="Sig" className="w-full h-full object-contain p-1" />
-                                                </a>
+                                                </div>
                                             ) : (
                                                 <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Sig</div>
                                             )}

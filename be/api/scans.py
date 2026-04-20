@@ -444,10 +444,10 @@ async def save_scan_with_signature(
 ):
     """Save scan to DB with recipient name and signature.
     
-    For fraud scans, applies confidence-based status:
-      low  → tampered → REJECTED, not saved
-      medium → processing → saved, needs review
-      high → verified → saved, authentic
+        For fraud scans, applies confidence-based status:
+            low  → tampered  → accepted and saved to history
+            medium → processing → saved, needs review
+            high → verified → saved, authentic
     """
     from services.scan_helpers import confidence_to_status
 
@@ -533,7 +533,7 @@ async def save_scan_with_signature(
                     is_fraud=True,
                 )
 
-                print(f"🚫 FRAUD REJECTED (tampered) - id={tampered_scan.id}, confidence=low, file={file.filename}")
+                print(f"🟠 FRAUD ACCEPTED (tampered) - id={tampered_scan.id}, confidence=low, file={file.filename}")
                 return {
                     "id": tampered_scan.id,
                     "file_path": image_url,
@@ -546,8 +546,8 @@ async def save_scan_with_signature(
                     "field_confidence": "low",
                     "fraud_status": "tampered",
                     "credits_remaining": new_balance,
-                    "rejected": True,
-                    "rejection_reason": rejection_reason,
+                    "rejected": False,
+                    "rejection_reason": None,
                 }
 
             # MEDIUM or HIGH → save with correct status

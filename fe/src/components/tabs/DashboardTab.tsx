@@ -180,7 +180,7 @@ const NominalVerifiedCard = ({ stats, loading, currency, onToggleCurrency, forma
           {loading ? "..." : formatCurrency(stats.totalNominalVerified)}
         </div>
         <p className="text-xs text-green-400 flex items-center gap-1">
-          <TrendingUp className="w-3 h-3" />Dihitung dari {stats.verifiedDocuments + stats.processingDocuments} dokumen (verified + processing)
+          <TrendingUp className="w-3 h-3" />Dihitung dari {stats.verifiedDocuments + stats.processingDocuments + stats.tamperedDocuments} dokumen (verified + processing + tampered)
         </p>
       </div>
     </div>
@@ -340,7 +340,7 @@ const DashboardTab = () => {
       });
 
       // 2. Trust Score — calculated from document statuses
-      // verified=100pts, processing=50pts, tampered=0pts, max 1000
+      // verified=100pts, processing=50pts, tampered=50pts, max 1000
       let calculatedTrustScore = 0;
       try {
         const { data: scoreData, error: scoreError } = await supabase.rpc("calculate_logistics_trust_score", { p_user_id: userId });
@@ -350,17 +350,15 @@ const DashboardTab = () => {
         // Fallback: calculate locally if RPC fails
         const totalDocs = verified + processing + tampered;
         if (totalDocs > 0) {
-          const rawScore = (verified * 100 + processing * 50 + tampered * 0) / totalDocs;
+          const rawScore = (verified * 100 + processing * 50 + tampered * 50) / totalDocs;
           calculatedTrustScore = Math.min(Math.round(rawScore * 10), 1000);
         }
       }
-      // Force 0 if all docs are tampered
-      if (verified === 0 && processing === 0 && tampered > 0) calculatedTrustScore = 0;
 
-      // 3. Finance data — only verified + processing count towards revenue
+      // 3. Finance data — include all accepted fraud logs including tampered
       const { data: financeData } = await supabase.from("extracted_finance_data").select("nominal_amount, field_confidence").eq("user_id", userId);
       const totalVerif = financeData
-        ? financeData.filter(f => f.field_confidence !== "low").reduce((sum, item) => sum + Number(item.nominal_amount || 0), 0)
+        ? financeData.reduce((sum, item) => sum + Number(item.nominal_amount || 0), 0)
         : 0;
 
       // 4. Credits
