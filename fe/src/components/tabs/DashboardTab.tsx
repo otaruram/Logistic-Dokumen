@@ -378,7 +378,7 @@ const DashboardTab = () => {
       const nextCleanupDays = Math.ceil((nextCleanupDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       const nextCleanupDateStr = nextCleanupDate.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
 
-      // 6. Weekly scans
+      // 6. Weekly usage + total activity from fraud_scans (includes Telegram scans)
       const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
       const dayOfWeek = now.getDay();
       const monday = new Date(now); monday.setDate(now.getDate() + (dayOfWeek === 0 ? -6 : 1 - dayOfWeek)); monday.setHours(0, 0, 0, 0);
@@ -387,23 +387,25 @@ const DashboardTab = () => {
       let totalScanFraud = 0;
 
       try {
-        const scansRes = await fetch(`${API_URL}/api/scans`, { headers: { Authorization: `Bearer ${session.access_token}` } });
-        if (scansRes.ok) {
-          const scansData: Array<{ status: string; created_at: string; is_fraud_scan: boolean }> = await scansRes.json();
-          scansData.forEach(s => {
-            const validStatuses = ['completed', 'verified', 'processing', 'tampered'];
-            if (validStatuses.includes(s.status)) {
-              if (s.is_fraud_scan) totalScanFraud++;
-              if (s.created_at) {
-                const scanDate = new Date(s.created_at);
-                if (scanDate >= monday && scanDate <= sunday) {
-                  const idx = scanDate.getDay() === 0 ? 6 : scanDate.getDay() - 1;
-                  dailyCounts[idx]++;
-                }
-              }
+        const { data: fraudScans } = await supabase
+          .from("fraud_scans")
+          .select("created_at,status")
+          .eq("user_id", userId);
+
+        (fraudScans || []).forEach((s: { created_at?: string | null; status?: string | null }) => {
+          const status = s.status || "processing";
+          const validStatuses = ['verified', 'processing', 'tampered'];
+          if (!validStatuses.includes(status)) return;
+          totalScanFraud++;
+
+          if (s.created_at) {
+            const scanDate = new Date(s.created_at);
+            if (scanDate >= monday && scanDate <= sunday) {
+              const idx = scanDate.getDay() === 0 ? 6 : scanDate.getDay() - 1;
+              dailyCounts[idx]++;
             }
-          });
-        }
+          }
+        });
       } catch (e) { console.error('Could not fetch scans:', e); }
 
       const weeklyChartData = dayNames.map((label, i) => ({ day: label, scans: dailyCounts[i] }));
@@ -440,6 +442,7 @@ const DashboardTab = () => {
   useEffect(() => {
     isMounted.current = true;
     let subscription: ReturnType<typeof supabase.channel>;
+    let realtimePoll: ReturnType<typeof setInterval> | undefined;
 
     const setupDashboard = async () => {
       await fetchDashboardData();
@@ -454,8 +457,14 @@ const DashboardTab = () => {
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'documents', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDashboardData(true); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'extracted_finance_data', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDashboardData(true); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'fraud_scans', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDashboardData(true); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'scans', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDashboardData(true); })
         .subscribe();
+
+      // Fallback realtime polling in case websocket/realtime channel drops.
+      realtimePoll = setInterval(() => {
+        if (isMounted.current) fetchDashboardData(true);
+      }, 10000);
     };
     setupDashboard();
 
@@ -465,6 +474,7 @@ const DashboardTab = () => {
     return () => {
       isMounted.current = false;
       window.removeEventListener('scan-completed', handleScanCompleted);
+      if (realtimePoll) clearInterval(realtimePoll);
       if (subscription) supabase.removeChannel(subscription);
     };
   }, [fetchDashboardData]);

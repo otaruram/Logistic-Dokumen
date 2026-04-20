@@ -206,6 +206,43 @@ async def process_fraud_scan_from_telegram(*, user_id: str, recipient_name: str,
         is_fraud=True,
     )
 
+    # Ensure a fraud history row exists even if sync helper insert is skipped by DB constraints.
+    sb = get_supabase_admin()
+    if sb:
+        try:
+            existing = (
+                sb.table("fraud_scans")
+                .select("id")
+                .eq("user_id", user_id)
+                .eq("doc_hash", content_hash)
+                .limit(1)
+                .execute()
+            )
+            existing_rows = getattr(existing, "data", None) or []
+            if not existing_rows:
+                nominal_amount = structured.get("nominal_total") or 0
+                fallback_payload = {
+                    "user_id": user_id,
+                    "original_filename": filename,
+                    "file_url": image_url,
+                    "imagekit_url": image_url,
+                    "signature_url": signature_url,
+                    "recipient_name": recipient_name,
+                    "extracted_text": ocr_result.get("enhanced_text") or "",
+                    "confidence_score": ocr_result.get("confidence_score", 0),
+                    "processing_time": ocr_result.get("processing_time", 0),
+                    "nominal_total": nominal_amount,
+                    "nama_klien": structured.get("nama_klien"),
+                    "nomor_surat_jalan": structured.get("nomor_surat_jalan"),
+                    "tanggal_jatuh_tempo": structured.get("tanggal_jatuh_tempo"),
+                    "field_confidence": confidence,
+                    "doc_hash": content_hash,
+                    "status": fraud_status,
+                }
+                sb.table("fraud_scans").insert(fallback_payload).execute()
+        except Exception:
+            pass
+
     result = {
         "status": fraud_status,
         "confidence": confidence,
