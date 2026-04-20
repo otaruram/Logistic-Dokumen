@@ -36,9 +36,9 @@ interface ScanRecord {
   };
 }
 
-export default function DgtnzTab({ onBack }: { onBack: () => void }) {
+export default function DgtnzTab({ onBack, initialMode = "default" }: { onBack: () => void; initialMode?: ScanMode }) {
   // Core state
-  const [scanMode, setScanMode] = useState<ScanMode>("default");
+  const [scanMode, setScanMode] = useState<ScanMode>(initialMode);
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -61,6 +61,11 @@ export default function DgtnzTab({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     loadAllRecords();
   }, []);
+
+  useEffect(() => {
+    setScanMode(initialMode);
+    setHistoryTab(initialMode === "fraud" ? "fraud" : "default");
+  }, [initialMode]);
 
   const loadAllRecords = async () => {
     try {
