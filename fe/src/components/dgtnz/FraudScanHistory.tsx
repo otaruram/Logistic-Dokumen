@@ -379,18 +379,18 @@ export const FraudScanHistory = ({ records, onDelete }: FraudScanHistoryProps) =
                                         </TableCell>
                                         <TableCell>
                                             {record.fotoUrl ? (
-                                                <div className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10">
+                                                <a href={record.fotoUrl} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-red-500/30 transition-all">
                                                     <img src={record.fotoUrl} alt="Scan" className="w-full h-full object-cover" />
-                                                </div>
+                                                </a>
                                             ) : (
                                                 <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Img</div>
                                             )}
                                         </TableCell>
                                         <TableCell>
                                             {record.tandaTangan ? (
-                                                <div className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 bg-white">
+                                                <a href={record.tandaTangan} target="_blank" rel="noreferrer" className="block w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-red-500/30 transition-all bg-white">
                                                     <img src={record.tandaTangan} alt="Sig" className="w-full h-full object-contain p-1" />
-                                                </div>
+                                                </a>
                                             ) : (
                                                 <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-xs text-gray-600">No Sig</div>
                                             )}

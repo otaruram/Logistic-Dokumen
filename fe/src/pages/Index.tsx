@@ -36,6 +36,13 @@ const Index = () => {
       handleAuth(session);
     });
 
+    // 2b. Jika token callback selesai diproses Supabase, paksa refresh sesi sekali.
+    if (window.location.hash.includes("access_token") || window.location.search.includes("code=")) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        handleAuth(session);
+      });
+    }
+
     // 3. Dengarkan perubahan realtime (Login/Logout)
     const {
       data: { subscription },

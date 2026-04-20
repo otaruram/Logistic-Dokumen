@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Scan, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,16 +14,29 @@ interface LoginPageProps {
 const LoginPage = ({ onBack, onSuccess }: LoginPageProps) => {
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    // User lama/baru dengan sesi aktif langsung masuk app tanpa login ulang.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) onSuccess();
+    });
+  }, [onSuccess]);
+
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        onSuccess();
+        return;
+      }
+
       const redirectUrl = window.location.origin;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
-          queryParams: { access_type: 'offline', prompt: 'consent' },
-          scopes: 'https://www.googleapis.com/auth/drive.file'
+          // Keep scopes minimal to avoid repeated consent screen.
+          scopes: 'openid email profile'
         },
       });
       if (error) throw error;
@@ -51,7 +64,7 @@ const LoginPage = ({ onBack, onSuccess }: LoginPageProps) => {
         >
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-gray-500 hover:text-white mb-12 transition-colors group mb-8"
+            className="flex items-center gap-2 text-gray-500 hover:text-white mb-8 transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             <span className="text-sm font-medium">Return to landing</span>
