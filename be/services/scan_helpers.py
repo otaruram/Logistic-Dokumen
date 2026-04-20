@@ -220,7 +220,7 @@ def sync_to_supabase(
     # fraud_scans (only when is_fraud)
     if is_fraud:
         try:
-            fraud_data = {
+            fraud_data_full = {
                 "user_id": user_id,
                 "original_filename": filename,
                 "file_url": image_url,
@@ -249,9 +249,22 @@ def sync_to_supabase(
                 "terminal_id": structured.get("terminal_id"),
                 "no_referensi": structured.get("no_referensi"),
             }
-            # Remove None values so Supabase doesn't error on missing columns
-            fraud_data = {k: v for k, v in fraud_data.items() if v is not None}
-            supabase_admin.table("fraud_scans").insert(fraud_data).execute()
-            print(f"✅ Fraud scan saved to Supabase fraud_scans (doc_type={structured.get('doc_type')})")
+            # Remove None values
+            fraud_data = {k: v for k, v in fraud_data_full.items() if v is not None}
+            try:
+                supabase_admin.table("fraud_scans").insert(fraud_data).execute()
+                print(f"✅ Fraud scan saved to Supabase fraud_scans (doc_type={structured.get('doc_type')})")
+            except Exception as insert_err:
+                err_str = str(insert_err)
+                # If new columns don't exist yet, fall back to legacy-only insert
+                new_cols = {"doc_type", "nomor_dokumen", "tanggal_terbit", "nama_penjual",
+                            "nominal_subtotal", "nominal_ppn", "metode_bayar", "terminal_id", "no_referensi"}
+                if any(col in err_str for col in new_cols):
+                    print(f"⚠️ New columns not yet in DB, retrying with legacy fields: {insert_err}")
+                    legacy_data = {k: v for k, v in fraud_data.items() if k not in new_cols}
+                    supabase_admin.table("fraud_scans").insert(legacy_data).execute()
+                    print(f"✅ Fraud scan saved (legacy fallback)")
+                else:
+                    raise
         except Exception as e:
             print(f"❌ fraud_scans insert failed: {e}")
