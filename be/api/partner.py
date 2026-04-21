@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from models.models import User
-from utils.auth import get_current_active_user
+from utils.auth import get_current_active_user, supabase_admin
 
 router = APIRouter()
 
@@ -27,21 +27,9 @@ router = APIRouter()
 
 def _get_sb():
     """Return a supabase_admin client; raises 503 if not configured."""
-    try:
-        from services.scan_helpers import get_supabase_admin  # lazy import
-        sb = get_supabase_admin()
-        if not sb:
-            raise HTTPException(status_code=503, detail="Supabase admin not configured")
-        return sb
-    except ImportError:
-        # Fallback: build directly from env
-        import os
-        from supabase import create_client
-        url = os.getenv("SUPABASE_URL", "")
-        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-        if not url or not key:
-            raise HTTPException(status_code=503, detail="Supabase admin not configured")
-        return create_client(url, key)
+    if not supabase_admin:
+        raise HTTPException(status_code=503, detail="Supabase admin not configured")
+    return supabase_admin
 
 
 def _validate_api_key(x_api_key: str = Header(..., alias="x-api-key")) -> str:
