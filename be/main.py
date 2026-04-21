@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from config.settings import settings
-from api import auth, scans, fraud, exports, invoices, users, upload, config as config_api, reviews, dashboard, cleanup, chatbot, chat_history, admin, report, scan_insight, telegram
+from api import auth, scans, fraud, exports, invoices, users, upload, config as config_api, reviews, dashboard, cleanup, chatbot, chat_history, admin, report, scan_insight, telegram, partner
 from middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware, IPBlockingMiddleware
 
 # Database will be handled by Prisma
@@ -71,6 +71,7 @@ app.include_router(admin.router)
 app.include_router(report.router, prefix="/api/report", tags=["Reports"])
 app.include_router(scan_insight.router, prefix="/api/insight", tags=["Scan Insight"])
 app.include_router(telegram.router, prefix="/api/telegram", tags=["Telegram"])
+app.include_router(partner.router, tags=["Partner"])  # /api/v1/* routes defined inside partner.py
 
 @app.get("/")
 async def root():

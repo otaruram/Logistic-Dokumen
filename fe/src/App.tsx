@@ -7,6 +7,7 @@ import { ConfigErrorPage } from "@/components/ConfigErrorPage";
 import { isSupabaseConfigured } from "@/lib/supabaseClient";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import PartnerPortal from "./pages/PartnerPortal";
 
 
 const queryClient = new QueryClient();
@@ -15,6 +16,7 @@ import { DeviceProvider } from "@/context/DeviceContext"; // Import Provider
 import Help from "./pages/Help";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Terms from "./pages/Terms";
+import PartnerPortal from "./pages/PartnerPortal";
 
 const App = () => {
   // Show error page if Supabase is not configured
@@ -34,6 +36,7 @@ const App = () => {
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/help" element={<Help />} />
+              <Route path="/partner" element={<PartnerPortal />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

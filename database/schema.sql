@@ -186,3 +186,50 @@ UPDATE public.fraud_scans
 
 CREATE INDEX IF NOT EXISTS idx_fraud_scans_doc_type     ON public.fraud_scans(doc_type);
 CREATE INDEX IF NOT EXISTS idx_fraud_scans_nomor_dok    ON public.fraud_scans(nomor_dokumen);
+
+-- ==========================================
+-- 7. TELEGRAM_LINKS — Make nik_hash / nik_last4 nullable
+--    (NIK auth removed, key auto-generated from OAuth identity)
+-- ==========================================
+ALTER TABLE public.telegram_links
+    ALTER COLUMN nik_hash  DROP NOT NULL,
+    ALTER COLUMN nik_last4 DROP NOT NULL;
+
+-- ==========================================
+-- 8. PROFILES — Add user_email for partner lookup
+-- ==========================================
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS user_email TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_email
+    ON public.profiles(user_email) WHERE user_email IS NOT NULL;
+
+-- ==========================================
+-- 9. DOCUMENTS — Additional fraud-detection columns
+-- ==========================================
+ALTER TABLE public.documents
+    ADD COLUMN IF NOT EXISTS file_hash   TEXT,
+    ADD COLUMN IF NOT EXISTS is_physical BOOLEAN DEFAULT TRUE,
+    ADD COLUMN IF NOT EXISTS spoof_reason TEXT;
+
+-- ==========================================
+-- 10. API_KEYS — For Partner / B2B Access
+-- ==========================================
+CREATE TABLE IF NOT EXISTS public.api_keys (
+    id           UUID     PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      UUID     NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    key_value    TEXT     NOT NULL UNIQUE,
+    name         TEXT     NOT NULL DEFAULT 'Default Key',
+    is_active    BOOLEAN  NOT NULL DEFAULT TRUE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_used_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON public.api_keys(user_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_value   ON public.api_keys(key_value);
+
+ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users manage own api keys" ON public.api_keys;
+CREATE POLICY "Users manage own api keys"
+ON public.api_keys FOR ALL TO authenticated
+USING  (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
