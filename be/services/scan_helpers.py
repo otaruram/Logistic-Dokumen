@@ -71,10 +71,11 @@ async def check_and_deduct_credits(
             # New user — auto-initialize profile with default credits
             DEFAULT_CREDITS = 10
             try:
-                supabase_admin.table("profiles").upsert(
-                    {"id": str(user.id), "credits": DEFAULT_CREDITS},
-                    on_conflict="id",
-                ).execute()
+                upsert_data: dict = {"id": str(user.id), "credits": DEFAULT_CREDITS}
+                email_val = getattr(user, "email", None)
+                if email_val:
+                    upsert_data["user_email"] = email_val
+                supabase_admin.table("profiles").upsert(upsert_data, on_conflict="id").execute()
             except Exception as e:
                 print(f"[credits] Failed to auto-init profile for {user.id}: {e}")
             available = DEFAULT_CREDITS

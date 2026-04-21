@@ -119,7 +119,7 @@ async def get_current_user(
                     # Also ensure Supabase profiles row exists with initial credits
                     try:
                         supabase_admin.table("profiles").upsert(
-                            {"id": str(user_response.user.id), "credits": 10},
+                            {"id": str(user_response.user.id), "credits": 10, "user_email": email},
                             on_conflict="id",
                         ).execute()
                     except Exception as profile_err:

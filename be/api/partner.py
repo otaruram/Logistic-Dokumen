@@ -217,7 +217,8 @@ async def score_user_by_email(
     """
     sb = _get_sb()
 
-    # 1. Resolve email → user_id via profiles table
+    # 1. Resolve email → user_id
+    # First try profiles.user_email (fast path)
     profile_res = (
         sb.table("profiles")
         .select("id, user_email")
@@ -227,18 +228,50 @@ async def score_user_by_email(
     )
     profiles = getattr(profile_res, "data", None) or []
 
-    # Fallback: try auth.users view (service-role only)
+    # Fallback: search documents/fraud_scans won't help without email linkage.
+    # Try listing all profiles and matching via auth.users (admin list_users).
     if not profiles:
-        # Try looking up by email in fraud_scans indirectly — no direct email in fraud_scans.
-        # We cannot query auth.users from supabase-py easily; return 404.
-        raise HTTPException(status_code=404, detail=f"User with email '{email}' not found")
-
-    user_id = profiles[0]["id"]
+        try:
+            # supabase-py v2: auth.admin.list_users() — paginated
+            from gotrue.errors import AuthApiError  # noqa: F401
+            page = 1
+            found_uid = None
+            while True:
+                resp = sb.auth.admin.list_users(page=page, per_page=50)
+                user_list = resp if isinstance(resp, list) else getattr(resp, "users", []) or []
+                if not user_list:
+                    break
+                for u in user_list:
+                    u_email = getattr(u, "email", None) or (u.get("email") if isinstance(u, dict) else None)
+                    u_id = getattr(u, "id", None) or (u.get("id") if isinstance(u, dict) else None)
+                    if u_email and u_email.lower() == email.lower() and u_id:
+                        found_uid = str(u_id)
+                        # Backfill user_email in profiles for future lookups
+                        try:
+                            sb.table("profiles").upsert(
+                                {"id": found_uid, "user_email": u_email},
+                                on_conflict="id",
+                            ).execute()
+                        except Exception:
+                            pass
+                        break
+                if found_uid or len(user_list) < 50:
+                    break
+                page += 1
+            if not found_uid:
+                raise HTTPException(status_code=404, detail=f"User dengan email '{email}' tidak ditemukan")
+            user_id = found_uid
+        except HTTPException:
+            raise
+        except Exception as lookup_err:
+            raise HTTPException(status_code=404, detail=f"User tidak ditemukan: {lookup_err}")
+    else:
+        user_id = profiles[0]["id"]
 
     # 2. Fetch fraud_scans for this user
     scans_res = (
         sb.table("fraud_scans")
-        .select("id, status, nominal_total, vendor_name, doc_type, created_at")
+        .select("id, status, nominal_total, nama_klien, doc_type, created_at")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
         .execute()
@@ -277,7 +310,7 @@ async def score_user_by_email(
             scan_id=s.get("id", ""),
             status=s.get("status", ""),
             nominal_total=s.get("nominal_total"),
-            vendor_name=s.get("vendor_name"),
+            vendor_name=s.get("nama_klien"),
             doc_type=s.get("doc_type"),
             created_at=s.get("created_at", ""),
         ))
