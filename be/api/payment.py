@@ -6,13 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 import httpx
 
+from config.settings import settings
 from utils.auth import get_current_active_user
 
 router = APIRouter()
-
-LOUVIN_BASE = "https://api.louvin.dev"
-LOUVIN_KEY = "lv_45f4d21cba4746e0a198e536754f6348"
-LOUVIN_SLUG = "otaruchain"
 
 PLANS = {
     "koperasi": {"amount": 499000, "description": "OtaruChain Koperasi — 1 bulan"},
@@ -29,13 +26,16 @@ async def create_checkout(
     body: CheckoutRequest,
     current_user=Depends(get_current_active_user),
 ):
+    if not settings.LOUVIN_API_KEY:
+        raise HTTPException(status_code=503, detail="LOUVIN_API_KEY belum dikonfigurasi di environment backend")
+
     plan = body.plan.lower()
     if plan not in PLANS:
         raise HTTPException(status_code=400, detail=f"Plan tidak dikenal: {plan}")
 
     plan_info = PLANS[plan]
     payload = {
-        "slug": LOUVIN_SLUG,
+        "slug": settings.LOUVIN_SLUG,
         "amount": plan_info["amount"],
         "description": plan_info["description"],
         "customer_email": current_user.email,
@@ -46,9 +46,9 @@ async def create_checkout(
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.post(
-            f"{LOUVIN_BASE}/create-transaction",
+            f"{settings.LOUVIN_BASE_URL}/create-transaction",
             json=payload,
-            headers={"Authorization": f"Bearer {LOUVIN_KEY}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {settings.LOUVIN_API_KEY}", "Content-Type": "application/json"},
         )
 
     if resp.status_code not in (200, 201):

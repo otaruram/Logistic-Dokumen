@@ -117,6 +117,16 @@ class Settings:
     # Telegram Bot
     TELEGRAM_BOT_TOKEN: str = os.getenv('TELEGRAM_BOT_TOKEN', '')
     TELEGRAM_BOT_USERNAME: str = os.getenv('TELEGRAM_BOT_USERNAME', 'otaruchain_bot')
+
+    # Louvin Payment (server-side only)
+    LOUVIN_BASE_URL: str = os.getenv('LOUVIN_BASE_URL', 'https://api.louvin.dev')
+    LOUVIN_API_KEY: str = os.getenv('LOUVIN_API_KEY', '')
+    LOUVIN_SLUG: str = os.getenv('LOUVIN_SLUG', 'otaruchain')
+
+    # Louvin Payment
+    LOUVIN_BASE_URL: str = os.getenv('LOUVIN_BASE_URL', 'https://api.louvin.dev')
+    LOUVIN_API_KEY: str = os.getenv('LOUVIN_API_KEY', '')
+    LOUVIN_SLUG: str = os.getenv('LOUVIN_SLUG', 'otaruchain')
     
     # File Upload
     UPLOAD_DIR: str = 'uploads'
