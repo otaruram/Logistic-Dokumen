@@ -179,11 +179,7 @@ def sync_to_supabase(
     if not supabase_admin:
         return
 
-    import random
-
     nominal_amount = structured.get("nominal_total") or 0
-    if nominal_amount == 0:
-        nominal_amount = random.randint(500, 5000) * 1000
 
     # documents + finance
     try:
@@ -220,6 +216,12 @@ def sync_to_supabase(
     # fraud_scans (only when is_fraud)
     if is_fraud:
         try:
+            fraud_status = confidence_to_status(structured.get("confidence", "low"))
+            # Tampered docs get nominal = 0 (rejected, no valid amount)
+            fraud_nominal_total = 0 if fraud_status == "tampered" else (structured.get("nominal_total") or 0)
+            fraud_nominal_subtotal = None if fraud_status == "tampered" else structured.get("nominal_subtotal")
+            fraud_nominal_ppn = None if fraud_status == "tampered" else structured.get("nominal_ppn")
+
             fraud_data_full = {
                 "user_id": user_id,
                 "original_filename": filename,
@@ -230,21 +232,21 @@ def sync_to_supabase(
                 "extracted_text": ocr_result.get("enhanced_text") or "",
                 "confidence_score": ocr_result.get("confidence_score", 0),
                 "processing_time": ocr_result.get("processing_time", 0),
-                "nominal_total": nominal_amount,
+                "nominal_total": fraud_nominal_total,
                 # Legacy fields (kept for backward compat)
                 "nama_klien": structured.get("nama_klien"),
                 "nomor_surat_jalan": structured.get("nomor_surat_jalan"),
                 "tanggal_jatuh_tempo": structured.get("tanggal_jatuh_tempo"),
                 "field_confidence": structured.get("confidence", "low"),
                 "doc_hash": content_hash,
-                "status": confidence_to_status(structured.get("confidence", "low")),
+                "status": fraud_status,
                 # Universal invoice fields
                 "doc_type": structured.get("doc_type"),
                 "nomor_dokumen": structured.get("nomor_dokumen"),
                 "tanggal_terbit": structured.get("tanggal_terbit"),
                 "nama_penjual": structured.get("nama_penjual"),
-                "nominal_subtotal": structured.get("nominal_subtotal"),
-                "nominal_ppn": structured.get("nominal_ppn"),
+                "nominal_subtotal": fraud_nominal_subtotal,
+                "nominal_ppn": fraud_nominal_ppn,
                 "metode_bayar": structured.get("metode_bayar"),
                 "terminal_id": structured.get("terminal_id"),
                 "no_referensi": structured.get("no_referensi"),
