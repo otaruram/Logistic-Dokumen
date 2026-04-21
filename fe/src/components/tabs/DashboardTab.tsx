@@ -304,6 +304,7 @@ const DashboardTab = () => {
   const [showYearPicker, setShowYearPicker] = useState(false);
   const isMounted = useRef(true);
   const yearPickerRef = useRef<HTMLDivElement>(null);
+  const refreshInFlight = useRef(false);
 
   // Close year picker on outside click
   useEffect(() => {
@@ -335,7 +336,9 @@ const DashboardTab = () => {
   };
 
   const fetchDashboardData = useCallback(async (silent = false) => {
+    if (refreshInFlight.current) return;
     try {
+      refreshInFlight.current = true;
       if (!silent) setLoading(true);
       if (!isMounted.current) return;
 
@@ -442,6 +445,8 @@ const DashboardTab = () => {
       if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) return;
       console.error("Dashboard fetch error:", error);
       if (isMounted.current) setLoading(false);
+    } finally {
+      refreshInFlight.current = false;
     }
   }, [selectedYear]);
 
@@ -470,16 +475,35 @@ const DashboardTab = () => {
       // Fallback realtime polling in case websocket/realtime channel drops.
       realtimePoll = setInterval(() => {
         if (isMounted.current) fetchDashboardData(true);
-      }, 10000);
+      }, 3000);
     };
     setupDashboard();
 
-    const handleScanCompleted = () => { if (isMounted.current) fetchDashboardData(true); };
+    const handleScanCompleted = () => {
+      if (!isMounted.current) return;
+      // Immediate refresh + delayed refresh to avoid DB write race conditions.
+      fetchDashboardData(true);
+      setTimeout(() => {
+        if (isMounted.current) fetchDashboardData(true);
+      }, 1500);
+    };
+    const handleFocusRefresh = () => {
+      if (isMounted.current) fetchDashboardData(true);
+    };
+    const handleVisibilityRefresh = () => {
+      if (document.visibilityState === 'visible' && isMounted.current) {
+        fetchDashboardData(true);
+      }
+    };
     window.addEventListener('scan-completed', handleScanCompleted);
+    window.addEventListener('focus', handleFocusRefresh);
+    document.addEventListener('visibilitychange', handleVisibilityRefresh);
 
     return () => {
       isMounted.current = false;
       window.removeEventListener('scan-completed', handleScanCompleted);
+      window.removeEventListener('focus', handleFocusRefresh);
+      document.removeEventListener('visibilitychange', handleVisibilityRefresh);
       if (realtimePoll) clearInterval(realtimePoll);
       if (subscription) supabase.removeChannel(subscription);
     };
