@@ -10,7 +10,6 @@ const ProfileTab = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("User");
   const [userEmail, setUserEmail] = useState("user@example.com");
-  const [nik, setNik] = useState("");
   const [tgLoading, setTgLoading] = useState(false);
   const [tgStatus, setTgStatus] = useState<any>(null);
   const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -46,11 +45,6 @@ const ProfileTab = () => {
   }, []);
 
   const handleConnectTelegram = async () => {
-    if (!/^\d{16}$/.test(nik)) {
-      toast.error("NIK harus 16 digit angka");
-      return;
-    }
-
     setTgLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -58,29 +52,22 @@ const ProfileTab = () => {
         toast.error("Please login first");
         return;
       }
-
+      // POST /connect — no body needed, identity comes from Bearer token
       const res = await fetch(`${API_BASE_URL}/api/telegram/connect`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ nik }),
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
-
       const json = await res.json();
-      if (!res.ok) throw new Error(json.detail || "Failed to connect Telegram");
-
+      if (!res.ok) throw new Error(json.detail || "Failed to generate key");
       setTgStatus({
         connected: json.is_linked,
         has_key: true,
         tele_key: json.tele_key,
-        nik_last4: json.nik_last4,
         deep_link: json.deep_link,
       });
-      toast.success("Tele key siap. Paste ke bot untuk koneksi permanen.");
+      toast.success("Key baru di-generate. Paste ke bot untuk reset sesi.");
     } catch (e: any) {
-      toast.error(e?.message || "Failed to connect Telegram");
+      toast.error(e?.message || "Failed to generate key");
     } finally {
       setTgLoading(false);
     }
@@ -140,24 +127,16 @@ const ProfileTab = () => {
           <h3 className="font-bold text-white">Telegram Bot Connect</h3>
         </div>
         <p className="text-xs text-gray-400">
-          Masukkan NIK untuk generate tele key permanen. Setelah key dipaste ke bot, Fraud Scan dan ringkasan dashboard bisa dikontrol dari Telegram.
+          Klik <b>Generate Key</b> untuk membuat kunci baru. Paste kunci ke bot Telegram (<code>/start KEY</code>). Setiap key baru akan mereset sesi Telegram lama.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            value={nik}
-            onChange={(e) => setNik(e.target.value.replace(/\D/g, "").slice(0, 16))}
-            placeholder="NIK (16 digit)"
-            className="flex-1 bg-black border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-blue-500/40"
-          />
-          <button
-            onClick={handleConnectTelegram}
-            disabled={tgLoading}
-            className="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-black hover:bg-gray-200 disabled:opacity-60"
-          >
-            {tgLoading ? "Memproses..." : "Generate Key"}
-          </button>
-        </div>
+        <button
+          onClick={handleConnectTelegram}
+          disabled={tgLoading}
+          className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold bg-white text-black hover:bg-gray-200 disabled:opacity-60"
+        >
+          {tgLoading ? "Memproses..." : "🔑 Generate / Reset Key"}
+        </button>
 
         {tgStatus?.has_key && (
           <div className="space-y-2 border-t border-white/10 pt-3">
@@ -181,7 +160,7 @@ const ProfileTab = () => {
                 </button>
               </div>
             </div>
-            <p className="text-[11px] text-gray-500">NIK terdaftar: ****{tgStatus.nik_last4 || "----"} • Status: {tgStatus.connected ? "Connected" : "Not connected"}</p>
+            <p className="text-[11px] text-gray-500">Status: {tgStatus.connected ? "🟢 Connected" : "🔴 Belum terhubung ke bot"}</p>
           </div>
         )}
 

@@ -344,9 +344,62 @@ const DashboardTab = () => {
 
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error || !session) { toast.error("Anda harus login terlebih dahulu"); setLoading(false); return; }
-      const userId = session.user.id;
 
-      // 1. Status counts from fraud_scans (single source of truth — includes both Web and Telegram)
+      // ── Primary: backend realtime-stats (uses supabase_admin — bypasses RLS) ──
+      let backendOk = false;
+      try {
+        const yearParam = selectedYear ? `?year=${selectedYear}` : "";
+        const statsRes = await fetch(`${API_URL}/api/dashboard/realtime-stats${yearParam}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (statsRes.ok) {
+          const d = await statsRes.json();
+          // 2. Next cleanup (reuse existing logic)
+          const now = new Date();
+          const joinDate = session?.user?.created_at ? new Date(session.user.created_at) : now;
+          let nextCleanupDate = new Date(now.getFullYear(), now.getMonth(), joinDate.getDate());
+          if (nextCleanupDate <= now) nextCleanupDate = new Date(now.getFullYear(), now.getMonth() + 1, joinDate.getDate());
+          const nextCleanupDays = Math.ceil((nextCleanupDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          const nextCleanupDateStr = nextCleanupDate.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+
+          // Cleanup API override
+          let apiCleanupDays = nextCleanupDays, apiCleanupDate = nextCleanupDateStr;
+          try {
+            const cleanupRes = await fetch(`${API_URL}/api/cleanup/cleanup-stats`);
+            if (cleanupRes.ok) {
+              const c = await cleanupRes.json();
+              apiCleanupDays = c.days_until_cleanup ?? nextCleanupDays;
+              apiCleanupDate = c.next_cleanup_date ? new Date(c.next_cleanup_date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : nextCleanupDateStr;
+            }
+          } catch {/* ignore */}
+
+          if (isMounted.current) {
+            setStats({
+              trustScore: d.trust_score ?? 0,
+              totalNominalVerified: d.total_nominal ?? 0,
+              totalDocuments: d.total_scan_fraud ?? 0,
+              verifiedDocuments: d.verified ?? 0,
+              tamperedDocuments: d.tampered ?? 0,
+              processingDocuments: d.processing ?? 0,
+              totalActivity: d.total_scan_fraud ?? 0,
+              totalScanFraud: d.total_scan_fraud ?? 0,
+              credits: d.credits ?? 0,
+              nextCleanupDays: apiCleanupDays,
+              nextCleanupDate: apiCleanupDate,
+            });
+            setWeeklyData((d.weekly || []).map((w: any) => ({ day: w.day, scans: w.scans ?? 0 })));
+            setLoading(false);
+          }
+          backendOk = true;
+        }
+      } catch (backendErr) {
+        console.warn("[Dashboard] backend realtime-stats failed, falling back to Supabase client", backendErr);
+      }
+
+      if (backendOk) return;
+
+      // ── Fallback: direct Supabase client query (may be affected by RLS) ──
+      const userId = session.user.id;
       const fraudQuery = supabase.from("fraud_scans").select("status, created_at, nominal_total").eq("user_id", userId);
       if (selectedYear) {
         fraudQuery.gte("created_at", `${selectedYear}-01-01T00:00:00`).lte("created_at", `${selectedYear}-12-31T23:59:59`);
@@ -359,33 +412,21 @@ const DashboardTab = () => {
         else if (f.status === "processing") processing++;
       });
 
-      // 2. Trust Score — calculated from document statuses
-      // verified=100pts, processing=50pts, tampered=50pts, max 1000
       let calculatedTrustScore = 0;
-      try {
-        const { data: scoreData, error: scoreError } = await supabase.rpc("calculate_logistics_trust_score", { p_user_id: userId });
-        if (scoreError) throw scoreError;
-        calculatedTrustScore = scoreData || 0;
-      } catch {
-        // Fallback: calculate locally if RPC fails
-        const totalDocs = verified + processing + tampered;
-        if (totalDocs > 0) {
-          const rawScore = (verified * 100 + processing * 50 + tampered * 50) / totalDocs;
-          calculatedTrustScore = Math.min(Math.round(rawScore * 10), 1000);
-        }
+      const totalDocs = verified + processing + tampered;
+      if (totalDocs > 0) {
+        const rawScore = (verified * 100 + processing * 50 + tampered * 50) / totalDocs;
+        calculatedTrustScore = Math.min(Math.round(rawScore * 10), 1000);
       }
 
-      // 3. Revenue — sum nominal_total from fraud_scans directly (covers both Web + Telegram)
       const totalVerif = (allFraud || []).reduce((sum: number, f: any) => sum + Number(f.nominal_total || 0), 0);
 
-      // 4. Credits
       let credits = 0;
       try {
         const creditsRes = await fetch(`${API_URL}/api/users/credits`, { headers: { Authorization: `Bearer ${session.access_token}` } });
         if (creditsRes.ok) { credits = (await creditsRes.json()).credits ?? 0; }
       } catch { const { data: profile } = await supabase.from('profiles').select('credits').eq('id', userId).single(); credits = profile?.credits ?? 0; }
 
-      // 5. Next cleanup
       const now = new Date();
       const joinDate = session?.user?.created_at ? new Date(session.user.created_at) : now;
       let nextCleanupDate = new Date(now.getFullYear(), now.getMonth(), joinDate.getDate());
@@ -393,21 +434,14 @@ const DashboardTab = () => {
       const nextCleanupDays = Math.ceil((nextCleanupDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       const nextCleanupDateStr = nextCleanupDate.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
 
-      // 6. Weekly usage + total activity from fraud_scans (includes Telegram scans)
       const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
       const dayOfWeek = now.getDay();
       const monday = new Date(now); monday.setDate(now.getDate() + (dayOfWeek === 0 ? -6 : 1 - dayOfWeek)); monday.setHours(0, 0, 0, 0);
       const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23, 59, 59, 999);
       const dailyCounts = [0, 0, 0, 0, 0, 0, 0];
       let totalScanFraud = 0;
-
-      // Re-use allFraud data (already fetched for status counts)
       (allFraud || []).forEach((s: any) => {
-        const status = s.status || "processing";
-        const validStatuses = ['verified', 'processing', 'tampered'];
-        if (!validStatuses.includes(status)) return;
         totalScanFraud++;
-
         if (s.created_at) {
           const scanDate = new Date(s.created_at);
           if (scanDate >= monday && scanDate <= sunday) {
@@ -416,12 +450,9 @@ const DashboardTab = () => {
           }
         }
       });
-
       const weeklyChartData = dayNames.map((label, i) => ({ day: label, scans: dailyCounts[i] }));
       if (isMounted.current) setWeeklyData(weeklyChartData);
-      const totalActivity = totalScanFraud;
 
-      // 8. Cleanup API override
       let apiCleanupDays = nextCleanupDays, apiCleanupDate = nextCleanupDateStr;
       try {
         const cleanupRes = await fetch(`${API_URL}/api/cleanup/cleanup-stats`);
@@ -430,13 +461,13 @@ const DashboardTab = () => {
           apiCleanupDays = c.days_until_cleanup ?? nextCleanupDays;
           apiCleanupDate = c.next_cleanup_date ? new Date(c.next_cleanup_date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : nextCleanupDateStr;
         }
-      } catch (e) { console.error('Could not fetch cleanup stats:', e); }
+      } catch {/* ignore */}
 
       if (isMounted.current) {
         setStats({
           trustScore: calculatedTrustScore, totalNominalVerified: totalVerif, totalDocuments: (allFraud || []).length,
           verifiedDocuments: verified, tamperedDocuments: tampered, processingDocuments: processing,
-          totalActivity, totalScanFraud,
+          totalActivity: totalScanFraud, totalScanFraud,
           credits, nextCleanupDays: apiCleanupDays, nextCleanupDate: apiCleanupDate,
         });
         setLoading(false);

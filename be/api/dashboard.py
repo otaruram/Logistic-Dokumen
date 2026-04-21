@@ -2,8 +2,10 @@
 Dashboard API routes - User statistics and analytics
 """
 from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date as dt_date
+from typing import Optional
 from utils.auth import get_current_user, supabase, supabase_admin
+from services.scan_helpers import get_supabase_admin as _get_sa
 
 router = APIRouter()
 
@@ -163,3 +165,96 @@ async def deduct_credit(user = Depends(get_current_user)):
     except Exception as e:
         print(f"❌ Deduct Credit Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to deduct credit")
+
+
+# ── Realtime Stats (server-side, bypasses RLS) ──────────────────────────────
+
+from models.models import User as LocalUser
+from utils.auth import get_current_active_user
+
+@router.get("/realtime-stats")
+async def get_realtime_stats(
+    current_user: LocalUser = Depends(get_current_active_user),
+    year: Optional[int] = None,
+):
+    """
+    All-in-one dashboard stats fetched server-side using supabase_admin (bypasses RLS).
+    Returns: status counts, total nominal, weekly chart, credits.
+    """
+    sa = _get_sa()
+    if not sa:
+        raise HTTPException(status_code=503, detail="Supabase admin not configured")
+
+    user_id = str(current_user.id)
+
+    try:
+        # 1. Fetch fraud_scans for this user
+        q = sa.table("fraud_scans").select("status,nominal_total,created_at").eq("user_id", user_id)
+        if year:
+            q = q.gte("created_at", f"{year}-01-01T00:00:00").lte("created_at", f"{year}-12-31T23:59:59")
+        rows = (q.execute().data) or []
+
+        verified = tampered = processing = 0
+        total_nominal = 0.0
+        total_scan_fraud = 0
+
+        now = datetime.utcnow()
+        monday = now - timedelta(days=now.weekday())
+        monday = monday.replace(hour=0, minute=0, second=0, microsecond=0)
+        sunday = monday + timedelta(days=6, hours=23, minutes=59, seconds=59)
+        day_labels = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
+        daily = [0] * 7
+
+        for r in rows:
+            s = r.get("status", "")
+            if s == "verified":
+                verified += 1
+            elif s == "tampered":
+                tampered += 1
+            elif s == "processing":
+                processing += 1
+            total_nominal += float(r.get("nominal_total") or 0)
+            total_scan_fraud += 1
+
+            created_str = r.get("created_at")
+            if created_str:
+                try:
+                    if created_str.endswith("Z"):
+                        created_str = created_str[:-1] + "+00:00"
+                    dt = datetime.fromisoformat(created_str).replace(tzinfo=None)
+                    if monday <= dt <= sunday:
+                        idx = dt.weekday()  # 0=Mon … 6=Sun
+                        daily[idx] += 1
+                except Exception:
+                    pass
+
+        weekly = [{"day": day_labels[i], "scans": daily[i]} for i in range(7)]
+
+        # 2. Credits from profiles (supabase_admin — no RLS)
+        prof = sa.table("profiles").select("credits").eq("id", user_id).limit(1).execute()
+        credits = 10
+        if prof.data:
+            credits = int((prof.data[0] or {}).get("credits", 10) or 10)
+
+        # 3. Trust score (local calc if RPC not available)
+        trust_score = 0
+        total_docs = verified + processing + tampered
+        if total_docs > 0:
+            raw = (verified * 100 + processing * 50 + tampered * 50) / total_docs
+            trust_score = min(int(raw * 10), 1000)
+
+        return {
+            "verified": verified,
+            "tampered": tampered,
+            "processing": processing,
+            "total_scan_fraud": total_scan_fraud,
+            "total_nominal": total_nominal,
+            "weekly": weekly,
+            "credits": credits,
+            "trust_score": trust_score,
+        }
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to fetch realtime stats: {e}")

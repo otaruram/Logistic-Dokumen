@@ -48,10 +48,11 @@ def _api_call(method: str, payload: dict[str, Any]) -> dict[str, Any]:
 def _main_menu_keyboard() -> dict[str, Any]:
     return {
         "keyboard": [
-            [{"text": "/dashboard"}, {"text": "/history"}],
-            [{"text": "/menu"}],
+            [{"text": "📸 Kirim Foto Nota"}, {"text": "📊 Cek Skor"}],
+            [{"text": "📜 Histori"}, {"text": "⚙️ Profil"}],
         ],
         "resize_keyboard": True,
+        "persistent": True,
     }
 
 
@@ -112,12 +113,8 @@ async def _handle_start(chat_id: int, message: dict[str, Any], text: str) -> Non
         )
         send_message(
             chat_id,
-            "<b>✅ Akun Berhasil Terhubung Permanen</b>\n"
-            "Sekarang Anda bisa:\n"
-            "• <code>/dashboard</code> untuk cek analitik\n"
-            "• <code>/history</code> untuk log fraud terbaru\n"
-            "• Kirim foto untuk <b>Fraud Scan</b>\n"
-            "• <code>/menu</code> untuk lihat perintah",
+            "<b>✅ Akun Berhasil Terhubung</b>\n"
+            "Gunakan menu di bawah:",
             use_keyboard=True,
         )
     except Exception as e:
@@ -128,10 +125,10 @@ def _handle_menu(chat_id: int) -> None:
     send_message(
         chat_id,
         "<b>📌 Menu OtaruChain Bot</b>\n"
-        "<code>/dashboard</code> → Logistics Trust Score, revenue valid, status fraud\n"
-        "<code>/history</code>   → Log historis fraud terbaru\n"
-        "<i>Kirim foto</i>       → Jalankan Fraud Scan ketat\n"
-        "<code>/menu</code>      → Tampilkan menu ini",
+        "📸 <b>Kirim Foto Nota</b> → Fraud Scan dokumen fisik\n"
+        "📊 <b>Cek Skor</b>       → Trust Score &amp; aset terverifikasi\n"
+        "📜 <b>Histori</b>        → 5 log fraud terbaru\n"
+        "⚙️ <b>Profil</b>         → Email &amp; status akun",
         use_keyboard=True,
     )
 
@@ -263,6 +260,35 @@ async def _handle_photo(chat_id: int, message: dict[str, Any]) -> None:
         send_message(chat_id, f"<b>❌ Fraud scan gagal</b>\n{str(e)}", use_keyboard=True)
 
 
+def _handle_profile(chat_id: int) -> None:
+    link = get_link_by_chat_id(chat_id)
+    if not link:
+        send_message(chat_id, "<b>🔐 Akun belum terhubung.</b> Gunakan <code>/start &lt;tele_key&gt;</code> dari web.", use_keyboard=True)
+        return
+
+    try:
+        from services.scan_helpers import get_supabase_admin
+        sb = get_supabase_admin()
+        user_id = link["user_id"]
+        email = "-"
+        credits = 0
+        if sb:
+            prof = sb.table("profiles").select("credits").eq("id", user_id).limit(1).execute()
+            if prof.data:
+                credits = int((prof.data[0] or {}).get("credits", 0) or 0)
+            # Try to get email from users table (local DB not available here — skip gracefully)
+        send_message(
+            chat_id,
+            "<b>⚙️ Profil Akun</b>\n"
+            f"<b>User ID:</b> <code>{user_id[:8]}…</code>\n"
+            f"<b>Credits:</b> {credits}/10\n"
+            f"<b>Status:</b> {'🟢 Terhubung' if link.get('is_linked') else '🔴 Belum terhubung'}",
+            use_keyboard=True,
+        )
+    except Exception as e:
+        send_message(chat_id, f"<b>❌ Gagal ambil profil</b>\n{str(e)}", use_keyboard=True)
+
+
 async def handle_update(update: dict[str, Any]) -> None:
     message = update.get("message")
     if not message:
@@ -279,16 +305,30 @@ async def handle_update(update: dict[str, Any]) -> None:
         await _handle_start(chat_id, message, text)
         return
 
-    if text.startswith("/menu"):
-        _handle_menu(chat_id)
-        return
-
-    if text.startswith("/dashboard"):
+    # Handle 4-button persistent menu
+    if text in ("📊 Cek Skor", "/dashboard"):
         _handle_dashboard(chat_id)
         return
 
-    if text.startswith("/history"):
+    if text in ("📜 Histori", "/history"):
         _handle_history(chat_id)
+        return
+
+    if text in ("⚙️ Profil", "/profil"):
+        _handle_profile(chat_id)
+        return
+
+    if text in ("/menu", "📋 Menu"):
+        _handle_menu(chat_id)
+        return
+
+    # "📸 Kirim Foto Nota" button — prompt user to send the photo next
+    if text == "📸 Kirim Foto Nota":
+        link = get_link_by_chat_id(chat_id)
+        if not link:
+            send_message(chat_id, "<b>🔐 Akun belum terhubung.</b> Gunakan <code>/start &lt;tele_key&gt;</code> dari web.", use_keyboard=True)
+        else:
+            send_message(chat_id, "<b>📸 Siap menerima foto nota</b>\nKirimkan foto dokumen fisik sekarang.", use_keyboard=True)
         return
 
     if message.get("photo"):
