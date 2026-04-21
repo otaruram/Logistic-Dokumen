@@ -93,7 +93,8 @@ async def get_current_user(
     if credentials:
         try:
             supabase_token = credentials.credentials
-            user_response = supabase.auth.get_user(supabase_token)
+            auth_client = supabase_admin if supabase_admin else supabase
+            user_response = auth_client.auth.get_user(supabase_token)
             
             if user_response.user:
                 # Get or create user in local DB
