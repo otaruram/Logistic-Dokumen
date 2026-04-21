@@ -16,8 +16,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
-from models.models import User
-from utils.auth import get_current_active_user, supabase_admin
+from utils.auth import get_supabase_bearer_user, supabase_admin
 
 router = APIRouter()
 
@@ -72,7 +71,7 @@ class ApiKeyOut(BaseModel):
 
 @router.post("/api/v1/apikeys/generate", response_model=ApiKeyOut, tags=["Partner"])
 async def generate_api_key(
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_supabase_bearer_user),
 ):
     """
     Generate (or rotate) the caller's API key.
@@ -82,7 +81,7 @@ async def generate_api_key(
     new_key = "sk-" + secrets.token_urlsafe(32)
 
     # Deactivate existing keys first
-    sb.table("api_keys").update({"is_active": False}).eq("user_id", str(current_user.id)).execute()
+    sb.table("api_keys").update({"is_active": False}).eq("user_id", str(current_user["id"])).execute()
 
     # Insert new key
     from datetime import datetime, timezone
@@ -90,7 +89,7 @@ async def generate_api_key(
     res = (
         sb.table("api_keys")
         .insert({
-            "user_id": str(current_user.id),
+            "user_id": str(current_user["id"]),
             "key_value": new_key,
             "name": "Default Key",
             "is_active": True,
@@ -113,14 +112,14 @@ async def generate_api_key(
 
 @router.get("/api/v1/apikeys/me", response_model=Optional[ApiKeyOut], tags=["Partner"])
 async def get_my_api_key(
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_supabase_bearer_user),
 ):
     """Return the caller's active API key, or null if none."""
     sb = _get_sb()
     res = (
         sb.table("api_keys")
         .select("key_value, name, is_active, created_at, last_used_at")
-        .eq("user_id", str(current_user.id))
+        .eq("user_id", str(current_user["id"]))
         .eq("is_active", True)
         .order("created_at", desc=True)
         .limit(1)
@@ -141,11 +140,11 @@ async def get_my_api_key(
 
 @router.delete("/api/v1/apikeys/me", status_code=204, tags=["Partner"])
 async def revoke_api_key(
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_supabase_bearer_user),
 ):
     """Revoke all active API keys for the caller."""
     sb = _get_sb()
-    sb.table("api_keys").update({"is_active": False}).eq("user_id", str(current_user.id)).execute()
+    sb.table("api_keys").update({"is_active": False}).eq("user_id", str(current_user["id"])).execute()
 
 
 # ---------------------------------------------------------------------------

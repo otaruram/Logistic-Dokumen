@@ -7,7 +7,7 @@ from pydantic import BaseModel
 import httpx
 
 from config.settings import settings
-from utils.auth import get_current_active_user
+from utils.auth import get_supabase_bearer_user
 
 router = APIRouter()
 
@@ -24,7 +24,7 @@ class CheckoutRequest(BaseModel):
 @router.post("/api/v1/payment/checkout")
 async def create_checkout(
     body: CheckoutRequest,
-    current_user=Depends(get_current_active_user),
+    current_user: dict = Depends(get_supabase_bearer_user),
 ):
     if not settings.LOUVIN_API_KEY:
         raise HTTPException(status_code=503, detail="LOUVIN_API_KEY belum dikonfigurasi di environment backend")
@@ -38,8 +38,8 @@ async def create_checkout(
         "slug": settings.LOUVIN_SLUG,
         "amount": plan_info["amount"],
         "description": plan_info["description"],
-        "customer_email": current_user.email,
-        "customer_name": getattr(current_user, "full_name", None) or current_user.email,
+        "customer_email": current_user["email"],
+        "customer_name": current_user.get("email", ""),
         "redirect_url": "https://otaruchain.vercel.app/dashboard?payment=success",
         "callback_url": "https://api-ocr.xyz/api/v1/payment/callback",
     }
