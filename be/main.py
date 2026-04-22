@@ -50,9 +50,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],  # Allow PDF embedding
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With", "x-api-key"],
+    expose_headers=["Content-Disposition", "Content-Length"],
 )
 
 # Create upload directory
