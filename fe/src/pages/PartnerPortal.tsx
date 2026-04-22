@@ -155,34 +155,27 @@ export default function PartnerPortal() {
   const [showAccessPopup, setShowAccessPopup] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      const current = data.session;
-      setSession(!!current);
-      setUserId(current?.user?.id ?? null);
-      if (current?.user?.id) {
-        const seenKey = `otaru_patner_seen_${current.user.id}`;
-        const seen = localStorage.getItem(seenKey);
-        setShowAccessPopup(!seen);
-      }
-    });
-
+    // onAuthStateChange fires for INITIAL_SESSION (covers page reload after OAuth redirect)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-      setSession(!!currentSession);
-      setUserId(currentSession?.user?.id ?? null);
-      if (currentSession?.user?.id) {
-        const seenKey = `otaru_patner_seen_${currentSession.user.id}`;
+      const loggedIn = !!currentSession;
+      const uid = currentSession?.user?.id ?? null;
+      setSession(loggedIn);
+      setUserId(uid);
+      if (uid) {
+        const seenKey = `otaru_patner_seen_${uid}`;
         const seen = localStorage.getItem(seenKey);
         setShowAccessPopup(!seen);
         fetchMyKey();
       } else {
         setShowAccessPopup(false);
+        setApiKey(null);
       }
+      setPageLoading(false);
     });
 
     fetchStats();
-    fetchMyKey().finally(() => setPageLoading(false));
 
     return () => {
       subscription.unsubscribe();
@@ -408,7 +401,7 @@ export default function PartnerPortal() {
         </div>
       </header>
 
-      {showAccessPopup && session && (
+      {showAccessPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
           <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
