@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Link } from "react-router-dom";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -103,13 +104,21 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
             <img src="/1.png" alt="OCR.WTF Logo" className="w-7 h-7 object-contain" />
             <span className="font-bold text-xl tracking-tighter">ocr.wtf</span>
           </div>
-          <Button
-            variant="outline"
-            className="border-white/20 text-black hover:bg-white hover:text-black transition-colors rounded-full px-6"
-            onClick={onLogin}
-          >
-            Sign In
-          </Button>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/partner"
+              className="hidden sm:inline-flex items-center rounded-full border border-white/10 px-4 py-2 text-sm text-gray-300 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white"
+            >
+              Partner API
+            </Link>
+            <Button
+              variant="outline"
+              className="border-white/20 text-black hover:bg-white hover:text-black transition-colors rounded-full px-6"
+              onClick={onLogin}
+            >
+              Sign In
+            </Button>
+          </div>
         </div>
       </nav>
 
@@ -124,6 +133,16 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-sm text-gray-400 mb-8">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               <span>Free Forever · 10 Credits/Day</span>
+            </div>
+
+            <div className="mb-6 flex justify-center">
+              <Link
+                to="/partner"
+                className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
+              >
+                Partner area for API key, billing, and credit scoring
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
 
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter mb-8 leading-[1.1]">
@@ -149,10 +168,10 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
               <Button
                 size="lg"
                 variant="outline"
-                onClick={onLogin}
+                asChild
                 className="w-full sm:w-auto h-14 px-8 text-lg border-white/20 hover:bg-white/10 text-white rounded-full bg-transparent"
               >
-                See How It Works
+                <Link to="/partner">Explore Partner API</Link>
               </Button>
             </div>
 
