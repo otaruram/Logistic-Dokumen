@@ -12,7 +12,7 @@
 [![OCR](https://img.shields.io/badge/OCR-Tesseract_+_GPT--4o-412991?style=flat-square&logo=openai)](https://openai.com/)
 [![Docker](https://img.shields.io/badge/Deploy-Docker-2496ED?style=flat-square&logo=docker)](https://docker.com/)
 
-[Live Demo](https://ocr.wtf) · [API Docs](https://api-ocr.xyz/api/docs) · [Report Bug](https://github.com/otaruram/Logistic-Dokumen/issues)
+[Live Demo](https://ocr.wtf) · [API Docs](https://api-ocr.xyz/api/docs)
 
 </div>
 
@@ -23,6 +23,7 @@
 - [Overview](#overview)
 - [Architecture](#architecture)
 - [Features](#features)
+- [User Flows](#user-flows)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [API Reference](#api-reference)
@@ -32,7 +33,6 @@
 - [Security](#security)
 - [Scheduled Jobs](#scheduled-jobs)
 - [Environment Variables](#environment-variables)
-- [License](#license)
 
 ---
 
@@ -45,11 +45,12 @@
 | Capability | Description |
 |-----------|-------------|
 | **DGTNZ Scanner** | AI OCR with auto-correction, batch processing, digital signatures |
-| **Fraud Detection** | Cryptographic document verification with confidence scoring (tampered/processing/verified) |
-| **Otaru AI Chatbot** | Upload docs and ask questions in natural language (supports images, PDF, DOCX) |
-| **Financial Analysis** | Auto-extract structured data: amounts, dates, clients, invoice numbers |
+| **Fraud Detection** | Cryptographic document verification with confidence scoring |
+| **Otaru AI Chatbot** | Upload docs and ask questions in natural language |
+| **Financial Analysis** | Auto-extract structured data: amounts, dates, clients |
 | **Invoice Generator** | Create professional invoices from scan data |
-| **Admin Panel** | User management, credit control, activity monitoring, ban/unban |
+| **Partner Portal** | B2B API key management, credit scoring endpoint, pricing |
+| **Admin Panel** | User management, credit control, activity monitoring |
 
 ---
 
@@ -73,7 +74,7 @@
 ┌─────────────────────────────────────────────────────────────────────┐
 │                      FASTAPI APPLICATION                            │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐ ┌────────────┐ │
-│  │ Scans API│ │ Fraud API│ │ Chat API │ │Admin API│ │ Cleanup API│ │
+│  │ Scans API│ │ Fraud API│ │ Chat API │ │Admin   │ │Partner API │ │
 │  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬───┘ └─────┬──────┘ │
 │       │             │            │             │           │        │
 │  ┌────▼─────────────▼────────────▼─────────────▼───────────▼──────┐ │
@@ -133,57 +134,100 @@ Document Upload → ImageKit Storage → Tesseract OCR → GPT-4o Enhancement
   - 🟢 **High (3+ fields)** → `verified` — Document authenticated
 - **Cryptographic Verification**: SHA-256 content hashing
 - **Structured Extraction**: Nominal, client name, surat jalan number, due date
-- **Separate Fraud Log**: Dedicated `fraud_scans` table in Supabase
 
 ### 🤖 Otaru AI Chatbot
 - **Document Q&A**: Upload images, PDFs, or DOCX and ask questions
 - **Session Management**: Multi-session chat history stored in Supabase
 - **Privacy-First**: Files processed in-memory, never stored on server
-- **Smart Context**: AI understands document structure and content
 
 ### 📊 Dashboard
 - **Logistics Trust Score**: Weighted scoring function via Supabase RPC
-- **Revenue Tracking**: Real-time financial data from `extracted_finance_data`
+- **Revenue Tracking**: Real-time financial data
 - **Weekly Activity Chart**: Real-time updates via Supabase channels
 - **Credit Balance**: 10 daily credits, auto-reset at midnight WIB
-- **Status Breakdown**: Visual cards for verified/processing/tampered counts
+
+### 🤝 Partner Portal (B2B)
+- **API Key Management**: Generate, rotate, and revoke API keys
+- **Credit Scoring API**: `GET /api/v1/scoring/{email}` — returns trust score, risk label, scan history
+- **Interactive Playground**: Test the scoring API directly from the portal
+- **API Docs**: cURL examples, response format, integration guide
+- **Pricing Plans**: Starter (Rp29k/mo), Growth (Rp99k/mo), Enterprise (custom)
 
 ### 🛡️ Admin Panel
 > Restricted to admin email (configurable via `ADMIN_EMAIL` env var)
 
 - **User Management**: List all users with email, credits, online status
 - **Credit Control**: Set/add credits for any user
-- **Ban/Unban**: Instantly ban or unban users via Supabase Auth
-- **Delete Users**: Complete data wipe across all tables
-- **Activity Viewer**: Per-user activity breakdown (scans, chats, fraud)
-- **Data Retention**: Extend cleanup retention period per user
-- **Audit Logging**: All admin actions logged to `admin_audit_logs` table
-- **Infinite Credits**: Admin exempt from credit deduction and daily reset
+- **Ban/Unban**: Instantly ban or unban users
+- **Activity Viewer**: Per-user activity breakdown
+- **Audit Logging**: All admin actions logged
 
-### 📋 Additional Features
-- **Invoice Generator**: Create invoices from scan data
-- **User Reviews**: In-app review system displayed on landing page
-- **Multi-Language**: Indonesian and English support
-- **Delete Account**: Complete self-service account deletion
+---
+
+## User Flows
+
+### Main App Flow
+```
+Landing Page (ocr.wtf)
+    │
+    ├─ Click "Start Free" / "Sign In"
+    │       ↓
+    │   Google OAuth Login
+    │       ↓
+    │   Main Dashboard
+    │       ├── Dashboard Tab (stats, trust score, activity)
+    │       ├── DGTNZ Tab (scan, fraud detection)
+    │       ├── Otaru Tab (AI chatbot)
+    │       └── Profile Tab (settings, credits)
+    │
+    └─ Not logged in → Landing page with features overview
+```
+
+### Partner Portal Login Flow
+```
+Partner Portal (/partner)
+    │
+    ├─ Already logged in → Full portal access
+    │       ├── Dashboard (platform stats)
+    │       ├── API + Docs (key management, playground, docs)
+    │       └── Pricing (plan selection)
+    │
+    └─ Not logged in
+            ↓
+        Click "Sign In with Google"
+            ↓
+        Sets localStorage flag "redirect_to_partner"
+            ↓
+        Google OAuth → Redirects to main dashboard (/)
+            ↓
+        Main Dashboard detects flag → Shows popup:
+        "Lanjut ke Otaru Partner?"
+            ↓
+        ├── Click "Buka Partner Portal" → Navigate to /partner
+        │   (flag cleared, popup won't show again)
+        │
+        └── Click X (dismiss) → Stay on dashboard
+            (flag cleared, popup won't show again)
+```
 
 ---
 
 ## Tech Stack
 
 | Layer | Technology | Purpose |
-|-------|-----------|---------|
+|-------|-----------|---------| 
 | **Frontend** | React 18, Vite, TypeScript | SPA with mobile-first responsive UI |
-| **UI Framework** | Shadcn/UI, Tailwind CSS, Framer Motion | Component library, styling, animations |
-| **Backend** | FastAPI, Python 3.12, SQLAlchemy | REST API, ORM, background tasks |
+| **UI** | Shadcn/UI, Tailwind CSS, Framer Motion | Components, styling, animations |
+| **Backend** | FastAPI, Python 3.12 | REST API, background tasks |
 | **Auth** | Supabase Auth (Google OAuth) | Authentication, JWT tokens |
-| **Database** | Supabase (PostgreSQL), Local PostgreSQL | Primary data store, scan records |
+| **Database** | Supabase (PostgreSQL) | Primary data store |
 | **Queue** | Redis, Custom Worker | Batch scan processing |
-| **OCR Engine** | Tesseract OCR | Base text extraction |
-| **AI Enhancement** | OpenAI GPT-4o-mini | OCR correction, structured extraction |
-| **AI Fallback** | Groq Llama 3.3 70B | Backup for OpenAI downtime (4 key rotation) |
-| **File Storage** | ImageKit (2 accounts) | Document images + QR/signatures |
-| **Cloud Backup** | Google Drive API | User-initiated scan export |
-| **Infrastructure** | Docker Compose, Nginx, Let's Encrypt | Containerization, reverse proxy, SSL |
+| **OCR** | Tesseract OCR | Base text extraction |
+| **AI** | OpenAI GPT-4o-mini | OCR correction, structured extraction |
+| **AI Fallback** | Groq Llama 3.3 70B | Backup (4 key rotation) |
+| **Storage** | ImageKit (2 accounts) | Document images + QR/signatures |
+| **Backup** | Google Drive API | User-initiated scan export |
+| **Infra** | Docker Compose, Nginx, Let's Encrypt | Container, proxy, SSL |
 | **Hosting** | OpenCloudOS VPS (2GB RAM) | Production server |
 
 ---
@@ -193,71 +237,64 @@ Document Upload → ImageKit Storage → Tesseract OCR → GPT-4o Enhancement
 ```
 ├── be/                              # FastAPI Backend
 │   ├── api/
-│   │   ├── admin.py                 # Admin panel endpoints (email-guarded)
-│   │   ├── auth.py                  # Authentication (login/register)
-│   │   ├── chatbot.py               # Otaru AI chatbot endpoints
+│   │   ├── admin.py                 # Admin panel endpoints
+│   │   ├── auth.py                  # Authentication
+│   │   ├── chatbot.py               # Otaru AI chatbot
 │   │   ├── chat_history.py          # Chat session CRUD
-│   │   ├── cleanup.py               # Scheduled jobs (credit reset, data cleanup)
+│   │   ├── cleanup.py               # Scheduled jobs (credit reset, cleanup)
 │   │   ├── config.py                # App config endpoint
 │   │   ├── dashboard.py             # Dashboard aggregation
 │   │   ├── exports.py               # Google Drive export
-│   │   ├── fraud.py                 # Fraud detection endpoints
+│   │   ├── fraud.py                 # Fraud detection
 │   │   ├── invoices.py              # Invoice generation
+│   │   ├── partner.py               # B2B Partner API (scoring, API keys)
+│   │   ├── payment.py               # Payment proxy
+│   │   ├── report.py                # PDF/email reports
 │   │   ├── reviews.py               # User review system
+│   │   ├── scan_insight.py          # Scan insight analysis
 │   │   ├── scans.py                 # Core scan CRUD + upload
+│   │   ├── telegram.py              # Telegram bot integration
 │   │   ├── upload.py                # File upload handler
-│   │   └── users.py                 # User profile, credits, delete account
-│   ├── config/
-│   │   ├── database.py              # SQLAlchemy engine + sessions
-│   │   ├── redis_config.py          # Redis connection
-│   │   └── settings.py              # Environment variables loader
-│   ├── middleware/
-│   │   └── security.py              # Rate limiting, IP blocking, security headers
-│   ├── models/
-│   │   └── models.py                # SQLAlchemy ORM models
-│   ├── schemas/
-│   │   └── schemas.py               # Pydantic request/response schemas
-│   ├── services/
-│   │   ├── chatbot_service.py       # AI chatbot logic (OpenAI + Groq)
-│   │   ├── drive_service.py         # Google Drive API integration
-│   │   ├── imagekit_qr_service.py   # ImageKit upload (QR/signatures)
-│   │   ├── imagekit_service.py      # ImageKit upload (standard)
-│   │   ├── ocr_service.py           # Tesseract + AI OCR pipeline
-│   │   ├── queue_service.py         # Redis job queue
-│   │   └── scan_helpers.py          # Shared: credits, upload+OCR, Supabase sync
-│   ├── utils/
-│   │   └── auth.py                  # JWT + Supabase token validation
-│   ├── workers/
-│   │   └── scan_worker.py           # Background batch scan processor
+│   │   └── users.py                 # User profile, credits
+│   ├── config/                      # Settings, database, Redis
+│   ├── middleware/security.py       # Rate limiting, IP blocking, headers
+│   ├── models/                      # SQLAlchemy ORM models
+│   ├── schemas/                     # Pydantic schemas
+│   ├── services/                    # Business logic (OCR, chatbot, etc.)
+│   ├── utils/auth.py               # JWT + Supabase token validation
+│   ├── workers/                     # Background workers (scan, telegram)
 │   ├── main.py                      # FastAPI app entry point
-│   ├── Dockerfile                   # Backend container
-│   └── requirements.txt             # Python dependencies
+│   └── Dockerfile
 │
 ├── fe/                              # React Frontend
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── dashboard/           # Header, stats cards
-│   │   │   ├── dgtnz/               # Scan history, fraud history
-│   │   │   ├── layout/              # MainLayout, responsive container
-│   │   │   ├── tabs/                # DashboardTab, DgtnzTab, AdminTab, etc.
-│   │   │   ├── ui/                  # Bottom navigation, buttons, cards
-│   │   │   └── LandingPage.tsx      # Public landing page (SEO optimized)
-│   │   ├── hooks/                   # Custom React hooks
-│   │   ├── lib/                     # Supabase client, utilities
-│   │   ├── pages/                   # OtaruChatPage
-│   │   └── types/                   # TypeScript type definitions
-│   ├── index.html                   # SEO meta tags, JSON-LD structured data
-│   └── vite.config.ts               # Vite configuration
+│   │   │   ├── layout/MainLayout.tsx    # Main app shell + partner popup
+│   │   │   ├── layout/Header.tsx        # Dashboard header
+│   │   │   ├── tabs/DashboardTab.tsx    # Dashboard view
+│   │   │   ├── tabs/DgtnzTab.tsx        # Scanner + fraud view
+│   │   │   ├── tabs/ProfileTab.tsx      # User profile
+│   │   │   ├── tabs/AdminTab.tsx        # Admin panel
+│   │   │   ├── tabs/ApiTab.tsx          # API tab (within dashboard)
+│   │   │   ├── ui/                      # Reusable UI components
+│   │   │   ├── LandingPage.tsx          # Public landing page
+│   │   │   └── LoginPage.tsx            # Login page
+│   │   ├── pages/
+│   │   │   ├── Index.tsx                # Root page (landing/login/app)
+│   │   │   ├── PartnerPortal.tsx        # Partner Portal (standalone page)
+│   │   │   └── OtaruChatPage.tsx        # Otaru AI chatbot
+│   │   ├── hooks/                       # Custom React hooks
+│   │   ├── lib/supabaseClient.ts        # Supabase client
+│   │   ├── context/DeviceContext.tsx     # Device detection
+│   │   └── types/                       # TypeScript types
+│   └── vite.config.ts
 │
 ├── database/
 │   ├── schema.sql                   # Supabase table definitions
-│   └── enable_rls_all.sql           # RLS policies for all tables
+│   └── enable_rls_all.sql           # RLS policies
 │
-├── .github/workflows/
-│   └── deploy-be.yml                # Backend CI/CD (Docker build + deploy)
-│
-├── docker-compose.yml               # Backend + Redis + Scan Worker
-└── .env.example                     # Environment variable template
+├── .github/workflows/deploy-be.yml  # Backend CI/CD
+└── docker-compose.yml               # Backend + Redis + Workers
 ```
 
 ---
@@ -267,53 +304,37 @@ Document Upload → ImageKit Storage → Tesseract OCR → GPT-4o Enhancement
 ### Authentication
 All authenticated endpoints require `Authorization: Bearer <supabase_jwt>` header.
 
-### Scans
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/scans/` | List user's scan history |
-| `POST` | `/api/scans/upload-signature` | Upload and enhance digital signature |
-| `POST` | `/api/scans/save-with-signature` | Process scan with OCR + signature |
-| `DELETE` | `/api/scans/{id}` | Delete a scan record |
+### Core Endpoints
 
-### Fraud Detection
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/scans/fraud-history` | List user's fraud scan history |
-| `POST` | `/api/scans/save-fraud` | Process fraud scan (auto-reject low confidence) |
-| `DELETE` | `/api/scans/{id}` | Delete a fraud record |
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `POST` | `/api/scans/save-with-signature` | Bearer | Process scan with OCR + signature |
+| `GET` | `/api/scans/` | Bearer | List user's scan history |
+| `POST` | `/api/scans/save-fraud` | Bearer | Process fraud scan |
+| `GET` | `/api/scans/fraud-history` | Bearer | List fraud scan history |
+| `POST` | `/api/chatbot/chat` | Bearer | Send message to AI chatbot |
+| `GET` | `/api/dashboard/stats` | Bearer | Dashboard statistics |
+| `GET` | `/api/users/credits` | Bearer | Get credit balance |
+| `POST` | `/api/exports/drive` | Bearer | Export to Google Drive |
 
-### Chatbot (Otaru)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/chatbot/chat` | Send message to AI chatbot (supports file upload) |
-| `GET` | `/api/chatbot/stats` | Get chatbot usage statistics |
-| `GET` | `/api/chat-history/sessions` | List chat sessions |
-| `DELETE` | `/api/chat-history/sessions/{id}` | Delete a chat session |
+### Partner API (B2B)
 
-### Admin (Requires admin email)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/admin/stats` | Global platform statistics |
-| `GET` | `/api/admin/users` | List all users |
-| `GET` | `/api/admin/users/{id}/activity` | User activity details |
-| `POST` | `/api/admin/users/{id}/credits` | Set user credits |
-| `POST` | `/api/admin/users/{id}/ban` | Ban/unban user |
-| `DELETE` | `/api/admin/users/{id}` | Delete user + all data |
-| `POST` | `/api/admin/users/{id}/extend-retention` | Extend data retention |
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `POST` | `/api/v1/apikeys/generate` | Bearer | Generate/rotate API key |
+| `GET` | `/api/v1/apikeys/me` | Bearer | Get active API key |
+| `DELETE` | `/api/v1/apikeys/me` | Bearer | Revoke API key |
+| `GET` | `/api/v1/partner/stats` | Public | Platform stats |
+| `GET` | `/api/v1/scoring/{email}` | x-api-key | Credit score by email |
 
-### Scheduled Jobs
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/cleanup/daily-credit-reset` | Reset all credits to 10 (admin excluded) |
-| `POST` | `/api/cleanup/monthly-cleanup` | Delete data older than 30 days |
+### Admin Endpoints
 
-### Dashboard & Misc
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/users/credits` | Get current credit balance |
-| `GET` | `/api/dashboard/stats` | Dashboard statistics |
-| `POST` | `/api/exports/drive` | Export scans to Google Drive |
-| `POST` | `/api/reviews/` | Submit app review |
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/api/admin/users` | Bearer (admin) | List all users |
+| `POST` | `/api/admin/users/{id}/credits` | Bearer (admin) | Set credits |
+| `POST` | `/api/admin/users/{id}/ban` | Bearer (admin) | Ban/unban |
+| `DELETE` | `/api/admin/users/{id}` | Bearer (admin) | Delete user |
 
 > **Full interactive docs**: [https://api-ocr.xyz/api/docs](https://api-ocr.xyz/api/docs)
 
@@ -336,13 +357,10 @@ All authenticated endpoints require `Authorization: Bearer <supabase_jwt>` heade
 ```bash
 cd be
 python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# Linux/Mac
-source .venv/bin/activate
-
+source .venv/bin/activate  # Linux/Mac
+# .venv\Scripts\activate   # Windows
 pip install -r requirements.txt
-cp .env.example .env  # Configure your environment variables
+cp .env.example .env       # Configure environment variables
 uvicorn main:app --reload --port 8000
 ```
 
@@ -368,10 +386,7 @@ docker compose up -d --build
 
 ### Production (OpenCloudOS VPS)
 
-The production stack runs on an OpenCloudOS VPS with Nginx reverse proxy and Let's Encrypt SSL.
-
 ```bash
-# Deploy / Update
 ssh root@<VPS_IP>
 cd ~/Logistic-Dokumen
 git pull origin main
@@ -379,106 +394,68 @@ docker compose down --remove-orphans
 docker compose up -d --build
 ```
 
-### Nginx Configuration
+### Nginx Config
 
 Located at `/etc/nginx/conf.d/api-ocr.conf`:
-- SSL termination (certs at `/etc/letsencrypt/live/api-ocr.xyz/`)
-- OPTIONS preflight handled with CORS headers
+- SSL termination via Let's Encrypt
+- CORS preflight with `x-api-key` in allowed headers
 - Proxy pass to `127.0.0.1:8000`
-
-### SSL Renewal
-
-```bash
-certbot renew --dry-run   # Test
-certbot renew             # Actual renewal
-```
 
 ### Frontend Deployment
 
-Frontend is deployed to **Vercel** (auto-deploy from `main` branch) or manually built:
-
-```bash
-cd fe && npm run build  # Output in fe/dist/
-```
+Auto-deployed to **Vercel** from `main` branch.
 
 ---
 
 ## Database Schema
 
-### Supabase Tables (13 tables with RLS)
+### Supabase Tables (14 tables with RLS)
 
-| Table | RLS Policy | Description |
-|-------|-----------|-------------|
-| `profiles` | `auth.uid() = id` | User profiles, credits |
-| `documents` | `auth.uid() = user_id` | Scanned document records |
-| `extracted_finance_data` | `auth.uid() = user_id` | Structured financial data |
-| `fraud_scans` | `auth.uid() = user_id` | Fraud detection results |
-| `chat_sessions` | `auth.uid() = user_id` | Chatbot conversation sessions |
-| `chat_messages` | via session cascade | Individual chat messages |
-| `activities` | `auth.uid() = user_id` | User activity log |
-| `document_audits` | `auth.uid() = user_id` | Document audit trail |
-| `invoices` | `auth.uid() = user_id` | Generated invoices |
-| `reviews` | `auth.uid() = user_id` | App reviews |
-| `imagekit_files` | `auth.uid() = user_id` | ImageKit file tracking |
-| `credit_history` | `auth.uid() = user_id` | Credit usage log |
-| `admin_audit_logs` | admin only | Admin action log |
+| Table | Description |
+|-------|-------------|
+| `profiles` | User profiles, credits |
+| `documents` | Scanned document records |
+| `extracted_finance_data` | Structured financial data |
+| `fraud_scans` | Fraud detection results |
+| `chat_sessions` | Chatbot sessions |
+| `chat_messages` | Chat messages |
+| `activities` | User activity log |
+| `document_audits` | Document audit trail |
+| `invoices` | Generated invoices |
+| `reviews` | App reviews |
+| `imagekit_files` | ImageKit file tracking |
+| `credit_history` | Credit usage log |
+| `api_keys` | Partner API keys |
+| `admin_audit_logs` | Admin action log |
 
-> Backend uses `service_role` key → bypasses RLS automatically.
-> Frontend uses `anon` key → RLS policies enforced.
-
-### Local PostgreSQL Tables
-
-| Table | Purpose |
-|-------|---------|
-| `users` | Local user records (synced with Supabase Auth) |
-| `scans` | Scan records with OCR results |
-| `invoices` | Invoice data |
-| `credit_history` | Credit deduction log |
+> Backend uses `service_role` key → bypasses RLS. Frontend uses `anon` key → RLS enforced.
 
 ---
 
 ## Security
 
-### Authentication
-- **Supabase Auth** with Google OAuth 2.0
-- JWT tokens validated on every API request
-- Dual-token support: Supabase JWT + custom JWT fallback
-
-### Data Protection
-- **Row Level Security (RLS)** on all 13 Supabase tables
-- **In-memory file processing** — uploaded files discarded after analysis
-- **Zero data retention** for chatbot file uploads
-- **SHA-256 hashing** for document integrity verification
-
-### API Security
-- **Rate Limiting**: Request throttling per IP
-- **IP Blocking**: Automatic blocking of abusive IPs
-- **Security Headers**: HSTS, X-Frame-Options, CSP
-- **CORS Whitelist**: Only allowed domains (no wildcard)
-
-### Admin Security
-- **Email Guard**: Admin endpoints restricted to `ADMIN_EMAIL`
-- **Audit Logging**: Every admin action logged with timestamp
-- **Environment Variables**: Sensitive configs read from `.env`
+- **Supabase Auth** with Google OAuth 2.0, JWT validation on every request
+- **Row Level Security (RLS)** on all Supabase tables
+- **Rate Limiting** per IP (100 req/min global, endpoint-specific limits)
+- **IP Blocking** for abusive IPs (auto-block via Redis)
+- **Security Headers**: HSTS, X-Content-Type-Options, XSS Protection
+- **CORS Whitelist**: Specific allowed origins (no wildcard)
+- **Zero Data Retention** for chatbot file uploads
+- **SHA-256 Hashing** for document integrity verification
 
 ---
 
 ## Scheduled Jobs
 
-Configured via crontab on VPS:
-
 | Job | Schedule | Endpoint |
 |-----|----------|----------|
-| **Daily Credit Reset** | Every day 00:00 WIB | `POST /api/cleanup/daily-credit-reset` |
-| **Monthly Data Cleanup** | 1st of month 03:00 WIB | `POST /api/cleanup/monthly-cleanup` |
+| Daily Credit Reset | 00:00 WIB | `POST /api/cleanup/daily-credit-reset` |
+| Monthly Cleanup | 1st of month 03:00 WIB | `POST /api/cleanup/monthly-cleanup` |
 
 ```bash
-# Crontab entries
 0 17 * * * curl -s -X POST https://api-ocr.xyz/api/cleanup/daily-credit-reset -H "Authorization: Bearer $CLEANUP_SECRET"
 0 20 1 * * curl -s -X POST https://api-ocr.xyz/api/cleanup/monthly-cleanup -H "Authorization: Bearer $CLEANUP_SECRET"
 ```
-
-> Admin user is automatically excluded from daily credit reset and maintains infinite credits.
 
 ---
 
@@ -490,19 +467,15 @@ See [`.env.example`](.env.example) for the complete template.
 |----------|----------|-------------|
 | `SUPABASE_URL` | ✅ | Supabase project URL |
 | `SUPABASE_ANON_KEY` | ✅ | Supabase anonymous key |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase service role key (bypasses RLS) |
-| `DATABASE_URL` | ✅ | Local PostgreSQL connection string |
-| `OPENAI_API_KEY` | ✅ | OpenAI API key for OCR enhancement |
-| `OPENAI_BASE_URL` | ❌ | Custom OpenAI-compatible endpoint |
-| `GROQ_API_KEY_1..4` | ❌ | Groq API keys for AI fallback (rotation) |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase service role key |
+| `DATABASE_URL` | ✅ | Local PostgreSQL connection |
+| `OPENAI_API_KEY` | ✅ | OpenAI API key |
+| `GROQ_API_KEY_1..4` | ❌ | Groq fallback keys |
 | `IMAGEKIT_PUBLIC_KEY` | ✅ | ImageKit public key |
 | `IMAGEKIT_PRIVATE_KEY` | ✅ | ImageKit private key |
-| `IMAGEKIT_URL_ENDPOINT` | ✅ | ImageKit URL endpoint |
-| `IMAGEKIT_*_QR` | ✅ | Separate ImageKit account for QR/signatures |
-| `GOOGLE_API_KEY` | ❌ | Google Drive API key |
 | `REDIS_URL` | ✅ | Redis connection string |
-| `ADMIN_EMAIL` | ❌ | Admin email (default: `okitr52@gmail.com`) |
-| `CLEANUP_SECRET` | ✅ | Secret key for cron job authentication |
+| `ADMIN_EMAIL` | ❌ | Admin email |
+| `CLEANUP_SECRET` | ✅ | Cron job auth secret |
 | `JWT_SECRET` | ✅ | JWT signing secret |
 
 ---

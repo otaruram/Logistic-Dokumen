@@ -58,7 +58,7 @@ interface ScoringResult {
   recent_scans: ScanSummary[];
 }
 
-type PartnerView = "dashboard" | "api-docs" | "pricing";
+type PartnerView = "dashboard" | "api" | "docs" | "pricing";
 
 const pricingPlans = [
   {
@@ -183,7 +183,9 @@ export default function PartnerPortal() {
   }, []);
 
   async function handlePartnerLogin() {
-    const redirectTo = `${window.location.origin}/partner`;
+    // Set flag so main dashboard shows "go to partner" popup after login
+    localStorage.setItem("redirect_to_partner", "1");
+    const redirectTo = `${window.location.origin}/`;
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -364,7 +366,8 @@ export default function PartnerPortal() {
             {(
               [
                 { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-                { id: "api-docs", label: "API + Docs", icon: Shield },
+                { id: "api", label: "API Key", icon: KeyRound },
+                { id: "docs", label: "Docs", icon: TerminalSquare },
                 { id: "pricing", label: "Pricing", icon: Wallet },
               ] as Array<{ id: PartnerView; label: string; icon: React.ComponentType<{ className?: string }> }>
             ).map((item) => {
@@ -431,7 +434,8 @@ export default function PartnerPortal() {
           {(
             [
               { id: "dashboard", label: "Dashboard" },
-              { id: "api-docs", label: "API + Docs" },
+              { id: "api", label: "API Key" },
+              { id: "docs", label: "Docs" },
               { id: "pricing", label: "Pricing" },
             ] as Array<{ id: PartnerView; label: string }>
           ).map((item) => (
@@ -469,7 +473,7 @@ export default function PartnerPortal() {
                   <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Dashboard</p>
                   <h1 className="mt-2 text-3xl font-semibold text-zinc-900">Otaru Patner Dashboard</h1>
                   <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
-                    Ringkasan performa platform untuk partner dan shortcut cepat ke API + Docs.
+                    Ringkasan performa platform untuk partner dan shortcut cepat ke API.
                   </p>
                 </div>
 
@@ -496,16 +500,16 @@ export default function PartnerPortal() {
                 <div className="rounded-2xl border border-zinc-200 bg-white p-5">
                   <p className="text-sm text-zinc-700">Lanjut ke pengelolaan API key dan docs.</p>
                   <button
-                    onClick={() => setActiveView("api-docs")}
+                    onClick={() => setActiveView("api")}
                     className="mt-3 inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
                   >
-                    Buka API + Docs <ArrowRight className="h-4 w-4" />
+                    Buka API Key <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
               </section>
             )}
 
-            {activeView === "api-docs" && (
+            {activeView === "api" && (
               <section className="space-y-5">
                 <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
                   <div className="rounded-3xl border border-zinc-200 bg-white p-5">
@@ -606,7 +610,11 @@ export default function PartnerPortal() {
                     )}
                   </div>
                 </div>
+              </section>
+            )}
 
+            {activeView === "docs" && (
+              <section className="space-y-5">
                 <div className="rounded-3xl border border-zinc-200 bg-white p-5">
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -668,7 +676,7 @@ export default function PartnerPortal() {
                       <p className={`mt-2 text-sm ${index === 1 ? "text-zinc-200" : "text-zinc-600"}`}>{plan.notes}</p>
 
                       <button
-                        onClick={() => setActiveView("api-docs")}
+                        onClick={() => setActiveView("api")}
                         className={`mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold ${
                           index === 1
                             ? "bg-white text-black hover:bg-zinc-200"
