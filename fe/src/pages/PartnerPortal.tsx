@@ -5,12 +5,16 @@ import {
   CheckCircle2,
   Copy,
   KeyRound,
+  LayoutDashboard,
   Mail,
+  Shield,
   RefreshCw,
   Search,
   ShieldCheck,
   TerminalSquare,
   Trash2,
+  Wallet,
+  X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { APP_CONFIG } from "@/constants";
@@ -53,6 +57,8 @@ interface ScoringResult {
   total_nominal: number;
   recent_scans: ScanSummary[];
 }
+
+type PartnerView = "dashboard" | "api-docs" | "pricing";
 
 const pricingPlans = [
   {
@@ -144,18 +150,34 @@ export default function PartnerPortal() {
   const [searchError, setSearchError] = useState<string | null>(null);
 
   const [session, setSession] = useState<boolean>(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<PartnerView>("dashboard");
+  const [showAccessPopup, setShowAccessPopup] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      setSession(!!data.session);
+      const current = data.session;
+      setSession(!!current);
+      setUserId(current?.user?.id ?? null);
+      if (current?.user?.id) {
+        const seenKey = `otaru_patner_seen_${current.user.id}`;
+        const seen = localStorage.getItem(seenKey);
+        setShowAccessPopup(!seen);
+      }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, currentSession) => {
       setSession(!!currentSession);
-      if (currentSession) {
+      setUserId(currentSession?.user?.id ?? null);
+      if (currentSession?.user?.id) {
+        const seenKey = `otaru_patner_seen_${currentSession.user.id}`;
+        const seen = localStorage.getItem(seenKey);
+        setShowAccessPopup(!seen);
         fetchMyKey();
+      } else {
+        setShowAccessPopup(false);
       }
     });
 
@@ -176,6 +198,14 @@ export default function PartnerPortal() {
         scopes: "openid email profile",
       },
     });
+  }
+
+  function handleAcknowledgeAccess() {
+    if (userId) {
+      const seenKey = `otaru_patner_seen_${userId}`;
+      localStorage.setItem(seenKey, "1");
+    }
+    setShowAccessPopup(false);
   }
 
   async function fetchStats() {
@@ -329,391 +359,338 @@ export default function PartnerPortal() {
 }`;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
-      <div className="pointer-events-none fixed inset-0 opacity-80">
-        <div className="absolute left-[-10%] top-[-10%] h-[32rem] w-[32rem] rounded-full bg-white/6 blur-[140px]" />
-        <div className="absolute bottom-[-15%] right-[-10%] h-[28rem] w-[28rem] rounded-full bg-white/5 blur-[120px]" />
-      </div>
-
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#050505]/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <div className="min-h-screen bg-zinc-100 text-zinc-900">
+      <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
           <div>
-            <Link to="/" className="text-lg font-semibold tracking-tight text-white">
-              ocr.wtf
-            </Link>
-            <p className="mt-1 text-[11px] uppercase tracking-[0.28em] text-zinc-500">Partner API Console</p>
+            <Link to="/" className="text-lg font-semibold tracking-tight">ocr.wtf</Link>
+            <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">Otaru Patner</p>
           </div>
 
-          <nav className="hidden items-center gap-6 text-sm text-zinc-300 md:flex">
-            <a href="#console" className="transition-colors hover:text-white">Console</a>
-            <a href="#docs" className="transition-colors hover:text-white">Docs</a>
-            <a href="#pricing" className="transition-colors hover:text-white">Pricing</a>
-          </nav>
+          <div className="flex items-center gap-2">
+            {(
+              [
+                { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+                { id: "api-docs", label: "API + Docs", icon: Shield },
+                { id: "pricing", label: "Pricing", icon: Wallet },
+              ] as Array<{ id: PartnerView; label: string; icon: React.ComponentType<{ className?: string }> }>
+            ).map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveView(item.id)}
+                  className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold sm:inline-flex ${
+                    activeView === item.id
+                      ? "bg-black text-white"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" /> {item.label}
+                </button>
+              );
+            })}
 
-          <Link
-            to={session ? "/" : "/partner"}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm text-zinc-200 transition-colors hover:border-white/20 hover:bg-white/5"
-            onClick={(event) => {
-              if (!session) {
-                event.preventDefault();
-                handlePartnerLogin();
-              }
-            }}
-          >
-            {session ? "Dashboard" : "Sign In"}
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+            <button
+              onClick={() => {
+                if (!session) {
+                  handlePartnerLogin();
+                  return;
+                }
+                window.location.href = "/";
+              }}
+              className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-400"
+            >
+              {session ? "Dashboard" : "Sign In"}
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="relative z-10">
-        <section className="mx-auto max-w-7xl px-6 pb-12 pt-16">
-          <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs uppercase tracking-[0.24em] text-zinc-300">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Partner access
-              </div>
-              <h1 className="mt-6 max-w-4xl text-4xl font-semibold tracking-tight text-white md:text-6xl md:leading-[1.02]">
-                Generate key, paste email, and check credit score in one premium console.
-              </h1>
-              <p className="mt-6 max-w-2xl text-base leading-7 text-zinc-400 md:text-lg">
-                Halaman ini dibuat untuk partner yang butuh akses cepat ke API scoring OCR.WTF. Generate API key, uji endpoint langsung dengan email user, lalu salin base URL dan contoh request dari docs di bawah.
-              </p>
-
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a href="#console" className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200">
-                  Buka Console <ArrowRight className="h-4 w-4" />
-                </a>
-                <a href="#docs" className="inline-flex items-center gap-2 rounded-full border border-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/5">
-                  Lihat Docs <TerminalSquare className="h-4 w-4" />
-                </a>
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              {[
-                { label: "Total scans", value: stats ? fmt(stats.total_scans) : "...", icon: BarChart3 },
-                { label: "Fraud prevented", value: stats ? fmt(stats.fraud_prevented) : "...", icon: ShieldCheck },
-                { label: "Verified docs", value: stats ? fmt(stats.verified_scans) : "...", icon: CheckCircle2 },
-                { label: "Integrity rate", value: stats ? `${stats.integrity_rate}%` : "...", icon: Mail },
-              ].map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.label} className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 shadow-[0_20px_80px_rgba(255,255,255,0.04)]">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">{item.label}</p>
-                      <Icon className="h-4 w-4 text-zinc-400" />
-                    </div>
-                    <p className="mt-6 text-3xl font-semibold text-white">{item.value}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        <section id="console" className="mx-auto max-w-7xl px-6 pb-12">
-          <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-            <div className="rounded-[2rem] border border-white/10 bg-[#0b0b0b] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.4)]">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.26em] text-zinc-500">API key</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">Generate once, pakai langsung</h2>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">
-                    Setelah key dibuat, user bisa langsung tempel email di panel kanan untuk cek credit score tanpa pindah halaman.
-                  </p>
-                </div>
-                <button
-                  onClick={fetchMyKey}
-                  disabled={pageLoading}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-white/5 disabled:opacity-60"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${pageLoading ? "animate-spin" : ""}`} /> Refresh
-                </button>
-              </div>
-
-              {authError && (
-                <div className="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                  {authError}
-                </div>
-              )}
-
-              <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.02] p-5">
-                {pageLoading ? (
-                  <p className="text-sm text-zinc-400">Memuat status API key...</p>
-                ) : session ? (
-                  apiKey ? (
-                    <div className="space-y-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Active key</p>
-                          <p className="mt-3 break-all font-mono text-sm text-white">{apiKey.key_value}</p>
-                        </div>
-                        <button
-                          onClick={() => handleCopy(apiKey.key_value, "api-key")}
-                          className="rounded-xl border border-white/10 p-2 text-zinc-300 transition hover:bg-white/5"
-                          aria-label="Copy API key"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </button>
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-                          <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Created</p>
-                          <p className="mt-2 text-sm text-white">{fmtDate(apiKey.created_at)}</p>
-                        </div>
-                        <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-                          <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Last used</p>
-                          <p className="mt-2 text-sm text-white">{fmtDate(apiKey.last_used_at)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-zinc-300">
-                        <KeyRound className="h-3.5 w-3.5" /> Belum ada key aktif
-                      </div>
-                      <p className="text-sm text-zinc-400">Generate key pertama untuk mulai integrasi partner.</p>
-                    </div>
-                  )
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-sm text-zinc-300">Login terlebih dulu untuk generate dan rotate API key.</p>
-                    <button
-                      onClick={handlePartnerLogin}
-                      className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-zinc-200"
-                    >
-                      Sign in <ArrowRight className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  onClick={generateKey}
-                  disabled={!session || apiKeyLoading}
-                  className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:opacity-50"
-                >
-                  <KeyRound className="h-4 w-4" />
-                  {apiKeyLoading ? "Processing..." : apiKey ? "Rotate API key" : "Generate API key"}
-                </button>
-                <button
-                  onClick={revokeKey}
-                  disabled={!apiKey || apiKeyLoading}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 px-5 py-3 text-sm font-semibold text-zinc-200 transition hover:bg-white/5 disabled:opacity-50"
-                >
-                  <Trash2 className="h-4 w-4" /> Revoke key
-                </button>
-              </div>
-
-              {copiedLabel === "api-key" && <p className="mt-3 text-xs text-zinc-400">API key copied.</p>}
-            </div>
-
-            <div className="rounded-[2rem] border border-white/10 bg-[#0b0b0b] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.4)]">
+      {showAccessPopup && session && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.26em] text-zinc-500">Live playground</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">Tempel email untuk cek credit score</h2>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">
-                  Setelah key aktif, user tinggal masukkan email target untuk memanggil endpoint scoring secara langsung dari halaman partner.
-                </p>
+                <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Akses aktif</p>
+                <h3 className="mt-1 text-lg font-semibold text-zinc-900">Akun kamu bisa akses Otaru Patner</h3>
               </div>
-
-              <form onSubmit={handleSearch} className="mt-6 flex flex-col gap-3 sm:flex-row">
-                <div className="relative flex-1">
-                  <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-                  <input
-                    type="email"
-                    value={searchEmail}
-                    onChange={(event) => setSearchEmail(event.target.value)}
-                    placeholder="user@example.com"
-                    required
-                    className="h-12 w-full rounded-full border border-white/10 bg-black/40 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-white/25"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={searchLoading || !apiKey}
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:opacity-50"
-                >
-                  <Search className="h-4 w-4" />
-                  {searchLoading ? "Searching..." : "Check score"}
-                </button>
-              </form>
-
-              {!apiKey && <p className="mt-3 text-xs text-zinc-500">Generate API key dulu agar playground aktif.</p>}
-              {searchError && <p className="mt-4 text-sm text-red-200">{searchError}</p>}
-
-              {searchResult ? (
-                <div className="mt-6 space-y-5 rounded-[1.5rem] border border-white/10 bg-white/[0.02] p-5">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-xl font-semibold text-white">{searchResult.email}</p>
-                      <p className="mt-1 font-mono text-xs text-zinc-500">{searchResult.user_id}</p>
-                    </div>
-                    <RiskBadge label={searchResult.risk_label} />
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    {[
-                      { label: "Trust score", value: String(searchResult.trust_score) },
-                      { label: "Total scans", value: String(searchResult.total_scans) },
-                      { label: "Verified", value: String(searchResult.verified_scans) },
-                      { label: "Tampered", value: String(searchResult.tampered_scans) },
-                    ].map((item) => (
-                      <div key={item.label} className="rounded-2xl border border-white/10 bg-black/30 p-4">
-                        <p className="text-2xl font-semibold text-white">{item.value}</p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.22em] text-zinc-500">{item.label}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Total nominal verified</p>
-                    <p className="mt-2 text-lg font-semibold text-white">{fmtNominal(searchResult.total_nominal)}</p>
-                  </div>
-
-                  {searchResult.recent_scans.length > 0 && (
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Recent scans</p>
-                      <div className="mt-3 space-y-3">
-                        {searchResult.recent_scans.map((scan) => (
-                          <div key={scan.scan_id} className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
-                            <div className="min-w-0">
-                              <p className="truncate font-mono text-xs text-zinc-500">{scan.scan_id}</p>
-                              <p className="mt-1 truncate text-sm text-zinc-200">{scan.vendor_name ?? scan.doc_type ?? "Unknown document"}</p>
-                            </div>
-                            <div className="flex-shrink-0 text-right">
-                              <StatusBadge status={scan.status} />
-                              {scan.nominal_total != null && <p className="mt-1 text-xs text-zinc-400">{fmtNominal(scan.nominal_total)}</p>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-6 rounded-[1.5rem] border border-dashed border-white/10 bg-white/[0.02] p-6 text-sm text-zinc-400">
-                  Hasil scoring akan muncul di sini setelah email dicari.
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section id="docs" className="mx-auto max-w-7xl px-6 pb-12">
-          <div className="rounded-[2rem] border border-white/10 bg-[#0b0b0b] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.4)]">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.26em] text-zinc-500">Docs</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">Cara pakai endpoint partner</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
-                  Docs singkat ini cukup untuk mulai integrasi. Base URL, endpoint scoring, header autentikasi, dan contoh response semuanya ada di satu section.
-                </p>
-              </div>
-              <button
-                onClick={() => handleCopy(API, "base-url")}
-                className="inline-flex items-center gap-2 self-start rounded-full border border-white/10 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/5"
-              >
-                <Copy className="h-4 w-4" /> Copy Base URL
+              <button onClick={handleAcknowledgeAccess} className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100">
+                <X className="h-4 w-4" />
               </button>
             </div>
-
-            <div className="mt-6 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-              <div className="space-y-4">
-                <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-5">
-                  <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Base URL</p>
-                  <p className="mt-3 break-all font-mono text-sm text-white">{API}</p>
-                </div>
-                <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-5">
-                  <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Endpoint</p>
-                  <p className="mt-3 break-all font-mono text-sm text-white">GET /api/v1/scoring/{`{email}`}</p>
-                </div>
-                <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-5">
-                  <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Auth header</p>
-                  <p className="mt-3 break-all font-mono text-sm text-white">x-api-key: sk-xxxx</p>
-                </div>
-              </div>
-
-              <div className="grid gap-4">
-                <div className="rounded-3xl border border-white/10 bg-black/40 p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-white">cURL example</p>
-                    <button
-                      onClick={() => handleCopy(scoringExample, "curl")}
-                      className="rounded-lg border border-white/10 p-2 text-zinc-300 transition hover:bg-white/5"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <pre className="mt-4 overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs text-zinc-200">{scoringExample}</pre>
-                </div>
-
-                <div className="rounded-3xl border border-white/10 bg-black/40 p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-white">Sample response</p>
-                    <button
-                      onClick={() => handleCopy(responseExample, "response")}
-                      className="rounded-lg border border-white/10 p-2 text-zinc-300 transition hover:bg-white/5"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <pre className="mt-4 overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs text-zinc-200">{responseExample}</pre>
-                </div>
-              </div>
-            </div>
-
-            {copiedLabel && <p className="mt-4 text-xs text-zinc-500">Copied: {copiedLabel}</p>}
-          </div>
-        </section>
-
-        <section id="pricing" className="mx-auto max-w-7xl px-6 pb-16">
-          <div className="mb-6">
-            <p className="text-xs uppercase tracking-[0.26em] text-zinc-500">Pricing</p>
-            <h2 className="mt-2 text-2xl font-semibold text-white">Simple pricing untuk partner MVP</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
-              Harga awal ini dibuat supaya tetap kompetitif, tapi masih masuk akal terhadap biaya GPT-4o-mini, server bulanan sekitar Rp36.000, dan overhead operasional awal.
+            <p className="mt-3 text-sm text-zinc-600">
+              Popup ini hanya muncul sekali untuk akun ini. Akan muncul lagi kalau kamu login pakai akun berbeda.
             </p>
+            <button
+              onClick={handleAcknowledgeAccess}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+            >
+              Lanjutkan <ArrowRight className="h-4 w-4" />
+            </button>
           </div>
+        </div>
+      )}
 
-          <div className="grid gap-5 lg:grid-cols-3">
-            {pricingPlans.map((plan, index) => (
-              <div
-                key={plan.name}
-                className={`rounded-[2rem] border p-6 ${index === 1 ? "border-white bg-white text-black shadow-[0_24px_80px_rgba(255,255,255,0.08)]" : "border-white/10 bg-[#0b0b0b] text-white"}`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className={`text-xs uppercase tracking-[0.24em] ${index === 1 ? "text-black/60" : "text-zinc-500"}`}>{plan.name}</p>
-                    <p className="mt-4 text-4xl font-semibold">{plan.price}</p>
-                    <p className={`mt-1 text-sm ${index === 1 ? "text-black/60" : "text-zinc-500"}`}>{plan.cadence}</p>
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+        <div className="mb-5 grid grid-cols-1 gap-2 sm:hidden">
+          {(
+            [
+              { id: "dashboard", label: "Dashboard" },
+              { id: "api-docs", label: "API + Docs" },
+              { id: "pricing", label: "Pricing" },
+            ] as Array<{ id: PartnerView; label: string }>
+          ).map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveView(item.id)}
+              className={`rounded-xl px-4 py-3 text-sm font-semibold ${
+                activeView === item.id ? "bg-black text-white" : "border border-zinc-300 bg-white text-zinc-700"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        {!session ? (
+          <section className="rounded-3xl border border-zinc-200 bg-white p-8 text-center">
+            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Otaru Patner Access</p>
+            <h1 className="mt-3 text-3xl font-semibold text-zinc-900">Login untuk lanjut ke portal partner</h1>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
+              User harus login untuk akses API key management, docs interaktif, dan pricing activation.
+            </p>
+            <button
+              onClick={handlePartnerLogin}
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800"
+            >
+              Sign in with Google <ArrowRight className="h-4 w-4" />
+            </button>
+          </section>
+        ) : (
+          <>
+            {activeView === "dashboard" && (
+              <section className="space-y-5">
+                <div className="rounded-3xl border border-zinc-200 bg-white p-6">
+                  <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Dashboard</p>
+                  <h1 className="mt-2 text-3xl font-semibold text-zinc-900">Otaru Patner Dashboard</h1>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
+                    Ringkasan performa platform untuk partner dan shortcut cepat ke API + Docs.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  {[
+                    { label: "Total scans", value: stats ? fmt(stats.total_scans) : "...", icon: BarChart3 },
+                    { label: "Fraud prevented", value: stats ? fmt(stats.fraud_prevented) : "...", icon: ShieldCheck },
+                    { label: "Verified docs", value: stats ? fmt(stats.verified_scans) : "...", icon: CheckCircle2 },
+                    { label: "Integrity rate", value: stats ? `${stats.integrity_rate}%` : "...", icon: Mail },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <div key={item.label} className="rounded-2xl border border-zinc-200 bg-white p-4">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">{item.label}</p>
+                          <Icon className="h-4 w-4 text-zinc-500" />
+                        </div>
+                        <p className="mt-4 text-2xl font-semibold text-zinc-900">{item.value}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+                  <p className="text-sm text-zinc-700">Lanjut ke pengelolaan API key dan docs.</p>
+                  <button
+                    onClick={() => setActiveView("api-docs")}
+                    className="mt-3 inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+                  >
+                    Buka API + Docs <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {activeView === "api-docs" && (
+              <section className="space-y-5">
+                <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+                  <div className="rounded-3xl border border-zinc-200 bg-white p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">API key</p>
+                        <h2 className="mt-1 text-xl font-semibold text-zinc-900">Generate / rotate key</h2>
+                      </div>
+                      <button
+                        onClick={fetchMyKey}
+                        disabled={pageLoading}
+                        className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${pageLoading ? "animate-spin" : ""}`} /> Refresh
+                      </button>
+                    </div>
+
+                    {authError && <p className="mt-3 rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900">{authError}</p>}
+
+                    <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                      {apiKey ? (
+                        <>
+                          <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">Active key</p>
+                          <p className="mt-2 break-all font-mono text-sm text-zinc-900">{apiKey.key_value}</p>
+                          <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-zinc-600 sm:grid-cols-2">
+                            <p>Created: {fmtDate(apiKey.created_at)}</p>
+                            <p>Last used: {fmtDate(apiKey.last_used_at)}</p>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-sm text-zinc-600">Belum ada key aktif.</p>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        onClick={generateKey}
+                        disabled={apiKeyLoading}
+                        className="inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+                      >
+                        <KeyRound className="h-4 w-4" /> {apiKey ? "Rotate Key" : "Generate Key"}
+                      </button>
+                      <button
+                        onClick={revokeKey}
+                        disabled={!apiKey || apiKeyLoading}
+                        className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" /> Revoke
+                      </button>
+                      <button
+                        onClick={() => apiKey && handleCopy(apiKey.key_value, "api-key")}
+                        disabled={!apiKey}
+                        className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 disabled:opacity-50"
+                      >
+                        <Copy className="h-4 w-4" /> Copy
+                      </button>
+                    </div>
                   </div>
-                  {index === 1 && (
-                    <span className="rounded-full bg-black px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white">
-                      Recommended
-                    </span>
-                  )}
+
+                  <div className="rounded-3xl border border-zinc-200 bg-white p-5">
+                    <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Playground</p>
+                    <h2 className="mt-1 text-xl font-semibold text-zinc-900">Cek credit score by email</h2>
+                    <form onSubmit={handleSearch} className="mt-4 flex flex-col gap-2 sm:flex-row">
+                      <input
+                        type="email"
+                        value={searchEmail}
+                        onChange={(event) => setSearchEmail(event.target.value)}
+                        placeholder="user@example.com"
+                        required
+                        className="h-11 flex-1 rounded-full border border-zinc-300 bg-white px-4 text-sm outline-none focus:border-black"
+                      />
+                      <button
+                        type="submit"
+                        disabled={searchLoading || !apiKey}
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-black px-4 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+                      >
+                        <Search className="h-4 w-4" /> {searchLoading ? "Checking..." : "Check"}
+                      </button>
+                    </form>
+
+                    {!apiKey && <p className="mt-2 text-xs text-zinc-500">Generate key dulu untuk aktifkan search.</p>}
+                    {searchError && <p className="mt-2 text-sm text-red-600">{searchError}</p>}
+
+                    {searchResult && (
+                      <div className="mt-4 space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-zinc-900">{searchResult.email}</p>
+                          <RiskBadge label={searchResult.risk_label} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm text-zinc-700">
+                          <p>Trust score: <b>{searchResult.trust_score}</b></p>
+                          <p>Total scans: <b>{searchResult.total_scans}</b></p>
+                          <p>Verified: <b>{searchResult.verified_scans}</b></p>
+                          <p>Tampered: <b>{searchResult.tampered_scans}</b></p>
+                        </div>
+                        <p className="text-sm text-zinc-700">Total nominal: <b>{fmtNominal(searchResult.total_nominal)}</b></p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className={`mt-6 rounded-2xl border p-4 ${index === 1 ? "border-black/10 bg-black/5" : "border-white/10 bg-white/[0.02]"}`}>
-                  <p className={`text-sm font-medium ${index === 1 ? "text-black" : "text-white"}`}>{plan.volume}</p>
-                  <p className={`mt-2 text-sm leading-6 ${index === 1 ? "text-black/70" : "text-zinc-400"}`}>{plan.notes}</p>
+                <div className="rounded-3xl border border-zinc-200 bg-white p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Docs</p>
+                      <h3 className="mt-1 text-xl font-semibold text-zinc-900">API integration docs</h3>
+                    </div>
+                    <button
+                      onClick={() => handleCopy(API, "base-url")}
+                      className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700"
+                    >
+                      <Copy className="h-3.5 w-3.5" /> Copy Base URL
+                    </button>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                    <div className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm">
+                      <p><span className="font-semibold">Base URL:</span> <span className="font-mono">{API}</span></p>
+                      <p><span className="font-semibold">Endpoint:</span> <span className="font-mono">GET /api/v1/scoring/{`{email}`}</span></p>
+                      <p><span className="font-semibold">Header:</span> <span className="font-mono">x-api-key: sk-xxxx</span></p>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">cURL</p>
+                        <pre className="mt-2 whitespace-pre-wrap break-all font-mono text-xs text-zinc-900">{scoringExample}</pre>
+                      </div>
+                      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Response</p>
+                        <pre className="mt-2 whitespace-pre-wrap break-all font-mono text-xs text-zinc-900">{responseExample}</pre>
+                      </div>
+                    </div>
+                  </div>
+                  {copiedLabel && <p className="mt-3 text-xs text-zinc-500">Copied: {copiedLabel}</p>}
+                </div>
+              </section>
+            )}
+
+            {activeView === "pricing" && (
+              <section className="space-y-5">
+                <div className="rounded-3xl border border-zinc-200 bg-white p-6">
+                  <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Pricing</p>
+                  <h1 className="mt-2 text-3xl font-semibold text-zinc-900">Pricing Plan Otaru Patner</h1>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
+                    Paket ini sudah diaktifkan untuk flow partner. Pilih paket sesuai volume, lalu lanjut aktivasi dari tombol action masing-masing.
+                  </p>
                 </div>
 
-                <a
-                  href={plan.name === "Enterprise" ? "mailto:partner@ocr.wtf" : "#console"}
-                  className={`mt-6 inline-flex w-full items-center justify-center rounded-full px-4 py-3 text-sm font-semibold transition ${index === 1 ? "bg-black text-white hover:bg-zinc-800" : "border border-white/10 text-white hover:bg-white/5"}`}
-                >
-                  {plan.name === "Enterprise" ? "Contact sales" : "Start from console"}
-                </a>
-              </div>
-            ))}
-          </div>
-        </section>
+                <div className="grid gap-4 lg:grid-cols-3">
+                  {pricingPlans.map((plan, index) => (
+                    <div
+                      key={plan.name}
+                      className={`rounded-3xl border p-5 ${
+                        index === 1 ? "border-black bg-black text-white" : "border-zinc-200 bg-white text-zinc-900"
+                      }`}
+                    >
+                      <p className={`text-xs uppercase tracking-[0.22em] ${index === 1 ? "text-zinc-300" : "text-zinc-500"}`}>{plan.name}</p>
+                      <p className="mt-3 text-4xl font-semibold">{plan.price}</p>
+                      <p className={`mt-1 text-sm ${index === 1 ? "text-zinc-300" : "text-zinc-500"}`}>{plan.cadence}</p>
+                      <p className={`mt-4 text-sm ${index === 1 ? "text-zinc-100" : "text-zinc-700"}`}>{plan.volume}</p>
+                      <p className={`mt-2 text-sm ${index === 1 ? "text-zinc-200" : "text-zinc-600"}`}>{plan.notes}</p>
+
+                      <button
+                        onClick={() => setActiveView("api-docs")}
+                        className={`mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold ${
+                          index === 1
+                            ? "bg-white text-black hover:bg-zinc-200"
+                            : "border border-zinc-300 bg-white text-zinc-800 hover:border-zinc-400"
+                        }`}
+                      >
+                        Aktivasi Paket <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
+        )}
       </main>
     </div>
   );

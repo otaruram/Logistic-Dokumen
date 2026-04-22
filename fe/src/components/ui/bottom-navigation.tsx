@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { KeyRound, LayoutDashboard, Scan, Sparkles, User, Shield } from "lucide-react";
+import { LayoutDashboard, Scan, Sparkles, User, Shield } from "lucide-react";
 import { NAVIGATION_TABS } from "@/constants";
 import { TabType } from "@/types";
 
@@ -14,7 +14,6 @@ const TAB_ICONS = {
   dashboard: LayoutDashboard,
   dgtnz: Scan,
   otaru: Sparkles,
-  api: KeyRound,
   profile: User,
   admin: Shield,
 } as const;

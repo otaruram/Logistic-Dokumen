@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import Header from "./Header";
 import DashboardTab from "../tabs/DashboardTab";
 import DgtnzTab from "../tabs/DgtnzTab";
-import ApiTab from "../tabs/ApiTab";
 import ProfileTab from "../tabs/ProfileTab";
 import OtaruChatPage from "@/pages/OtaruChatPage";
 import AdminTab from "../tabs/AdminTab";
@@ -48,8 +47,6 @@ const MainLayout = () => {
         return <DgtnzTab onBack={() => handleTabClick("dashboard")} initialMode={selectedFeatureMode} />;
       case "otaru":
         return <OtaruChatPage />;
-      case "api":
-        return <ApiTab />;
       case "profile":
         return <ProfileTab />;
       default:
