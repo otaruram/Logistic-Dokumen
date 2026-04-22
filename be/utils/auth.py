@@ -24,13 +24,16 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=Fals
 http_bearer = HTTPBearer(auto_error=False)
 
 # Supabase client for authentication (uses ANON key)
+supabase: Optional[Client] = None
+supabase_admin: Optional[Client] = None
+
 if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
     print("❌ CRITICAL: Supabase Credential belum terbaca oleh Python!")
     print("   Pastikan file .env ada dan variabel SUPABASE_URL/SUPABASE_ANON_KEY tersedia.")
     supabase = None
 else:
     try:
-        supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+        supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
         print("✅ Supabase Client berhasil diinisialisasi")
     except Exception as e:
         print(f"❌ Gagal inisialisasi Supabase Client: {e}")
@@ -42,7 +45,7 @@ if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
     supabase_admin = supabase
 else:
     try:
-        supabase_admin: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+        supabase_admin = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
         print("✅ Supabase Admin Client (SERVICE_ROLE) berhasil diinisialisasi")
     except Exception as e:
         print(f"❌ Gagal inisialisasi Supabase Admin Client: {e}")
@@ -96,9 +99,9 @@ async def get_current_user(
             auth_client = supabase_admin if supabase_admin else supabase
             user_response = auth_client.auth.get_user(supabase_token)
             
-            if user_response.user:
+            if user_response and user_response.user:
                 # Get or create user in local DB
-                email = user_response.user.email
+                email = user_response.user.email or ""
                 user = db.query(User).filter(User.email == email).first()
                 
                 if not user:
@@ -107,7 +110,7 @@ async def get_current_user(
                     user = User(
                         id=str(user_response.user.id),
                         email=email,
-                        username=email.split('@')[0],
+                        username=email.split('@')[0] if email else "user",
                         hashed_password="",  # No password for OAuth users
                         credits=10,  # Initial 10 credits (daily reset)
                         is_active=True,
@@ -136,10 +139,11 @@ async def get_current_user(
     if token:
         try:
             payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
-            user_id: int = payload.get("sub")
+            user_id_raw = payload.get("sub")
             
-            if user_id is None:
+            if user_id_raw is None:
                 raise credentials_exception
+            user_id = str(user_id_raw)
                 
             user = db.query(User).filter(User.id == user_id).first()
             
@@ -156,7 +160,60 @@ async def get_current_active_user(
     current_user: User = Depends(get_current_user)
 ) -> User:
     """Get current active user"""
-    if not current_user.is_active:
+    if not bool(getattr(current_user, "is_active", False)):
         raise HTTPException(status_code=400, detail="Inactive user")
-    
     return current_user
+
+
+async def get_supabase_bearer_user(
+    credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
+) -> dict:
+    """
+    Lightweight Supabase token validator — does NOT touch local DB.
+    Returns {"id": str_uuid, "email": str}.
+
+    Priority:
+      1. supabase_admin.auth.get_user(token)  — most reliable
+      2. supabase.auth.get_user(token)         — anon client fallback
+      3. Direct JWT decode with JWT_SECRET     — last resort (no network call)
+    """
+    if not credentials or not credentials.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing authorization token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = credentials.credentials
+
+    # 1. Admin client
+    for client in [supabase_admin, supabase]:
+        if client is None:
+            continue
+        try:
+            resp = client.auth.get_user(token)
+            if resp and resp.user:
+                return {"id": str(resp.user.id), "email": resp.user.email or ""}
+        except Exception:
+            continue
+
+    # 2. Direct JWT decode — works even without supabase clients
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET,
+            algorithms=[settings.JWT_ALGORITHM],
+            options={"verify_aud": False},
+        )
+        user_id = payload.get("sub")
+        email = payload.get("email") or (payload.get("user_metadata") or {}).get("email", "")
+        if user_id:
+            return {"id": user_id, "email": email}
+    except JWTError as exc:
+        print(f"⚠️ Direct JWT decode failed: {exc}")
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )

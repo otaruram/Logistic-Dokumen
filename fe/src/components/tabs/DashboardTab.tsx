@@ -305,6 +305,8 @@ const DashboardTab = () => {
   const isMounted = useRef(true);
   const yearPickerRef = useRef<HTMLDivElement>(null);
   const refreshInFlight = useRef(false);
+  const backendFailureCount = useRef(0);
+  const backendCooldownUntil = useRef(0);
 
   // Close year picker on outside click
   useEffect(() => {
@@ -347,53 +349,68 @@ const DashboardTab = () => {
 
       // ── Primary: backend realtime-stats (uses supabase_admin — bypasses RLS) ──
       let backendOk = false;
+      const nowMs = Date.now();
       try {
-        const yearParam = selectedYear ? `?year=${selectedYear}` : "";
-        const statsRes = await fetch(`${API_URL}/api/dashboard/realtime-stats${yearParam}`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (statsRes.ok) {
-          const d = await statsRes.json();
-          // 2. Next cleanup (reuse existing logic)
-          const now = new Date();
-          const joinDate = session?.user?.created_at ? new Date(session.user.created_at) : now;
-          let nextCleanupDate = new Date(now.getFullYear(), now.getMonth(), joinDate.getDate());
-          if (nextCleanupDate <= now) nextCleanupDate = new Date(now.getFullYear(), now.getMonth() + 1, joinDate.getDate());
-          const nextCleanupDays = Math.ceil((nextCleanupDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          const nextCleanupDateStr = nextCleanupDate.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+        if (nowMs >= backendCooldownUntil.current) {
+          const yearParam = selectedYear ? `?year=${selectedYear}` : "";
+          const statsRes = await fetch(`${API_URL}/api/dashboard/realtime-stats${yearParam}`, {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          });
+          if (statsRes.ok) {
+            const d = await statsRes.json();
+            backendFailureCount.current = 0;
+            backendCooldownUntil.current = 0;
 
-          // Cleanup API override
-          let apiCleanupDays = nextCleanupDays, apiCleanupDate = nextCleanupDateStr;
-          try {
-            const cleanupRes = await fetch(`${API_URL}/api/cleanup/cleanup-stats`);
-            if (cleanupRes.ok) {
-              const c = await cleanupRes.json();
-              apiCleanupDays = c.days_until_cleanup ?? nextCleanupDays;
-              apiCleanupDate = c.next_cleanup_date ? new Date(c.next_cleanup_date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : nextCleanupDateStr;
+            // 2. Next cleanup (reuse existing logic)
+            const now = new Date();
+            const joinDate = session?.user?.created_at ? new Date(session.user.created_at) : now;
+            let nextCleanupDate = new Date(now.getFullYear(), now.getMonth(), joinDate.getDate());
+            if (nextCleanupDate <= now) nextCleanupDate = new Date(now.getFullYear(), now.getMonth() + 1, joinDate.getDate());
+            const nextCleanupDays = Math.ceil((nextCleanupDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            const nextCleanupDateStr = nextCleanupDate.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            // Cleanup API override
+            let apiCleanupDays = nextCleanupDays, apiCleanupDate = nextCleanupDateStr;
+            try {
+              const cleanupRes = await fetch(`${API_URL}/api/cleanup/cleanup-stats`);
+              if (cleanupRes.ok) {
+                const c = await cleanupRes.json();
+                apiCleanupDays = c.days_until_cleanup ?? nextCleanupDays;
+                apiCleanupDate = c.next_cleanup_date ? new Date(c.next_cleanup_date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : nextCleanupDateStr;
+              }
+            } catch {/* ignore */}
+
+            if (isMounted.current) {
+              setStats({
+                trustScore: d.trust_score ?? 0,
+                totalNominalVerified: d.total_nominal ?? 0,
+                totalDocuments: d.total_scan_fraud ?? 0,
+                verifiedDocuments: d.verified ?? 0,
+                tamperedDocuments: d.tampered ?? 0,
+                processingDocuments: d.processing ?? 0,
+                totalActivity: d.total_scan_fraud ?? 0,
+                totalScanFraud: d.total_scan_fraud ?? 0,
+                credits: d.credits ?? 0,
+                nextCleanupDays: apiCleanupDays,
+                nextCleanupDate: apiCleanupDate,
+              });
+              setWeeklyData((d.weekly || []).map((w: any) => ({ day: w.day, scans: w.scans ?? 0 })));
+              setLoading(false);
             }
-          } catch {/* ignore */}
-
-          if (isMounted.current) {
-            setStats({
-              trustScore: d.trust_score ?? 0,
-              totalNominalVerified: d.total_nominal ?? 0,
-              totalDocuments: d.total_scan_fraud ?? 0,
-              verifiedDocuments: d.verified ?? 0,
-              tamperedDocuments: d.tampered ?? 0,
-              processingDocuments: d.processing ?? 0,
-              totalActivity: d.total_scan_fraud ?? 0,
-              totalScanFraud: d.total_scan_fraud ?? 0,
-              credits: d.credits ?? 0,
-              nextCleanupDays: apiCleanupDays,
-              nextCleanupDate: apiCleanupDate,
-            });
-            setWeeklyData((d.weekly || []).map((w: any) => ({ day: w.day, scans: w.scans ?? 0 })));
-            setLoading(false);
+            backendOk = true;
+          } else {
+            backendFailureCount.current += 1;
+            const backoffSeconds = Math.min(60, Math.max(5, backendFailureCount.current * 5));
+            backendCooldownUntil.current = Date.now() + backoffSeconds * 1000;
           }
-          backendOk = true;
         }
       } catch (backendErr) {
-        console.warn("[Dashboard] backend realtime-stats failed, falling back to Supabase client", backendErr);
+        backendFailureCount.current += 1;
+        const backoffSeconds = Math.min(60, Math.max(5, backendFailureCount.current * 5));
+        backendCooldownUntil.current = Date.now() + backoffSeconds * 1000;
+        if (backendFailureCount.current <= 3 || backendFailureCount.current % 10 === 0) {
+          console.warn("[Dashboard] backend realtime-stats failed, falling back to Supabase client", backendErr);
+        }
       }
 
       if (backendOk) return;
@@ -506,7 +523,7 @@ const DashboardTab = () => {
       // Fallback realtime polling in case websocket/realtime channel drops.
       realtimePoll = setInterval(() => {
         if (isMounted.current) fetchDashboardData(true);
-      }, 3000);
+      }, 15000);
     };
     setupDashboard();
 

@@ -22,34 +22,38 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
-# Setup CORS
+# Add security middlewares (order matters!)
+app.add_middleware(SecurityHeadersMiddleware)  # Security headers
+app.add_middleware(IPBlockingMiddleware)       # IP blocking
+app.add_middleware(RateLimitMiddleware)        # Rate limiting (DDoS protection)
+
+# Setup CORS as the outermost middleware so error responses still include CORS headers.
+_default_cors_origins = [
+    "http://localhost:8080",
+    "http://localhost:8081",
+    "http://localhost:3000",
+    "http://localhost:5174",
+    "https://logistic-dokumen.vercel.app",
+    "https://ocr.wtf",
+    "https://www.ocr.wtf",
+    "https://ocr.web.id",
+    "https://www.ocr.web.id",
+    "https://otaruchain.vercel.app",
+    "https://www.otaruchain.vercel.app",
+    "https://otaruchain.my.id",
+    "https://www.otaruchain.my.id",
+]
+_env_origins = [o.strip() for o in settings.CORS_ORIGINS if o.strip()]
+_cors_origins = list(dict.fromkeys(_env_origins + _default_cors_origins))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8080",
-        "http://localhost:8081", 
-        "http://localhost:3000",
-        "https://logistic-dokumen.vercel.app",
-        "https://ocr.wtf",
-        "https://www.ocr.wtf",
-        "https://ocr.web.id",
-        "https://www.ocr.web.id",
-        "https://otaruchain.vercel.app",
-        "https://www.otaruchain.vercel.app",
-        "https://otaruchain.my.id",
-        "https://www.otaruchain.my.id",
-        "http://localhost:5174",
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],  # Allow PDF embedding
 )
-
-# Add security middlewares (order matters!)
-app.add_middleware(SecurityHeadersMiddleware)  # Security headers
-app.add_middleware(IPBlockingMiddleware)       # IP blocking
-app.add_middleware(RateLimitMiddleware)        # Rate limiting (DDoS protection)
 
 # Create upload directory
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
