@@ -357,6 +357,145 @@ def get_dashboard_summary(user_id: str) -> dict[str, Any]:
     return result
 
 
+def analyze_signature(image_bytes: bytes) -> dict[str, Any]:
+    """Analyze a document image for TTD (tanda tangan) and stempel authenticity.
+
+    Uses OpenAI vision if available, falls back to a basic heuristic via PIL.
+
+    Returns a dict with:
+      - found: bool — whether a signature/stempel region was detected
+      - stempel: bool — whether an official stamp (cap/stempel) was detected
+      - verdict: str — "asli" | "mencurigakan" | "tidak ada TTD"
+      - detail: str — human-readable explanation (Indonesian)
+      - confidence: str — "high" | "medium" | "low"
+    """
+    from config.settings import settings
+
+    # ── Try OpenAI / Groq vision ─────────────────────────────────────────────
+    try:
+        import base64
+        from openai import OpenAI
+        import httpx
+
+        api_key = settings.OPENAI_API_KEY or ""
+        base_url = getattr(settings, "OPENAI_BASE_URL", "https://api.openai.com/v1") or "https://api.openai.com/v1"
+
+        # Fall back to first Groq key if no OpenAI key
+        if not api_key and getattr(settings, "groq_api_keys", None):
+            api_key = settings.groq_api_keys[0]
+            base_url = getattr(settings, "GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+
+        if api_key:
+            b64 = base64.b64encode(image_bytes).decode()
+            client = OpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                http_client=httpx.Client(timeout=30.0),
+            )
+            prompt = (
+                "Analisis gambar dokumen ini untuk verifikasi tanda tangan (TTD) dan stempel/cap. "
+                "Jawab HANYA dalam JSON valid dengan field berikut (tidak ada teks lain):\n"
+                "{\n"
+                '  "found": true/false,\n'
+                '  "stempel": true/false,\n'
+                '  "verdict": "asli" | "mencurigakan" | "tidak ada TTD",\n'
+                '  "detail": "<penjelasan singkat 1-2 kalimat dalam Bahasa Indonesia>",\n'
+                '  "confidence": "high" | "medium" | "low"\n'
+                "}\n\n"
+                "Kriteria:\n"
+                "- found: ada TTD berupa goresan tangan (bukan teks cetak)\n"
+                "- stempel: ada cap/stempel berbentuk lingkaran/kotak berwarna\n"
+                "- verdict 'asli': TTD dan/atau stempel terlihat asli, tidak ada anomali\n"
+                "- verdict 'mencurigakan': TTD terlihat copy-paste, blur inkonsisten, stempel palsu, "
+                "atau tanda tangan tidak ada tapi dokumen seharusnya memilikinya\n"
+                "- verdict 'tidak ada TTD': tidak ada tanda tangan sama sekali"
+            )
+            # Use a vision-capable model; fall back gracefully if 404
+            for model in ("gpt-4o-mini", "llava-v1.5-7b-4096-preview", "meta-llama/llama-4-scout-17b-16e-instruct"):
+                try:
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": prompt},
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+                                    },
+                                ],
+                            }
+                        ],
+                        max_tokens=300,
+                        temperature=0,
+                    )
+                    raw = (response.choices[0].message.content or "").strip()
+                    # strip markdown fences
+                    if raw.startswith("```"):
+                        raw = raw.strip("`").lstrip("json").strip()
+                    import json as _json
+                    parsed = _json.loads(raw)
+                    return {
+                        "found": bool(parsed.get("found", False)),
+                        "stempel": bool(parsed.get("stempel", False)),
+                        "verdict": str(parsed.get("verdict", "tidak ada TTD")),
+                        "detail": str(parsed.get("detail", "")),
+                        "confidence": str(parsed.get("confidence", "low")),
+                    }
+                except Exception:
+                    continue
+    except Exception as e:
+        print(f"⚠️ [TTD] Vision API error: {e}")
+
+    # ── Heuristic fallback via PIL ───────────────────────────────────────────
+    try:
+        import io
+        from PIL import Image, ImageFilter
+        import numpy as np  # type: ignore[import]
+
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        # Downscale for speed
+        img.thumbnail((400, 400))
+        arr = np.array(img, dtype=np.float32)
+
+        # Blue ink detection (common for TTD in Indonesia): high B, lower R+G delta
+        b_channel = arr[:, :, 2]
+        r_channel = arr[:, :, 0]
+        g_channel = arr[:, :, 1]
+        blue_ink = (b_channel > 100) & (b_channel > r_channel + 20) & (b_channel > g_channel + 20)
+        blue_ratio = float(blue_ink.sum()) / float(arr.shape[0] * arr.shape[1])
+
+        # Red ink (stempel is often red)
+        red_ink = (r_channel > 130) & (r_channel > b_channel + 40) & (r_channel > g_channel + 30)
+        red_ratio = float(red_ink.sum()) / float(arr.shape[0] * arr.shape[1])
+
+        found = blue_ratio > 0.005
+        stempel = red_ratio > 0.005
+
+        if found or stempel:
+            verdict = "asli"
+            detail = "TTD dan/atau stempel terdeteksi via analisis warna tinta."
+            confidence = "medium"
+        else:
+            verdict = "tidak ada TTD"
+            detail = "Tidak terdeteksi tinta tanda tangan atau stempel pada dokumen."
+            confidence = "low"
+
+        return {"found": found, "stempel": stempel, "verdict": verdict, "detail": detail, "confidence": confidence}
+    except Exception as e:
+        print(f"⚠️ [TTD] PIL fallback error: {e}")
+
+    # ── Last resort: unknown ─────────────────────────────────────────────────
+    return {
+        "found": False,
+        "stempel": False,
+        "verdict": "tidak ada TTD",
+        "detail": "Gagal menganalisis gambar.",
+        "confidence": "low",
+    }
+
+
 def get_recent_fraud_history(user_id: str, *, limit: int = 5) -> list[dict[str, Any]]:
     """Get recent fraud scan logs for Telegram history command."""
     sb = get_supabase_admin()

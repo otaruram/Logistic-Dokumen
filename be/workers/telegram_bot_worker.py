@@ -8,6 +8,8 @@ Features:
 - /start <tele_key>   => link Telegram chat with web account (permanent key)
 - /menu               => show available commands
 - /dashboard          => show Logistics Trust Score + revenue summary
+- /ttd                => TTD/signature-only check (no credit deduction)
+- 🔏 Cek TTD button   => same as /ttd
 - Send photo          => run fraud scan pipeline (caption can be recipient name)
 
 Notes:
@@ -25,6 +27,7 @@ import requests
 
 from config.settings import settings
 from services.telegram_service import (
+    analyze_signature,
     get_dashboard_summary,
     get_link_by_chat_id,
     get_recent_fraud_history,
@@ -32,6 +35,9 @@ from services.telegram_service import (
     process_fraud_scan_from_telegram,
     unlink_chat,
 )
+
+# Per-chat state for TTD-only mode: chat_id => True means awaiting a signature photo
+_ttd_pending: set[int] = set()
 
 TOKEN = settings.TELEGRAM_BOT_TOKEN
 BASE_URL = f"https://api.telegram.org/bot{TOKEN}" if TOKEN else ""
@@ -51,7 +57,7 @@ def _main_menu_keyboard() -> dict[str, Any]:
         "keyboard": [
             [{"text": "📸 Kirim Foto Nota"}, {"text": "📊 Cek Skor"}],
             [{"text": "📜 Histori"}, {"text": "⚙️ Profil"}],
-            [{"text": "🔄 Ganti Akun"}],
+            [{"text": "🔄 Ganti Akun"}, {"text": "🔏 Cek TTD"}],
         ],
         "resize_keyboard": True,
         "persistent": True,
@@ -233,6 +239,8 @@ async def _handle_photo(chat_id: int, message: dict[str, Any]) -> None:
             filename=filename,
         )
 
+        # Run signature validation in parallel with getting the dashboard summary
+        ttd = analyze_signature(content)
         summary = get_dashboard_summary(link["user_id"])
 
         status = str(result.get("status", "processing"))
@@ -244,6 +252,13 @@ async def _handle_photo(chat_id: int, message: dict[str, Any]) -> None:
         nominal = result.get("nominal_total")
         nominal_text = _format_idr(float(nominal)) if nominal not in (None, "", 0) else "-"
 
+        ttd_verdict = ttd.get("verdict", "tidak ada TTD")
+        ttd_badge = {
+            "asli": "🔏 ASLI",
+            "mencurigakan": "🚨 MENCURIGAKAN",
+            "tidak ada TTD": "⚠️ TIDAK ADA TTD",
+        }.get(ttd_verdict, f"ℹ️ {ttd_verdict.upper()}")
+
         response = (
             "<b>🧾 Fraud Scan Selesai</b>\n"
             f"<b>Status:</b> {status_badge}\n"
@@ -251,7 +266,9 @@ async def _handle_photo(chat_id: int, message: dict[str, Any]) -> None:
             f"<b>Nominal:</b> {nominal_text}\n"
             f"<b>Klien:</b> {result.get('nama_klien') or '-'}\n"
             f"<b>Surat Jalan:</b> {result.get('nomor_surat_jalan') or '-'}\n"
-            f"<b>Credits sisa:</b> {result['credits_remaining']}/10\n"
+            f"\n<b>🔏 TTD/Stempel:</b> {ttd_badge}\n"
+            f"<b>Detail TTD:</b> {ttd.get('detail', '-')}\n"
+            f"\n<b>Credits sisa:</b> {result['credits_remaining']}/10\n"
             f"<b>Trust Score:</b> {summary['trust_score']}/1000\n"
             f"<b>Total Fraud Logs:</b> {summary['total_fraud_scans']}"
         )
@@ -260,6 +277,66 @@ async def _handle_photo(chat_id: int, message: dict[str, Any]) -> None:
         send_message(chat_id, response, use_keyboard=True)
     except Exception as e:
         send_message(chat_id, f"<b>❌ Fraud scan gagal</b>\n{str(e)}", use_keyboard=True)
+
+
+def _handle_ttd_prompt(chat_id: int) -> None:
+    """Enter TTD-only mode: ask the user to send a photo for signature analysis."""
+    link = get_link_by_chat_id(chat_id)
+    if not link:
+        send_message(
+            chat_id,
+            "<b>🔐 Akun belum terhubung.</b> Gunakan <code>/start &lt;tele_key&gt;</code> dari web.",
+            use_keyboard=True,
+        )
+        return
+    _ttd_pending.add(chat_id)
+    send_message(
+        chat_id,
+        "<b>🔏 Mode Cek TTD Aktif</b>\n\n"
+        "Kirimkan <b>foto dokumen</b> yang ingin dicek tanda tangan dan stempelnya.\n"
+        "<i>Analisis ini <b>tidak</b> memotong kredit.</i>",
+        use_keyboard=False,
+    )
+
+
+async def _handle_ttd_photo(chat_id: int, message: dict[str, Any]) -> None:
+    """Process a photo in TTD-only mode — no credit deduction, no fraud_scans insert."""
+    _ttd_pending.discard(chat_id)
+
+    photos = message.get("photo") or []
+    if not photos:
+        send_message(chat_id, "<b>❌ Foto tidak valid.</b>", use_keyboard=True)
+        return
+
+    send_message(chat_id, "<b>🔍 Menganalisis TTD & stempel...</b> tunggu sebentar.", use_keyboard=True)
+
+    try:
+        file_id = photos[-1]["file_id"]
+        content = get_file_bytes(file_id)
+        result = analyze_signature(content)
+
+        verdict = result.get("verdict", "tidak ada TTD")
+        verdict_badge = {
+            "asli": "✅ ASLI",
+            "mencurigakan": "🚨 MENCURIGAKAN",
+            "tidak ada TTD": "⚠️ TIDAK ADA TTD",
+        }.get(verdict, f"ℹ️ {verdict.upper()}")
+
+        ttd_icon = "✅" if result.get("found") else "❌"
+        stempel_icon = "✅" if result.get("stempel") else "❌"
+
+        msg = (
+            "<b>🔏 Hasil Analisis TTD</b>\n"
+            f"<b>Verdict:</b> {verdict_badge}\n"
+            f"<b>Tanda Tangan:</b> {ttd_icon} {'Terdeteksi' if result.get('found') else 'Tidak ditemukan'}\n"
+            f"<b>Stempel/Cap:</b> {stempel_icon} {'Terdeteksi' if result.get('stempel') else 'Tidak ditemukan'}\n"
+            f"<b>Keyakinan AI:</b> {result.get('confidence', 'low').capitalize()}\n"
+            f"<b>Detail:</b> {result.get('detail', '-')}\n\n"
+            "<i>Mode Cek TTD tidak memotong kredit.</i>"
+        )
+        send_message(chat_id, msg, use_keyboard=True)
+    except Exception as e:
+        send_message(chat_id, f"<b>❌ Gagal analisis TTD</b>\n{str(e)}", use_keyboard=True)
 
 
 def _handle_reset(chat_id: int) -> None:
@@ -362,6 +439,10 @@ async def handle_update(update: dict[str, Any]) -> None:
         _handle_reset(chat_id)
         return
 
+    if text in ("🔏 Cek TTD", "/ttd"):
+        _handle_ttd_prompt(chat_id)
+        return
+
     # "📸 Kirim Foto Nota" button — prompt user to send the photo next
     if text == "📸 Kirim Foto Nota":
         link = get_link_by_chat_id(chat_id)
@@ -372,7 +453,11 @@ async def handle_update(update: dict[str, Any]) -> None:
         return
 
     if message.get("photo"):
-        await _handle_photo(chat_id, message)
+        # TTD-only mode takes priority over regular fraud scan
+        if chat_id in _ttd_pending:
+            await _handle_ttd_photo(chat_id, message)
+        else:
+            await _handle_photo(chat_id, message)
         return
 
 
