@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 import time
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from fastapi import HTTPException
@@ -255,7 +256,11 @@ async def process_fraud_scan_from_telegram(*, user_id: str, recipient_name: str,
 
 
 def get_dashboard_summary(user_id: str) -> dict[str, Any]:
-    """Read fraud-focused dashboard summary for Telegram bot."""
+    """Read fraud-focused dashboard summary for Telegram bot.
+
+    Uses the same base metrics as web dashboard realtime endpoint
+    so Telegram and web values stay consistent.
+    """
     now = time.time()
     cached = _dashboard_cache.get(user_id)
     if cached and now - cached[0] <= _DASHBOARD_CACHE_TTL:
@@ -265,38 +270,44 @@ def get_dashboard_summary(user_id: str) -> dict[str, Any]:
     if not sb:
         raise HTTPException(status_code=500, detail="Supabase admin is not configured")
 
-    docs_res = sb.table("documents").select("status").eq("user_id", user_id).execute()
-    docs = getattr(docs_res, "data", None) or []
-
-    verified = sum(1 for d in docs if d.get("status") == "verified")
-    processing = sum(1 for d in docs if d.get("status") == "processing")
-    tampered = sum(1 for d in docs if d.get("status") == "tampered")
-
-    trust_score = 0
-    try:
-        rpc = sb.rpc("calculate_logistics_trust_score", {"p_user_id": user_id}).execute()
-        trust_score = int(getattr(rpc, "data", 0) or 0)
-    except Exception:
-        total_docs = verified + processing + tampered
-        if total_docs > 0:
-            raw_score = (verified * 100 + processing * 50) / total_docs
-            trust_score = min(round(raw_score * 10), 1000)
-
-    finance = (
-        sb.table("extracted_finance_data")
-        .select("nominal_amount,field_confidence")
+    scans_res = (
+        sb.table("fraud_scans")
+        .select("status,nominal_total,created_at")
         .eq("user_id", user_id)
         .execute()
     )
-    finance_rows = getattr(finance, "data", None) or []
-    total_revenue_valid = sum(
-        float(row.get("nominal_amount") or 0)
-        for row in finance_rows
-        if row.get("field_confidence") != "low"
-    )
+    scans = getattr(scans_res, "data", None) or []
 
-    fraud_count_res = sb.table("fraud_scans").select("id", count="exact").eq("user_id", user_id).execute()
-    total_fraud_scans = int(getattr(fraud_count_res, "count", 0) or 0)
+    verified = sum(1 for s in scans if s.get("status") == "verified")
+    processing = sum(1 for s in scans if s.get("status") == "processing")
+    tampered = sum(1 for s in scans if s.get("status") == "tampered")
+    total_fraud_scans = len(scans)
+
+    # Keep web parity: web card sums nominal_total from fraud_scans.
+    total_revenue_valid = sum(float(s.get("nominal_total") or 0) for s in scans)
+
+    trust_score = 0
+    total_docs = verified + processing + tampered
+    if total_docs > 0:
+        raw_score = (verified * 100 + processing * 50 + tampered * 50) / total_docs
+        trust_score = min(int(raw_score * 10), 1000)
+
+    # Weekly usage (Mon-Sun) for future Telegram/web consistency checks.
+    weekly_counts = [0] * 7
+    week_start = datetime.utcnow() - timedelta(days=datetime.utcnow().weekday())
+    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_end = week_start + timedelta(days=6, hours=23, minutes=59, seconds=59)
+    for s in scans:
+        ts = s.get("created_at")
+        if not ts:
+            continue
+        try:
+            dt_str = ts[:-1] + "+00:00" if isinstance(ts, str) and ts.endswith("Z") else ts
+            dt = datetime.fromisoformat(dt_str).replace(tzinfo=None)
+            if week_start <= dt <= week_end:
+                weekly_counts[dt.weekday()] += 1
+        except Exception:
+            continue
 
     profile_credits = _ensure_profile_credits(user_id)
 
@@ -308,6 +319,7 @@ def get_dashboard_summary(user_id: str) -> dict[str, Any]:
         "tampered_documents": tampered,
         "total_fraud_scans": total_fraud_scans,
         "credits": profile_credits,
+        "weekly_usage": weekly_counts,
     }
     _dashboard_cache[user_id] = (now, dict(result))
     return result

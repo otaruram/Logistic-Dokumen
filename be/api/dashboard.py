@@ -16,10 +16,14 @@ async def get_dashboard_stats(user = Depends(get_current_user)):
     Get user's dashboard statistics - Only DGTNZ feature
     """
     try:
+        sa = _get_sa()
+        if not sa:
+            raise HTTPException(status_code=503, detail="Supabase admin not configured")
+
         user_id = str(user.id) if hasattr(user, 'id') else str(user.get('id'))
         
         # Get user's current credits and created_at date
-        user_data = supabase_admin.table("users").select("credits, created_at").eq("id", user_id).execute()
+        user_data = sa.table("users").select("credits, created_at").eq("id", user_id).execute()
         credits = user_data.data[0].get("credits", 10) if user_data.data else 10
         user_created_at = user_data.data[0].get("created_at") if user_data.data else None
         
@@ -49,13 +53,13 @@ async def get_dashboard_stats(user = Depends(get_current_user)):
             
             # 2. Count Scans in Current Cycle (Total Activity)
             # Using 'scans' table directly instead of activities
-            scans_count = supabase_admin.table("scans")\
-                .select("id", count="exact")\
+            scans_count = sa.table("scans")\
+                .select("id")\
                 .eq("user_id", user_id)\
                 .gte("created_at", current_cycle_start.isoformat())\
                 .execute()
             
-            total_activities = scans_count.count or 0
+            total_activities = len(scans_count.data or [])
             
         return {
             "totalActivities": total_activities,
@@ -84,6 +88,10 @@ async def get_weekly_activity(user = Depends(get_current_user)):
     Get user's activity data for the last 7 days - Using Scans table
     """
     try:
+        sa = _get_sa()
+        if not sa:
+            raise HTTPException(status_code=503, detail="Supabase admin not configured")
+
         user_id = str(user.id) if hasattr(user, 'id') else str(user.get('id'))
         
         # Calculate date range (last 7 days including today)
@@ -91,7 +99,7 @@ async def get_weekly_activity(user = Depends(get_current_user)):
         week_ago = today - timedelta(days=6)
         
         # Get scans for last 7 days
-        scans = supabase_admin.table("scans")\
+        scans = sa.table("scans")\
             .select("created_at")\
             .eq("user_id", user_id)\
             .gte("created_at", week_ago.isoformat())\
@@ -142,6 +150,9 @@ async def deduct_credit(user = Depends(get_current_user)):
     Deduct 1 credit from user's balance
     """
     try:
+        if not supabase:
+            raise HTTPException(status_code=503, detail="Supabase client not configured")
+
         user_id = str(user.id)
         
         # Get current credits

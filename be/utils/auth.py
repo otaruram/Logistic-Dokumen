@@ -122,10 +122,12 @@ async def get_current_user(
                     db.refresh(user)
                     # Also ensure Supabase profiles row exists with initial credits
                     try:
-                        supabase_admin.table("profiles").upsert(
-                            {"id": str(user_response.user.id), "credits": 10, "user_email": email},
-                            on_conflict="id",
-                        ).execute()
+                        sb = supabase_admin or supabase
+                        if sb:
+                            sb.table("profiles").upsert(
+                                {"id": str(user_response.user.id), "credits": 10, "user_email": email},
+                                on_conflict="id",
+                            ).execute()
                     except Exception as profile_err:
                         print(f"⚠️ Could not init Supabase profile for {email}: {profile_err}")
                 
