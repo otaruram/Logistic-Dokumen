@@ -77,6 +77,26 @@ def get_link_by_chat_id(chat_id: int) -> Optional[dict[str, Any]]:
     return data[0] if data else None
 
 
+def unlink_chat(chat_id: int) -> bool:
+    """Unlink a Telegram chat from any associated web account.
+
+    Clears ``telegram_chat_id`` and sets ``is_linked=False`` for every
+    ``telegram_links`` row currently bound to this chat.  Used by /reset.
+    """
+    sb = get_supabase_admin()
+    if not sb:
+        return False
+    try:
+        sb.table("telegram_links") \
+            .update({"is_linked": False, "telegram_chat_id": None}) \
+            .eq("telegram_chat_id", str(chat_id)) \
+            .execute()
+        return True
+    except Exception as e:
+        print(f"❌ [Telegram] unlink_chat failed for chat_id={chat_id}: {e}")
+        return False
+
+
 def link_chat_to_user(*, tele_key: str, chat_id: int, telegram_user_id: Optional[int], username: Optional[str]) -> dict[str, Any]:
     sb = get_supabase_admin()
     if not sb:
@@ -85,6 +105,18 @@ def link_chat_to_user(*, tele_key: str, chat_id: int, telegram_user_id: Optional
     link = get_link_by_key(tele_key)
     if not link:
         raise HTTPException(status_code=404, detail="Invalid tele key")
+
+    # Detach this chat from ANY previous account before binding to the new one.
+    # This prevents the same Telegram chat from appearing linked to two different
+    # web users simultaneously, which would cause the wrong user's data to appear.
+    try:
+        sb.table("telegram_links") \
+            .update({"is_linked": False, "telegram_chat_id": None}) \
+            .eq("telegram_chat_id", str(chat_id)) \
+            .neq("id", link["id"]) \
+            .execute()
+    except Exception as e:
+        print(f"⚠️ [Telegram] Could not clear old chat_id bindings: {e}")
 
     payload = {
         "is_linked": True,

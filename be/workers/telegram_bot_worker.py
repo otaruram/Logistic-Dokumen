@@ -30,6 +30,7 @@ from services.telegram_service import (
     get_recent_fraud_history,
     link_chat_to_user,
     process_fraud_scan_from_telegram,
+    unlink_chat,
 )
 
 TOKEN = settings.TELEGRAM_BOT_TOKEN
@@ -50,6 +51,7 @@ def _main_menu_keyboard() -> dict[str, Any]:
         "keyboard": [
             [{"text": "📸 Kirim Foto Nota"}, {"text": "📊 Cek Skor"}],
             [{"text": "📜 Histori"}, {"text": "⚙️ Profil"}],
+            [{"text": "🔄 Ganti Akun"}],
         ],
         "resize_keyboard": True,
         "persistent": True,
@@ -260,6 +262,40 @@ async def _handle_photo(chat_id: int, message: dict[str, Any]) -> None:
         send_message(chat_id, f"<b>❌ Fraud scan gagal</b>\n{str(e)}", use_keyboard=True)
 
 
+def _handle_reset(chat_id: int) -> None:
+    """Unlink this Telegram chat from its current web account.
+
+    After reset the user can send /start <new_tele_key> to link to a different
+    (or the same) web account.  This is the fix for the multi-account confusion
+    where user A and user B both appear as the same account in the bot.
+    """
+    current_link = get_link_by_chat_id(chat_id)
+    ok = unlink_chat(chat_id)
+    if ok and current_link:
+        send_message(
+            chat_id,
+            "<b>🔄 Akun Berhasil Di-reset</b>\n\n"
+            "Telegram kamu sudah diputus dari akun web sebelumnya.\n"
+            "Untuk menghubungkan ulang (atau ke akun lain), buka web lalu salin "
+            "<b>Tele Key</b> dan kirim:\n\n"
+            "<code>/start &lt;tele_key_baru&gt;</code>",
+            use_keyboard=False,
+        )
+    elif ok:
+        send_message(
+            chat_id,
+            "<b>ℹ️ Tidak ada akun tertaut.</b>\n"
+            "Gunakan <code>/start &lt;tele_key&gt;</code> untuk menghubungkan.",
+            use_keyboard=False,
+        )
+    else:
+        send_message(
+            chat_id,
+            "<b>❌ Gagal reset akun.</b> Coba lagi nanti.",
+            use_keyboard=True,
+        )
+
+
 def _handle_profile(chat_id: int) -> None:
     link = get_link_by_chat_id(chat_id)
     if not link:
@@ -320,6 +356,10 @@ async def handle_update(update: dict[str, Any]) -> None:
 
     if text in ("/menu", "📋 Menu"):
         _handle_menu(chat_id)
+        return
+
+    if text in ("🔄 Ganti Akun", "/reset"):
+        _handle_reset(chat_id)
         return
 
     # "📸 Kirim Foto Nota" button — prompt user to send the photo next
