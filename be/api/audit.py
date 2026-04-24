@@ -233,21 +233,30 @@ async def get_user_audit(
         if total > 0:
             trust_score = min(int((verified / total) * 800), 800)
 
-    cycle_data = compute_and_sync_cycles(user_id, trust_score)
+    try:
+        cycle_data = compute_and_sync_cycles(user_id, trust_score)
+    except Exception as e:
+        print(f"⚠️ Cycle scoring fallback: {e}")
+        cycle_data = {}
 
     credit_score = CreditScoreInfo(
-        current_cycle=cycle_data.get("current_cycle", 0),
-        current_cycle_score=cycle_data.get("current_cycle_score", 0),
+        current_cycle=cycle_data.get("current_cycle", 1),
+        current_cycle_score=cycle_data.get("current_cycle_score", trust_score),
         cycle_max=cycle_data.get("cycle_max", 1000),
-        lifetime_score=cycle_data.get("lifetime_score", 0),
+        lifetime_score=cycle_data.get("lifetime_score", trust_score),
         completed_cycles=cycle_data.get("completed_cycles", 0),
     )
 
     # 4. Risk Assessment
-    risk_data = calculate_risk_level(user_id)
+    try:
+        risk_data = calculate_risk_level(user_id)
+    except Exception as e:
+        print(f"⚠️ Risk calculation fallback: {e}")
+        risk_data = {"risk_level": "MEDIUM", "risk_score": 50, "factors": []}
+
     risk = RiskInfo(
-        risk_level=risk_data.get("risk_level", "HIGH"),
-        risk_score=risk_data.get("risk_score", 100),
+        risk_level=risk_data.get("risk_level", "MEDIUM"),
+        risk_score=risk_data.get("risk_score", 50),
         factors=risk_data.get("factors", []),
     )
 
@@ -278,8 +287,13 @@ async def get_user_audit(
     unsealed = 0
 
     for s in all_scans:
-        v = verify_row_integrity(s)
-        r = v["result"]
+        try:
+            v = verify_row_integrity(s)
+            r = v["result"]
+        except Exception as e:
+            print(f"⚠️ Integrity check fallback: {e}")
+            r = "UNSEALED"
+
         if r == "VERIFIED":
             sealed += 1
             verified_seals += 1
@@ -303,7 +317,12 @@ async def get_user_audit(
     # 7. Audit log (capped by limit)
     audit_log = []
     for s in all_scans[:limit]:
-        v = verify_row_integrity(s)
+        try:
+            v = verify_row_integrity(s)
+            res_status = v["result"]
+        except Exception:
+            res_status = "UNSEALED"
+
         audit_log.append(AuditLogEntry(
             scan_id=str(s.get("id", "")),
             status=s.get("status", ""),
@@ -311,7 +330,7 @@ async def get_user_audit(
             doc_type=s.get("doc_type"),
             vendor_name=s.get("nama_klien"),
             created_at=s.get("created_at", ""),
-            integrity_status=v["result"],
+            integrity_status=res_status,
         ))
 
     return AuditResponse(
