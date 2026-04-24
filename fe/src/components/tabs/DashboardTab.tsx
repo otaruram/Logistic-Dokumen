@@ -27,43 +27,98 @@ interface DashboardStats {
   nextCleanupDate: string;
 }
 
-// ── Sub-Components ───────────────────────────────────────────────────────────
+const DURATION_OPTIONS = [
+  { key: "30d", label: "30 Hari" },
+  { key: "6m", label: "6 Bulan" },
+  { key: "1y", label: "1 Tahun" },
+  { key: "all", label: "Semua" },
+] as const;
 
-const TotalActivityCard = ({ stats, loading }: { stats: DashboardStats; loading: boolean }) => (
-  <motion.div
-    initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}
-    className="border border-white/10 rounded-2xl p-6 bg-gradient-to-br from-[#111] to-[#0d0d0d] flex flex-col justify-between relative overflow-hidden group"
-  >
-    <div className="absolute -top-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-3xl group-hover:bg-white/8 transition-colors pointer-events-none" />
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-          <Activity className="w-4 h-4 text-white" />
+const TotalActivityCard = ({ stats, loading }: { stats: DashboardStats; loading: boolean }) => {
+  const [duration, setDuration] = useState<string>("all");
+  const [durationData, setDurationData] = useState<{ total: number; nominal: number } | null>(null);
+  const [durationLoading, setDurationLoading] = useState(false);
+
+  const fetchDurationData = async (d: string) => {
+    setDuration(d);
+    if (d === "all") {
+      setDurationData(null); // use default stats
+      return;
+    }
+    setDurationLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch(`${API_URL}/api/transactions/summary?duration=${d}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDurationData({ total: data.total_transactions, nominal: data.total_nominal });
+      }
+    } catch {
+      setDurationData(null);
+    } finally {
+      setDurationLoading(false);
+    }
+  };
+
+  const displayTotal = durationData?.total ?? stats.totalActivity;
+  const isLoading = loading || durationLoading;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}
+      className="border border-white/10 rounded-2xl p-6 bg-gradient-to-br from-[#111] to-[#0d0d0d] flex flex-col justify-between relative overflow-hidden group"
+    >
+      <div className="absolute -top-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-3xl group-hover:bg-white/8 transition-colors pointer-events-none" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+            <Activity className="w-4 h-4 text-white" />
+          </div>
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Aktivitas</span>
         </div>
-        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Aktivitas</span>
-      </div>
-      <span className="text-[10px] bg-white/10 text-gray-300 px-2 py-1 rounded-full font-semibold border border-white/10">Sepanjang Masa</span>
-    </div>
-    <div className="mt-5">
-      <div className="text-6xl font-black tracking-tighter text-white tabular-nums">
-        {loading ? <span className="text-gray-600 animate-pulse">—</span> : stats.totalActivity}
-      </div>
-      <p className="text-xs text-gray-500 mt-1 font-medium">Total aktivitas fraud scan</p>
-    </div>
-    <div className="mt-4 pt-3 border-t border-white/10 grid grid-cols-3 gap-2">
-      {[
-        { label: "Fraud", value: stats.totalScanFraud },
-        { label: "Verified", value: stats.verifiedDocuments },
-        { label: "Tampered", value: stats.tamperedDocuments },
-      ].map((item) => (
-        <div key={item.label} className="bg-white/5 rounded-lg px-3 py-2 text-center">
-          <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">{item.label}</p>
-          <p className="text-base font-bold text-white tabular-nums">{loading ? "..." : item.value}</p>
+        {/* Duration Filter Dropdown */}
+        <div className="flex gap-0.5 bg-white/5 rounded-full p-0.5">
+          {DURATION_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => fetchDurationData(opt.key)}
+              className={`text-[9px] px-2 py-1 rounded-full font-semibold transition-all ${
+                duration === opt.key
+                  ? "bg-white text-black"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
-      ))}
-    </div>
-  </motion.div>
-);
+      </div>
+      <div className="mt-5">
+        <div className="text-6xl font-black tracking-tighter text-white tabular-nums">
+          {isLoading ? <span className="text-gray-600 animate-pulse">—</span> : displayTotal}
+        </div>
+        <p className="text-xs text-gray-500 mt-1 font-medium">
+          {duration === "all" ? "Total aktivitas fraud scan" : `Aktivitas ${DURATION_OPTIONS.find(o => o.key === duration)?.label}`}
+        </p>
+      </div>
+      <div className="mt-4 pt-3 border-t border-white/10 grid grid-cols-3 gap-2">
+        {[
+          { label: "Fraud", value: stats.totalScanFraud },
+          { label: "Verified", value: stats.verifiedDocuments },
+          { label: "Tampered", value: stats.tamperedDocuments },
+        ].map((item) => (
+          <div key={item.label} className="bg-white/5 rounded-lg px-3 py-2 text-center">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">{item.label}</p>
+            <p className="text-base font-bold text-white tabular-nums">{loading ? "..." : item.value}</p>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+};
 
 const CreditsCard = ({ stats, loading }: { stats: DashboardStats; loading: boolean }) => (
   <motion.div

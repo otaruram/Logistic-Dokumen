@@ -127,6 +127,9 @@ class Settings:
     LOUVIN_BASE_URL: str = os.getenv('LOUVIN_BASE_URL', 'https://api.louvin.dev')
     LOUVIN_API_KEY: str = os.getenv('LOUVIN_API_KEY', '')
     LOUVIN_SLUG: str = os.getenv('LOUVIN_SLUG', 'otaruchain')
+
+    # OtaruChain Ledger — SHA-256 integrity seal salt
+    LEDGER_SECRET_SALT: str = os.getenv('LEDGER_SECRET_SALT', '')
     
     # File Upload
     UPLOAD_DIR: str = 'uploads'

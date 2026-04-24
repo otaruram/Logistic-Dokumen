@@ -43,7 +43,7 @@ interface ScanRecord {
   };
 }
 
-export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?: ScanMode }) {
+export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?: "default" | "fraud" }) {
   // Core state
   const [scanMode] = useState<ScanMode>("fraud");
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);

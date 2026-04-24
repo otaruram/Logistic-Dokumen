@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from config.settings import settings
-from api import auth, scans, fraud, exports, invoices, users, upload, config as config_api, reviews, dashboard, cleanup, chatbot, chat_history, admin, report, scan_insight, telegram, partner, payment
+from api import auth, scans, fraud, exports, invoices, users, upload, config as config_api, reviews, dashboard, cleanup, chatbot, chat_history, admin, report, scan_insight, telegram, partner, payment, ledger, transactions, audit
 from middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware, IPBlockingMiddleware
 
 # Database will be handled by Prisma
@@ -82,6 +82,9 @@ app.include_router(scan_insight.router, prefix="/api/insight", tags=["Scan Insig
 app.include_router(telegram.router, prefix="/api/telegram", tags=["Telegram"])
 app.include_router(partner.router, tags=["Partner"])  # /api/v1/* routes defined inside partner.py
 app.include_router(payment.router, tags=["Payment"])  # /api/v1/payment/* — Louvin proxy
+app.include_router(ledger.router, prefix="/api/ledger", tags=["Ledger"])  # OtaruChain integrity seal
+app.include_router(transactions.router, prefix="/api/transactions", tags=["Transactions"])  # Duration-filtered aggregates
+app.include_router(audit.router, tags=["Partner Audit"])  # /api/partner/v1/user-audit/*
 
 @app.get("/")
 async def root():

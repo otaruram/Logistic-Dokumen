@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import PartnerAuditView from "@/components/PartnerAuditView";
 import {
   ArrowRight,
   BarChart3,
@@ -46,11 +47,15 @@ interface ScanSummary {
   created_at: string;
 }
 
+// Full audit data from /api/partner/v1/user-audit/{email}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AuditResult = any; // matches AuditData in PartnerAuditView
+
 interface ScoringResult {
   email: string;
   user_id: string;
   trust_score: number;
-  risk_label: "PRIME" | "MODERATE" | "RISK";
+  risk_label: string;
   total_scans: number;
   verified_scans: number;
   tampered_scans: number;
@@ -148,6 +153,7 @@ export default function PartnerPortal() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResult, setSearchResult] = useState<ScoringResult | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
 
   const [session, setSession] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -312,20 +318,45 @@ export default function PartnerPortal() {
       setSearchLoading(true);
       setSearchError(null);
       setSearchResult(null);
+      setAuditResult(null);
 
       try {
-        const response = await fetch(`${API}/api/v1/scoring/${encodeURIComponent(searchEmail.trim())}`, {
-          headers: { "x-api-key": apiKey.key_value },
-        });
+        // Try full audit API first (richer data)
+        const auditResponse = await fetch(
+          `${API}/api/partner/v1/user-audit/${encodeURIComponent(searchEmail.trim())}`,
+          { headers: { "x-api-key": apiKey.key_value } }
+        );
 
-        if (response.status === 404) {
+        if (auditResponse.ok) {
+          const auditData = await auditResponse.json();
+          setAuditResult(auditData);
+          // Also populate basic scoring result for backward compat
+          setSearchResult({
+            email: auditData.user.email,
+            user_id: auditData.user.user_id,
+            trust_score: auditData.credit_score.lifetime_score,
+            risk_label: auditData.risk.risk_level,
+            total_scans: auditData.transactions.total,
+            verified_scans: auditData.transactions.verified,
+            tampered_scans: auditData.transactions.tampered,
+            total_nominal: auditData.transactions.total_nominal,
+            recent_scans: [],
+          });
+        } else if (auditResponse.status === 404) {
           setSearchError("User dengan email tersebut tidak ditemukan.");
-        } else if (response.status === 401) {
+        } else if (auditResponse.status === 401) {
           setSearchError("API key tidak valid atau sudah tidak aktif.");
-        } else if (!response.ok) {
-          setSearchError("Terjadi error saat mengambil score.");
         } else {
-          setSearchResult(await response.json());
+          // Fallback to basic scoring endpoint
+          const response = await fetch(
+            `${API}/api/v1/scoring/${encodeURIComponent(searchEmail.trim())}`,
+            { headers: { "x-api-key": apiKey.key_value } }
+          );
+          if (response.ok) {
+            setSearchResult(await response.json());
+          } else {
+            setSearchError("Terjadi error saat mengambil score.");
+          }
         }
       } catch {
         setSearchError("Network error. Coba lagi.");
@@ -358,8 +389,8 @@ export default function PartnerPortal() {
       <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
           <div>
-            <Link to="/" className="text-lg font-semibold tracking-tight">ocr.wtf</Link>
-            <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">Otaru Patner</p>
+            <Link to="/" className="text-lg font-semibold tracking-tight">OtaruChain</Link>
+            <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">Partner Portal</p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -410,7 +441,7 @@ export default function PartnerPortal() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Akses aktif</p>
-                <h3 className="mt-1 text-lg font-semibold text-zinc-900">Akun kamu bisa akses Otaru Patner</h3>
+                <h3 className="mt-1 text-lg font-semibold text-zinc-900">Akun kamu bisa akses OtaruChain Partner</h3>
               </div>
               <button onClick={handleAcknowledgeAccess} className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100">
                 <X className="h-4 w-4" />
@@ -453,7 +484,7 @@ export default function PartnerPortal() {
 
         {!session ? (
           <section className="rounded-3xl border border-zinc-200 bg-white p-8 text-center">
-            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Otaru Patner Access</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">OtaruChain Partner Access</p>
             <h1 className="mt-3 text-3xl font-semibold text-zinc-900">Login untuk lanjut ke portal partner</h1>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
               User harus login untuk akses API key management, docs interaktif, dan pricing activation.
@@ -471,7 +502,7 @@ export default function PartnerPortal() {
               <section className="space-y-5">
                 <div className="rounded-3xl border border-zinc-200 bg-white p-6">
                   <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Dashboard</p>
-                  <h1 className="mt-2 text-3xl font-semibold text-zinc-900">Otaru Patner Dashboard</h1>
+                  <h1 className="mt-2 text-3xl font-semibold text-zinc-900">OtaruChain Partner Dashboard</h1>
                   <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
                     Ringkasan performa platform untuk partner dan shortcut cepat ke API.
                   </p>
@@ -593,7 +624,15 @@ export default function PartnerPortal() {
                     {!apiKey && <p className="mt-2 text-xs text-zinc-500">Generate key dulu untuk aktifkan search.</p>}
                     {searchError && <p className="mt-2 text-sm text-red-600">{searchError}</p>}
 
-                    {searchResult && (
+                    {/* Full Audit View (premium dashboard) */}
+                    {auditResult && (
+                      <div className="mt-5 -mx-5 -mb-5 rounded-b-3xl bg-zinc-950 p-5">
+                        <PartnerAuditView data={auditResult} />
+                      </div>
+                    )}
+
+                    {/* Fallback: simple card if audit API unavailable */}
+                    {searchResult && !auditResult && (
                       <div className="mt-4 space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm font-semibold text-zinc-900">{searchResult.email}</p>
@@ -655,7 +694,7 @@ export default function PartnerPortal() {
               <section className="space-y-5">
                 <div className="rounded-3xl border border-zinc-200 bg-white p-6">
                   <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Pricing</p>
-                  <h1 className="mt-2 text-3xl font-semibold text-zinc-900">Pricing Plan Otaru Patner</h1>
+                  <h1 className="mt-2 text-3xl font-semibold text-zinc-900">Pricing Plan OtaruChain Partner</h1>
                   <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
                     Paket ini sudah diaktifkan untuk flow partner. Pilih paket sesuai volume, lalu lanjut aktivasi dari tombol action masing-masing.
                   </p>

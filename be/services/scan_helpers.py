@@ -257,6 +257,22 @@ def sync_to_supabase(
             try:
                 supabase_admin.table("fraud_scans").insert(fraud_data).execute()
                 print(f"✅ Fraud scan saved to Supabase fraud_scans (doc_type={structured.get('doc_type')})")
+                # Apply SHA-256 integrity seal
+                try:
+                    from services.ledger_service import seal_scan as _seal
+                    # Re-fetch the inserted row to get its id + created_at
+                    last_row = (
+                        supabase_admin.table("fraud_scans")
+                        .select("id, user_id, nominal_total, created_at")
+                        .eq("user_id", user_id)
+                        .order("created_at", desc=True)
+                        .limit(1)
+                        .execute()
+                    )
+                    if getattr(last_row, "data", None):
+                        _seal(supabase_admin, last_row.data[0])
+                except Exception as seal_err:
+                    print(f"⚠️ Ledger seal failed (non-blocking): {seal_err}")
             except Exception as insert_err:
                 err_str = str(insert_err)
                 # If new columns don't exist yet, fall back to legacy-only insert
@@ -271,3 +287,4 @@ def sync_to_supabase(
                     raise
         except Exception as e:
             print(f"❌ fraud_scans insert failed: {e}")
+

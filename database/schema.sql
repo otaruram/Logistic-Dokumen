@@ -233,3 +233,62 @@ CREATE POLICY "Users manage own api keys"
 ON public.api_keys FOR ALL TO authenticated
 USING  (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
+
+-- ==========================================
+-- 11. OTARUCHAIN LEDGER — SHA-256 Integrity Seal
+-- ==========================================
+
+-- Add integrity_hash column to fraud_scans for tamper detection
+ALTER TABLE public.fraud_scans ADD COLUMN IF NOT EXISTS integrity_hash TEXT;
+CREATE INDEX IF NOT EXISTS idx_fraud_scans_integrity ON public.fraud_scans(integrity_hash) WHERE integrity_hash IS NOT NULL;
+
+-- Audit log for integrity verification events
+CREATE TABLE IF NOT EXISTS public.ledger_audit_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    scan_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    verified_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    result TEXT NOT NULL CHECK (result IN ('VERIFIED', 'TAMPERED', 'UNSEALED')),
+    expected_hash TEXT,
+    actual_hash TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_ledger_audit_scan ON public.ledger_audit_log(scan_id);
+CREATE INDEX IF NOT EXISTS idx_ledger_audit_user ON public.ledger_audit_log(user_id);
+
+ALTER TABLE public.ledger_audit_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own audit log" ON public.ledger_audit_log;
+CREATE POLICY "Users can view own audit log"
+ON public.ledger_audit_log FOR SELECT TO authenticated
+USING (auth.uid() = user_id);
+
+-- ==========================================
+-- 12. OTARUCHAIN CREDIT SCORE CYCLES
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS public.credit_score_cycles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    cycle_number INTEGER NOT NULL DEFAULT 1,
+    cycle_score INTEGER NOT NULL DEFAULT 0,
+    cycle_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    cycle_completed_at TIMESTAMPTZ,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    UNIQUE(user_id, cycle_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_credit_cycles_user ON public.credit_score_cycles(user_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_credit_cycles_active ON public.credit_score_cycles(user_id) WHERE is_active = TRUE;
+
+ALTER TABLE public.credit_score_cycles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own cycles" ON public.credit_score_cycles;
+CREATE POLICY "Users can view own cycles"
+ON public.credit_score_cycles FOR SELECT TO authenticated
+USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Service role manages cycles" ON public.credit_score_cycles;
+CREATE POLICY "Service role manages cycles"
+ON public.credit_score_cycles FOR ALL TO service_role
+USING (true) WITH CHECK (true);

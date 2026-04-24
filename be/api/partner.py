@@ -192,11 +192,27 @@ class ScanSummary(BaseModel):
     created_at: str
 
 
+class CycleInfo(BaseModel):
+    current_cycle: int
+    current_cycle_score: int
+    cycle_max: int
+    lifetime_score: int
+    completed_cycles: int
+
+
+class RiskDetail(BaseModel):
+    risk_level: str
+    risk_score: int
+    factors: list[dict]
+
+
 class ScoringResponse(BaseModel):
     email: str
     user_id: str
     trust_score: int
-    risk_label: str          # "PRIME" | "MODERATE" | "RISK"
+    risk_label: str          # "LOW" | "MEDIUM" | "HIGH"
+    risk_detail: Optional[RiskDetail] = None
+    cycle_info: Optional[CycleInfo] = None
     total_scans: int
     verified_scans: int
     tampered_scans: int
@@ -294,15 +310,43 @@ async def score_user_by_email(
         if total > 0:
             trust_score = min(int((verified / total) * 800), 800)
 
-    # 4. Risk label
-    if tampered == 0:
-        risk_label = "PRIME"
-    elif tampered <= 2:
-        risk_label = "MODERATE"
-    else:
-        risk_label = "RISK"
+    # 4. Risk assessment (multi-factor)
+    risk_detail_data = None
+    risk_label = "LOW"
+    try:
+        from services.risk_service import calculate_risk_level
+        risk_data = calculate_risk_level(user_id)
+        risk_label = risk_data.get("risk_level", "HIGH")
+        risk_detail_data = RiskDetail(
+            risk_level=risk_data["risk_level"],
+            risk_score=risk_data["risk_score"],
+            factors=risk_data["factors"],
+        )
+    except Exception as risk_err:
+        print(f"⚠️ Risk calculation fallback: {risk_err}")
+        if tampered == 0:
+            risk_label = "LOW"
+        elif tampered <= 2:
+            risk_label = "MEDIUM"
+        else:
+            risk_label = "HIGH"
 
-    # 5. Recent scans (capped by limit)
+    # 5. Credit score cycles
+    cycle_info_data = None
+    try:
+        from services.scoring_service import compute_and_sync_cycles
+        cycle_data = compute_and_sync_cycles(user_id, trust_score)
+        cycle_info_data = CycleInfo(
+            current_cycle=cycle_data.get("current_cycle", 0),
+            current_cycle_score=cycle_data.get("current_cycle_score", 0),
+            cycle_max=cycle_data.get("cycle_max", 1000),
+            lifetime_score=cycle_data.get("lifetime_score", 0),
+            completed_cycles=cycle_data.get("completed_cycles", 0),
+        )
+    except Exception as cycle_err:
+        print(f"⚠️ Cycle scoring fallback: {cycle_err}")
+
+    # 6. Recent scans (capped by limit)
     recent = []
     for s in all_scans[:limit]:
         recent.append(ScanSummary(
@@ -319,6 +363,8 @@ async def score_user_by_email(
         user_id=user_id,
         trust_score=trust_score,
         risk_label=risk_label,
+        risk_detail=risk_detail_data,
+        cycle_info=cycle_info_data,
         total_scans=total,
         verified_scans=verified,
         tampered_scans=tampered,
