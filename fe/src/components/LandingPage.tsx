@@ -34,50 +34,50 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
   const features = [
     {
       icon: <Scan className="w-6 h-6" />,
-      title: "DGTNZ Scanner",
-      desc: "AI-powered OCR that extracts text from receipts, invoices, and logistics documents with 98%+ accuracy.",
+      title: "Frictionless Capture",
+      desc: "AI-powered OCR extracts nominals, dates, and vendors from physical receipts and invoices with 98%+ accuracy.",
       color: "from-blue-500 to-cyan-500"
     },
     {
       icon: <Shield className="w-6 h-6" />,
-      title: "Fraud Detection",
-      desc: "Verify document authenticity with cryptographic hashing. Instantly detect tampered or modified documents.",
+      title: "Immutable Ledger",
+      desc: "Every document is cryptographically sealed with SHA-256. Instantly detect 1-pixel Photoshop tampering.",
       color: "from-red-500 to-orange-500"
     },
     {
-      icon: <MessageSquare className="w-6 h-6" />,
-      title: "Otaru AI Chatbot",
-      desc: "Upload documents and ask questions in natural language. Supports images, PDFs, and DOCX files.",
+      icon: <BarChart3 className="w-6 h-6" />,
+      title: "Alternative Scoring",
+      desc: "Real-time credit score calculation based on cashflow: Capacity, Frequency, and Client Diversification.",
+      color: "from-emerald-500 to-green-500"
+    },
+    {
+      icon: <Sparkles className="w-6 h-6" />,
+      title: "Credit Cycles",
+      desc: "Gamified lifetime tracking. MSMEs level up their cycles to unlock higher lending limits safely.",
       color: "from-purple-500 to-pink-500"
     },
     {
-      icon: <BarChart3 className="w-6 h-6" />,
-      title: "Financial Analysis",
-      desc: "Auto-extract structured financial data: amounts, dates, clients, invoice numbers — ready for analysis.",
-      color: "from-emerald-500 to-green-500"
+      icon: <Cloud className="w-6 h-6" />,
+      title: "B2B Partner API",
+      desc: "P2P Lenders can pull JSON Risk Profiles and Credit Scores directly into their underwriting systems.",
+      color: "from-yellow-500 to-amber-500"
     },
     {
       icon: <Zap className="w-6 h-6" />,
       title: "Lightning Fast",
-      desc: "Optimized Tesseract + GPT-4o pipeline processes documents in seconds, not minutes.",
-      color: "from-yellow-500 to-amber-500"
-    },
-    {
-      icon: <Cloud className="w-6 h-6" />,
-      title: "Google Drive Sync",
-      desc: "Export scan results directly to your personal Google Drive for safekeeping and easy access.",
+      desc: "Cuts manual verification time by 90%. Real-time decision making for faster loan disbursement.",
       color: "from-sky-500 to-blue-500"
     },
     {
       icon: <Lock className="w-6 h-6" />,
-      title: "Privacy First",
-      desc: "Zero data retention. Files processed in memory and discarded after analysis. Your documents stay yours.",
+      title: "Enterprise Security",
+      desc: "Bank-grade infrastructure. Zero data retention for chatbot, secure API key management.",
       color: "from-gray-400 to-gray-600"
     },
     {
-      icon: <FileText className="w-6 h-6" />,
-      title: "Invoice Generator",
-      desc: "Create professional invoices with auto-filled data from your scans. Export as PDF in one click.",
+      icon: <MessageSquare className="w-6 h-6" />,
+      title: "Otaru AI Chatbot",
+      desc: "Interactive document analysis. Ask questions about the extracted financial data in natural language.",
       color: "from-violet-500 to-indigo-500"
     }
   ];
@@ -132,15 +132,14 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
 
 
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter mb-8 leading-[1.1]">
-              Scan. Verify. <br />
+              Bridging the Invisible. <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">
-                Trust Your Documents.
+                Paper to Credit Data.
               </span>
             </h1>
 
             <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-12 leading-relaxed">
-              AI-powered document intelligence for Indonesia. Scan receipts, detect fraud on invoices,
-              chat with your documents, and generate professional invoices — all in one platform.
+              Alternative Credit Scoring infrastructure for Indonesia. We transform MSME physical receipts into bankable intelligence, helping P2P Lenders disburse capital safely with AI and Cryptographic ledgers.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -223,14 +222,14 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
                 <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
                   <FileSearch className="w-6 h-6" />
                 </div>
-                <h3 className="text-3xl font-bold">Smart Document Intelligence</h3>
+                <h3 className="text-3xl font-bold">Smart Credit Intelligence</h3>
                 <div className="space-y-4">
                   {[
-                    "Extracts text from photos, PDFs, and scanned docs",
-                    "AI corrects OCR errors for 98%+ accuracy",
-                    "Detects fraud with cryptographic verification",
-                    "Structures data into exportable JSON format",
-                    "Chat with your documents via Otaru AI"
+                    "AI extracts financial data from messy physical receipts",
+                    "SHA-256 seal rejects Photoshopped documents instantly",
+                    "Cashflow scoring via Capacity, Frequency, Diversification",
+                    "Credit Cycles track lifetime MSME business reputation",
+                    "B2B API ready for P2P Lending integration"
                   ].map((item, i) => (
                     <div key={i} className="flex items-center gap-3 text-gray-400">
                       <Check className="w-5 h-5 text-blue-500 flex-shrink-0" />
@@ -320,8 +319,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
           <div className="text-center mb-20">
             <h2 className="text-3xl md:text-5xl font-bold mb-6">Everything You Need</h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              From scanning to fraud detection, chatbot analysis to invoice generation —
-              one platform for all your document needs.
+              From frictionless document capture to enterprise-grade fraud detection and API integration — OtaruChain is the bridge between traditional MSMEs and modern Fintech.
             </p>
           </div>
 
@@ -354,8 +352,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
             <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">
               Ready to Digitize Your Documents?
             </h2>
-            <p className="text-gray-400 text-lg mb-10 max-w-xl mx-auto">
-              Join thousands of users who trust OtaruChain for document scanning, fraud detection, and AI-powered analysis. Free forever.
+              Join thousands of users and P2P Lenders who trust OtaruChain for MSME credit scoring, fraud prevention, and document intelligence. Free for MSMEs.
             </p>
             <Button
               size="lg"
@@ -376,7 +373,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
             <span className="font-bold text-gray-400 text-sm">OtaruChain &copy; 2025</span>
           </div>
           <div className="text-xs text-gray-600 text-center">
-            AI-Powered Document Intelligence · OCR Scanner · Fraud Detection · Invoice Generator
+            Alternative Credit Scoring · MSME Financial Inclusion · Immutable Ledger · Fraud Prevention
           </div>
           <div className="flex gap-6 mt-4 md:mt-0">
             <button onClick={onLogin} className="text-gray-400 hover:text-white transition-colors text-sm font-medium">
