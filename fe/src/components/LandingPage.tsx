@@ -154,8 +154,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
                 size="lg"
                 variant="outline"
                 onClick={() => {
-                  localStorage.setItem("redirect_to_partner", "true");
-                  onLogin();
+                  window.location.href = '/partner';
                 }}
                 className="w-full sm:w-auto h-14 px-8 text-lg border-white/20 text-white hover:bg-white/10 rounded-full font-medium"
               >
