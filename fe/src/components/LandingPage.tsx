@@ -150,7 +150,17 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
               >
                 Start Free <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
-
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => {
+                  localStorage.setItem("redirect_to_partner", "true");
+                  onLogin();
+                }}
+                className="w-full sm:w-auto h-14 px-8 text-lg border-white/20 text-white hover:bg-white/10 rounded-full font-medium"
+              >
+                Otaru Partner API
+              </Button>
             </div>
 
             {/* Trust badges */}
@@ -355,13 +365,26 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
             <p className="text-gray-400 text-lg mb-10 max-w-xl mx-auto">
               Join thousands of users and P2P Lenders who trust OtaruChain for MSME credit scoring, fraud prevention, and document intelligence. Free for MSMEs.
             </p>
-            <Button
-              size="lg"
-              onClick={onLogin}
-              className="h-14 px-10 text-lg bg-white text-black hover:bg-gray-200 rounded-full font-medium"
-            >
-              Get Started — It's Free <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button
+                size="lg"
+                onClick={onLogin}
+                className="w-full sm:w-auto h-14 px-10 text-lg bg-white text-black hover:bg-gray-200 rounded-full font-medium"
+              >
+                Get Started — It's Free <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => {
+                  localStorage.setItem("redirect_to_partner", "true");
+                  onLogin();
+                }}
+                className="w-full sm:w-auto h-14 px-10 text-lg border-white/20 text-white hover:bg-white/10 rounded-full font-medium"
+              >
+                Explore Partner Portal
+              </Button>
+            </div>
           </motion.div>
         </div>
       </section>
