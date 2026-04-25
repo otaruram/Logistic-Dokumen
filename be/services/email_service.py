@@ -7,7 +7,7 @@ from email import encoders
 from email.utils import formatdate, make_msgid
 from datetime import date
 
-# ── SMTP config (Sumopod / ocr.wtf or OtaruChain) ─────────────────────────────
+# ── SMTP config (Sumopod / OtaruChain or OtaruChain) ─────────────────────────────
 
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.sumopod.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))

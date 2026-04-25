@@ -1,4 +1,4 @@
-// Prisma Schema for ocr.wtf
+// Prisma Schema for OtaruChain
 // Focus: Enterprise OCR, Fraud Audit, and Automated Reporting
 
 generator client {

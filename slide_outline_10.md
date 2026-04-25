@@ -5,13 +5,13 @@ Total waktu: 5 menit.
 
 ## Slide 1 - Judul dan One-Liner (0:20)
 Judul:
-OCR.WTF - Document Intelligence untuk Operasional Logistik
+OtaruChain - Document Intelligence untuk Operasional Logistik
 
 Isi utama:
 - "Dari dokumen manual ke keputusan operasional yang cepat dan terukur."
 
 Kalimat presenter:
-"Kami membangun OCR.WTF untuk mempercepat proses dokumen sekaligus menurunkan risiko salah proses."
+"Kami membangun OtaruChain untuk mempercepat proses dokumen sekaligus menurunkan risiko salah proses."
 
 ## Slide 2 - Masalah Nyata di Lapangan (0:35)
 Isi utama:
@@ -31,7 +31,7 @@ Isi utama:
 Kalimat presenter:
 "Ketika volume naik, error kecil jadi mahal. Tim butuh sistem yang bantu prioritas, bukan hanya OCR text mentah."
 
-## Slide 4 - Solusi Inti OCR.WTF (0:30)
+## Slide 4 - Solusi Inti OtaruChain (0:30)
 Isi utama:
 - Upload dokumen
 - OCR + ekstraksi field kritikal
@@ -73,7 +73,7 @@ Isi utama (isi angka sesuai data kamu):
 - Rata-rata waktu proses per dokumen
 - % dokumen verified langsung
 - % dokumen butuh manual review
-- Perbandingan manual vs OCR.WTF
+- Perbandingan manual vs OtaruChain
 
 Kalimat presenter:
 "Kami ukur dampak dari sisi operasional, bukan hanya akurasi teks."
@@ -94,7 +94,7 @@ Isi utama:
 - Ajakan untuk lanjut ke tahap berikutnya
 
 Kalimat presenter:
-"OCR.WTF bukan cuma membaca dokumen, tapi membantu keputusan operasional yang lebih cepat dan lebih aman. Kami siap lanjut ke tahap top 10 dengan validasi lapangan yang lebih dalam."
+"OtaruChain bukan cuma membaca dokumen, tapi membantu keputusan operasional yang lebih cepat dan lebih aman. Kami siap lanjut ke tahap top 10 dengan validasi lapangan yang lebih dalam."
 
 ---
 

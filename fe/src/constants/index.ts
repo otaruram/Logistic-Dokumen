@@ -19,7 +19,7 @@ export const WEEKLY_DATA = [
 
 // App configuration
 export const APP_CONFIG = {
-  name: "ocr.wtf",
+  name: "OtaruChain",
   userInitials: "U",
   maxWidth: "max-w-lg",
   apiUrl: import.meta.env.VITE_API_URL || "http://localhost:8000",

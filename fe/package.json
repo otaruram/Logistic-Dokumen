@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "OCR.WTF - Document Scanning & OCR Platform",
+  "description": "OtaruChain - Document Scanning & OCR Platform",
   "engines": {
     "node": ">=18.0.0"
   },

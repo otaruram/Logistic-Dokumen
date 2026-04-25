@@ -26,9 +26,9 @@ const Header = ({ user, onLogout, onGaskeun, onProfile, onSettings }: HeaderProp
     <header className="brutal-border-thin border-t-0 border-l-0 border-r-0 bg-background">
       <div className="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <img src="/1.png" alt="OCR.WTF" className="w-7 h-7 md:w-8 md:h-8 object-contain" />
+          <img src="/1.png" alt="OtaruChain" className="w-7 h-7 md:w-8 md:h-8 object-contain" />
           <h1 className="text-lg md:text-2xl font-bold tracking-tighter">
-            <span className="terminal-text inline-block">OCR.WTF</span>
+            <span className="terminal-text inline-block">OtaruChain</span>
             <span className="terminal-cursor"></span>
           </h1>
         </div>

@@ -73,7 +73,7 @@ export default function Privacy() {
           <div className="text-center mb-8">
             <img 
               src="/1.png" 
-              alt="OCR.WTF"
+              alt="OtaruChain"
               className="w-16 h-16 mx-auto mb-4 object-contain"
             />
             <h1 className="text-3xl md:text-4xl font-serif font-bold mb-2">
@@ -215,7 +215,7 @@ export default function Privacy() {
                 silakan hubungi kami:
               </p>
               <div className={`mt-3 space-y-1 ${isDarkMode ? 'text-white/80' : 'text-black/80'}`}>
-                <p>• Email: privacy@ocr.wtf</p>
+                <p>• Email: privacy@OtaruChain</p>
                 <p>• GitHub: github.com/otaruram</p>
                 <p>• LinkedIn: linkedin.com/in/otaruram</p>
               </div>
@@ -230,7 +230,7 @@ export default function Privacy() {
             <p className={`font-mono text-xs ${
               isDarkMode ? 'text-white/60' : 'text-black/60'
             }`}>
-              © {new Date().getFullYear()} OCR.WTF - Scan Dokumen Tanpa Ribet
+              © {new Date().getFullYear()} OtaruChain - Scan Dokumen Tanpa Ribet
             </p>
           </div>
 

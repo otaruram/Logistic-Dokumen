@@ -90,7 +90,7 @@ class Settings:
     
     # Production
     API_URL: str = os.getenv("API_URL", "https://api-ocr.xyz")
-    PROD_FE_URL: str = os.getenv('PROD_FE_URL', 'https://ocr.wtf')
+    PROD_FE_URL: str = os.getenv('PROD_FE_URL', 'https://OtaruChain')
     
     # CORS
     CORS_ORIGINS: list = os.getenv('CORS_ORIGINS', '').split(',')

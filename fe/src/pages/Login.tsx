@@ -144,7 +144,7 @@ export default function Login() {
             {/* Footer */}
             <div className="text-center border-t-2 border-black pt-6 mt-6">
               <p className="font-mono text-xs text-black/60">
-                © {new Date().getFullYear()} OCR.WTF - Scan Dokumen Tanpa Ribet
+                © {new Date().getFullYear()} OtaruChain - Scan Dokumen Tanpa Ribet
               </p>
             </div>
           </div>

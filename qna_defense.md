@@ -31,7 +31,7 @@ Format tiap pertanyaan:
 "OCR biasa berhenti di ekstraksi teks. Kami lanjut ke decision layer dengan fraud/confidence status."
 
 ### Jawaban 60 detik
-"Perbedaan utama kami ada pada nilai bisnis: bukan cuma membaca dokumen, tapi membantu menentukan tindakan berikutnya. OCR standar menghasilkan teks; OCR.WTF menghasilkan prioritas operasional: proses langsung, review manual, atau reject. Ini yang menghemat waktu tim dan menurunkan risiko salah proses."
+"Perbedaan utama kami ada pada nilai bisnis: bukan cuma membaca dokumen, tapi membantu menentukan tindakan berikutnya. OCR standar menghasilkan teks; OtaruChain menghasilkan prioritas operasional: proses langsung, review manual, atau reject. Ini yang menghemat waktu tim dan menurunkan risiko salah proses."
 
 ## 5) Kalau user jadi 10.000, bottleneck ada di mana?
 ### Jawaban 20 detik

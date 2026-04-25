@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🔍 OCR.WTF
+# 🔍 OtaruChain
 
 **AI-Powered Document Intelligence Platform**
 
@@ -12,7 +12,7 @@
 [![OCR](https://img.shields.io/badge/OCR-Tesseract_+_GPT--4o-412991?style=flat-square&logo=openai)](https://openai.com/)
 [![Docker](https://img.shields.io/badge/Deploy-Docker-2496ED?style=flat-square&logo=docker)](https://docker.com/)
 
-[Live Demo](https://ocr.wtf) · [API Docs](https://api-ocr.xyz/api/docs)
+[Live Demo](https://OtaruChain) · [API Docs](https://api-ocr.xyz/api/docs)
 
 </div>
 
@@ -38,7 +38,7 @@
 
 ## Overview
 
-**OCR.WTF** is a full-stack document intelligence platform designed for the Indonesian logistics and finance market. It transforms physical documents (receipts, invoices, surat jalan) into structured digital data using AI-powered OCR, provides fraud verification through cryptographic hashing, and offers an AI chatbot for document Q&A — all accessible via a mobile-first progressive web app.
+**OtaruChain** is a full-stack document intelligence platform designed for the Indonesian logistics and finance market. It transforms physical documents (receipts, invoices, surat jalan) into structured digital data using AI-powered OCR, provides fraud verification through cryptographic hashing, and offers an AI chatbot for document Q&A — all accessible via a mobile-first progressive web app.
 
 ### Key Capabilities
 
@@ -168,7 +168,7 @@ Document Upload → ImageKit Storage → Tesseract OCR → GPT-4o Enhancement
 
 ### Main App Flow
 ```
-Landing Page (ocr.wtf)
+Landing Page (OtaruChain)
     │
     ├─ Click "Start Free" / "Sign In"
     │       ↓
@@ -482,4 +482,4 @@ See [`.env.example`](.env.example) for the complete template.
 
 ## License
 
-Proprietary software. All rights reserved. © 2025 OCR.WTF
+Proprietary software. All rights reserved. © 2025 OtaruChain

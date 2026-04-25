@@ -101,8 +101,8 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
       <nav className="relative z-50 border-b border-white/10 bg-[#0a0a0a]/80 backdrop-blur-md">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <img src="/1.png" alt="OCR.WTF Logo" className="w-7 h-7 object-contain" />
-            <span className="font-bold text-xl tracking-tighter">ocr.wtf</span>
+            <img src="/1.png" alt="OtaruChain Logo" className="w-7 h-7 object-contain" />
+            <span className="font-bold text-xl tracking-tighter">OtaruChain</span>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -355,7 +355,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
               Ready to Digitize Your Documents?
             </h2>
             <p className="text-gray-400 text-lg mb-10 max-w-xl mx-auto">
-              Join thousands of users who trust ocr.wtf for document scanning, fraud detection, and AI-powered analysis. Free forever.
+              Join thousands of users who trust OtaruChain for document scanning, fraud detection, and AI-powered analysis. Free forever.
             </p>
             <Button
               size="lg"
@@ -372,8 +372,8 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
       <footer className="relative z-10 py-12 border-t border-white/10 bg-[#050505]">
         <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
-            <img src="/1.png" alt="OCR.WTF Logo" className="w-5 h-5 object-contain" />
-            <span className="font-bold text-gray-400 text-sm">ocr.wtf &copy; 2025</span>
+            <img src="/1.png" alt="OtaruChain Logo" className="w-5 h-5 object-contain" />
+            <span className="font-bold text-gray-400 text-sm">OtaruChain &copy; 2025</span>
           </div>
           <div className="text-xs text-gray-600 text-center">
             AI-Powered Document Intelligence · OCR Scanner · Fraud Detection · Invoice Generator

@@ -62,7 +62,7 @@ Target sekarang bukan nambah materi, tapi eksekusi bersih.
 
 ## Kalimat Kunci Penutup
 
-"OCR.WTF bukan sekadar membaca dokumen, tapi membantu keputusan operasional yang lebih cepat, lebih akurat, dan lebih terukur."
+"OtaruChain bukan sekadar membaca dokumen, tapi membantu keputusan operasional yang lebih cepat, lebih akurat, dan lebih terukur."
 
 ## Final Verdict
 

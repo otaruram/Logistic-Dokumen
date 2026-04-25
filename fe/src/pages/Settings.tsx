@@ -681,18 +681,18 @@ export default function Settings() {
             <div>
               <Label className="text-sm text-muted-foreground">Website</Label>
               <a
-                href="https://www.ocr.wtf"
+                href="https://www.OtaruChain"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-base font-bold hover:underline"
               >
-                www.ocr.wtf
+                www.OtaruChain
               </a>
             </div>
 
             <div className="pt-4 border-t">
               <p className="text-xs text-muted-foreground">
-                © {new Date().getFullYear()} OCR.WTF - Scan Dokumen Tanpa Ribet
+                © {new Date().getFullYear()} OtaruChain - Scan Dokumen Tanpa Ribet
               </p>
             </div>
           </div>

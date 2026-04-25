@@ -80,7 +80,7 @@ const PrivacyPolicy = () => {
                         <p className="text-gray-400 mb-6">
                             Our Data Protection Officer is available to answer your concerns.
                         </p>
-                        <a href="mailto:ocrwtf@gmail.com" className="inline-block px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-colors">
+                        <a href="mailto:otaruchain@gmail.com" className="inline-block px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-colors">
                             Contact DPO
                         </a>
                     </section>

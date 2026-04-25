@@ -93,4 +93,4 @@ Demo dianggap sukses jika:
 3. Penutupan mengikat ke dampak bisnis, bukan sekadar teknologi.
 
 ## H. Script Penutup 15 Detik
-"Intinya, OCR.WTF bukan hanya membaca dokumen, tapi membantu tim menentukan tindakan yang tepat dengan cepat. Ini yang menurunkan beban manual sekaligus mengurangi risiko salah proses."
+"Intinya, OtaruChain bukan hanya membaca dokumen, tapi membantu tim menentukan tindakan yang tepat dengan cepat. Ini yang menurunkan beban manual sekaligus mengurangi risiko salah proses."

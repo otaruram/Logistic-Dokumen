@@ -14,8 +14,8 @@ from middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware, 
 
 # Create FastAPI app
 app = FastAPI(
-    title="OCR.WTF API",
-    description="Backend API for ocr.wtf - Document scanning and invoice generation",
+    title="OtaruChain API",
+    description="Backend API for OtaruChain - Document scanning and invoice generation",
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
@@ -34,8 +34,8 @@ _default_cors_origins = [
     "http://localhost:3000",
     "http://localhost:5174",
     "https://logistic-dokumen.vercel.app",
-    "https://ocr.wtf",
-    "https://www.ocr.wtf",
+    "https://OtaruChain",
+    "https://www.OtaruChain",
     "https://ocr.web.id",
     "https://www.ocr.web.id",
     "https://otaruchain.vercel.app",
@@ -90,7 +90,7 @@ app.include_router(audit.router, tags=["Partner Audit"])  # /api/partner/v1/user
 async def root():
     """Root endpoint"""
     return {
-        "message": "OCR.WTF API",
+        "message": "OtaruChain API",
         "version": "1.0.0",
         "docs": f"{settings.base_url}/docs"  # Update link di response JSON juga
     }

@@ -27,7 +27,7 @@ export default function Landing() {
         <div className="text-center mb-12 mt-16">
           <div className="hero-title-wrapper">
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-bold mb-6 leading-tight hero-title">
-              OCR.WTF: SCAN DOKUMEN TANPA RIBET.
+              OtaruChain: SCAN DOKUMEN TANPA RIBET.
             </h1>
           </div>
 
@@ -80,7 +80,7 @@ export default function Landing() {
         {/* Footer */}
         <div className="text-center mt-auto pt-8">
           <p className="font-mono text-xs text-black/60">
-            © {new Date().getFullYear()} OCR.WTF - Scan Dokumen Otomatis dengan AI
+            © {new Date().getFullYear()} OtaruChain - Scan Dokumen Otomatis dengan AI
           </p>
         </div>
       </div>

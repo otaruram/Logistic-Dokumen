@@ -6,7 +6,7 @@ Tujuan script ini: bikin penyampaian kamu jelas, meyakinkan, dan aman waktu live
 - 5:00 menit
 
 ## 0:00 - 0:30 | Opening
-"Halo, saya [Nama], dari tim OCR.WTF. Kami membangun solusi document intelligence untuk operasional logistik dan keuangan.
+"Halo, saya [Nama], dari tim OtaruChain. Kami membangun solusi document intelligence untuk operasional logistik dan keuangan.
 Masalah utama di lapangan masih sama: dokumen masuk banyak, input manual lambat, rawan salah baca, dan verifikasi keaslian dokumen tidak konsisten."
 
 ## 0:30 - 1:10 | Problem dan Dampak
@@ -15,7 +15,7 @@ proses administrasi melambat, human error meningkat, dan tim sulit membedakan do
 Di skala operasional tinggi, ini berujung ke biaya tambahan dan risiko fraud."
 
 ## 1:10 - 1:40 | Solusi Inti
-"OCR.WTF menyederhanakan proses itu jadi satu alur:
+"OtaruChain menyederhanakan proses itu jadi satu alur:
 upload dokumen, OCR + ekstraksi data penting, lalu sistem mengeluarkan fraud/confidence status: verified, processing, atau tampered.
 Jadi tim bisa tahu prioritas tindak lanjut secara cepat."
 
@@ -48,7 +48,7 @@ frontend untuk operasional, backend API, dan worker queue untuk pemrosesan batch
 Kami juga menyiapkan fallback demo agar reliabilitas saat presentasi tetap terjaga."
 
 ## 4:40 - 5:00 | Closing
-"Jadi, OCR.WTF membantu tim operasional bergerak lebih cepat, lebih akurat, dan lebih percaya diri terhadap dokumen yang diproses.
+"Jadi, OtaruChain membantu tim operasional bergerak lebih cepat, lebih akurat, dan lebih percaya diri terhadap dokumen yang diproses.
 Terima kasih, kami siap untuk pertanyaan juri."
 
 ---

@@ -70,7 +70,7 @@ const Terms = () => {
 
         <div className="mt-16 text-center border-t border-white/10 pt-8">
           <p className="text-gray-500 text-sm">
-            Questions about the Terms of Service should be sent to us at <a href="mailto:ocrwtf@gmail.com" className="text-white hover:underline">ocrwtf@gmail.com</a>.
+            Questions about the Terms of Service should be sent to us at <a href="mailto:otaruchain@gmail.com" className="text-white hover:underline">otaruchain@gmail.com</a>.
           </p>
         </div>
       </motion.div>

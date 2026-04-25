@@ -74,7 +74,7 @@ Yang jadi pendukung saja (jangan dijadikan inti):
 ## 3) Materi Presentasi yang Harus Jadi (Bukan Opsional)
 
 1. Problem nyata di lapangan (pakai angka sederhana)
-2. Solusi inti OCR.WTF (1 slide arsitektur ringkas)
+2. Solusi inti OtaruChain (1 slide arsitektur ringkas)
 3. Demo flow 4 langkah (langsung to the point)
 4. Dampak terukur:
 - Hemat waktu proses
@@ -93,7 +93,7 @@ Minimal bawa metrik ini:
 - Rata-rata waktu proses 1 dokumen
 - Persentase dokumen yang langsung verified
 - Persentase dokumen yang masuk manual review
-- Perbandingan waktu proses: manual vs OCR.WTF
+- Perbandingan waktu proses: manual vs OtaruChain
 
 Kalau belum punya banyak data, pakai pilot sample yang jujur dan jelas metodenya.
 

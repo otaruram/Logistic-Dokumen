@@ -202,7 +202,7 @@ const OptionsTab = () => {
         className="text-center pt-8 pb-8"
       >
         <p className="text-xs text-gray-600 font-mono">
-          ocr.wtf v2.1.0 • Connected to SG-1
+          OtaruChain v2.1.0 • Connected to SG-1
         </p>
       </motion.div>
     </div>
