@@ -352,6 +352,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
             <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">
               Ready to Digitize Your Documents?
             </h2>
+            <p className="text-gray-400 text-lg mb-10 max-w-xl mx-auto">
               Join thousands of users and P2P Lenders who trust OtaruChain for MSME credit scoring, fraud prevention, and document intelligence. Free for MSMEs.
             </p>
             <Button
