@@ -2,17 +2,17 @@
 
 # 🔍 OtaruChain
 
-**AI-Powered Document Intelligence Platform**
+**Bridging the Invisible: Turning MSME Paper Trails into Credit Intelligence**
 
-*Scan · Verify · Analyze · Protect*
+*Alternative Credit Scoring · Fraud Prevention · Immutable Ledger*
 
 [![Backend](https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React_18-61DAFB?style=flat-square&logo=react)](https://react.dev/)
 [![Database](https://img.shields.io/badge/Database-Supabase-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com/)
 [![OCR](https://img.shields.io/badge/OCR-Tesseract_+_GPT--4o-412991?style=flat-square&logo=openai)](https://openai.com/)
-[![Docker](https://img.shields.io/badge/Deploy-Docker-2496ED?style=flat-square&logo=docker)](https://docker.com/)
+[![Security](https://img.shields.io/badge/Security-SHA--256-DC382D?style=flat-square&logo=lock)](https://en.wikipedia.org/wiki/SHA-2)
 
-[Live Demo](https://OtaruChain) · [API Docs](https://api-ocr.xyz/api/docs)
+[Live Demo](https://otaruchain.com) · [API Docs](https://api.otaruchain.com/api/docs)
 
 </div>
 
@@ -38,19 +38,20 @@
 
 ## Overview
 
-**OtaruChain** is a full-stack document intelligence platform designed for the Indonesian logistics and finance market. It transforms physical documents (receipts, invoices, surat jalan) into structured digital data using AI-powered OCR, provides fraud verification through cryptographic hashing, and offers an AI chatbot for document Q&A — all accessible via a mobile-first progressive web app.
+**OtaruChain** is an Alternative Credit Scoring and Infrastructure platform designed to bridge the gap between unbanked MSMEs (UMKM) and P2P Lending institutions in Indonesia. 
+
+By transforming messy physical paper trails (invoices, receipts, surat jalan) into **Credit Intelligence**, OtaruChain enables P2P Lenders to confidently disburse working capital loans. We utilize AI-powered OCR for data extraction, SHA-256 Cryptographic Hashing for zero-tolerance fraud prevention, and a Cashflow-based Scoring algorithm to determine creditworthiness in real-time.
 
 ### Key Capabilities
 
 | Capability | Description |
 |-----------|-------------|
-| **DGTNZ Scanner** | AI OCR with auto-correction, batch processing, digital signatures |
-| **Fraud Detection** | Cryptographic document verification with confidence scoring |
-| **Otaru AI Chatbot** | Upload docs and ask questions in natural language |
-| **Financial Analysis** | Auto-extract structured data: amounts, dates, clients |
-| **Invoice Generator** | Create professional invoices from scan data |
-| **Partner Portal** | B2B API key management, credit scoring endpoint, pricing |
-| **Admin Panel** | User management, credit control, activity monitoring |
+| **Frictionless Capture** | AI OCR (Tesseract + GPT-4o) extracts nominal, dates, and vendors instantly |
+| **Enterprise Security** | Cryptographic SHA-256 document sealing to prevent Photoshop tampering |
+| **Cashflow Scoring** | Real-time calculation based on Capacity, Frequency, and Client Diversification |
+| **Credit Cycles** | Long-term reputation tracking to increase lending limits |
+| **Partner API** | B2B API endpoint for P2P Lenders to pull Risk Profiles via JSON |
+| **Admin Panel** | Complete oversight for user management and system integrity |
 
 ---
 
@@ -119,39 +120,28 @@ Document Upload → ImageKit Storage → Tesseract OCR → GPT-4o Enhancement
 
 ## Features
 
-### 📸 DGTNZ Scanner
-- **AI-Powered OCR**: Tesseract + GPT-4o for 98%+ accuracy
-- **Batch Processing**: Scan up to 20 files via Redis queue worker
-- **Digital Signatures**: Capture and embed recipient signatures
-- **Multi-Format**: Supports JPG, PNG, PDF
-- **Auto-Correction**: AI fixes OCR typos and formats structured data
-- **Google Drive Export**: One-click export as Excel
+### 📸 Frictionless Capture (DGTNZ Scanner)
+- **AI-Powered OCR**: Tesseract + GPT-4o for 98%+ accuracy on crumpled physical receipts.
+- **Auto-Extraction**: Instantly parses Nominal Amount, Vendor Name, Document Date.
+- **Batch Processing**: Scan up to 20 files via Redis queue worker.
 
-### 🔍 Fraud Detection
-- **Confidence Scoring**: 3-tier system based on verifiable field count
-  - 🔴 **Low (0-1 fields)** → `tampered` — Auto-rejected, not saved
-  - 🟡 **Medium (2 fields)** → `processing` — Accepted, needs manual review
-  - 🟢 **High (3+ fields)** → `verified` — Document authenticated
-- **Cryptographic Verification**: SHA-256 content hashing
-- **Structured Extraction**: Nominal, client name, surat jalan number, due date
+### 🛡️ Immutable Ledger (Fraud Prevention)
+- **SHA-256 Hashing**: Every document is cryptographically sealed to prevent tampering.
+- **AI Confidence Scoring**: Automatically flags edited or fake documents.
+  - 🔴 **Low** → `TAMPERED` — Auto-rejected, protecting P2P Lenders.
+  - 🟢 **High** → `VERIFIED` — Document authenticated and sealed.
 
-### 🤖 Otaru AI Chatbot
-- **Document Q&A**: Upload images, PDFs, or DOCX and ask questions
-- **Session Management**: Multi-session chat history stored in Supabase
-- **Privacy-First**: Files processed in-memory, never stored on server
+### 📈 Alternative Credit Scoring
+- **Cashflow-Based Metric**: Generates a score up to 1,000 points based on 3 core pillars:
+  1. **Capacity**: Total financial transaction volume (Nominal).
+  2. **Frequency**: Consistency and transaction counts per month.
+  3. **Diversification**: Number of unique vendors to measure business stability.
+- **Credit Score Cycles**: Tracks long-term MSME reputation. When a user hits 1,000 points, they "level up" to the next cycle, allowing P2P Lenders to safely increase their lending limits (Lifetime Value tracking).
 
-### 📊 Dashboard
-- **Logistics Trust Score**: Weighted scoring function via Supabase RPC
-- **Revenue Tracking**: Real-time financial data
-- **Weekly Activity Chart**: Real-time updates via Supabase channels
-- **Credit Balance**: 10 daily credits, auto-reset at midnight WIB
-
-### 🤝 Partner Portal (B2B)
-- **API Key Management**: Generate, rotate, and revoke API keys
-- **Credit Scoring API**: `GET /api/v1/scoring/{email}` — returns trust score, risk label, scan history
-- **Interactive Playground**: Test the scoring API directly from the portal
-- **API Docs**: cURL examples, response format, integration guide
-- **Pricing Plans**: Starter (Rp29k/mo), Growth (Rp99k/mo), Enterprise (custom)
+### 🤝 Partner API (B2B For P2P Lending)
+- **Credit Scoring Endpoint**: `GET /api/v1/scoring/{email}` — Instantly returns Risk Label, Trust Score, and Cycle Info.
+- **API Key Management**: Secure B2B portal for partners to generate, rotate, and revoke keys.
+- **Pay-Per-Call Model**: Partners consume risk profiles seamlessly into their existing underwriting systems.
 
 ### 🛡️ Admin Panel
 > Restricted to admin email (configurable via `ADMIN_EMAIL` env var)
