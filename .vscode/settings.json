@@ -1,0 +1,6 @@
+{
+    "python.analysis.extraPaths": [
+        "./be"
+    ],
+    "python.analysis.typeCheckingMode": "basic"
+}

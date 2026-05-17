@@ -1,0 +1,231 @@
+"""
+Authentication and authorization utilities
+"""
+from datetime import datetime, timedelta
+from typing import Optional
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
+from supabase import create_client, Client
+
+from config.settings import settings
+from config.database import get_db
+from models.models import User
+from services.credit_service import grant_daily_credit_bonus
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# OAuth2 scheme for JWT
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
+
+# HTTP Bearer for Supabase tokens
+http_bearer = HTTPBearer(auto_error=False)
+
+# Supabase client for authentication (uses ANON key)
+supabase: Optional[Client] = None
+supabase_admin: Optional[Client] = None
+
+if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
+    print("❌ CRITICAL: Supabase Credential belum terbaca oleh Python!")
+    print("   Pastikan file .env ada dan variabel SUPABASE_URL/SUPABASE_ANON_KEY tersedia.")
+    supabase = None
+else:
+    try:
+        supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+        print("✅ Supabase Client berhasil diinisialisasi")
+    except Exception as e:
+        print(f"❌ Gagal inisialisasi Supabase Client: {e}")
+        supabase = None
+
+# Supabase admin client for backend operations (uses SERVICE_ROLE key - bypasses RLS)
+if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
+    print("⚠️ WARNING: SERVICE_ROLE_KEY not found - using ANON key (RLS will apply)")
+    supabase_admin = supabase
+else:
+    try:
+        supabase_admin = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+        print("✅ Supabase Admin Client (SERVICE_ROLE) berhasil diinisialisasi")
+    except Exception as e:
+        print(f"❌ Gagal inisialisasi Supabase Admin Client: {e}")
+        supabase_admin = supabase
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify password"""
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    """Hash password"""
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Create JWT access token"""
+    to_encode = data.copy()
+    
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(hours=settings.JWT_EXPIRATION_HOURS)
+    
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+    
+    return encoded_jwt
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
+    db: Session = Depends(get_db)
+) -> User:
+    """Get current authenticated user - supports both JWT and Supabase tokens"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    # Check if Supabase is available
+    if not supabase:
+        raise HTTPException(
+            status_code=500, 
+            detail="Server Error: Supabase connection not configured"
+        )
+    
+    # Try Supabase token first (from Authorization header)
+    if credentials:
+        try:
+            supabase_token = credentials.credentials
+            auth_client = supabase_admin if supabase_admin else supabase
+            user_response = auth_client.auth.get_user(supabase_token)
+            
+            if user_response and user_response.user:
+                # Get or create user in local DB
+                email = user_response.user.email or ""
+                user = db.query(User).filter(User.email == email).first()
+                
+                if not user:
+                    # Create user if doesn't exist — use Supabase auth UID as local ID
+                    now = datetime.utcnow()
+                    user = User(
+                        id=str(user_response.user.id),
+                        email=email,
+                        username=email.split('@')[0] if email else "user",
+                        hashed_password="",  # No password for OAuth users
+                        credits=12,  # Initial 12 credits (1 per feature use)
+                        is_active=True,
+                        created_at=now,
+                        updated_at=now,
+                    )
+                    db.add(user)
+                    db.commit()
+                    db.refresh(user)
+                    # Also ensure Supabase profiles row exists with initial credits
+                    try:
+                        sb = supabase_admin or supabase
+                        if sb:
+                            sb.table("profiles").upsert(
+                                {"id": str(user_response.user.id), "credits": 12, "user_email": email, "subscription_plan": "free"},
+                                on_conflict="id",
+                            ).execute()
+                    except Exception as profile_err:
+                        print(f"⚠️ Could not init Supabase profile for {email}: {profile_err}")
+
+                # Best-effort daily credit bonus (+1/day, capped at 10)
+                try:
+                    sb = supabase_admin or supabase
+                    if sb:
+                        grant_daily_credit_bonus(sb, str(user_response.user.id))
+                except Exception as bonus_err:
+                    print(f"⚠️ Daily credit bonus skipped: {bonus_err}")
+                
+                return user
+        except Exception as e:
+            print(f"⚠️ Supabase auth failed: {str(e)}")
+            print(f"   Debug Info -> URL: {settings.SUPABASE_URL}, Key: {settings.SUPABASE_ANON_KEY[:5]}...")
+            # Continue to fallback JWT instead of raising immediately
+    
+    # Fallback to JWT token
+    if token:
+        try:
+            payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+            user_id_raw = payload.get("sub")
+            
+            if user_id_raw is None:
+                raise credentials_exception
+            user_id = str(user_id_raw)
+                
+            user = db.query(User).filter(User.id == user_id).first()
+            
+            if user is None:
+                raise credentials_exception
+            
+            return user
+        except JWTError:
+            pass
+    
+    raise credentials_exception
+
+async def get_current_active_user(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """Get current active user"""
+    if not bool(getattr(current_user, "is_active", False)):
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+
+async def get_supabase_bearer_user(
+    credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
+) -> dict:
+    """
+    Lightweight Supabase token validator — does NOT touch local DB.
+    Returns {"id": str_uuid, "email": str}.
+
+    Priority:
+      1. supabase_admin.auth.get_user(token)  — most reliable
+      2. supabase.auth.get_user(token)         — anon client fallback
+      3. Direct JWT decode with JWT_SECRET     — last resort (no network call)
+    """
+    if not credentials or not credentials.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing authorization token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = credentials.credentials
+
+    # 1. Admin client
+    for client in [supabase_admin, supabase]:
+        if client is None:
+            continue
+        try:
+            resp = client.auth.get_user(token)
+            if resp and resp.user:
+                return {"id": str(resp.user.id), "email": resp.user.email or ""}
+        except Exception:
+            continue
+
+    # 2. Direct JWT decode — try Supabase JWT secret first, then app JWT_SECRET
+    for secret in filter(None, [settings.SUPABASE_JWT_SECRET, settings.JWT_SECRET]):
+        try:
+            payload = jwt.decode(
+                token,
+                secret,
+                algorithms=[settings.JWT_ALGORITHM],
+                options={"verify_aud": False},
+            )
+            user_id = payload.get("sub")
+            email = payload.get("email") or (payload.get("user_metadata") or {}).get("email", "")
+            if user_id:
+                return {"id": user_id, "email": email}
+        except JWTError:
+            continue
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )

@@ -1,0 +1,188 @@
+"""Telegram linking API — email-based, no NIK required."""
+
+from __future__ import annotations
+
+from typing import Literal, Optional
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from pydantic import BaseModel
+
+from config.settings import settings
+from models.models import User
+from services.scan_helpers import get_supabase_admin
+from services.telegram_service import generate_tele_key
+from utils.auth import get_current_active_user
+
+router = APIRouter()
+
+
+class ConnectBody(BaseModel):
+    phone_number: Optional[str] = None
+
+
+def _resolve_bot_username(bot: str) -> tuple[str, str]:
+    normalized = (bot or "otaruchain").strip().lower()
+    if normalized in {"otaru_finance", "otarufinance", "finance"}:
+        return "otaru_finance", settings.TELEGRAM_FINANCE_BOT_USERNAME or "otarufinance_bot"
+    return "otaruchain", settings.TELEGRAM_BOT_USERNAME
+
+
+def _build_deep_links(tele_key: str) -> dict[str, str]:
+    main_username = settings.TELEGRAM_BOT_USERNAME
+    finance_username = settings.TELEGRAM_FINANCE_BOT_USERNAME or "otarufinance_bot"
+    return {
+        "otaruchain": f"https://t.me/{main_username}?start={tele_key}",
+        "otaru_finance": f"https://t.me/{finance_username}?start={tele_key}",
+    }
+
+
+@router.post("/connect")
+@router.get("/connect/init")
+async def connect_telegram(
+    bot: Literal["otaruchain", "otaru_finance"] = Query("otaruchain"),
+    body: Optional[ConnectBody] = Body(None),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Auto-generate (or return existing) tele key for the authenticated user.
+    Accepts optional phone_number in body — saved to profiles as primary identity.
+    """
+    sb = get_supabase_admin()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase admin is not configured")
+
+    # ── Save phone_number to profiles if provided ──
+    phone_number = None
+    if body and body.phone_number:
+        import re
+        cleaned = re.sub(r"[^\d]", "", body.phone_number)
+        # Normalize: strip leading +62 or 62
+        if cleaned.startswith("62") and len(cleaned) > 10:
+            cleaned = "0" + cleaned[2:]
+        if not cleaned.startswith("0"):
+            cleaned = "0" + cleaned
+        if len(cleaned) >= 10 and len(cleaned) <= 14:
+            phone_number = cleaned
+            try:
+                # Check uniqueness
+                check_res = sb.table("profiles").select("id").eq("phone_number", phone_number).neq("id", str(current_user.id)).limit(1).execute()
+                if check_res.data:
+                    raise HTTPException(status_code=400, detail="Nomor telepon sudah digunakan oleh akun lain. Silakan gunakan nomor lain.")
+
+                sb.table("profiles").update(
+                    {"phone_number": phone_number}
+                ).eq("id", str(current_user.id)).execute()
+            except HTTPException:
+                raise
+            except Exception:
+                pass  # Non-blocking — don't fail key generation
+
+    try:
+        existing_res = (
+            sb.table("telegram_links")
+            .select("id, tele_key, is_linked, telegram_chat_id")
+            .eq("user_id", str(current_user.id))
+            .limit(1)
+            .execute()
+        )
+        existing = getattr(existing_res, "data", None) or []
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to access telegram_links: {str(e)}",
+        )
+
+    tele_key = generate_tele_key()
+
+    if existing:
+        row = existing[0]
+        # Always issue a NEW key — this resets any prior Telegram session
+        (
+            sb.table("telegram_links")
+            .update({"tele_key": tele_key, "is_linked": False,
+                     "telegram_chat_id": None, "telegram_user_id": None,
+                     "telegram_username": None, "linked_at": None,
+                     "updated_at": "now()"})
+            .eq("id", row["id"])
+            .execute()
+        )
+        chat_id = None
+        is_linked = False
+    else:
+        sb.table("telegram_links").insert({
+            "user_id": str(current_user.id),
+            "tele_key": tele_key,
+            "is_linked": False,
+        }).execute()
+        chat_id = None
+        is_linked = False
+
+    selected_bot, bot_username = _resolve_bot_username(bot)
+    deep_links = _build_deep_links(tele_key)
+
+    return {
+        "message": "Telegram key generated",
+        "tele_key": tele_key,
+        "is_linked": is_linked,
+        "telegram_chat_id": chat_id,
+        "phone_number": phone_number,
+        "bot_username": bot_username,
+        "selected_bot": selected_bot,
+        "available_bots": ["otaruchain", "otaru_finance"],
+        "start_command": f"/start {tele_key}",
+        "deep_link": deep_links[selected_bot],
+        "deep_links": deep_links,
+        "has_key": True,
+    }
+
+
+@router.get("/connect/status")
+async def telegram_connect_status(
+    bot: Literal["otaruchain", "otaru_finance"] = Query("otaruchain"),
+    current_user: User = Depends(get_current_active_user),
+):
+    sb = get_supabase_admin()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase admin is not configured")
+
+    try:
+        res = (
+            sb.table("telegram_links")
+            .select("tele_key, is_linked, telegram_chat_id, linked_at, updated_at")
+            .eq("user_id", str(current_user.id))
+            .limit(1)
+            .execute()
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to access telegram_links: {str(e)}")
+
+    selected_bot, bot_username = _resolve_bot_username(bot)
+
+    data = getattr(res, "data", None) or []
+    if not data:
+        # Auto-init key if none exists yet (convenient for first visit)
+        return {
+            "connected": False,
+            "has_key": False,
+            "bot_username": bot_username,
+            "selected_bot": selected_bot,
+            "available_bots": ["otaruchain", "otaru_finance"],
+        }
+
+    row = data[0]
+    tele_key = row.get("tele_key", "")
+    deep_links = _build_deep_links(tele_key)
+
+    return {
+        "connected": bool(row.get("is_linked")),
+        "has_key": bool(tele_key),
+        "tele_key": tele_key,
+        "telegram_chat_id": row.get("telegram_chat_id"),
+        "linked_at": row.get("linked_at"),
+        "updated_at": row.get("updated_at"),
+        "bot_username": bot_username,
+        "selected_bot": selected_bot,
+        "available_bots": ["otaruchain", "otaru_finance"],
+        "deep_link": deep_links[selected_bot],
+        "deep_links": deep_links,
+    }

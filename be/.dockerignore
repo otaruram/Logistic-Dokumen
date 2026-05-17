@@ -1,0 +1,36 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local env and secrets
+.env
+.env.*
+
+# VCS and editor
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Runtime/generated data
+uploads/
+static/exports/
+logs/
+*.log
+
+# Frontend/dependency caches if present
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
