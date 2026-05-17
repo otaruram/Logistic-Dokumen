@@ -157,17 +157,9 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
   };
 
   const handlePrefillKyc = async () => {
-    const keyInput = window.prompt("Masukkan API key beta (format sk-xxxx) untuk isi data awal KYC:", "");
-    const betaApiKey = (keyInput || "").trim();
-    if (!betaApiKey) {
-      return;
-    }
-
     setPrefillLoading(true);
     try {
-      const res = await fetch(`${API}/api/kyc/prefill-beta`, {
-        headers: { "x-api-key": betaApiKey },
-      });
+      const res = await fetch(`${API}/api/kyc/prefill-beta`);
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: "Gagal memuat data awal KYC" }));

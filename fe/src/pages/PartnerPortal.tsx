@@ -449,12 +449,7 @@ export default function PartnerPortal() {
     setPhoneSyncLoading(true);
     setAuthError(null);
     try {
-      const headers = await getAuthHeader();
-      if (!headers.Authorization) {
-        setAuthError("Login dulu untuk auto fill nomor HP.");
-        return;
-      }
-      const response = await fetch(`${API}/api/v1/profiles/phone/autofill`, { headers });
+      const response = await fetch(`${API}/api/v1/profiles/phone/autofill`);
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         setAuthError(data.detail || "Gagal auto fill nomor HP.");

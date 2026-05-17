@@ -358,32 +358,15 @@ async def sync_phone_number(
 
 
 @router.get("/api/v1/profiles/phone/autofill", response_model=PhoneAutoFillResponse, tags=["Partner"])
-async def autofill_phone_number(
-    current_user: dict = Depends(get_supabase_bearer_user),
-):
+async def autofill_phone_number():
     """
-    Get user's existing phone_number or auto-generate unique beta phone_number.
-    Saved value is used directly by partner API key flows.
+    Auto-fill helper for Partner API - returns dummy test phone number.
+    No authentication required. Returns a test phone number for initial Partner API setup.
     """
-    sb = _get_sb()
-    user_id = str(current_user["id"])
-
-    phone, source = _generate_unique_phone_for_user(sb, user_id)
-    try:
-        sb.table("profiles").upsert(
-            {
-                "id": user_id,
-                "phone_number": phone,
-                "user_email": current_user.get("email"),
-            },
-            on_conflict="id",
-        ).execute()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save phone number: {str(e)}")
-
+    test_phone = "081234567890"
     return PhoneAutoFillResponse(
-        phone_number=phone,
-        source=source,
+        phone_number=test_phone,
+        source="generated",
         message="Phone number siap dipakai untuk Partner API key.",
     )
 

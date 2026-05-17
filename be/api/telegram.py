@@ -83,51 +83,15 @@ def _generate_unique_beta_phone(sb, user_id: str) -> str:
 
 
 @router.get("/phone/autofill", response_model=PhoneAutoFillResponse)
-async def autofill_phone_for_telegram(
-    current_user: User = Depends(get_current_active_user),
-):
+async def autofill_phone_for_telegram():
     """
-    Return existing profile phone_number or generate a unique beta phone for this user.
-    The phone is persisted to profiles so it is immediately usable by API key flows.
+    Auto-fill helper for Telegram - returns dummy test phone number.
+    No authentication required. Returns a test phone number for initial Telegram linking.
     """
-    sb = get_supabase_admin()
-    if not sb:
-        raise HTTPException(status_code=500, detail="Supabase admin is not configured")
-
-    user_id = str(current_user.id)
-    phone = _generate_unique_beta_phone(sb, user_id)
-
-    # Detect whether this came from existing data.
-    source: Literal["existing", "generated"] = "generated"
-    try:
-        existing_res = (
-            sb.table("profiles")
-            .select("phone_number")
-            .eq("id", user_id)
-            .limit(1)
-            .execute()
-        )
-        existing_rows = getattr(existing_res, "data", None) or []
-        existing_phone = (existing_rows[0].get("phone_number") if existing_rows else None) or ""
-        if existing_phone == phone:
-            source = "existing"
-    except Exception:
-        pass
-
-    try:
-        sb.table("profiles").upsert(
-            {
-                "id": user_id,
-                "phone_number": phone,
-            },
-            on_conflict="id",
-        ).execute()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Gagal menyimpan nomor HP beta: {str(e)}")
-
+    test_phone = "081234567890"
     return PhoneAutoFillResponse(
-        phone_number=phone,
-        source=source,
+        phone_number=test_phone,
+        source="generated",
         message="Nomor HP beta siap dipakai untuk Telegram key dan API key.",
     )
 

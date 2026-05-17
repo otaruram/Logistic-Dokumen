@@ -87,15 +87,7 @@ const ProfileTab = () => {
   const handleAutoFillPhone = async () => {
     setAutoFillLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error("Please login first");
-        return;
-      }
-
-      const res = await fetch(`${API_BASE_URL}/api/telegram/phone/autofill`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
+      const res = await fetch(`${API_BASE_URL}/api/telegram/phone/autofill`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.detail || "Gagal auto fill nomor HP");
 
