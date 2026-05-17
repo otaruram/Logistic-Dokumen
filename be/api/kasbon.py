@@ -788,7 +788,7 @@ async def ai_recommendation(body: AIRecommendationRequest, user=Depends(get_supa
         cache_key = f"ai_rec:{loan['id']}"
 
         try:
-            from services.redis_client import RedisClient
+            from config.redis_client import RedisClient
             cached = RedisClient.get_cache(cache_key)
             if cached and isinstance(cached, dict) and cached.get("hash") == cache_hash:
                 return {"success": True, "recommendation": cached["data"], "cached": True}
@@ -949,7 +949,7 @@ async def ai_recommendation(body: AIRecommendationRequest, user=Depends(get_supa
 
         # ── Cache result ─────────────────────────────────────────────────
         try:
-            from services.redis_client import RedisClient
+            from config.redis_client import RedisClient
             RedisClient.set_cache(cache_key, {"data": result, "hash": cache_hash}, ttl=3600)
         except Exception:
             pass
