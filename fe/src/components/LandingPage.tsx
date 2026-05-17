@@ -101,8 +101,8 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
       <nav className="relative z-50 border-b border-white/10 bg-[#0a0a0a]/80 backdrop-blur-md">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <img src="/1.png" alt="Otaru Ecosystem Logo" className="w-7 h-7 object-contain" />
-            <span className="font-bold text-xl tracking-tighter">Otaru Ecosystem</span>
+            <img src="/1.png" alt="OtaruChain Logo" className="w-7 h-7 object-contain" />
+            <span className="font-bold text-xl tracking-tighter">OtaruChain</span>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -158,7 +158,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
                 }}
                 className="w-full sm:w-auto h-14 px-8 text-lg border-white/20 text-white hover:bg-white/10 rounded-full font-medium"
               >
-                Otaru Partner API
+                OtaruChain Partner API
               </Button>
             </div>
 
