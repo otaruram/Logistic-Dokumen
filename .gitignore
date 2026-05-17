@@ -41,3 +41,7 @@ gen_log.txt
 
 # Private proposal docs
 syarat proposal/
+
+# Local-only workspace files
+database/migrations/
+script.md
