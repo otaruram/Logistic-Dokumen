@@ -198,6 +198,8 @@ export default function PartnerPortal() {
   const [pageLoading, setPageLoading] = useState(true);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [profilePhone, setProfilePhone] = useState("");
+  const [phoneSyncLoading, setPhoneSyncLoading] = useState(false);
 
 
 
@@ -442,6 +444,62 @@ export default function PartnerPortal() {
       setCopiedLabel(null);
     }
   }, []);
+
+  async function autoFillProfilePhone() {
+    setPhoneSyncLoading(true);
+    setAuthError(null);
+    try {
+      const headers = await getAuthHeader();
+      if (!headers.Authorization) {
+        setAuthError("Login dulu untuk auto fill nomor HP.");
+        return;
+      }
+      const response = await fetch(`${API}/api/v1/profiles/phone/autofill`, { headers });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAuthError(data.detail || "Gagal auto fill nomor HP.");
+        return;
+      }
+      setProfilePhone(String(data.phone_number || ""));
+    } catch {
+      setAuthError("Network error saat auto fill nomor HP.");
+    } finally {
+      setPhoneSyncLoading(false);
+    }
+  }
+
+  async function saveProfilePhone() {
+    setPhoneSyncLoading(true);
+    setAuthError(null);
+    try {
+      const headers: Record<string, string> = {
+        ...(await getAuthHeader()),
+        "Content-Type": "application/json",
+      };
+      if (!headers.Authorization) {
+        setAuthError("Login dulu untuk simpan nomor HP.");
+        return;
+      }
+
+      const normalized = profilePhone.replace(/\D/g, "");
+      const response = await fetch(`${API}/api/v1/profiles/phone`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ phone_number: normalized }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAuthError(data.detail || "Gagal simpan nomor HP.");
+        return;
+      }
+
+      setProfilePhone(String(data.phone_number || normalized));
+    } catch {
+      setAuthError("Network error saat simpan nomor HP.");
+    } finally {
+      setPhoneSyncLoading(false);
+    }
+  }
   async function handleCheckout(planId: string) {
     setCheckoutError(null);
     setCheckoutLoadingPlan(planId);
@@ -623,6 +681,11 @@ export default function PartnerPortal() {
                   fetchMyKey={fetchMyKey}
                   fetchMyFinanceKey={fetchMyFinanceKey}
                   handleCopy={handleCopy}
+                  profilePhone={profilePhone}
+                  phoneSyncLoading={phoneSyncLoading}
+                  onProfilePhoneChange={setProfilePhone}
+                  onAutoFillPhone={autoFillProfilePhone}
+                  onSavePhone={saveProfilePhone}
                 />
 
                 <PartnerPlaygrounds

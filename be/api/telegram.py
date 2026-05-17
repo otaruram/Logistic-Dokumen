@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -20,6 +21,12 @@ class ConnectBody(BaseModel):
     phone_number: Optional[str] = None
 
 
+class PhoneAutoFillResponse(BaseModel):
+    phone_number: str
+    source: Literal["existing", "generated"]
+    message: str
+
+
 def _resolve_bot_username(bot: str) -> tuple[str, str]:
     normalized = (bot or "otaruchain").strip().lower()
     if normalized in {"otaru_finance", "otarufinance", "finance"}:
@@ -34,6 +41,95 @@ def _build_deep_links(tele_key: str) -> dict[str, str]:
         "otaruchain": f"https://t.me/{main_username}?start={tele_key}",
         "otaru_finance": f"https://t.me/{finance_username}?start={tele_key}",
     }
+
+
+def _generate_unique_beta_phone(sb, user_id: str) -> str:
+    """Generate deterministic-yet-unique beta phone number (08xxxxxxxxxx) per user."""
+    # Try existing first to keep identity stable across Telegram and Partner API flows.
+    try:
+        existing_res = (
+            sb.table("profiles")
+            .select("phone_number")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        existing_rows = getattr(existing_res, "data", None) or []
+        existing_phone = (existing_rows[0].get("phone_number") if existing_rows else None) or ""
+        if isinstance(existing_phone, str) and existing_phone.startswith("0") and existing_phone[1:].isdigit() and 10 <= len(existing_phone) <= 13:
+            return existing_phone
+    except Exception:
+        pass
+
+    for attempt in range(50):
+        digest = hashlib.sha256(f"{user_id}:beta-phone:{attempt}".encode("utf-8")).hexdigest()
+        numeric = int(digest[:15], 16) % 10_000_000_000
+        candidate = "08" + str(numeric).zfill(10)
+
+        # Ensure uniqueness across users.
+        check_res = (
+            sb.table("profiles")
+            .select("id")
+            .eq("phone_number", candidate)
+            .neq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        check_rows = getattr(check_res, "data", None) or []
+        if not check_rows:
+            return candidate
+
+    raise HTTPException(status_code=500, detail="Gagal generate nomor HP unik beta")
+
+
+@router.get("/phone/autofill", response_model=PhoneAutoFillResponse)
+async def autofill_phone_for_telegram(
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Return existing profile phone_number or generate a unique beta phone for this user.
+    The phone is persisted to profiles so it is immediately usable by API key flows.
+    """
+    sb = get_supabase_admin()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase admin is not configured")
+
+    user_id = str(current_user.id)
+    phone = _generate_unique_beta_phone(sb, user_id)
+
+    # Detect whether this came from existing data.
+    source: Literal["existing", "generated"] = "generated"
+    try:
+        existing_res = (
+            sb.table("profiles")
+            .select("phone_number")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        existing_rows = getattr(existing_res, "data", None) or []
+        existing_phone = (existing_rows[0].get("phone_number") if existing_rows else None) or ""
+        if existing_phone == phone:
+            source = "existing"
+    except Exception:
+        pass
+
+    try:
+        sb.table("profiles").upsert(
+            {
+                "id": user_id,
+                "phone_number": phone,
+            },
+            on_conflict="id",
+        ).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gagal menyimpan nomor HP beta: {str(e)}")
+
+    return PhoneAutoFillResponse(
+        phone_number=phone,
+        source=source,
+        message="Nomor HP beta siap dipakai untuk Telegram key dan API key.",
+    )
 
 
 @router.post("/connect")
@@ -173,11 +269,27 @@ async def telegram_connect_status(
     tele_key = row.get("tele_key", "")
     deep_links = _build_deep_links(tele_key)
 
+    phone_number = None
+    try:
+        prof_res = (
+            sb.table("profiles")
+            .select("phone_number")
+            .eq("id", str(current_user.id))
+            .limit(1)
+            .execute()
+        )
+        prof_rows = getattr(prof_res, "data", None) or []
+        if prof_rows:
+            phone_number = prof_rows[0].get("phone_number")
+    except Exception:
+        phone_number = None
+
     return {
         "connected": bool(row.get("is_linked")),
         "has_key": bool(tele_key),
         "tele_key": tele_key,
         "telegram_chat_id": row.get("telegram_chat_id"),
+        "phone_number": phone_number,
         "linked_at": row.get("linked_at"),
         "updated_at": row.get("updated_at"),
         "bot_username": bot_username,

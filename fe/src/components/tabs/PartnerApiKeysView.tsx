@@ -20,6 +20,11 @@ interface Props {
   fetchMyKey: () => void;
   fetchMyFinanceKey: () => void;
   handleCopy: (value: string, label: string) => void;
+  profilePhone: string;
+  phoneSyncLoading: boolean;
+  onProfilePhoneChange: (value: string) => void;
+  onAutoFillPhone: () => void;
+  onSavePhone: () => void;
 }
 
 function KeySkeleton() {
@@ -130,12 +135,57 @@ export default function PartnerApiKeysView(props: Props) {
     revokeKey, revokeFinanceKey,
     fetchMyKey, fetchMyFinanceKey,
     handleCopy,
+    profilePhone,
+    phoneSyncLoading,
+    onProfilePhoneChange,
+    onAutoFillPhone,
+    onSavePhone,
   } = props;
+
+  const normalizedPhone = (profilePhone || "").replace(/\D/g, "");
+  const validPhone = /^0\d{9,12}$/.test(normalizedPhone);
 
   return (
     <div className="space-y-5">
 
       {authError && <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900">{authError}</p>}
+
+      <div className="rounded-[2rem] border border-zinc-200 bg-white p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.35)]">
+        <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Partner Identity</p>
+        <h2 className="mt-1 text-xl font-semibold text-zinc-900">Nomor HP untuk API Key</h2>
+        <p className="mt-2 text-sm text-zinc-600">
+          Nomor HP ini dipakai sebagai identitas utama lookup partner API.
+          Auto Fill akan pakai nomor yang sudah tersimpan dari Telegram, atau generate nomor beta unik bila belum ada.
+        </p>
+
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <input
+            type="tel"
+            value={profilePhone}
+            onChange={(e) => onProfilePhoneChange(e.target.value.replace(/[^\d]/g, "").slice(0, 13))}
+            placeholder="08xxxxxxxxxx"
+            className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
+          />
+          <button
+            type="button"
+            onClick={onAutoFillPhone}
+            disabled={phoneSyncLoading}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+          >
+            {phoneSyncLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
+            Auto Fill HP
+          </button>
+          <button
+            type="button"
+            onClick={onSavePhone}
+            disabled={!validPhone || phoneSyncLoading}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Simpan HP
+          </button>
+        </div>
+      </div>
 
       {/* Individual Key Cards */}
       <div className="grid gap-4 lg:grid-cols-2">

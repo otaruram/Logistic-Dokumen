@@ -12,10 +12,11 @@ import re
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from utils.auth import get_supabase_bearer_user
+from utils.api_key import validate_api_key_full
 from services.scan_helpers import get_supabase_admin
 from services.imagekit_service import ImageKitService
 
@@ -51,6 +52,22 @@ class KycProfile(BaseModel):
     kyc_verified: bool = False
     kyc_submitted_at: Optional[str] = None
     data_consent_given: bool = False
+
+
+class KycPrefillData(BaseModel):
+    nik: str = ""
+    full_name: str = ""
+    birth_place: str = ""
+    birth_date: str = ""
+    gender: str = ""
+    address: str = ""
+    rt_rw: str = ""
+    kelurahan: str = ""
+    kecamatan: str = ""
+    religion: str = ""
+    marital_status: str = ""
+    occupation: str = ""
+    nationality: str = "WNI"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -100,6 +117,58 @@ async def get_kyc_status(
         kyc_verified=bool(profile.get("kyc_verified", False)),
         nik=profile.get("nik"),
         full_name=profile.get("full_name"),
+    )
+
+
+@router.get("/prefill-beta", response_model=KycPrefillData, tags=["KYC"])
+async def get_kyc_prefill_beta(
+    nik: Optional[str] = Query(None, description="Optional NIK filter for beta prefill"),
+    phone: Optional[str] = Query(None, description="Optional phone filter for beta prefill"),
+    _: dict = Depends(validate_api_key_full),
+):
+    """
+    Beta helper for initial KYC step.
+    Returns starter identity fields and requires a valid x-api-key.
+    """
+    sb = _get_sb()
+
+    query = (
+        sb.table("profiles")
+        .select(
+            "nik, full_name, birth_place, birth_date, gender, "
+            "address, rt_rw, kelurahan, kecamatan, religion, marital_status, occupation, nationality"
+        )
+        .not_.is_("nik", "null")
+        .not_.is_("full_name", "null")
+        .limit(1)
+    )
+
+    if nik:
+        query = query.eq("nik", _validate_nik(nik))
+    if phone:
+        clean_phone = phone.strip().replace("+62", "0").replace("-", "").replace(" ", "")
+        query = query.eq("phone_number", clean_phone)
+
+    res = query.execute()
+    rows = getattr(res, "data", None) or []
+    if not rows:
+        return KycPrefillData()
+
+    p = rows[0]
+    return KycPrefillData(
+        nik=p.get("nik") or "",
+        full_name=p.get("full_name") or "",
+        birth_place=p.get("birth_place") or "",
+        birth_date=p.get("birth_date") or "",
+        gender=p.get("gender") or "",
+        address=p.get("address") or "",
+        rt_rw=p.get("rt_rw") or "",
+        kelurahan=p.get("kelurahan") or "",
+        kecamatan=p.get("kecamatan") or "",
+        religion=p.get("religion") or "",
+        marital_status=p.get("marital_status") or "",
+        occupation=p.get("occupation") or "",
+        nationality=p.get("nationality") or "WNI",
     )
 
 

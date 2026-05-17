@@ -10,6 +10,7 @@ Endpoints:
 """
 from __future__ import annotations
 
+import hashlib
 import secrets
 from typing import Optional
 
@@ -279,6 +280,49 @@ class PhoneSyncResponse(BaseModel):
     message: str = "Phone number saved successfully."
 
 
+class PhoneAutoFillResponse(BaseModel):
+    phone_number: str
+    source: str
+    message: str
+
+
+def _generate_unique_phone_for_user(sb, user_id: str) -> tuple[str, str]:
+    """Return (phone_number, source), preferring existing profile phone for stable identity."""
+    try:
+        existing_res = (
+            sb.table("profiles")
+            .select("phone_number")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        existing_rows = getattr(existing_res, "data", None) or []
+        existing_phone = (existing_rows[0].get("phone_number") if existing_rows else None) or ""
+        if isinstance(existing_phone, str) and existing_phone.startswith("0") and existing_phone[1:].isdigit() and 10 <= len(existing_phone) <= 13:
+            return existing_phone, "existing"
+    except Exception:
+        pass
+
+    for attempt in range(50):
+        digest = hashlib.sha256(f"{user_id}:beta-phone:{attempt}".encode("utf-8")).hexdigest()
+        numeric = int(digest[:15], 16) % 10_000_000_000
+        candidate = "08" + str(numeric).zfill(10)
+
+        check_res = (
+            sb.table("profiles")
+            .select("id")
+            .eq("phone_number", candidate)
+            .neq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        check_rows = getattr(check_res, "data", None) or []
+        if not check_rows:
+            return candidate, "generated"
+
+    raise HTTPException(status_code=500, detail="Gagal generate nomor HP unik beta")
+
+
 @router.post("/api/v1/profiles/phone", response_model=PhoneSyncResponse, tags=["Partner"])
 async def sync_phone_number(
     body: PhoneSyncRequest,
@@ -310,6 +354,37 @@ async def sync_phone_number(
     return PhoneSyncResponse(
         phone_number=phone,
         message=f"Phone number {phone} saved successfully.",
+    )
+
+
+@router.get("/api/v1/profiles/phone/autofill", response_model=PhoneAutoFillResponse, tags=["Partner"])
+async def autofill_phone_number(
+    current_user: dict = Depends(get_supabase_bearer_user),
+):
+    """
+    Get user's existing phone_number or auto-generate unique beta phone_number.
+    Saved value is used directly by partner API key flows.
+    """
+    sb = _get_sb()
+    user_id = str(current_user["id"])
+
+    phone, source = _generate_unique_phone_for_user(sb, user_id)
+    try:
+        sb.table("profiles").upsert(
+            {
+                "id": user_id,
+                "phone_number": phone,
+                "user_email": current_user.get("email"),
+            },
+            on_conflict="id",
+        ).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save phone number: {str(e)}")
+
+    return PhoneAutoFillResponse(
+        phone_number=phone,
+        source=source,
+        message="Phone number siap dipakai untuk Partner API key.",
     )
 
 
@@ -347,7 +422,7 @@ async def get_platform_stats():
 
 @router.get("/api/v1/partner/demo-niks", tags=["Partner"])
 async def get_demo_niks():
-    """Return up to 5 real NIKs from profiles for playground auto-fill (beta only)."""
+    """Return up to 5 real NIKs from profiles for beta playground input helper."""
     sb = _get_sb()
     try:
         res = sb.table("profiles").select("nik").not_.is_("nik", "null").limit(5).execute()
@@ -360,7 +435,7 @@ async def get_demo_niks():
 
 @router.get("/api/v1/partner/demo-phones", tags=["Partner"])
 async def get_demo_phones():
-    """Return up to 5 real phone numbers from profiles for playground auto-fill (beta only)."""
+    """Return up to 5 real phone numbers from profiles for beta playground input helper."""
     sb = _get_sb()
     try:
         res = sb.table("profiles").select("phone_number").not_.is_("phone_number", "null").limit(5).execute()

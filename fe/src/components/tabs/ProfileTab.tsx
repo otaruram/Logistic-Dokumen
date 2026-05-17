@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Bot, Copy, HelpCircle, Link2, LogOut, Mail, Shield, Trash2, Loader2 } from "lucide-react";
+import { Bot, Copy, HelpCircle, Link2, LogOut, Mail, Shield, Trash2, Loader2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
@@ -14,6 +14,7 @@ const ProfileTab = () => {
   const [tgStatus, setTgStatus] = useState<any>(null);
   const [selectedBot, setSelectedBot] = useState<"otaruchain" | "otaru_finance">("otaruchain");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [autoFillLoading, setAutoFillLoading] = useState(false);
   const isPhoneValid = /^[1-9]\d{8,11}$/.test(phoneNumber); // 9-12 digits, no leading 0
   const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -80,6 +81,37 @@ const ProfileTab = () => {
       toast.error(e?.message || "Failed to generate key");
     } finally {
       setTgLoading(false);
+    }
+  };
+
+  const handleAutoFillPhone = async () => {
+    setAutoFillLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please login first");
+        return;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/telegram/phone/autofill`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.detail || "Gagal auto fill nomor HP");
+
+      const phone = String(json.phone_number || "");
+      if (phone.startsWith("0")) {
+        setPhoneNumber(phone.slice(1));
+      } else {
+        setPhoneNumber(phone);
+      }
+
+      setTgStatus((prev: any) => ({ ...(prev || {}), phone_number: phone }));
+      toast.success("Nomor HP beta berhasil diisi otomatis.");
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal auto fill nomor HP");
+    } finally {
+      setAutoFillLoading(false);
     }
   };
 
@@ -176,6 +208,15 @@ const ProfileTab = () => {
               }}
               className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white font-mono placeholder:text-gray-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition-all"
             />
+            <button
+              type="button"
+              onClick={handleAutoFillPhone}
+              disabled={autoFillLoading}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-white/10 disabled:opacity-60"
+            >
+              {autoFillLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+              Auto Fill
+            </button>
           </div>
           {phoneNumber && !isPhoneValid && (
             <p className="text-[11px] text-red-400">Nomor HP harus 9-12 digit (tanpa 0 di depan).</p>

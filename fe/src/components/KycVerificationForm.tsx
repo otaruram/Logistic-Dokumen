@@ -6,7 +6,7 @@ import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   User, CreditCard, MapPin, Camera, CheckCircle2,
-  ArrowRight, ArrowLeft, Upload, X, Loader2, Shield,
+  ArrowRight, ArrowLeft, Upload, X, Loader2, Shield, Wand2,
 } from "lucide-react";
 import { APP_CONFIG } from "@/constants";
 import { supabase } from "@/lib/supabaseClient";
@@ -35,6 +35,7 @@ const MARITAL_OPTIONS = ["Belum Kawin", "Kawin", "Cerai Hidup", "Cerai Mati"];
 export default function KycVerificationForm({ onComplete }: KycVerificationFormProps) {
   const [step, setStep] = useState<Step>(0);
   const [submitting, setSubmitting] = useState(false);
+  const [prefillLoading, setPrefillLoading] = useState(false);
 
   // Step 1: Personal
   const [nik, setNik] = useState("");
@@ -155,6 +156,47 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
     }
   };
 
+  const handlePrefillKyc = async () => {
+    const keyInput = window.prompt("Masukkan API key beta (format sk-xxxx) untuk isi data awal KYC:", "");
+    const betaApiKey = (keyInput || "").trim();
+    if (!betaApiKey) {
+      return;
+    }
+
+    setPrefillLoading(true);
+    try {
+      const res = await fetch(`${API}/api/kyc/prefill-beta`, {
+        headers: { "x-api-key": betaApiKey },
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: "Gagal memuat data awal KYC" }));
+        toast.error(err.detail || "Gagal memuat data awal KYC");
+        return;
+      }
+
+      const p = await res.json();
+      setNik(p.nik || "");
+      setFullName(p.full_name || "");
+      setBirthPlace(p.birth_place || "");
+      setBirthDate(p.birth_date || "");
+      setGender(p.gender || "");
+      setAddress(p.address || "");
+      setRtRw(p.rt_rw || "");
+      setKelurahan(p.kelurahan || "");
+      setKecamatan(p.kecamatan || "");
+      setReligion(p.religion || "");
+      setMaritalStatus(p.marital_status || "");
+      setOccupation(p.occupation || "");
+      setNationality(p.nationality || "WNI");
+      toast.success("Data awal KYC berhasil dimuat.");
+    } catch {
+      toast.error("Network error saat memuat data awal KYC.");
+    } finally {
+      setPrefillLoading(false);
+    }
+  };
+
   const inputCls = "w-full h-12 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-zinc-500 outline-none focus:border-white/30 focus:bg-white/[0.07] transition-all";
   const labelCls = "block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1.5";
   const errCls = "text-[11px] text-red-400 mt-1";
@@ -205,7 +247,18 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
             {/* Step 0: Personal */}
             {step === 0 && (
               <motion.div key="s0" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.2 }} className="space-y-4">
-                  <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 font-bold mb-4">Data Pribadi</p>
+                  <div className="mb-4 flex items-center justify-between gap-2">
+                    <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 font-bold">Data Pribadi</p>
+                    <button
+                      type="button"
+                      onClick={handlePrefillKyc}
+                      disabled={prefillLoading}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-200 hover:bg-white/10 disabled:opacity-60"
+                    >
+                      {prefillLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+                      Isi Data Beta
+                    </button>
+                  </div>
                 <div>
                   <label className={labelCls}>NIK (Nomor Induk Kependudukan)</label>
                   <input className={inputCls} value={nik} onChange={e => setNik(e.target.value.replace(/\D/g, "").slice(0, 16))} placeholder="3201xxxxxxxxxxxx" maxLength={16} />
