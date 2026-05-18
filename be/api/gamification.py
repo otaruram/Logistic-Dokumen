@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from config.settings import settings
 from services.scan_helpers import get_supabase_admin
 from utils.auth import get_supabase_bearer_user
 
@@ -28,10 +29,18 @@ SILVER_THRESHOLD = 50
 GOLD_THRESHOLD = 150
 PLATINUM_THRESHOLD = 250
 
-GOLD_INTEREST_DISCOUNT = 0.0
-PLATINUM_INTEREST_DISCOUNT = 0.0
-GOLD_PLAFON_BONUS = 0
-PLATINUM_PLAFON_BONUS = 0
+GOLD_INTEREST_DISCOUNT = 0.5
+PLATINUM_INTEREST_DISCOUNT = 1.0
+GOLD_PLAFON_BONUS = 1_000_000
+PLATINUM_PLAFON_BONUS = 2_500_000
+
+DEFAULT_GAMIFICATION_CONTEXT = {
+    "gold": "TBA: benefit Gold aktif setelah verifikasi risiko internal koperasi.",
+    "platinum": "TBA: benefit Platinum aktif setelah validasi partner + governance check.",
+}
+
+DEFAULT_BADGE_BASE_URL = "https://api.dicebear.com/9.x/shapes/png"
+DEFAULT_CERT_BASE_URL = "https://api.dicebear.com/9.x/glass/png"
 
 
 class BadgeProgress(BaseModel):
@@ -52,6 +61,31 @@ class BadgeProgress(BaseModel):
     progress_pct: float = 0.0   # progress toward platinum (0-100)
     tampered_this_month: int = 0
     streak_broken: bool = False
+    gold_context_tba: str = DEFAULT_GAMIFICATION_CONTEXT["gold"]
+    platinum_context_tba: str = DEFAULT_GAMIFICATION_CONTEXT["platinum"]
+
+
+class GamificationConfigUpdate(BaseModel):
+    silver_threshold: int = SILVER_THRESHOLD
+    gold_threshold: int = GOLD_THRESHOLD
+    platinum_threshold: int = PLATINUM_THRESHOLD
+    gold_interest_discount_pct: float = GOLD_INTEREST_DISCOUNT
+    platinum_interest_discount_pct: float = PLATINUM_INTEREST_DISCOUNT
+    gold_plafon_bonus: int = GOLD_PLAFON_BONUS
+    platinum_plafon_bonus: int = PLATINUM_PLAFON_BONUS
+    gold_context_tba: str = DEFAULT_GAMIFICATION_CONTEXT["gold"]
+    platinum_context_tba: str = DEFAULT_GAMIFICATION_CONTEXT["platinum"]
+    badge_base_url: str = DEFAULT_BADGE_BASE_URL
+    certificate_base_url: str = DEFAULT_CERT_BASE_URL
+
+
+class AdminRewardToggleBody(BaseModel):
+    target_user_id: str
+    badge_type: str  # silver_integrity | gold_integrity | platinum_integrity
+    enabled: bool
+    month_year: str | None = None
+    verified_count: int | None = None
+    reason: str | None = None
 
 
 def _sb():
@@ -63,6 +97,68 @@ def _sb():
 
 def _current_month() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m")
+
+
+def _is_gamification_admin(sb, current_user: dict) -> bool:
+    email = (current_user.get("email") or "").lower().strip()
+    admin_email = (settings.ADMIN_EMAIL or "").lower().strip()
+    if email and (email == admin_email or email == "okitr52@gmail.com"):
+        return True
+
+    if not email:
+        return False
+
+    try:
+        res = sb.table("authorized_admins").select("id").eq("email", email).limit(1).execute()
+        rows = getattr(res, "data", None) or []
+        return len(rows) > 0
+    except Exception:
+        return False
+
+
+def _load_gamification_config(sb) -> dict[str, Any]:
+    defaults = {
+        "silver_threshold": SILVER_THRESHOLD,
+        "gold_threshold": GOLD_THRESHOLD,
+        "platinum_threshold": PLATINUM_THRESHOLD,
+        "gold_interest_discount_pct": GOLD_INTEREST_DISCOUNT,
+        "platinum_interest_discount_pct": PLATINUM_INTEREST_DISCOUNT,
+        "gold_plafon_bonus": GOLD_PLAFON_BONUS,
+        "platinum_plafon_bonus": PLATINUM_PLAFON_BONUS,
+        "gold_context_tba": DEFAULT_GAMIFICATION_CONTEXT["gold"],
+        "platinum_context_tba": DEFAULT_GAMIFICATION_CONTEXT["platinum"],
+        "badge_base_url": DEFAULT_BADGE_BASE_URL,
+        "certificate_base_url": DEFAULT_CERT_BASE_URL,
+    }
+    try:
+        res = sb.table("gamification_config").select("*").eq("id", 1).limit(1).execute()
+        rows = getattr(res, "data", None) or []
+        if rows:
+            cfg = {**defaults, **rows[0]}
+            return cfg
+    except Exception:
+        pass
+    return defaults
+
+
+def _badge_display_name(badge_type: str) -> str:
+    if badge_type == "platinum_integrity":
+        return "Platinum"
+    if badge_type == "gold_integrity":
+        return "Gold"
+    return "Silver"
+
+
+def _build_badge_image_url(cfg: dict[str, Any], badge_type: str, month_year: str) -> str:
+    base = cfg.get("badge_base_url") or DEFAULT_BADGE_BASE_URL
+    seed = f"otaru-{badge_type}-{month_year}"
+    return f"{base}?seed={seed}&backgroundColor=0f172a,1e293b,334155"
+
+
+def _build_certificate_preview_url(cfg: dict[str, Any], badge_type: str, month_year: str) -> str:
+    base = cfg.get("certificate_base_url") or DEFAULT_CERT_BASE_URL
+    seed = f"cert-{badge_type}-{month_year}"
+    return f"{base}?seed={seed}&backgroundColor=111827,1f2937,374151"
 
 
 def _get_monthly_stats(sb, user_id: str, month_year: str) -> dict:
@@ -194,6 +290,7 @@ def check_and_award_badges(user_id: str, month_year: str | None = None) -> Badge
     Enforces zero-tolerance rule: 1 tampered doc blocks new badges for the month.
     """
     sb = _sb()
+    cfg = _load_gamification_config(sb)
     month = month_year or _current_month()
     stats = _get_monthly_stats(sb, user_id, month)
     verified_count = stats["verified"]
@@ -209,21 +306,25 @@ def check_and_award_badges(user_id: str, month_year: str | None = None) -> Badge
     # If streak not broken, award badges
     if not streak_broken:
         # Award Silver
-        if verified_count >= SILVER_THRESHOLD and not has_silver:
+        if verified_count >= int(cfg["silver_threshold"]) and not has_silver:
             _upsert_badge(sb, user_id, month, "silver_integrity", verified_count, tampered_count)
             has_silver = True
 
         # Award Gold
-        if verified_count >= GOLD_THRESHOLD and not has_gold:
+        if verified_count >= int(cfg["gold_threshold"]) and not has_gold:
             _upsert_badge(
                 sb, user_id, month, "gold_integrity", verified_count, tampered_count,
+                float(cfg["gold_interest_discount_pct"]),
+                int(cfg["gold_plafon_bonus"]),
             )
             has_gold = True
                 
         # Award Platinum
-        if verified_count >= PLATINUM_THRESHOLD and not has_platinum:
+        if verified_count >= int(cfg["platinum_threshold"]) and not has_platinum:
             _upsert_badge(
                 sb, user_id, month, "platinum_integrity", verified_count, tampered_count,
+                float(cfg["platinum_interest_discount_pct"]),
+                int(cfg["platinum_plafon_bonus"]),
             )
             has_platinum = True
     else:
@@ -238,21 +339,24 @@ def check_and_award_badges(user_id: str, month_year: str | None = None) -> Badge
     gold_unlocked_at = existing.get("gold_integrity", {}).get("unlocked_at")
     platinum_unlocked_at = existing.get("platinum_integrity", {}).get("unlocked_at")
 
-    progress = min(100.0, round((verified_count / PLATINUM_THRESHOLD) * 100, 1))
+    progress = min(100.0, round((verified_count / max(1, int(cfg["platinum_threshold"]))) * 100, 1))
 
     current_discount = 0.0
     current_bonus = 0
     if "platinum_integrity" in existing:
-        current_discount = PLATINUM_INTEREST_DISCOUNT
-        current_bonus = PLATINUM_PLAFON_BONUS
+        current_discount = float(cfg["platinum_interest_discount_pct"])
+        current_bonus = int(cfg["platinum_plafon_bonus"])
     elif "gold_integrity" in existing:
-        current_discount = GOLD_INTEREST_DISCOUNT
-        current_bonus = GOLD_PLAFON_BONUS
+        current_discount = float(cfg["gold_interest_discount_pct"])
+        current_bonus = int(cfg["gold_plafon_bonus"])
 
     return BadgeProgress(
         user_id=user_id,
         month_year=month,
         verified_count=verified_count,
+        silver_threshold=int(cfg["silver_threshold"]),
+        gold_threshold=int(cfg["gold_threshold"]),
+        platinum_threshold=int(cfg["platinum_threshold"]),
         has_silver="silver_integrity" in existing,
         has_gold="gold_integrity" in existing,
         has_platinum="platinum_integrity" in existing,
@@ -264,6 +368,8 @@ def check_and_award_badges(user_id: str, month_year: str | None = None) -> Badge
         progress_pct=progress,
         tampered_this_month=tampered_count,
         streak_broken=streak_broken,
+        gold_context_tba=str(cfg["gold_context_tba"]),
+        platinum_context_tba=str(cfg["platinum_context_tba"]),
     )
 
 @router.get("/api/v1/gamification/certificate/{month_year}", tags=["Gamification"])
@@ -358,3 +464,152 @@ async def list_all_badges(
     )
     rows = getattr(res, "data", None) or []
     return {"badges": rows}
+
+
+@router.get("/api/v1/gamification/config")
+async def get_gamification_config(
+    current_user: dict = Depends(get_supabase_bearer_user),
+):
+    sb = _sb()
+    return _load_gamification_config(sb)
+
+
+@router.put("/api/v1/gamification/admin/config")
+async def update_gamification_config(
+    body: GamificationConfigUpdate,
+    current_user: dict = Depends(get_supabase_bearer_user),
+):
+    sb = _sb()
+    if not _is_gamification_admin(sb, current_user):
+        raise HTTPException(status_code=403, detail="Admin access only")
+
+    payload = {
+        "id": 1,
+        "silver_threshold": max(1, body.silver_threshold),
+        "gold_threshold": max(body.silver_threshold + 1, body.gold_threshold),
+        "platinum_threshold": max(body.gold_threshold + 1, body.platinum_threshold),
+        "gold_interest_discount_pct": max(0.0, body.gold_interest_discount_pct),
+        "platinum_interest_discount_pct": max(0.0, body.platinum_interest_discount_pct),
+        "gold_plafon_bonus": max(0, body.gold_plafon_bonus),
+        "platinum_plafon_bonus": max(0, body.platinum_plafon_bonus),
+        "gold_context_tba": body.gold_context_tba.strip() or DEFAULT_GAMIFICATION_CONTEXT["gold"],
+        "platinum_context_tba": body.platinum_context_tba.strip() or DEFAULT_GAMIFICATION_CONTEXT["platinum"],
+        "badge_base_url": body.badge_base_url.strip() or DEFAULT_BADGE_BASE_URL,
+        "certificate_base_url": body.certificate_base_url.strip() or DEFAULT_CERT_BASE_URL,
+        "updated_by": current_user.get("email") or current_user.get("id"),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    sb.table("gamification_config").upsert(payload, on_conflict="id").execute()
+    return {"success": True, "config": payload}
+
+
+@router.post("/api/v1/gamification/admin/reward/toggle")
+async def toggle_user_gamification_reward(
+    body: AdminRewardToggleBody,
+    current_user: dict = Depends(get_supabase_bearer_user),
+):
+    sb = _sb()
+    if not _is_gamification_admin(sb, current_user):
+        raise HTTPException(status_code=403, detail="Admin access only")
+
+    month = body.month_year or _current_month()
+    badge_type = body.badge_type.strip().lower()
+    if badge_type not in {"silver_integrity", "gold_integrity", "platinum_integrity"}:
+        raise HTTPException(status_code=400, detail="badge_type harus silver_integrity|gold_integrity|platinum_integrity")
+
+    cfg = _load_gamification_config(sb)
+    verified_default = {
+        "silver_integrity": int(cfg["silver_threshold"]),
+        "gold_integrity": int(cfg["gold_threshold"]),
+        "platinum_integrity": int(cfg["platinum_threshold"]),
+    }
+
+    if body.enabled:
+        v_count = body.verified_count if body.verified_count is not None else verified_default[badge_type]
+        interest = 0.0
+        bonus = 0
+        if badge_type == "gold_integrity":
+            interest = float(cfg["gold_interest_discount_pct"])
+            bonus = int(cfg["gold_plafon_bonus"])
+        elif badge_type == "platinum_integrity":
+            interest = float(cfg["platinum_interest_discount_pct"])
+            bonus = int(cfg["platinum_plafon_bonus"])
+
+        _upsert_badge(
+            sb,
+            body.target_user_id,
+            month,
+            badge_type,
+            max(0, int(v_count)),
+            tampered_count=0,
+            interest_discount=interest,
+            plafon_bonus=bonus,
+        )
+        action = "grant"
+    else:
+        sb.table("gamification_badges").delete().eq("user_id", body.target_user_id).eq("month_year", month).eq("badge_type", badge_type).execute()
+        action = "revoke"
+
+    try:
+        sb.table("gamification_admin_actions").insert(
+            {
+                "admin_user_id": str(current_user.get("id") or current_user.get("sub") or ""),
+                "admin_email": current_user.get("email"),
+                "target_user_id": body.target_user_id,
+                "month_year": month,
+                "badge_type": badge_type,
+                "action": action,
+                "reason": body.reason,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ).execute()
+    except Exception:
+        # Table is optional; do not block the action.
+        pass
+
+    progress = check_and_award_badges(body.target_user_id, month)
+    return {"success": True, "action": action, "progress": progress}
+
+
+@router.get("/api/v1/gamification/rewards/gallery")
+async def get_reward_gallery(
+    current_user: dict = Depends(get_supabase_bearer_user),
+):
+    sb = _sb()
+    user_id = str(current_user.get("id") or current_user.get("sub"))
+    cfg = _load_gamification_config(sb)
+    res = (
+        sb.table("gamification_badges")
+        .select("badge_type, month_year, verified_count, unlocked_at, interest_discount_pct, plafon_bonus")
+        .eq("user_id", user_id)
+        .order("month_year", desc=True)
+        .limit(24)
+        .execute()
+    )
+    rows = getattr(res, "data", None) or []
+
+    items: list[dict[str, Any]] = []
+    for row in rows:
+        badge_type = str(row.get("badge_type") or "silver_integrity")
+        month_year = str(row.get("month_year") or "")
+        display = _badge_display_name(badge_type)
+        items.append(
+            {
+                "badge_type": badge_type,
+                "badge_label": display,
+                "month_year": month_year,
+                "verified_count": int(row.get("verified_count") or 0),
+                "interest_discount_pct": float(row.get("interest_discount_pct") or 0),
+                "plafon_bonus": int(row.get("plafon_bonus") or 0),
+                "unlocked_at": row.get("unlocked_at"),
+                "badge_image_url": _build_badge_image_url(cfg, badge_type, month_year),
+                "certificate_preview_url": _build_certificate_preview_url(cfg, badge_type, month_year),
+                "certificate_pdf_url": f"/api/v1/gamification/certificate/{month_year}",
+            }
+        )
+
+    return {
+        "items": items,
+        "gold_context_tba": cfg.get("gold_context_tba") or DEFAULT_GAMIFICATION_CONTEXT["gold"],
+        "platinum_context_tba": cfg.get("platinum_context_tba") or DEFAULT_GAMIFICATION_CONTEXT["platinum"],
+    }

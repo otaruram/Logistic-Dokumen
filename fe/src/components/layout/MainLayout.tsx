@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, X } from "lucide-react";
@@ -9,6 +9,7 @@ import ProfileTab from "../tabs/ProfileTab";
 import OtaruChatPage from "@/pages/OtaruChatPage";
 import AdminTab from "../tabs/AdminTab";
 import BottomNavigation from "../ui/bottom-navigation";
+import ScrollNavigator from "../ui/ScrollNavigator";
 import { useTabNavigation } from "@/hooks/use-tab-navigation";
 
 const ADMIN_EMAIL = "okitr52@gmail.com";
@@ -24,6 +25,7 @@ const MainLayout = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedFeatureMode, setSelectedFeatureMode] = useState<"default" | "fraud">("fraud");
   const [showPartnerPopup, setShowPartnerPopup] = useState(false);
+  const mainScrollRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     // Check if current user is admin
@@ -122,7 +124,10 @@ const MainLayout = () => {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className={`flex-1 overflow-y-auto pb-24 transition-all duration-300 w-full md:max-w-5xl lg:max-w-7xl mx-auto md:border-x md:shadow-xl bg-[#0a0a0a]`}>
+      <main
+        ref={mainScrollRef}
+        className={`flex-1 overflow-y-auto pb-24 transition-all duration-300 w-full md:max-w-5xl lg:max-w-7xl mx-auto md:border-x md:shadow-xl bg-[#0a0a0a]`}
+      >
         <div className="h-full px-4 sm:px-6 lg:px-8 py-6">
           <AnimatePresence mode="wait">
             <motion.div
@@ -138,6 +143,8 @@ const MainLayout = () => {
           </AnimatePresence>
         </div>
       </main>
+
+      <ScrollNavigator target={mainScrollRef.current} bottomOffsetClass="bottom-24" />
 
       {/* Bottom Navigation */}
       <BottomNavigation

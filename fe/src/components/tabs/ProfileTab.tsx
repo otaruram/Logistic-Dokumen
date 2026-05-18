@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Bot, Copy, HelpCircle, Link2, LogOut, Mail, Shield, Trash2, Loader2, Wand2 } from "lucide-react";
+import { Bot, Copy, HelpCircle, Link2, LogOut, Mail, Shield, Trash2, Loader2, Wand2, Award, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
@@ -15,6 +15,8 @@ const ProfileTab = () => {
   const [selectedBot, setSelectedBot] = useState<"otaruchain" | "otaru_finance">("otaruchain");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [autoFillLoading, setAutoFillLoading] = useState(false);
+  const [rewardItems, setRewardItems] = useState<any[]>([]);
+  const [rewardContext, setRewardContext] = useState<{ gold?: string; platinum?: string }>({});
   const isPhoneValid = /^[1-9]\d{8,11}$/.test(phoneNumber); // 9-12 digits, no leading 0
   const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -49,6 +51,28 @@ const ProfileTab = () => {
   useEffect(() => {
     loadTelegramStatus();
   }, [selectedBot]);
+
+  useEffect(() => {
+    const loadRewards = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const res = await fetch(`${API_BASE_URL}/api/v1/gamification/rewards/gallery`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        setRewardItems(Array.isArray(json.items) ? json.items : []);
+        setRewardContext({
+          gold: json.gold_context_tba,
+          platinum: json.platinum_context_tba,
+        });
+      } catch {
+        // Rewards panel is optional.
+      }
+    };
+    loadRewards();
+  }, []);
 
   const handleConnectTelegram = async () => {
     setTgLoading(true);
@@ -113,6 +137,29 @@ const ProfileTab = () => {
       toast.success(`${label} copied`);
     } catch {
       toast.error("Failed to copy");
+    }
+  };
+
+  const handleOpenCertificate = async (monthYear: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Silakan login ulang untuk membuka sertifikat");
+        return;
+      }
+      const res = await fetch(`${API_BASE_URL}/api/v1/gamification/certificate/${monthYear}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Gagal membuka sertifikat");
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => window.URL.revokeObjectURL(url), 30_000);
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal membuka sertifikat");
     }
   };
 
@@ -283,6 +330,70 @@ const ProfileTab = () => {
             <span className="text-xs text-gray-500">Open</span>
           </button>
         </div>
+      </motion.div>
+
+      {/* Reward Gallery */}
+      <motion.div
+        className="bg-[#111] border border-white/10 rounded-2xl p-6 space-y-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+      >
+        <div className="flex items-center gap-2">
+          <Award className="w-4 h-4 text-amber-300" />
+          <h3 className="font-bold text-white">Badge & Sertifikat</h3>
+        </div>
+        <p className="text-xs text-gray-400">
+          Reward ditampilkan sebagai kartu gambar ringan (asset dari URL), tidak menumpuk, dan bisa dibuka sertifikatnya.
+        </p>
+
+        {rewardItems.length === 0 ? (
+          <div className="rounded-xl border border-white/10 bg-black/30 p-4 text-xs text-gray-500">
+            Belum ada reward bulan ini. Capai minimal Silver untuk membuka badge pertama.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {rewardItems.map((item) => (
+              <div key={`${item.badge_type}-${item.month_year}`} className="rounded-xl border border-white/10 bg-black/30 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-white">{item.badge_label} • {item.month_year}</p>
+                  <span className="text-[10px] text-gray-400">{item.verified_count} doc</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <img
+                    src={item.badge_image_url}
+                    alt={`Badge ${item.badge_label}`}
+                    loading="lazy"
+                    className="h-20 w-full rounded-lg border border-white/10 object-cover"
+                  />
+                  <img
+                    src={item.certificate_preview_url}
+                    alt={`Sertifikat ${item.badge_label}`}
+                    loading="lazy"
+                    className="h-20 w-full rounded-lg border border-white/10 object-cover"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] text-gray-500">Bonus plafon: Rp {Number(item.plafon_bonus || 0).toLocaleString("id-ID")}</p>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCertificate(item.month_year)}
+                    className="inline-flex items-center gap-1 rounded-full border border-white/15 px-2.5 py-1 text-[10px] text-gray-200 hover:bg-white/10"
+                  >
+                    Sertifikat <ExternalLink className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {(rewardContext.gold || rewardContext.platinum) && (
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-[11px] text-gray-400 space-y-1">
+            {rewardContext.gold && <p>Gold TBA: {rewardContext.gold}</p>}
+            {rewardContext.platinum && <p>Platinum TBA: {rewardContext.platinum}</p>}
+          </div>
+        )}
       </motion.div>
 
       {/* Account Actions */}

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, ClipboardList, ChevronDown, Info, PenLine, RefreshCw, Shield, Sparkles, X, Bell, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { APP_CONFIG } from "@/constants";
 import { supabase } from "@/lib/supabaseClient";
@@ -51,7 +52,14 @@ export interface LoanRequest {
   // AI Fraud Indicator (Gemini 2.5 Flash)
   ai_fraud_status: "TRUSTED" | "NEEDS_REVIEW" | "FRAUD" | null;
   ai_fraud_reason: string | null;
+  badge_tier?: "SILVER" | "GOLD" | "PLATINUM" | null;
 }
+
+const GAMIFICATION_TIER_BADGE: Record<string, string> = {
+  SILVER: "bg-slate-200 text-slate-700 border border-slate-300",
+  GOLD: "bg-amber-100 text-amber-800 border border-amber-300",
+  PLATINUM: "bg-violet-100 text-violet-800 border border-violet-300",
+};
 
 const AI_BADGE_STYLE: Record<string, string> = {
   VERIFIED: "bg-emerald-50 text-emerald-700 border border-emerald-200",
@@ -653,6 +661,15 @@ export default function ApprovalQueueTab() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
+                  {loan.badge_tier && (
+                    <span
+                      className={`hidden sm:inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${
+                        GAMIFICATION_TIER_BADGE[loan.badge_tier] || "bg-zinc-100 text-zinc-700 border border-zinc-300"
+                      }`}
+                    >
+                      {loan.badge_tier}
+                    </span>
+                  )}
                   {/* AI Fraud Badge */}
                   {loan.ai_fraud_status && (
                     <span
@@ -752,6 +769,19 @@ export default function ApprovalQueueTab() {
                       <p className="text-xs text-zinc-400 leading-relaxed">
                         {loan.ai_fraud_reason || "Tidak ada analisis AI tersedia."}
                       </p>
+                    </div>
+                  )}
+
+                  {loan.badge_tier && (
+                    <div className="rounded-xl border border-zinc-200 bg-white p-3">
+                      <p className="text-[11px] font-semibold text-zinc-700 mb-1">Gamification Tier Pengaju</p>
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${
+                          GAMIFICATION_TIER_BADGE[loan.badge_tier] || "bg-zinc-100 text-zinc-700 border border-zinc-300"
+                        }`}
+                      >
+                        {loan.badge_tier}
+                      </span>
                     </div>
                   )}
 

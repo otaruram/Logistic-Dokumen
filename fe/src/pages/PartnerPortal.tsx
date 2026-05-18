@@ -30,6 +30,7 @@ import {
 import { Link } from "react-router-dom";
 import { APP_CONFIG } from "@/constants";
 import { supabase } from "@/lib/supabaseClient";
+import ScrollNavigator from "@/components/ui/ScrollNavigator";
 
 const API = APP_CONFIG.apiUrl;
 const FINANCE_RAW_KEY_STORAGE = "otaru_finance_raw_key";
@@ -723,6 +724,7 @@ export default function PartnerPortal() {
           </>
         )}
       </main>
+      <ScrollNavigator bottomOffsetClass="bottom-6" />
     </div>
   );
 }

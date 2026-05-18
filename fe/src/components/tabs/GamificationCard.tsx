@@ -13,6 +13,8 @@ interface BadgeData {
   has_platinum: boolean;
   streak_broken: boolean;
   month_year?: string;
+  gold_context_tba?: string;
+  platinum_context_tba?: string;
 }
 
 // ── Tier config ───────────────────────────────────────────────────────────────
@@ -95,6 +97,8 @@ export default function GamificationCard() {
   const hasPlatinum = badge?.has_platinum ?? (verified >= 250);
   // Merge server data with local dev toggle
   const hasTamperedDoc = (badge?.streak_broken ?? false) || devTampered;
+  const goldContext = badge?.gold_context_tba || "TBA: benefit Gold aktif setelah verifikasi risiko internal koperasi.";
+  const platinumContext = badge?.platinum_context_tba || "TBA: benefit Platinum aktif setelah validasi partner + governance check.";
 
   // Current tier for header badge
   const currentTier = hasPlatinum ? TIERS[2] : hasGold ? TIERS[1] : hasSilver ? TIERS[0] : null;
@@ -233,6 +237,11 @@ export default function GamificationCard() {
                   </p>
                 ))}
               </div>
+              {(tier.key === "gold" || tier.key === "platinum") && (
+                <p className={`mt-2 text-[10px] leading-relaxed ${unlocked ? "text-slate-500" : "text-slate-700"}`}>
+                  {tier.key === "gold" ? goldContext : platinumContext}
+                </p>
+              )}
             </div>
           );
         })}
