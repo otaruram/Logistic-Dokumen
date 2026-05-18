@@ -1,6 +1,76 @@
 import React from "react";
-import { ArrowRight } from "lucide-react";
-import { pricingPlans } from "../../pages/PartnerPortalConstants";
+import { Shield, Zap, TrendingUp, CheckCircle2, AlertTriangle, Lock, Cpu, Phone } from "lucide-react";
+
+const TIERS = [
+  {
+    id: "developer",
+    name: "Developer",
+    price: "Rp 0",
+    cadence: "/ bulan",
+    target: "Developer individu atau PoC internal koperasi.",
+    volumeLabel: "12 Requests",
+    volumeSub: "per bulan — Hard Limit",
+    volumeIsHard: true,
+    sla: "Best-effort (antrean standar)",
+    features: [
+      "Core OtaruChain Engine",
+      "SHA-256 Document Stamping",
+      "Baseline Fraud Filter",
+      "1 Akun Developer",
+    ],
+    popular: false,
+    cta: "Gratis Selamanya",
+    ctaDisabled: true,
+  },
+  {
+    id: "launch",
+    name: "Launch",
+    price: "Rp 199.000",
+    cadence: "/ bulan",
+    target: "Koperasi mikro yang memulai pilot underwriting kredit.",
+    volumeLabel: "75 Requests",
+    volumeSub: "per bulan",
+    volumeIsHard: false,
+    sla: "Max 24 jam verifikasi",
+    features: [
+      "Semua fitur Developer",
+      "Debt Service Ratio (DSR)",
+      "Otaru Financial Metrics",
+      "2 Admin Partner Seats",
+    ],
+    popular: false,
+    cta: "Aktivasi & Bayar",
+    ctaDisabled: false,
+  },
+  {
+    id: "growth",
+    name: "Scale",
+    price: "Rp 899.000",
+    cadence: "/ bulan",
+    target: "Koperasi logistik aktif dengan underwriting harian.",
+    volumeLabel: "150 Requests",
+    volumeSub: "per hari",
+    volumeIsHard: false,
+    sla: "Prioritas < 2 jam",
+    features: [
+      "Semua fitur Launch",
+      "Advanced Decision Gate API",
+      "Full Analytics Dashboard",
+      "Burst Traffic Handling",
+      "5 Admin Partner Seats",
+    ],
+    popular: true,
+    cta: "Aktivasi & Bayar",
+    ctaDisabled: false,
+  },
+];
+
+const COMPLIANCE_BADGES = [
+  { icon: Shield, label: "Banking-Grade Security & Standar OJK/UU PDP" },
+  { icon: Lock, label: "Immutable Audit Trail (SHA-256 Stamping)" },
+  { icon: Cpu, label: "Gemini 2.5 Flash Fraud Screening Guard" },
+  { icon: Phone, label: "Phone-number based identity lookup" },
+];
 
 export default function PartnerPricingTab({
   checkoutError,
@@ -14,115 +84,146 @@ export default function PartnerPricingTab({
   th: any;
 }) {
   return (
-    <section className="space-y-12 py-12 bg-white text-black rounded-[2.5rem] px-4 sm:px-8 border border-zinc-200 shadow-sm">
-      <div className="flex flex-col items-center text-center">
-        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-black ring-1 ring-inset ring-zinc-300">
-          Harga Partner Otaru
+    <section className="space-y-10 py-10 bg-slate-950 text-slate-200 rounded-[2rem] px-4 sm:px-8 border border-slate-800">
+
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div className="flex flex-col items-center text-center gap-4">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900 px-3.5 py-1 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+          <Zap className="h-3 w-3 text-violet-400" /> Harga Partner OtaruChain
         </span>
-        <h1 className="mt-6 text-4xl font-semibold tracking-tight text-black sm:text-5xl">
-          Harga terprediksi untuk skala
+        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          Harga terprediksi untuk setiap skala
         </h1>
-        <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
-          Satu paket partner untuk mengakses dua product layer: OtaruChain untuk document intelligence dan Otaru Financial untuk credit readiness. Cocok untuk scale underwriting dengan clean business logic.
+        <p className="max-w-xl text-sm leading-relaxed text-slate-400">
+          Satu paket untuk dua product layer — OtaruChain document intelligence
+          &amp; Otaru Financial credit readiness. Scale underwriting dengan clean business logic.
         </p>
       </div>
 
+      {/* ── Error ──────────────────────────────────────────────────────── */}
       {checkoutError && (
-        <div className="mx-auto max-w-2xl rounded-2xl border border-red-500 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mx-auto max-w-xl rounded-xl border border-red-800 bg-red-950/60 px-4 py-3 text-sm text-red-400 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
           {checkoutError}
         </div>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-3 max-w-6xl mx-auto">
-        {pricingPlans.map((plan) => {
-          const isHighlight = plan.id === "growth";
-          const isDefaultActive = plan.id === "launch";
-          return (
-            <div
-              key={plan.name}
-              className={`relative flex flex-col rounded-[2rem] p-8 ring-1 transition-all duration-300 ${
-                isHighlight 
-                  ? "bg-black text-white ring-black shadow-2xl scale-105 z-10" 
-                  : "bg-white text-black ring-zinc-200 hover:ring-zinc-300 shadow-sm hover:shadow-md"
-              }`}
-            >
-              {isHighlight && (
-                <div className="absolute -top-4 left-0 right-0 flex justify-center">
-                  <span className="rounded-full bg-white px-4 py-1 text-xs font-semibold text-black tracking-wide uppercase border border-black shadow-sm">
-                    Paling Populer
-                  </span>
-                </div>
-              )}
-              {isDefaultActive && (
-                <div className="absolute top-6 right-6">
-                  <span className="rounded-full bg-black px-3 py-1 text-[10px] font-bold text-white uppercase tracking-widest ring-1 ring-inset ring-black">
-                    Plan Aktif
-                  </span>
-                </div>
-              )}
-
-              <div className="mb-6">
-                <h3 className={`text-sm font-semibold uppercase tracking-wider ${isHighlight ? "text-zinc-400" : "text-zinc-500"}`}>
-                  {plan.name}
-                </h3>
-                <div className="mt-4 flex items-baseline gap-x-2">
-                  <span className={`text-4xl font-bold tracking-tight ${isHighlight ? "text-white" : "text-black"}`}>{plan.price}</span>
-                  <span className={`text-sm font-semibold ${isHighlight ? "text-zinc-400" : "text-zinc-500"}`}>{plan.cadence}</span>
-                </div>
-                <p className={`mt-4 text-sm leading-6 font-medium border-b pb-4 ${isHighlight ? "text-zinc-400 border-zinc-800" : "text-zinc-600 border-zinc-200"}`}>
-                  {plan.target}
-                </p>
+      {/* ── Pricing Grid ───────────────────────────────────────────────── */}
+      <div className="grid gap-5 lg:grid-cols-3 max-w-6xl mx-auto items-stretch">
+        {TIERS.map((tier) => (
+          <div
+            key={tier.id}
+            className={`relative flex flex-col rounded-2xl border p-6 transition-all duration-300 ${
+              tier.popular
+                ? "border-violet-500/60 bg-gradient-to-b from-slate-900 to-slate-950 shadow-[0_0_40px_-8px_rgba(139,92,246,0.35)] ring-1 ring-violet-500/20"
+                : "border-slate-800 bg-slate-900 hover:border-slate-700"
+            }`}
+          >
+            {/* Popular badge */}
+            {tier.popular && (
+              <div className="absolute -top-3.5 left-0 right-0 flex justify-center">
+                <span className="inline-flex items-center gap-1 rounded-full bg-violet-600 px-3.5 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg">
+                  <TrendingUp className="h-2.5 w-2.5" /> Most Popular
+                </span>
               </div>
+            )}
 
-              <div className="flex-1 space-y-4">
-                <div>
-                  <p className={`text-xs font-semibold uppercase tracking-wider ${isHighlight ? "text-zinc-500" : "text-zinc-500"}`}>Volume & Kapasitas</p>
-                  <p className={`mt-2 text-sm font-medium ${isHighlight ? "text-white" : "text-black"}`}>{plan.volume}</p>
-                </div>
-                <div>
-                  <p className={`text-xs font-semibold uppercase tracking-wider ${isHighlight ? "text-zinc-500" : "text-zinc-500"}`}>Nilai Inti</p>
-                  <p className={`mt-2 text-sm leading-relaxed ${isHighlight ? "text-zinc-300" : "text-zinc-700"}`}>{plan.coreValue}</p>
-                </div>
-                <div>
-                  <p className={`text-xs font-semibold uppercase tracking-wider ${isHighlight ? "text-zinc-500" : "text-zinc-500"}`}>Tingkat Layanan & Akses</p>
-                  <p className={`mt-2 text-sm leading-relaxed ${isHighlight ? "text-zinc-300" : "text-zinc-700"}`}>{plan.limitations}</p>
-                </div>
-                
-                <div className={`pt-4 mt-4 border-t ${isHighlight ? "border-zinc-800" : "border-zinc-200"}`}>
-                  <p className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isHighlight ? "text-zinc-500" : "text-zinc-500"}`}>Standar Keamanan (Termasuk)</p>
-                  <ul className="space-y-3">
-                    {plan.notes.map((item) => (
-                      <li key={item} className={`flex gap-x-3 text-sm ${isHighlight ? "text-zinc-400" : "text-zinc-600"}`}>
-                        <svg className={`h-5 w-5 flex-none ${isHighlight ? "text-white" : "text-black"}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                        </svg>
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+            {/* Tier name & price */}
+            <div className="mb-5">
+              <p className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
+                tier.popular ? "text-violet-400" : "text-slate-500"
+              }`}>{tier.name}</p>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-3xl font-extrabold tracking-tight text-white">{tier.price}</span>
+                <span className="text-xs text-slate-500">{tier.cadence}</span>
               </div>
-
-              <button
-                onClick={() => (plan.id === "free" || plan.id === "launch") ? undefined : handleCheckout(plan.id)}
-                disabled={plan.id === "free" || plan.id === "launch" || checkoutLoadingPlan === plan.id}
-                className={`mt-8 block w-full rounded-full px-3 py-3.5 text-center text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors border ${
-                  plan.id === "free"
-                    ? "bg-zinc-100 text-zinc-500 border-zinc-200 cursor-default"
-                    : plan.id === "launch"
-                    ? "bg-black text-white border-black cursor-default"
-                    : isHighlight
-                    ? "bg-white text-black border-white hover:bg-zinc-200 focus-visible:outline-white"
-                    : "bg-transparent text-black border-black hover:bg-black hover:text-white focus-visible:outline-black"
-                }`}
-              >
-                {plan.id === "free" ? "Gratis selamanya" : plan.id === "launch" ? "✓ Plan Aktif Anda" : checkoutLoadingPlan === plan.id ? "Memproses..." : "Aktivasi & Bayar"}
-              </button>
+              <p className="mt-2 text-xs text-slate-500 leading-relaxed">{tier.target}</p>
             </div>
-          );
-        })}
+
+            {/* Volume badge */}
+            <div className={`mb-5 rounded-xl border px-4 py-3 ${
+              tier.volumeIsHard
+                ? "border-amber-700/50 bg-amber-950/40"
+                : tier.popular
+                ? "border-violet-700/40 bg-violet-950/30"
+                : "border-slate-700 bg-slate-800/50"
+            }`}>
+              <p className={`text-lg font-extrabold tracking-tight ${
+                tier.volumeIsHard ? "text-amber-300" : tier.popular ? "text-violet-300" : "text-white"
+              }`}>{tier.volumeLabel}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <p className="text-[11px] text-slate-500">{tier.volumeSub}</p>
+                {tier.volumeIsHard && (
+                  <span className="rounded-full bg-amber-900/60 border border-amber-700/50 px-1.5 py-0.5 text-[9px] font-bold text-amber-400 uppercase tracking-widest">Hard Limit</span>
+                )}
+              </div>
+            </div>
+
+            {/* SLA */}
+            <div className="mb-5 flex items-center gap-2">
+              <Zap className={`h-3.5 w-3.5 flex-shrink-0 ${tier.popular ? "text-violet-400" : "text-slate-500"}`} />
+              <p className="text-xs text-slate-400"><span className="font-semibold text-slate-300">SLA:</span> {tier.sla}</p>
+            </div>
+
+            {/* Features */}
+            <ul className="mb-5 flex-1 space-y-2.5">
+              {tier.features.map((feat) => (
+                <li key={feat} className="flex items-start gap-2.5 text-sm text-slate-300">
+                  <CheckCircle2 className={`h-4 w-4 flex-shrink-0 mt-0.5 ${
+                    tier.popular ? "text-violet-400" : "text-emerald-500"
+                  }`} />
+                  {feat}
+                </li>
+              ))}
+            </ul>
+
+            {/* Compliance badges */}
+            <div className={`mb-5 rounded-xl border p-3 space-y-2 ${
+              tier.popular ? "border-slate-700 bg-slate-800/40" : "border-slate-800 bg-slate-800/20"
+            }`}>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-2">Infrastruktur & Compliance</p>
+              {COMPLIANCE_BADGES.map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-2">
+                  <Icon className="h-3 w-3 flex-shrink-0 text-slate-500" />
+                  <span className="text-[11px] text-slate-500">{label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* CTA */}
+            <button
+              onClick={() => !tier.ctaDisabled && handleCheckout(tier.id)}
+              disabled={tier.ctaDisabled || checkoutLoadingPlan === tier.id}
+              className={`w-full rounded-xl py-3 text-sm font-bold tracking-wide transition-all duration-200 ${
+                tier.ctaDisabled
+                  ? "bg-slate-800 text-slate-600 cursor-default border border-slate-700"
+                  : tier.popular
+                  ? "bg-violet-600 text-white hover:bg-violet-500 shadow-lg shadow-violet-900/40 border border-violet-500"
+                  : "bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 hover:border-slate-600"
+              } disabled:opacity-60 disabled:cursor-not-allowed`}
+            >
+              {checkoutLoadingPlan === tier.id ? "Memproses..." : tier.cta}
+            </button>
+          </div>
+        ))}
       </div>
-      <p className="text-center text-xs text-zinc-500 mt-8 font-medium">
+
+      {/* ── Overage Alert Banner ────────────────────────────────────────── */}
+      <div className="max-w-6xl mx-auto rounded-2xl border border-amber-800/50 bg-amber-950/30 p-5 flex flex-col sm:flex-row items-start gap-4">
+        <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-amber-900/50 border border-amber-700/50 flex items-center justify-center">
+          <AlertTriangle className="h-4 w-4 text-amber-400" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-amber-300 mb-1">Overage Credit System</p>
+          <p className="text-xs text-amber-500/90 leading-relaxed">
+            Kuota ekstra di luar paket bulanan akan dikenakan <span className="font-semibold text-amber-400">Pay-per-Query Rp 3.000 – Rp 5.000 per request</span> menggunakan sistem deposit kredit.
+            Kredit dapat diisi kapan saja melalui portal Partner tanpa perlu upgrade plan.
+          </p>
+        </div>
+      </div>
+
+      {/* ── Footer note ────────────────────────────────────────────────── */}
+      <p className="text-center text-[11px] text-slate-700">
         Minimisasi data ketat diterapkan. Tidak ada penyimpanan atau transmisi NIK. Semua pencarian murni terikat pada Nomor Handphone.
       </p>
     </section>
