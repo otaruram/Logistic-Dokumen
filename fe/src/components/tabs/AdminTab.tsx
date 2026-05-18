@@ -67,7 +67,7 @@ export default function AdminTab() {
     const [retentionModal, setRetentionModal] = useState<string | null>(null);
     const [retentionDays, setRetentionDays] = useState(30);
     const [gamificationConfig, setGamificationConfig] = useState<GamificationConfig | null>(null);
-    const [gamificationTargetUserId, setGamificationTargetUserId] = useState("");
+    const [gamificationTargetEmail, setGamificationTargetEmail] = useState("");
     const [gamificationMonth, setGamificationMonth] = useState(() => new Date().toISOString().slice(0, 7));
     const [gamificationBadgeType, setGamificationBadgeType] = useState("gold_integrity");
     const [gamificationLoading, setGamificationLoading] = useState(false);
@@ -237,8 +237,8 @@ export default function AdminTab() {
     };
 
     const handleToggleReward = async (enabled: boolean) => {
-        if (!gamificationTargetUserId.trim()) {
-            toast.error("Isi User ID target terlebih dahulu");
+        if (!gamificationTargetEmail.trim()) {
+            toast.error("Isi email target terlebih dahulu");
             return;
         }
         setGamificationLoading(true);
@@ -248,7 +248,7 @@ export default function AdminTab() {
                 method: "POST",
                 headers,
                 body: JSON.stringify({
-                    target_user_id: gamificationTargetUserId.trim(),
+                    target_email: gamificationTargetEmail.trim(),
                     badge_type: gamificationBadgeType,
                     enabled,
                     month_year: gamificationMonth,
@@ -401,9 +401,9 @@ export default function AdminTab() {
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <input
-                            value={gamificationTargetUserId}
-                            onChange={(e) => setGamificationTargetUserId(e.target.value)}
-                            placeholder="Target User ID"
+                            value={gamificationTargetEmail}
+                            onChange={(e) => setGamificationTargetEmail(e.target.value)}
+                            placeholder="Target user email"
                             className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-white md:col-span-2"
                         />
                         <input

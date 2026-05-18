@@ -80,7 +80,8 @@ class GamificationConfigUpdate(BaseModel):
 
 
 class AdminRewardToggleBody(BaseModel):
-    target_user_id: str
+    target_user_id: str | None = None
+    target_email: str | None = None
     badge_type: str  # silver_integrity | gold_integrity | platinum_integrity
     enabled: bool
     month_year: str | None = None
@@ -147,6 +148,32 @@ def _badge_display_name(badge_type: str) -> str:
     if badge_type == "gold_integrity":
         return "Gold"
     return "Silver"
+
+
+def _resolve_user_id_by_email(sb, email: str) -> str | None:
+    email_norm = email.lower().strip()
+    if not email_norm:
+        return None
+
+    # Primary: profiles.user_email
+    try:
+        res = sb.table("profiles").select("id").eq("user_email", email_norm).limit(1).execute()
+        rows = getattr(res, "data", None) or []
+        if rows and rows[0].get("id"):
+            return str(rows[0]["id"])
+    except Exception:
+        pass
+
+    # Fallback: Supabase auth users list
+    try:
+        auth_users = sb.auth.admin.list_users()
+        for u in auth_users:
+            if (getattr(u, "email", "") or "").lower().strip() == email_norm:
+                return str(getattr(u, "id", "")) or None
+    except Exception:
+        pass
+
+    return None
 
 
 def _build_badge_image_url(cfg: dict[str, Any], badge_type: str, month_year: str) -> str:
@@ -512,6 +539,17 @@ async def toggle_user_gamification_reward(
     if not _is_gamification_admin(sb, current_user):
         raise HTTPException(status_code=403, detail="Admin access only")
 
+    target_user_id = (body.target_user_id or "").strip()
+    target_email = (body.target_email or "").strip()
+    if not target_user_id and not target_email:
+        raise HTTPException(status_code=400, detail="target_user_id atau target_email wajib diisi")
+
+    if not target_user_id and target_email:
+        resolved = _resolve_user_id_by_email(sb, target_email)
+        if not resolved:
+            raise HTTPException(status_code=404, detail="User dengan email tersebut tidak ditemukan")
+        target_user_id = resolved
+
     month = body.month_year or _current_month()
     badge_type = body.badge_type.strip().lower()
     if badge_type not in {"silver_integrity", "gold_integrity", "platinum_integrity"}:
@@ -537,7 +575,7 @@ async def toggle_user_gamification_reward(
 
         _upsert_badge(
             sb,
-            body.target_user_id,
+            target_user_id,
             month,
             badge_type,
             max(0, int(v_count)),
@@ -547,7 +585,7 @@ async def toggle_user_gamification_reward(
         )
         action = "grant"
     else:
-        sb.table("gamification_badges").delete().eq("user_id", body.target_user_id).eq("month_year", month).eq("badge_type", badge_type).execute()
+        sb.table("gamification_badges").delete().eq("user_id", target_user_id).eq("month_year", month).eq("badge_type", badge_type).execute()
         action = "revoke"
 
     try:
@@ -555,7 +593,7 @@ async def toggle_user_gamification_reward(
             {
                 "admin_user_id": str(current_user.get("id") or current_user.get("sub") or ""),
                 "admin_email": current_user.get("email"),
-                "target_user_id": body.target_user_id,
+                "target_user_id": target_user_id,
                 "month_year": month,
                 "badge_type": badge_type,
                 "action": action,
@@ -567,8 +605,14 @@ async def toggle_user_gamification_reward(
         # Table is optional; do not block the action.
         pass
 
-    progress = check_and_award_badges(body.target_user_id, month)
-    return {"success": True, "action": action, "progress": progress}
+    progress = check_and_award_badges(target_user_id, month)
+    return {
+        "success": True,
+        "action": action,
+        "target_user_id": target_user_id,
+        "target_email": target_email or None,
+        "progress": progress,
+    }
 
 
 @router.get("/api/v1/gamification/rewards/gallery")
