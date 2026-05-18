@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { APP_CONFIG } from "@/constants";
+import GamificationCard from "./GamificationCard";
 import {
   PieChart, Pie, Cell, ResponsiveContainer,
 } from "recharts";
@@ -119,8 +120,8 @@ const CreditsCard = ({ stats, loading }: { stats: DashboardStats; loading: boole
   </motion.div>
 );
 
-// ── Gamification: Consistency Mission Card ────────────────────────────────────
-const GamificationCard = () => {
+// ── Gamification: Consistency Mission Card (moved to GamificationCard.tsx) ────
+const _GamificationCardLegacy = () => {
   const [badge, setBadge] = useState<any>(null);
   const [gLoading, setGLoading] = useState(true);
 
