@@ -443,7 +443,8 @@ async def get_approval_queue(current_user: dict = Depends(get_supabase_bearer_us
 
     nik_list = list({r.get("nik") for r in rows if r.get("nik")})
     profile_map: dict[str, dict] = {}
-    active_totals: dict[str, int] = {}
+    approved_totals: dict[str, int] = {}
+    pending_totals: dict[str, int] = {}
     if nik_list:
         prof_res = (
             sb.table("profiles")
@@ -456,7 +457,7 @@ async def get_approval_queue(current_user: dict = Depends(get_supabase_bearer_us
 
         active_res = (
             sb.table("loan_requests")
-            .select("nik, nominal_pengajuan")
+            .select("nik, nominal_pengajuan, status")
             .in_("nik", nik_list)
             .in_("status", ["PENDING", "APPROVED"])
             .execute()
@@ -466,7 +467,12 @@ async def get_approval_queue(current_user: dict = Depends(get_supabase_bearer_us
             n = a.get("nik")
             if not n:
                 continue
-            active_totals[n] = active_totals.get(n, 0) + int(a.get("nominal_pengajuan") or 0)
+            nominal = int(a.get("nominal_pengajuan") or 0)
+            st = str(a.get("status") or "").upper()
+            if st == "APPROVED":
+                approved_totals[n] = approved_totals.get(n, 0) + nominal
+            elif st == "PENDING":
+                pending_totals[n] = pending_totals.get(n, 0) + nominal
 
         # Gamification badges for the current month
         user_ids = [p.get("id") for p in prof_rows if p.get("id")]
@@ -493,7 +499,9 @@ async def get_approval_queue(current_user: dict = Depends(get_supabase_bearer_us
         nik = r.get("nik")
         prof = profile_map.get(nik, {})
         limit_pinjaman = int(prof.get("limit_pinjaman") or 0)
-        active_total = int(active_totals.get(nik, 0))
+        kasbon_aktif_total = int(approved_totals.get(nik, 0))
+        kasbon_pending_total = int(pending_totals.get(nik, 0))
+        reserved_total = kasbon_aktif_total + kasbon_pending_total
         ocr_raw = r.get("ocr_raw") or {}
 
         # Determine badge tier
@@ -511,8 +519,9 @@ async def get_approval_queue(current_user: dict = Depends(get_supabase_bearer_us
             **{k: v for k, v in r.items() if k != "ocr_raw"},
             "nama_lengkap": prof.get("full_name") or "-",
             "limit_pinjaman": limit_pinjaman,
-            "kasbon_aktif": active_total,
-            "sisa_limit": max(0, limit_pinjaman - active_total),
+            "kasbon_aktif": kasbon_aktif_total,
+            "kasbon_pending": kasbon_pending_total,
+            "sisa_limit": max(0, limit_pinjaman - reserved_total),
             "sisa_kredit": int(prof.get("credits") or 0),
             "tenor_bulan": ocr_raw.get("tenor_bulan"),
             "cicilan_sistem": ocr_raw.get("cicilan_sistem"),

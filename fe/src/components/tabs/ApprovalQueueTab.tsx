@@ -39,6 +39,7 @@ export interface LoanRequest {
   submitted_at: string;
   limit_pinjaman: number;
   kasbon_aktif: number;
+  kasbon_pending?: number;
   sisa_limit: number;
   sisa_kredit: number;
   // SOP fields
@@ -719,14 +720,23 @@ export default function ApprovalQueueTab() {
                   {/* Limit grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <InfoCard label="Limit Kasbon" value={fmtRp(loan.limit_pinjaman)} />
-                    <InfoCard label="Kasbon Aktif" value={fmtRp(loan.kasbon_aktif)} valueClass="text-amber-600" />
+                    <InfoCard label="Total Kasbon Aktif" value={fmtRp(loan.kasbon_aktif)} valueClass="text-amber-600" />
                     <InfoCard
-                      label="Sisa Limit"
+                      label="Sisa Limit Kasbon"
                       value={fmtRp(loan.sisa_limit)}
                       valueClass={loan.sisa_limit <= 0 ? "text-red-600" : "text-emerald-600"}
                     />
                     <InfoCard label="Sisa Kredit" value={String(loan.sisa_kredit)} />
                   </div>
+
+                  {(loan.kasbon_pending ?? 0) > 0 && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                      <p className="text-[11px] text-amber-800">
+                        Reservasi pending: <span className="font-bold">{fmtRp(loan.kasbon_pending ?? 0)}</span>
+                        <span className="text-amber-700"> (ikut mengurangi sisa limit sementara)</span>
+                      </p>
+                    </div>
+                  )}
 
                   {/* SOP grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

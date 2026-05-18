@@ -11,6 +11,9 @@ interface BadgeData {
   has_silver: boolean;
   has_gold: boolean;
   has_platinum: boolean;
+  silver_threshold?: number;
+  gold_threshold?: number;
+  platinum_threshold?: number;
   streak_broken: boolean;
   month_year?: string;
   gold_context_tba?: string;
@@ -91,10 +94,13 @@ export default function GamificationCard() {
     fetchBadge();
   }, []);
 
+  const silverThreshold = badge?.silver_threshold ?? 50;
+  const goldThreshold = badge?.gold_threshold ?? 150;
+  const platinumThreshold = badge?.platinum_threshold ?? 250;
   const verified = badge?.verified_count ?? 148;
-  const hasSilver  = badge?.has_silver  ?? (verified >= 50);
-  const hasGold    = badge?.has_gold    ?? (verified >= 150);
-  const hasPlatinum = badge?.has_platinum ?? (verified >= 250);
+  const hasSilver  = badge?.has_silver  ?? (verified >= silverThreshold);
+  const hasGold    = badge?.has_gold    ?? (verified >= goldThreshold);
+  const hasPlatinum = badge?.has_platinum ?? (verified >= platinumThreshold);
   // Merge server data with local dev toggle
   const hasTamperedDoc = (badge?.streak_broken ?? false) || devTampered;
   const goldContext = badge?.gold_context_tba || "TBA: benefit Gold aktif setelah verifikasi risiko internal koperasi.";
@@ -104,8 +110,12 @@ export default function GamificationCard() {
   const currentTier = hasPlatinum ? TIERS[2] : hasGold ? TIERS[1] : hasSilver ? TIERS[0] : null;
 
   // Progress toward next threshold
-  const nextTarget = verified < 50 ? 50 : verified < 150 ? 150 : 250;
-  const progressPct = hasTamperedDoc ? 0 : Math.min((verified / nextTarget) * 100, 100);
+  const nextTarget = verified < silverThreshold
+    ? silverThreshold
+    : verified < goldThreshold
+    ? goldThreshold
+    : platinumThreshold;
+  const progressPct = Math.min((verified / Math.max(1, nextTarget)) * 100, 100);
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:p-6 space-y-5 relative overflow-hidden">
@@ -146,7 +156,7 @@ export default function GamificationCard() {
             <FlaskConical className="h-2.5 w-2.5" />
             {devTampered ? "Tampered ON" : "Test"}
           </button>
-          {currentTier && !hasTamperedDoc && (
+          {currentTier && (
             <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${currentTier.badgeColor}`}>
               {currentTier.label}
             </span>
@@ -178,8 +188,8 @@ export default function GamificationCard() {
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
           <span className="text-slate-500">Dokumen Verified</span>
-          <span className={`font-bold tabular-nums ${hasTamperedDoc ? "text-red-500" : "text-slate-300"}`}>
-            {gLoading ? "—" : hasTamperedDoc ? "0" : verified}
+          <span className={`font-bold tabular-nums ${hasTamperedDoc ? "text-red-400" : "text-slate-300"}`}>
+            {gLoading ? "—" : verified}
             <span className="text-slate-600 font-normal"> / {nextTarget}</span>
           </span>
         </div>
@@ -187,24 +197,24 @@ export default function GamificationCard() {
           <div
             className={`h-full rounded-full transition-all duration-1000 ease-out ${
               hasTamperedDoc
-                ? "bg-red-700 w-0"
+                ? "bg-gradient-to-r from-red-600 to-amber-500"
                 : `bg-gradient-to-r ${currentTier?.barGradient ?? "from-orange-500 to-amber-400"}`
             }`}
-            style={{ width: hasTamperedDoc ? "0%" : `${progressPct}%` }}
+            style={{ width: `${progressPct}%` }}
           />
         </div>
         <div className="flex justify-between text-[10px] text-slate-700">
           <span>0</span>
-          <span className="flex items-center gap-1"><Award className="w-2.5 h-2.5" />50</span>
-          <span className="flex items-center gap-1"><Star className="w-2.5 h-2.5 text-amber-600" />150</span>
-          <span>💎 250</span>
+          <span className="flex items-center gap-1"><Award className="w-2.5 h-2.5" />{silverThreshold}</span>
+          <span className="flex items-center gap-1"><Star className="w-2.5 h-2.5 text-amber-600" />{goldThreshold}</span>
+          <span>💎 {platinumThreshold}</span>
         </div>
       </div>
 
       {/* ── Tier Cards Grid ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {TIERS.map((tier) => {
-          const unlocked = !hasTamperedDoc && (
+          const unlocked = (
             tier.key === "silver" ? hasSilver :
             tier.key === "gold"   ? hasGold   : hasPlatinum
           );
@@ -214,7 +224,9 @@ export default function GamificationCard() {
               key={tier.key}
               className={`rounded-xl border p-4 transition-all duration-300 ${
                 hasTamperedDoc
-                  ? "border-slate-800 bg-slate-900/30 opacity-40 grayscale"
+                  ? unlocked
+                    ? "border-red-700/30 bg-red-950/10"
+                    : "border-slate-800 bg-slate-900/30 opacity-70"
                   : unlocked
                   ? tier.activeClasses
                   : "border-slate-800 bg-slate-900/40"
@@ -228,7 +240,7 @@ export default function GamificationCard() {
                 {unlocked && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
               </div>
               <p className={`text-[10px] mb-2 ${unlocked ? "text-slate-500" : "text-slate-700"}`}>
-                ≥ {tier.threshold} {tier.unit} · {tier.status}
+                ≥ {tier.key === "silver" ? silverThreshold : tier.key === "gold" ? goldThreshold : platinumThreshold} {tier.unit} · {tier.status}
               </p>
               <div className="space-y-1">
                 {tier.benefits.map((b) => (

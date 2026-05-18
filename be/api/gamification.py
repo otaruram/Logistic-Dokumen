@@ -392,32 +392,30 @@ def check_and_award_badges(user_id: str, month_year: str | None = None) -> Badge
     
     streak_broken = tampered_count > 0
 
-    # If streak not broken, award badges
-    if not streak_broken:
-        # Award Silver
-        if verified_count >= int(cfg["silver_threshold"]) and not has_silver:
-            _upsert_badge(sb, user_id, month, "silver_integrity", verified_count, tampered_count)
-            has_silver = True
+    # Always evaluate badges by threshold (including when tampered),
+    # while keeping streak_broken as a separate compliance signal.
+    if verified_count >= int(cfg["silver_threshold"]) and not has_silver:
+        _upsert_badge(sb, user_id, month, "silver_integrity", verified_count, tampered_count)
+        has_silver = True
 
-        # Award Gold
-        if verified_count >= int(cfg["gold_threshold"]) and not has_gold:
-            _upsert_badge(
-                sb, user_id, month, "gold_integrity", verified_count, tampered_count,
-                float(cfg["gold_interest_discount_pct"]),
-                int(cfg["gold_plafon_bonus"]),
-            )
-            has_gold = True
-                
-        # Award Platinum
-        if verified_count >= int(cfg["platinum_threshold"]) and not has_platinum:
-            _upsert_badge(
-                sb, user_id, month, "platinum_integrity", verified_count, tampered_count,
-                float(cfg["platinum_interest_discount_pct"]),
-                int(cfg["platinum_plafon_bonus"]),
-            )
-            has_platinum = True
-    else:
-        # If tampered, update existing badges with tampered count as penalty audit
+    if verified_count >= int(cfg["gold_threshold"]) and not has_gold:
+        _upsert_badge(
+            sb, user_id, month, "gold_integrity", verified_count, tampered_count,
+            float(cfg["gold_interest_discount_pct"]),
+            int(cfg["gold_plafon_bonus"]),
+        )
+        has_gold = True
+
+    if verified_count >= int(cfg["platinum_threshold"]) and not has_platinum:
+        _upsert_badge(
+            sb, user_id, month, "platinum_integrity", verified_count, tampered_count,
+            float(cfg["platinum_interest_discount_pct"]),
+            int(cfg["platinum_plafon_bonus"]),
+        )
+        has_platinum = True
+
+    # Keep tampered_count synchronized on all existing badges.
+    if streak_broken:
         for b_type, b_data in existing.items():
             if int(b_data.get("tampered_count") or 0) < tampered_count:
                 sb.table("gamification_badges").update({"tampered_count": tampered_count}).eq("id", b_data["id"]).execute()
