@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -150,6 +151,13 @@ def _badge_display_name(badge_type: str) -> str:
     return "Silver"
 
 
+def _current_user_id(current_user: dict) -> str:
+    uid = current_user.get("id") or current_user.get("sub")
+    if not uid:
+        raise HTTPException(status_code=401, detail="User id tidak ditemukan di token")
+    return str(uid)
+
+
 def _resolve_user_id_by_email(sb, email: str) -> str | None:
     email_norm = email.lower().strip()
     if not email_norm:
@@ -177,15 +185,69 @@ def _resolve_user_id_by_email(sb, email: str) -> str | None:
 
 
 def _build_badge_image_url(cfg: dict[str, Any], badge_type: str, month_year: str) -> str:
-    base = cfg.get("badge_base_url") or DEFAULT_BADGE_BASE_URL
-    seed = f"otaru-{badge_type}-{month_year}"
-    return f"{base}?seed={seed}&backgroundColor=0f172a,1e293b,334155"
+    label = _badge_display_name(badge_type).upper()
+    color = "#64748b"
+    if badge_type == "gold_integrity":
+        color = "#b45309"
+    elif badge_type == "platinum_integrity":
+        color = "#4338ca"
+
+    svg = f"""
+<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360' viewBox='0 0 640 360'>
+  <rect width='640' height='360' fill='#f8fafc'/>
+  <rect x='20' y='20' width='600' height='320' rx='16' fill='#ffffff' stroke='#cbd5e1' stroke-width='2'/>
+  <rect x='20' y='20' width='600' height='60' rx='16' fill='#0f172a'/>
+  <text x='40' y='57' font-family='Arial, sans-serif' font-size='24' fill='#e2e8f0' font-weight='700'>OTARUCHAIN</text>
+  <text x='600' y='57' text-anchor='end' font-family='Arial, sans-serif' font-size='14' fill='#94a3b8'>INTEGRITY BADGE</text>
+
+  <circle cx='130' cy='185' r='70' fill='{color}' opacity='0.12'/>
+  <circle cx='130' cy='185' r='54' fill='#ffffff' stroke='{color}' stroke-width='4'/>
+  <text x='130' y='192' text-anchor='middle' font-family='Arial, sans-serif' font-size='20' fill='{color}' font-weight='700'>{label[:1]}</text>
+
+  <text x='230' y='160' font-family='Arial, sans-serif' font-size='38' fill='{color}' font-weight='800'>{label}</text>
+  <text x='230' y='198' font-family='Arial, sans-serif' font-size='18' fill='#334155'>PERIODE {month_year}</text>
+  <text x='230' y='228' font-family='Arial, sans-serif' font-size='14' fill='#64748b'>Standar dokumen rapi, konsisten, dan siap audit.</text>
+
+  <rect x='40' y='286' width='560' height='36' rx='8' fill='#f1f5f9' stroke='#e2e8f0'/>
+  <text x='56' y='310' font-family='Arial, sans-serif' font-size='13' fill='#475569'>Preview Badge • Bank-grade style • OtaruChain Compliance</text>
+</svg>
+""".strip()
+    return f"data:image/svg+xml;utf8,{quote(svg)}"
 
 
 def _build_certificate_preview_url(cfg: dict[str, Any], badge_type: str, month_year: str) -> str:
-    base = cfg.get("certificate_base_url") or DEFAULT_CERT_BASE_URL
-    seed = f"cert-{badge_type}-{month_year}"
-    return f"{base}?seed={seed}&backgroundColor=111827,1f2937,374151"
+    label = _badge_display_name(badge_type).upper()
+    accent = "#0f172a"
+    if badge_type == "gold_integrity":
+        accent = "#92400e"
+    elif badge_type == "platinum_integrity":
+        accent = "#3730a3"
+
+    svg = f"""
+<svg xmlns='http://www.w3.org/2000/svg' width='900' height='600' viewBox='0 0 900 600'>
+  <rect width='900' height='600' fill='#f8fafc'/>
+  <rect x='28' y='28' width='844' height='544' rx='18' fill='#ffffff' stroke='#cbd5e1' stroke-width='3'/>
+  <rect x='28' y='28' width='844' height='74' rx='18' fill='{accent}'/>
+  <text x='52' y='74' font-family='Arial, sans-serif' font-size='28' fill='#ffffff' font-weight='700'>SERTIFIKAT INTEGRITAS DOKUMEN</text>
+  <text x='848' y='74' text-anchor='end' font-family='Arial, sans-serif' font-size='14' fill='#cbd5e1'>OTARUCHAIN</text>
+
+  <text x='450' y='182' text-anchor='middle' font-family='Arial, sans-serif' font-size='22' fill='#334155'>Diberikan kepada</text>
+  <text x='450' y='236' text-anchor='middle' font-family='Arial, sans-serif' font-size='40' fill='#0f172a' font-weight='700'>NAMA PENGGUNA</text>
+  <text x='450' y='286' text-anchor='middle' font-family='Arial, sans-serif' font-size='24' fill='{accent}' font-weight='700'>TIER {label} • {month_year}</text>
+
+  <rect x='126' y='332' width='648' height='82' rx='10' fill='#f8fafc' stroke='#e2e8f0'/>
+  <text x='150' y='365' font-family='Arial, sans-serif' font-size='16' fill='#475569'>Dokumen telah melewati verifikasi integritas dan siap untuk proses underwriting.</text>
+  <text x='150' y='390' font-family='Arial, sans-serif' font-size='16' fill='#475569'>Format sertifikat mengikuti gaya dokumen lembaga keuangan Indonesia.</text>
+
+  <line x1='140' y1='478' x2='360' y2='478' stroke='#94a3b8' stroke-width='2'/>
+  <line x1='540' y1='478' x2='760' y2='478' stroke='#94a3b8' stroke-width='2'/>
+  <text x='250' y='502' text-anchor='middle' font-family='Arial, sans-serif' font-size='13' fill='#64748b'>Validasi Sistem</text>
+  <text x='650' y='502' text-anchor='middle' font-family='Arial, sans-serif' font-size='13' fill='#64748b'>Persetujuan Admin</text>
+
+  <text x='450' y='548' text-anchor='middle' font-family='Arial, sans-serif' font-size='12' fill='#64748b'>Preview Sertifikat • PDF resmi tetap diunduh dari endpoint certificate.</text>
+</svg>
+""".strip()
+    return f"data:image/svg+xml;utf8,{quote(svg)}"
 
 
 def _get_monthly_stats(sb, user_id: str, month_year: str) -> dict:
@@ -408,7 +470,7 @@ async def download_integrity_certificate(
     Download the digital integrity certificate for a specific month.
     Requires at least a SILVER badge.
     """
-    user_id = current_user["sub"]
+    user_id = _current_user_id(current_user)
     sb = _sb()
     
     # 1. Check if user has a badge for this month

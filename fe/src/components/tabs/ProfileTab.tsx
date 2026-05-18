@@ -352,33 +352,39 @@ const ProfileTab = () => {
             Belum ada reward bulan ini. Capai minimal Silver untuk membuka badge pertama.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {rewardItems.map((item) => (
-              <div key={`${item.badge_type}-${item.month_year}`} className="rounded-xl border border-white/10 bg-black/30 p-3 space-y-2">
+              <div key={`${item.badge_type}-${item.month_year}`} className="rounded-2xl border border-white/10 bg-[#0b0b0b] p-4 space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold text-white">{item.badge_label} • {item.month_year}</p>
-                  <span className="text-[10px] text-gray-400">{item.verified_count} doc</span>
+                  <p className="text-sm font-semibold text-white">{item.badge_label} • {item.month_year}</p>
+                  <span className="text-[11px] text-gray-400">{item.verified_count} doc</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <img
-                    src={item.badge_image_url}
-                    alt={`Badge ${item.badge_label}`}
-                    loading="lazy"
-                    className="h-20 w-full rounded-lg border border-white/10 object-cover"
-                  />
-                  <img
-                    src={item.certificate_preview_url}
-                    alt={`Sertifikat ${item.badge_label}`}
-                    loading="lazy"
-                    className="h-20 w-full rounded-lg border border-white/10 object-cover"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-2">
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Badge</p>
+                    <img
+                      src={item.badge_image_url}
+                      alt={`Badge ${item.badge_label}`}
+                      loading="lazy"
+                      className="w-full aspect-[16/9] rounded-lg border border-white/10 object-cover"
+                    />
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-2">
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Preview Sertifikat</p>
+                    <img
+                      src={item.certificate_preview_url}
+                      alt={`Sertifikat ${item.badge_label}`}
+                      loading="lazy"
+                      className="w-full aspect-[16/9] rounded-lg border border-white/10 object-cover"
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] text-gray-500">Bonus plafon: Rp {Number(item.plafon_bonus || 0).toLocaleString("id-ID")}</p>
+                  <p className="text-[11px] text-gray-500">Bonus plafon: Rp {Number(item.plafon_bonus || 0).toLocaleString("id-ID")}</p>
                   <button
                     type="button"
                     onClick={() => handleOpenCertificate(item.month_year)}
-                    className="inline-flex items-center gap-1 rounded-full border border-white/15 px-2.5 py-1 text-[10px] text-gray-200 hover:bg-white/10"
+                    className="inline-flex items-center gap-1 rounded-full border border-white/15 px-3 py-1.5 text-[11px] text-gray-200 hover:bg-white/10"
                   >
                     Sertifikat <ExternalLink className="h-3 w-3" />
                   </button>
