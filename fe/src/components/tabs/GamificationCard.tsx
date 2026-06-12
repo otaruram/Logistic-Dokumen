@@ -73,8 +73,6 @@ const TIERS = [
 export default function GamificationCard() {
   const [badge, setBadge] = useState<BadgeData | null>(null);
   const [gLoading, setGLoading] = useState(true);
-  // Dev toggle for testing tampered state
-  const [devTampered, setDevTampered] = useState(false);
 
   useEffect(() => {
     const fetchBadge = async () => {
@@ -101,8 +99,7 @@ export default function GamificationCard() {
   const hasSilver  = badge?.has_silver  ?? (verified >= silverThreshold);
   const hasGold    = badge?.has_gold    ?? (verified >= goldThreshold);
   const hasPlatinum = badge?.has_platinum ?? (verified >= platinumThreshold);
-  // Merge server data with local dev toggle
-  const hasTamperedDoc = (badge?.streak_broken ?? false) || devTampered;
+  const hasTamperedDoc = badge?.streak_broken ?? false;
   const goldContext = badge?.gold_context_tba || "TBA: benefit Gold aktif setelah verifikasi risiko internal koperasi.";
   const platinumContext = badge?.platinum_context_tba || "TBA: benefit Platinum aktif setelah validasi partner + governance check.";
 
@@ -118,7 +115,7 @@ export default function GamificationCard() {
   const progressPct = Math.min((verified / Math.max(1, nextTarget)) * 100, 100);
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:p-6 space-y-5 relative overflow-hidden">
+    <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:p-6 space-y-4 sm:space-y-5 relative overflow-hidden w-full box-border">
 
       {/* Ambient glow */}
       {!hasTamperedDoc && currentTier && (
@@ -126,8 +123,8 @@ export default function GamificationCard() {
       )}
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-0">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
             hasTamperedDoc
               ? "bg-slate-800 border border-slate-700"
@@ -137,25 +134,12 @@ export default function GamificationCard() {
           }`}>
             <Trophy className={`w-5 h-5 ${hasTamperedDoc || !currentTier ? "text-slate-600" : "text-black"}`} />
           </div>
-          <div>
-            <h3 className="font-bold text-white text-sm">Consistency Mission</h3>
-            <p className="text-[11px] text-slate-500">{badge?.month_year || "Mei 2026"}</p>
+          <div className="min-w-0">
+            <h3 className="font-bold text-white text-sm truncate">Consistency Mission</h3>
+            <p className="text-[11px] text-slate-500 truncate">{badge?.month_year || "Mei 2026"}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Dev toggle */}
-          <button
-            onClick={() => setDevTampered((v) => !v)}
-            title="Toggle tampered state (dev only)"
-            className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold transition-colors ${
-              devTampered
-                ? "border-red-700/60 bg-red-950/50 text-red-400"
-                : "border-slate-700 bg-slate-900 text-slate-500 hover:border-slate-600"
-            }`}
-          >
-            <FlaskConical className="h-2.5 w-2.5" />
-            {devTampered ? "Tampered ON" : "Test"}
-          </button>
           {currentTier && (
             <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${currentTier.badgeColor}`}>
               {currentTier.label}
@@ -166,7 +150,7 @@ export default function GamificationCard() {
 
       {/* ── Zero-Tolerance Alert ────────────────────────────────────────────── */}
       {hasTamperedDoc && (
-        <div className="rounded-xl border border-red-800/60 bg-red-950/40 p-4 flex gap-3">
+        <div className="rounded-xl border border-red-800/60 bg-red-950/40 p-3 sm:p-4 flex gap-3 w-full">
           <div className="flex-shrink-0 mt-0.5">
             <div className="w-8 h-8 rounded-lg bg-red-900/60 border border-red-800/60 flex items-center justify-center">
               <AlertTriangle className="h-4 w-4 text-red-400" />
@@ -260,7 +244,7 @@ export default function GamificationCard() {
       </div>
 
       {/* ── Security Footer ─────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 flex items-start gap-3">
+      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 sm:p-4 flex flex-col sm:flex-row items-start gap-3 w-full">
         <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center">
           <Shield className="h-4 w-4 text-slate-500" />
         </div>

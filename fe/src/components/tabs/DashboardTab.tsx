@@ -439,26 +439,12 @@ const DashboardTab = () => {
   const [loading, setLoading] = useState(true);
   const [currency, setCurrency] = useState<"IDR" | "USD">("IDR");
   const [usdRate, setUsdRate] = useState(USD_RATE_FALLBACK);
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [showYearPicker, setShowYearPicker] = useState(false);
   const [kasbonHistory, setKasbonHistory] = useState<KasbonHistoryItem[]>([]);
   const [kasbonLoading, setKasbonLoading] = useState(true);
   const isMounted = useRef(true);
-  const yearPickerRef = useRef<HTMLDivElement>(null);
   const refreshInFlight = useRef(false);
   const backendFailureCount = useRef(0);
   const backendCooldownUntil = useRef(0);
-
-  // Close year picker on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (yearPickerRef.current && !yearPickerRef.current.contains(e.target as Node)) {
-        setShowYearPicker(false);
-      }
-    };
-    if (showYearPicker) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showYearPicker]);
 
   // Fetch USD rate on mount
   useEffect(() => {
@@ -493,8 +479,7 @@ const DashboardTab = () => {
       const nowMs = Date.now();
       try {
         if (nowMs >= backendCooldownUntil.current) {
-          const yearParam = selectedYear ? `?year=${selectedYear}` : "";
-          const statsRes = await fetch(`${API_URL}/api/dashboard/realtime-stats${yearParam}`, {
+          const statsRes = await fetch(`${API_URL}/api/dashboard/realtime-stats`, {
             headers: { Authorization: `Bearer ${session.access_token}` },
           });
           if (statsRes.ok) {
@@ -559,9 +544,6 @@ const DashboardTab = () => {
       // ── Fallback: direct Supabase client query (may be affected by RLS) ──
       const userId = session.user.id;
       const fraudQuery = supabase.from("fraud_scans").select("status, created_at, nominal_total").eq("user_id", userId);
-      if (selectedYear) {
-        fraudQuery.gte("created_at", `${selectedYear}-01-01T00:00:00`).lte("created_at", `${selectedYear}-12-31T23:59:59`);
-      }
       const { data: allFraud } = await fraudQuery;
       let verified = 0, tampered = 0, processing = 0;
       (allFraud || []).forEach((f: any) => {
@@ -637,7 +619,7 @@ const DashboardTab = () => {
     } finally {
       refreshInFlight.current = false;
     }
-  }, [selectedYear]);
+  }, []);
 
   const fetchKasbonHistory = useCallback(async () => {
     setKasbonLoading(true);
@@ -735,42 +717,6 @@ const DashboardTab = () => {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-sm text-gray-400 mt-1">Monitor aktivitas dan performa finansial Anda</p>
-          </div>
-          <div className="relative" ref={yearPickerRef}>
-            <button
-              onClick={() => setShowYearPicker(prev => !prev)}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-full font-medium transition-all border ${
-                selectedYear ? 'bg-white text-black border-white' : 'border-white/10 text-gray-400 hover:bg-white/5'
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              {selectedYear || 'Semua Tahun'}
-            </button>
-            {showYearPicker && (
-              <div className="absolute right-0 top-full mt-2 z-50 bg-[#111] border border-white/10 rounded-xl p-3 shadow-2xl w-[220px] max-h-[280px] overflow-y-auto">
-                <button
-                  onClick={() => { setSelectedYear(null); setShowYearPicker(false); }}
-                  className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
-                    !selectedYear ? 'bg-white text-black font-bold' : 'text-gray-300 hover:bg-white/10'
-                  }`}
-                >
-                  Semua Tahun
-                </button>
-                <div className="grid grid-cols-3 gap-1 mt-2">
-                  {Array.from({ length: 25 }, (_, i) => 2026 + i).map(yr => (
-                    <button
-                      key={yr}
-                      onClick={() => { setSelectedYear(yr); setShowYearPicker(false); }}
-                      className={`px-2 py-1.5 text-xs rounded-lg font-medium transition-all ${
-                        selectedYear === yr ? 'bg-white text-black' : 'text-gray-400 hover:bg-white/10'
-                      }`}
-                    >
-                      {yr}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </motion.div>
