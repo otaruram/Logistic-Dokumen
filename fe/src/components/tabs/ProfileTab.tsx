@@ -217,7 +217,7 @@ const ProfileTab = () => {
           Masukkan <b>Nomor HP</b> terlebih dahulu, lalu klik <b>Generate Key</b>. Paste kunci ke bot Telegram (<code>/start KEY</code>). Nomor HP akan disimpan dan menjadi identitas utama di seluruh API.
         </p>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <button
             onClick={() => setSelectedBot("otaruchain")}
             className={`px-3 py-2 rounded-lg text-xs font-semibold border ${selectedBot === "otaruchain" ? "bg-white text-black border-white" : "bg-black/40 text-gray-300 border-white/15 hover:bg-white/5"}`}
@@ -235,8 +235,8 @@ const ProfileTab = () => {
         {/* Phone Number Gate */}
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Nomor HP <span className="text-red-400">*</span></label>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 font-mono">+62</span>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="text-xs text-gray-500 bg-white/5 border border-white/10 rounded-lg px-2 sm:px-3 py-2.5 font-mono shrink-0">+62</span>
             <input
               type="tel"
               placeholder="812xxxxxxxx"
@@ -245,16 +245,16 @@ const ProfileTab = () => {
                 const v = e.target.value.replace(/\D/g, "").slice(0, 12);
                 setPhoneNumber(v);
               }}
-              className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white font-mono placeholder:text-gray-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition-all"
+              className="flex-1 min-w-0 bg-black/40 border border-white/10 rounded-lg px-2 sm:px-3 py-2.5 text-sm text-white font-mono placeholder:text-gray-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition-all"
             />
             <button
               type="button"
               onClick={handleAutoFillPhone}
               disabled={autoFillLoading}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-white/10 disabled:opacity-60"
+              title="Auto Fill Nomor HP"
+              className="inline-flex items-center justify-center shrink-0 rounded-lg border border-white/15 bg-white/5 p-2.5 text-gray-200 hover:bg-white/10 disabled:opacity-60 transition-colors"
             >
-              {autoFillLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-              Auto Fill
+              {autoFillLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
             </button>
           </div>
           {phoneNumber && !isPhoneValid && (
