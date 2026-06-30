@@ -183,32 +183,7 @@ export default function PartnerApiKeysView(props: Props) {
       </div>
 
       {/* Individual Key Cards */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <KeyCard
-          title="OtaruChain Key"
-          subtitle="Document Intelligence Access"
-          description={
-            <>
-              <p>Untuk workflow underwriting yang membutuhkan validasi dokumen secara cepat dan defensible.</p>
-              <ul className="space-y-1.5 text-zinc-700">
-                <li>Audit dokumen dan fraud screening.</li>
-                <li>Trust score berbasis histori transaksi.</li>
-                <li>Partner audit yang kuat untuk verifikasi lapangan.</li>
-              </ul>
-            </>
-          }
-          keyObj={apiKey}
-          loading={apiKeyLoading}
-          pageLoading={pageLoading}
-          fmtDate={fmtDate}
-          onGenerate={generateKey}
-          onRevoke={revokeKey}
-          onCopy={() => apiKey && handleCopy(apiKey.key_value, "api-key-chain")}
-          onRefresh={fetchMyKey}
-        />
-
-
-
+      <div className="grid gap-4 lg:grid-cols-1">
         <KeyCard
           title="Otaru Decision Key"
           subtitle="Unified Decision Gate"

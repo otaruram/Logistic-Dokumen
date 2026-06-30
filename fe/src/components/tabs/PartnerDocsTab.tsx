@@ -100,27 +100,6 @@ export default function PartnerDocsTab({
 
         <div className="mt-4 grid gap-4 lg:grid-cols-1">
           <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-5">
-            <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">OtaruChain API</p>
-            <h4 className="mt-2 text-lg font-semibold text-zinc-900">Document trust and audit intelligence</h4>
-            <ul className="mt-4 space-y-2 text-sm text-zinc-700">
-              <li>Base URL: <span className="font-mono">{API}</span></li>
-              <li>Header: <span className="font-mono">x-api-key: OtaruChain Key</span></li>
-              <li>Endpoint utama: <span className="font-mono">GET /api/partner/v1/user-audit-by-phone/{`{phone}`}</span></li>
-              <li>Output: identity, risk, integrity, audit log, dan trust score.</li>
-            </ul>
-            <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">cURL</p>
-              <pre className="mt-2 whitespace-pre-wrap break-all font-mono text-xs text-zinc-900">{chainScoringExample}</pre>
-            </div>
-            <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Output</p>
-              <pre className="mt-2 whitespace-pre-wrap break-all font-mono text-xs text-zinc-900">{chainResponseExample}</pre>
-            </div>
-          </div>
-
-
-
-          <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-5">
             <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Unified Decision Gate API</p>
             <h4 className="mt-2 text-lg font-semibold text-zinc-900">Combined chain & financial data</h4>
             <ul className="mt-4 space-y-2 text-sm text-zinc-700">
