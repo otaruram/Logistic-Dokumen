@@ -89,8 +89,10 @@ async def _resolve_payment_url_from_followup(
     return None
 
 PLANS = {
-    "launch": {"amount": 199000, "description": "OtaruChain Launch Partner — 1 bulan"},
-    "growth": {"amount": 549000, "description": "OtaruChain Growth Partner — 1 bulan"},
+    "launch": {"amount": 599000, "description": "OtaruChain Launch Partner — 1 bulan"},
+    "growth": {"amount": 1499000, "description": "OtaruChain Scale Partner — 1 bulan"},
+    "enterprise": {"amount": 3999000, "description": "OtaruChain Enterprise Partner — 1 bulan"},
+    "topup": {"amount": 300000, "description": "OtaruChain Top-up 100 Requests"},
 }
 
 

@@ -36,8 +36,8 @@ GOLD_PLAFON_BONUS = 1_000_000
 PLATINUM_PLAFON_BONUS = 2_500_000
 
 DEFAULT_GAMIFICATION_CONTEXT = {
-    "gold": "TBA: benefit Gold aktif setelah verifikasi risiko internal koperasi.",
-    "platinum": "TBA: benefit Platinum aktif setelah validasi partner + governance check.",
+    "gold": "Benefit Gold: Pencairan kasbon lebih cepat & prioritas antrean bila DSR aman.",
+    "platinum": "Benefit Platinum: Pencairan instan & limit kasbon ekstra berbasis performa DSR sempurna.",
 }
 
 DEFAULT_BADGE_BASE_URL = "https://api.dicebear.com/9.x/shapes/png"

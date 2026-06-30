@@ -317,7 +317,7 @@ const TrustScoreCard = ({ stats, loading }: { stats: DashboardStats; loading: bo
           <span className="text-5xl font-bold text-white tracking-tighter shadow-sm" style={{ textShadow: `0 0 20px ${scoreColor}40` }}>
             {loading ? "..." : currentScore}
           </span>
-          <span className="text-xs text-gray-500 mt-1">/ 1000 Poin</span>
+          <span className="text-xs text-gray-500 mt-1">of 1000 Poin</span>
         </div>
       </div>
     </motion.div>
@@ -352,7 +352,7 @@ const NominalVerifiedCard = ({ stats, loading, currency, onToggleCurrency, forma
           {loading ? "..." : formatCurrency(stats.totalNominalVerified)}
         </div>
         <p className="text-xs text-green-400 flex items-center gap-1">
-          <TrendingUp className="w-3 h-3" />Dihitung dari {stats.verifiedDocuments + stats.processingDocuments + stats.tamperedDocuments} dokumen (verified + processing + tampered)
+          <TrendingUp className="w-3 h-3" />*Dihitung secara real-time dari dokumen yang telah Approved
         </p>
       </div>
     </div>
@@ -401,26 +401,34 @@ const KasbonHistoryCard = ({ items, loading }: { items: KasbonHistoryItem[]; loa
       <p className="text-sm text-gray-500">Belum ada histori kasbon.</p>
     ) : (
       <div className="space-y-3">
-        {items.map((item) => (
+        {items.map((item) => {
+          let finalStatus = item.status;
+          if (item.ai_indicator === "TAMPERED" || item.status === "REJECTED") finalStatus = "REJECTED";
+          else if (item.ai_indicator === "UNCLEAR_BLURRY" || item.status === "NEED_REVISION") finalStatus = "NEED_REVISION";
+          else if (item.status === "APPROVED") finalStatus = "APPROVED";
+          else if (item.status === "PENDING") finalStatus = "PROCESSING";
+          
+          return (
           <div key={item.id} className="rounded-lg border border-white/10 p-3 bg-white/5">
             <div className="flex items-center justify-between">
               <p className="text-sm text-white font-semibold">
                 {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(item.nominal_pengajuan)}
               </p>
               <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${
-                item.status === "APPROVED" ? "bg-green-500/20 text-green-400" :
-                item.status === "REJECTED" ? "bg-red-500/20 text-red-400" :
+                finalStatus === "APPROVED" ? "bg-green-500/20 text-green-400" :
+                finalStatus === "REJECTED" ? "bg-red-500/20 text-red-400" :
                 "bg-yellow-500/20 text-yellow-400"
               }`}>
-                {item.status}
+                {finalStatus}
               </span>
             </div>
-            <p className="text-xs text-gray-400 mt-1">AI: {item.ai_indicator}</p>
+            <p className="text-xs text-gray-400 mt-1">AI: {finalStatus === "REJECTED" ? "DETECTED: FRAUD DSR/TAMPERED" : item.ai_indicator}</p>
             <p className="text-xs text-gray-500 mt-1">
               Integrity Seal: {item.sha256_hash ? `${item.sha256_hash.slice(0, 14)}...` : "Belum disegel"}
             </p>
           </div>
-        ))}
+          );
+        })}
       </div>
     )}
   </motion.div>
@@ -559,7 +567,7 @@ const DashboardTab = () => {
         calculatedTrustScore = Math.min(Math.round(rawScore * 10), 1000);
       }
 
-      const totalVerif = (allFraud || []).reduce((sum: number, f: any) => sum + Number(f.nominal_total || 0), 0);
+      const totalVerif = (allFraud || []).reduce((sum: number, f: any) => f.status === "verified" ? sum + Number(f.nominal_total || 0) : sum, 0);
 
       let credits = 0;
       try {

@@ -117,18 +117,12 @@ const OptionsTab = () => {
           Klik <b>Generate Key</b> untuk membuat kunci baru. Paste ke bot Telegram (<code>/start KEY</code>). Key baru akan mereset sesi Telegram lama.
         </p>
 
-        <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="grid grid-cols-1 gap-2 mb-3">
           <button
             onClick={() => setSelectedBot("otaruchain")}
-            className={`px-3 py-2 rounded-lg text-xs font-semibold border ${selectedBot === "otaruchain" ? "bg-white text-black border-white" : "bg-black/40 text-gray-300 border-white/15 hover:bg-white/5"}`}
+            className={`px-3 py-2 rounded-lg text-xs font-semibold border bg-white text-black border-white`}
           >
             OtaruChain Bot
-          </button>
-          <button
-            onClick={() => setSelectedBot("otaru_finance")}
-            className={`px-3 py-2 rounded-lg text-xs font-semibold border ${selectedBot === "otaru_finance" ? "bg-white text-black border-white" : "bg-black/40 text-gray-300 border-white/15 hover:bg-white/5"}`}
-          >
-            Otaru Financial Bot
           </button>
         </div>
 

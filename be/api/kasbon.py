@@ -501,7 +501,6 @@ async def get_approval_queue(current_user: dict = Depends(get_supabase_bearer_us
         limit_pinjaman = int(prof.get("limit_pinjaman") or 0)
         kasbon_aktif_total = int(approved_totals.get(nik, 0))
         kasbon_pending_total = int(pending_totals.get(nik, 0))
-        reserved_total = kasbon_aktif_total + kasbon_pending_total
         ocr_raw = r.get("ocr_raw") or {}
 
         # Determine badge tier
@@ -521,7 +520,7 @@ async def get_approval_queue(current_user: dict = Depends(get_supabase_bearer_us
             "limit_pinjaman": limit_pinjaman,
             "kasbon_aktif": kasbon_aktif_total,
             "kasbon_pending": kasbon_pending_total,
-            "sisa_limit": max(0, limit_pinjaman - reserved_total),
+            "sisa_limit": max(0, limit_pinjaman - kasbon_aktif_total),
             "sisa_kredit": int(prof.get("credits") or 0),
             "tenor_bulan": ocr_raw.get("tenor_bulan"),
             "cicilan_sistem": ocr_raw.get("cicilan_sistem"),

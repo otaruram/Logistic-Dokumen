@@ -193,11 +193,11 @@ async def get_realtime_stats(
             s = r.get("status", "")
             if s == "verified":
                 verified += 1
+                total_nominal += float(r.get("nominal_total") or 0)
             elif s == "tampered":
                 tampered += 1
             elif s == "processing":
                 processing += 1
-            total_nominal += float(r.get("nominal_total") or 0)
             total_scan_fraud += 1
 
             created_str = r.get("created_at")

@@ -440,7 +440,7 @@ def _handle_profile(chat_id: int) -> None:
             chat_id,
             "<b>⚙️ Profil Akun</b>\n"
             f"<b>User ID:</b> <code>{user_id[:8]}…</code>\n"
-            f"<b>Credits:</b> {credits}/12\n"
+            f"<b>Credits:</b> {credits}/10\n"
             f"<b>Status:</b> {'🟢 Terhubung' if link.get('is_linked') else '🔴 Belum terhubung'}",
             use_keyboard=True,
         )

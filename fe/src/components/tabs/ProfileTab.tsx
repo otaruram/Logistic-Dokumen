@@ -217,18 +217,12 @@ const ProfileTab = () => {
           Masukkan <b>Nomor HP</b> terlebih dahulu, lalu klik <b>Generate Key</b>. Paste kunci ke bot Telegram (<code>/start KEY</code>). Nomor HP akan disimpan dan menjadi identitas utama di seluruh API.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2">
           <button
             onClick={() => setSelectedBot("otaruchain")}
-            className={`px-3 py-2 rounded-lg text-xs font-semibold border ${selectedBot === "otaruchain" ? "bg-white text-black border-white" : "bg-black/40 text-gray-300 border-white/15 hover:bg-white/5"}`}
+            className="px-3 py-2 rounded-lg text-xs font-semibold border bg-white text-black border-white"
           >
             OtaruChain Bot
-          </button>
-          <button
-            onClick={() => setSelectedBot("otaru_finance")}
-            className={`px-3 py-2 rounded-lg text-xs font-semibold border ${selectedBot === "otaru_finance" ? "bg-white text-black border-white" : "bg-black/40 text-gray-300 border-white/15 hover:bg-white/5"}`}
-          >
-            Otaru Financial Bot
           </button>
         </div>
 
@@ -236,7 +230,7 @@ const ProfileTab = () => {
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Nomor HP <span className="text-red-400">*</span></label>
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <span className="text-xs text-gray-500 bg-white/5 border border-white/10 rounded-lg px-2 sm:px-3 py-2.5 font-mono shrink-0">+62</span>
+            <span className="text-xs text-gray-500 bg-white/5 border border-white/10 rounded-lg px-2 sm:px-3 py-2.5 font-mono shrink-0">📱</span>
             <input
               type="tel"
               placeholder="812xxxxxxxx"
@@ -261,7 +255,7 @@ const ProfileTab = () => {
             <p className="text-[11px] text-red-400">Nomor HP harus 9-12 digit (tanpa 0 di depan).</p>
           )}
           {isPhoneValid && (
-            <p className="text-[11px] text-emerald-400">✓ Nomor valid: +62{phoneNumber}</p>
+            <p className="text-[11px] text-emerald-400">✓ Nomor valid: {phoneNumber}</p>
           )}
         </div>
 
@@ -300,9 +294,9 @@ const ProfileTab = () => {
               </div>
             </div>
             <p className="text-[11px] text-gray-500">Status: {tgStatus.connected ? "🟢 Connected" : "🔴 Belum terhubung ke bot"}</p>
-            <p className="text-[11px] text-gray-500">Bot aktif: {tgStatus.selected_bot === "otaru_finance" ? "@otarufinance_bot" : "@otaruchain_bot"}</p>
+            <p className="text-[11px] text-gray-500">Bot aktif: @otaruchain_bot</p>
             {tgStatus.phone_number && (
-              <p className="text-[11px] text-emerald-400">📱 HP: +62{tgStatus.phone_number}</p>
+              <p className="text-[11px] text-emerald-400">📱 HP: {tgStatus.phone_number}</p>
             )}
           </div>
         )}

@@ -100,8 +100,8 @@ export default function GamificationCard() {
   const hasGold    = badge?.has_gold    ?? (verified >= goldThreshold);
   const hasPlatinum = badge?.has_platinum ?? (verified >= platinumThreshold);
   const hasTamperedDoc = badge?.streak_broken ?? false;
-  const goldContext = badge?.gold_context_tba || "TBA: benefit Gold aktif setelah verifikasi risiko internal koperasi.";
-  const platinumContext = badge?.platinum_context_tba || "TBA: benefit Platinum aktif setelah validasi partner + governance check.";
+  const goldContext = badge?.gold_context_tba || "Benefit Gold: Pencairan kasbon lebih cepat & prioritas antrean bila DSR aman.";
+  const platinumContext = badge?.platinum_context_tba || "Benefit Platinum: Pencairan instan & limit kasbon ekstra berbasis performa DSR sempurna.";
 
   // Current tier for header badge
   const currentTier = hasPlatinum ? TIERS[2] : hasGold ? TIERS[1] : hasSilver ? TIERS[0] : null;

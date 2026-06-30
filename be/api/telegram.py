@@ -28,18 +28,13 @@ class PhoneAutoFillResponse(BaseModel):
 
 
 def _resolve_bot_username(bot: str) -> tuple[str, str]:
-    normalized = (bot or "otaruchain").strip().lower()
-    if normalized in {"otaru_finance", "otarufinance", "finance"}:
-        return "otaru_finance", settings.TELEGRAM_FINANCE_BOT_USERNAME or "otarufinance_bot"
     return "otaruchain", settings.TELEGRAM_BOT_USERNAME
 
 
 def _build_deep_links(tele_key: str) -> dict[str, str]:
     main_username = settings.TELEGRAM_BOT_USERNAME
-    finance_username = settings.TELEGRAM_FINANCE_BOT_USERNAME or "otarufinance_bot"
     return {
-        "otaruchain": f"https://t.me/{main_username}?start={tele_key}",
-        "otaru_finance": f"https://t.me/{finance_username}?start={tele_key}",
+        "otaruchain": f"https://t.me/{main_username}?start={tele_key}"
     }
 
 
@@ -99,7 +94,7 @@ async def autofill_phone_for_telegram():
 @router.post("/connect")
 @router.get("/connect/init")
 async def connect_telegram(
-    bot: Literal["otaruchain", "otaru_finance"] = Query("otaruchain"),
+    bot: Literal["otaruchain"] = Query("otaruchain"),
     body: Optional[ConnectBody] = Body(None),
     current_user: User = Depends(get_current_active_user),
 ):
@@ -188,7 +183,7 @@ async def connect_telegram(
         "phone_number": phone_number,
         "bot_username": bot_username,
         "selected_bot": selected_bot,
-        "available_bots": ["otaruchain", "otaru_finance"],
+        "available_bots": ["otaruchain"],
         "start_command": f"/start {tele_key}",
         "deep_link": deep_links[selected_bot],
         "deep_links": deep_links,
@@ -198,7 +193,7 @@ async def connect_telegram(
 
 @router.get("/connect/status")
 async def telegram_connect_status(
-    bot: Literal["otaruchain", "otaru_finance"] = Query("otaruchain"),
+    bot: Literal["otaruchain"] = Query("otaruchain"),
     current_user: User = Depends(get_current_active_user),
 ):
     sb = get_supabase_admin()
@@ -226,7 +221,7 @@ async def telegram_connect_status(
             "has_key": False,
             "bot_username": bot_username,
             "selected_bot": selected_bot,
-            "available_bots": ["otaruchain", "otaru_finance"],
+            "available_bots": ["otaruchain"],
         }
 
     row = data[0]
@@ -258,7 +253,7 @@ async def telegram_connect_status(
         "updated_at": row.get("updated_at"),
         "bot_username": bot_username,
         "selected_bot": selected_bot,
-        "available_bots": ["otaruchain", "otaru_finance"],
+        "available_bots": ["otaruchain"],
         "deep_link": deep_links[selected_bot],
         "deep_links": deep_links,
     }

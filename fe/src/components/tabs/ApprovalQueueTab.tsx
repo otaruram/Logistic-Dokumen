@@ -741,8 +741,8 @@ export default function ApprovalQueueTab() {
                   {/* SOP grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <InfoCard label="No. Referensi" value={loan.no_referensi || "-"} valueClass="font-mono" />
-                    <InfoCard label="Tenor" value={loan.tenor_bulan != null ? `${loan.tenor_bulan} bln` : "-"} />
-                    <InfoCard label="Cicilan/Bulan" value={loan.cicilan_sistem != null ? fmtRp(loan.cicilan_sistem) : "-"} />
+                    <InfoCard label="Tenor" value="1 Bulan (Potong Gaji Next Payroll)" />
+                    <InfoCard label="Cicilan/Bulan" value={fmtRp(loan.nominal_pengajuan * 1.01)} />
                     <InfoCard
                       label="DSR Status"
                       value={loan.dsr_status ?? "-"}

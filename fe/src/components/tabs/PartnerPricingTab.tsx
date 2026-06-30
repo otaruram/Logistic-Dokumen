@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Shield, Zap, TrendingUp, CheckCircle2, AlertTriangle, Lock, Cpu, Phone, X, QrCode } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 const TIERS = [
   {
@@ -25,9 +26,9 @@ const TIERS = [
   {
     id: "launch",
     name: "Launch",
-    price: "Rp 299.000",
+    price: "Rp 599.000",
     cadence: "/ bulan",
-    target: "Koperasi mikro yang memulai pilot underwriting kredit (Fokus habit builder).",
+    target: "Koperasi mikro yang memulai pilot underwriting kredit.",
     volumeLabel: "900 Requests",
     volumeSub: "per bulan",
     volumeIsHard: false,
@@ -44,9 +45,9 @@ const TIERS = [
   {
     id: "growth",
     name: "Scale",
-    price: "Rp 999.000",
+    price: "Rp 1.499.000",
     cadence: "/ bulan",
-    target: "Koperasi logistik aktif dengan underwriting harian untuk mengurangi kredit macet.",
+    target: "Koperasi logistik aktif dengan underwriting harian (Tahan fluktuasi infra dollar).",
     volumeLabel: "2.000 Requests",
     volumeSub: "per bulan",
     volumeIsHard: false,
@@ -65,7 +66,7 @@ const TIERS = [
   {
     id: "enterprise",
     name: "Enterprise",
-    price: "Rp 2.499.000",
+    price: "Rp 3.999.000",
     cadence: "/ bulan",
     target: "Jaringan koperasi berskala nasional atau volume tinggi.",
     volumeLabel: "10.000 Requests",
@@ -80,7 +81,7 @@ const TIERS = [
       "White-label portal",
     ],
     popular: false,
-    cta: "Hubungi Sales",
+    cta: "Aktivasi & Bayar",
     ctaDisabled: false,
   },
 ];
@@ -95,15 +96,15 @@ const COMPLIANCE_BADGES = [
 export default function PartnerPricingTab({
   checkoutError,
   checkoutLoadingPlan,
-  handleCheckout,
-  th
+  handleCheckout
 }: {
   checkoutError: string | null;
   checkoutLoadingPlan: string | null;
   handleCheckout: (planId: string) => void;
-  th: any;
 }) {
-  const [selectedCheckout, setSelectedCheckout] = useState<{ title: string; price: string; type: 'plan' | 'topup' } | null>(null);
+  const [selectedCheckout, setSelectedCheckout] = useState<{ title: string, price: string, type: string, planId?: string, paymentUrl?: string } | null>(null);
+  const [isGeneratingPayment, setIsGeneratingPayment] = useState(false);
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
   return (
     <section className="space-y-10 py-10 bg-slate-950 text-slate-200 rounded-[2rem] px-4 sm:px-8 border border-slate-800 relative">
@@ -214,17 +215,36 @@ export default function PartnerPricingTab({
 
             {/* CTA */}
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (!tier.ctaDisabled) {
-                  if (tier.id === 'enterprise') {
-                    // Placeholder for Hubungi Sales
-                    alert("Silakan hubungi sales@otaruchain.id");
-                  } else {
-                    setSelectedCheckout({ title: `Paket ${tier.name}`, price: tier.price, type: 'plan' });
+                  setIsGeneratingPayment(true);
+                  setSelectedCheckout({ title: `Paket ${tier.name}`, price: tier.price, type: 'plan', planId: tier.id });
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const res = await fetch(`${API_BASE_URL}/api/v1/payment/checkout`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${session?.access_token}`,
+                      },
+                      body: JSON.stringify({ plan: tier.id }),
+                    });
+                    if (res.ok) {
+                      const data = await res.json();
+                      if (data.payment_url) {
+                        setSelectedCheckout({ title: `Paket ${tier.name}`, price: tier.price, type: 'plan', planId: tier.id, paymentUrl: data.payment_url });
+                      }
+                    } else {
+                      // Fallback simulasi
+                    }
+                  } catch (e) {
+                    // Fallback
+                  } finally {
+                    setIsGeneratingPayment(false);
                   }
                 }
               }}
-              disabled={tier.ctaDisabled}
+              disabled={tier.ctaDisabled || isGeneratingPayment}
               className={`w-full rounded-xl py-3 text-sm font-bold tracking-wide transition-all duration-200 ${
                 tier.ctaDisabled
                   ? "bg-slate-800 text-slate-600 cursor-default border border-slate-700"
@@ -233,7 +253,7 @@ export default function PartnerPricingTab({
                   : "bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 hover:border-slate-600"
               } disabled:opacity-60 disabled:cursor-not-allowed`}
             >
-              {tier.cta}
+              {isGeneratingPayment && selectedCheckout?.planId === tier.id ? "Memproses..." : tier.cta}
             </button>
           </div>
         ))}
@@ -254,10 +274,35 @@ export default function PartnerPricingTab({
           </div>
         </div>
         <button
-          onClick={() => setSelectedCheckout({ title: "Top-up Kredit (100 Requests)", price: "Rp 300.000", type: "topup" })}
-          className="flex-shrink-0 whitespace-nowrap rounded-xl bg-amber-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-amber-500 transition-colors shadow-lg shadow-amber-900/20"
+          onClick={async () => {
+            setIsGeneratingPayment(true);
+            setSelectedCheckout({ title: "Top-up Kredit (100 Requests)", price: "Rp 300.000", type: "topup", planId: "topup" });
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              const res = await fetch(`${API_BASE_URL}/api/v1/payment/checkout`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${session?.access_token}`,
+                },
+                body: JSON.stringify({ plan: "topup" }),
+              });
+              if (res.ok) {
+                const data = await res.json();
+                if (data.payment_url) {
+                  setSelectedCheckout({ title: "Top-up Kredit (100 Requests)", price: "Rp 300.000", type: "topup", planId: "topup", paymentUrl: data.payment_url });
+                }
+              }
+            } catch (e) {
+              // Fallback
+            } finally {
+              setIsGeneratingPayment(false);
+            }
+          }}
+          disabled={isGeneratingPayment}
+          className="flex-shrink-0 whitespace-nowrap rounded-xl bg-amber-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-amber-500 transition-colors shadow-lg shadow-amber-900/20 disabled:opacity-60"
         >
-          Top-up Sekarang
+          {isGeneratingPayment && selectedCheckout?.planId === "topup" ? "Memproses..." : "Top-up Sekarang"}
         </button>
       </div>
 
@@ -314,14 +359,28 @@ export default function PartnerPricingTab({
             
             <div className="p-6 flex flex-col items-center text-center">
               <div className="mb-6 rounded-2xl bg-white p-3 shadow-inner">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=OtaruChain-Payment-${selectedCheckout.price.replace(/\D/g,'')}`} 
-                  alt="QRIS Payment"
-                  className="w-48 h-48 rounded-lg"
-                />
+                {selectedCheckout.paymentUrl ? (
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(selectedCheckout.paymentUrl)}`} 
+                    alt="QRIS Payment"
+                    className="w-48 h-48 rounded-lg"
+                  />
+                ) : (
+                  <div className="w-48 h-48 rounded-lg bg-slate-100 flex items-center justify-center">
+                    {isGeneratingPayment ? "Memuat QRIS..." : (
+                      <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=OtaruChain-Payment-${selectedCheckout.price.replace(/\D/g,'')}`} 
+                        alt="Simulasi QRIS Payment"
+                        className="w-48 h-48 rounded-lg opacity-80"
+                      />
+                    )}
+                  </div>
+                )}
               </div>
               
-              <p className="text-xs text-slate-400 mb-2">Scan QRIS ini menggunakan M-Banking atau E-Wallet Anda untuk menyelesaikan pembayaran.</p>
+              <p className="text-xs text-slate-400 mb-2">
+                {selectedCheckout.paymentUrl ? "Scan QR Code ini untuk membuka halaman pembayaran Louvin." : "Scan QRIS ini menggunakan M-Banking atau E-Wallet Anda."}
+              </p>
               
               <div className="w-full rounded-xl border border-slate-700 bg-slate-800/50 p-4 mt-2">
                 <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Total Tagihan</p>

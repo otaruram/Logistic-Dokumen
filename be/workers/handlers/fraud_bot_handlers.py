@@ -68,7 +68,7 @@ def handle_dashboard(chat_id: int, send_message, format_idr) -> None:
             f"<b>Tampered:</b> {summary['tampered_documents']}\n"
             f"<b>Fraud Scans:</b> {summary['total_fraud_scans']}\n"
             f"<b>Risk Level:</b> {risk}\n"
-            f"<b>Credits:</b> {summary['credits']}/12"
+            f"<b>Credits:</b> {summary['credits']}/10"
         )
         send_message(chat_id, msg, use_keyboard=True)
     except Exception as e:
@@ -145,7 +145,7 @@ async def handle_photo(chat_id: int, message: dict[str, Any], send_message, get_
             "<b>✅ Dokumen Diterima</b>\n\n"
             "Dokumen kamu sudah masuk ke <b>antrean verifikasi Admin</b>.\n"
             "Admin akan mereview dan memberikan stamp verifikasi.\n\n"
-            f"<b>Credits sisa:</b> {credits_remaining}/12\n"
+            f"<b>Credits sisa:</b> {credits_remaining}/10\n"
             "<i>Kamu akan mendapat notifikasi setelah Admin selesai mereview.</i>"
         )
         send_message(chat_id, response, use_keyboard=True)
