@@ -4,7 +4,7 @@ export const pricingPlans = [
     name: 'GRATIS',
     price: 'Rp 0',
     cadence: '/ bulan',
-    volume: '12 Request / bulan',
+    volume: '10 Request / bulan',
     target: 'Developer individu atau pengujian internal Koperasi (PoC).',
     coreValue: 'Akses ke Core OtaruChain Engine, SHA-256 Data Stamping, dan Baseline Fraud Filter.',
     limitations: 'Waktu respons best-effort (Antrean standar), 1 Akun Developer.',
@@ -19,11 +19,11 @@ export const pricingPlans = [
   {
     id: 'launch',
     name: 'LAUNCH',
-    price: 'Rp 199.000',
+    price: 'Rp 299.000',
     cadence: '/ bulan',
     volume: '30 Request / hari (~900/bulan)',
     target: 'Koperasi kecil atau LJK mikro yang memulai pilot underwriting kredit pertama mereka.',
-    coreValue: 'Semua fitur Gratis + Akses ke Otaru Financial (Debt Service Ratio & Analitik Batas Kredit Aman).',
+    coreValue: 'Semua fitur Gratis + Akses ke Unified Decision Gate (Credit Readiness).',
     limitations: 'SLA Standar (Maksimal 24 jam verifikasi dokumen via Human-in-the-loop), 2 Akses Admin Partner.',
     notes: [
       'Banking-Grade Security & Standar OJK/UU PDP',
@@ -36,9 +36,9 @@ export const pricingPlans = [
   {
     id: 'growth',
     name: 'GROWTH',
-    price: 'Rp 549.000',
+    price: 'Rp 999.000',
     cadence: '/ bulan',
-    volume: '150 Request / hari',
+    volume: '2.000 Request / bulan',
     target: 'Koperasi atau Jaringan Partner Logistik yang sedang berkembang dengan proses underwriting harian aktif.',
     coreValue: 'Semua fitur Launch + Advanced Decision Gate API.',
     limitations: 'SLA Respons Prioritas (Di bawah 2 jam), Kemampuan Burst Handling, 5 Akses Admin Partner, dashboard analitik penuh.',
@@ -49,6 +49,23 @@ export const pricingPlans = [
       'Pencarian data murni menggunakan Nomor HP',
     ],
     accent: 'growth',
+  },
+  {
+    id: 'enterprise',
+    name: 'ENTERPRISE',
+    price: 'Rp 2.499.000',
+    cadence: '/ bulan',
+    volume: '10.000 Request / bulan',
+    target: 'Jaringan koperasi berskala nasional atau LJK dengan volume transaksi tinggi.',
+    coreValue: 'Semua fitur Growth + Dedicated Support, SLA 99.9%, dan Custom Integrations.',
+    limitations: 'Unlimited Admin Partner, White-label portal opsional, Private Slack channel.',
+    notes: [
+      'Banking-Grade Security & Standar OJK/UU PDP',
+      'Immutable Audit Trail (SHA-256 Stamping)',
+      'Fraud Screening / Verification Guard',
+      'Pencarian data murni menggunakan Nomor HP',
+    ],
+    accent: 'enterprise',
   },
 ];
 
@@ -66,22 +83,7 @@ export const partnerProducts = [
     ],
     keyLabel: 'OtaruChain Key',
   },
-  {
-    name: 'Otaru Financial API',
-    subtitle: 'Financial health + repayment intelligence',
-    bullets: [
-      'Credit readiness untuk menilai kelayakan dan kapasitas bayar user.',
-      'DSR, cicilan aktif, dan repayment signal berbasis perilaku finansial.',
-      'Cocok untuk keputusan cepat yang butuh consented financial intelligence.',
-    ],
-    targetMarket: 'Digital lender, koperasi, payroll advance, BNPL, dan fintech underwriting yang butuh keputusan cepat berbasis consent.',
-    endpoints: [
-      'GET /api/v1/finance/overview-by-phone/{phone}',
-      'GET /api/v1/verify-credit/{user_id}',
-      'GET /api/v1/finance/score',
-    ],
-    keyLabel: 'Otaru Financial Key',
-  },
+
   {
     name: 'Unified Decision Gate API',
     subtitle: 'Combined chain & financial data',

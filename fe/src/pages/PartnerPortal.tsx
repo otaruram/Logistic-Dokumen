@@ -33,7 +33,6 @@ import { supabase } from "@/lib/supabaseClient";
 import ScrollNavigator from "@/components/ui/ScrollNavigator";
 
 const API = APP_CONFIG.apiUrl;
-const FINANCE_RAW_KEY_STORAGE = "otaru_finance_raw_key";
 const CHAIN_RAW_KEY_STORAGE = "otaru_chain_raw_key";
 const DECISION_RAW_KEY_STORAGE = "otaru_decision_raw_key";
 
@@ -47,15 +46,6 @@ interface PlatformStats {
 interface ApiKeyInfo {
   key_value: string;
   name: string;
-  is_active: boolean;
-  created_at: string;
-  last_used_at: string | null;
-}
-
-interface FinanceKeyInfo {
-  key_value: string;
-  name: string;
-  partner_name: string;
   is_active: boolean;
   created_at: string;
   last_used_at: string | null;
@@ -191,10 +181,8 @@ export default function PartnerPortal() {
   };
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [apiKey, setApiKey] = useState<ApiKeyInfo | null>(null);
-  const [financeApiKey, setFinanceApiKey] = useState<FinanceKeyInfo | null>(null);
   const [decisionApiKey, setDecisionApiKey] = useState<any | null>(null);
   const [apiKeyLoading, setApiKeyLoading] = useState(false);
-  const [financeApiKeyLoading, setFinanceApiKeyLoading] = useState(false);
   const [decisionApiKeyLoading, setDecisionApiKeyLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
@@ -227,12 +215,10 @@ export default function PartnerPortal() {
         const seen = localStorage.getItem(seenKey);
         setShowAccessPopup(!seen);
         fetchMyKey();
-        fetchMyFinanceKey();
         fetchMyDecisionKey();
       } else {
         setShowAccessPopup(false);
         setApiKey(null);
-        setFinanceApiKey(null);
         setDecisionApiKey(null);
       }
       setPageLoading(false);
@@ -300,30 +286,6 @@ export default function PartnerPortal() {
     }
   }
 
-  async function fetchMyFinanceKey() {
-    setAuthError(null);
-    const headers = await getAuthHeader();
-    if (!headers.Authorization) { setFinanceApiKey(null); return; }
-    try {
-      const response = await fetch(`${API}/api/v1/finance/apikeys/me`, { headers });
-      if (response.status === 401) {
-        setAuthError("Session backend tidak valid. Login ulang lalu coba lagi.");
-        setFinanceApiKey(null);
-        return;
-      }
-      if (response.ok) {
-        const data = (await response.json()) as FinanceKeyInfo;
-        const storedRaw = localStorage.getItem(FINANCE_RAW_KEY_STORAGE);
-        if (isMaskedKey(data.key_value) && storedRaw?.startsWith("fk-")) {
-          setFinanceApiKey({ ...data, key_value: storedRaw });
-        } else {
-          setFinanceApiKey(data);
-        }
-      }
-    } catch {
-      setFinanceApiKey(null);
-    }
-  }
 
   async function generateKey() {
     setApiKeyLoading(true);
@@ -343,25 +305,6 @@ export default function PartnerPortal() {
     }
   }
 
-  async function generateFinanceKey() {
-    setFinanceApiKeyLoading(true);
-    setAuthError(null);
-    try {
-      const headers: Record<string, string> = { ...(await getAuthHeader()), "Content-Type": "application/json" };
-      if (!headers.Authorization) { setAuthError("Login dulu untuk generate Otaru Financial key."); return; }
-      const response = await fetch(`${API}/api/v1/finance/apikeys/generate`, { method: "POST", headers });
-      if (response.status === 401) { setAuthError("Token tidak diterima backend. Login ulang lalu generate lagi."); return; }
-      if (response.ok) {
-        const data = await response.json();
-        if (data?.key_value) {
-          localStorage.setItem(FINANCE_RAW_KEY_STORAGE, data.key_value);
-        }
-        setFinanceApiKey(data);
-      }
-    } finally {
-      setFinanceApiKeyLoading(false);
-    }
-  }
 
   async function revokeKey() {
     if (!window.confirm("Revoke API key aktif? Key lama akan langsung tidak bisa dipakai.")) return;
@@ -378,21 +321,6 @@ export default function PartnerPortal() {
     }
   }
 
-  async function revokeFinanceKey() {
-    if (!window.confirm("Revoke Otaru Financial key aktif? Key lama akan langsung tidak bisa dipakai.")) return;
-    setFinanceApiKeyLoading(true);
-    setAuthError(null);
-    try {
-      const headers = await getAuthHeader();
-      if (!headers.Authorization) { setAuthError("Login dulu untuk revoke Otaru Financial key."); return; }
-      const response = await fetch(`${API}/api/v1/finance/apikeys/me`, { method: "DELETE", headers });
-      if (response.status === 401) { setAuthError("Token tidak diterima backend. Login ulang lalu revoke lagi."); return; }
-      setFinanceApiKey(null);
-      localStorage.removeItem(FINANCE_RAW_KEY_STORAGE);
-    } finally {
-      setFinanceApiKeyLoading(false);
-    }
-  }
 
   async function fetchMyDecisionKey() {
     setAuthError(null);
@@ -660,22 +588,17 @@ export default function PartnerPortal() {
               <section className="space-y-5">
                 <PartnerApiKeysView
                   apiKey={apiKey}
-                  financeApiKey={financeApiKey}
                   decisionApiKey={decisionApiKey}
                   apiKeyLoading={apiKeyLoading}
-                  financeApiKeyLoading={financeApiKeyLoading}
                   decisionApiKeyLoading={decisionApiKeyLoading}
                   pageLoading={pageLoading}
                   authError={authError}
                   fmtDate={fmtDate}
                   isMaskedKey={isMaskedKey}
                   generateKey={generateKey}
-                  generateFinanceKey={generateFinanceKey}
                   generateDecisionKey={generateDecisionKey}
                   revokeKey={revokeKey}
-                  revokeFinanceKey={revokeFinanceKey}
                   fetchMyKey={fetchMyKey}
-                  fetchMyFinanceKey={fetchMyFinanceKey}
                   handleCopy={handleCopy}
                   profilePhone={profilePhone}
                   phoneSyncLoading={phoneSyncLoading}
@@ -686,7 +609,6 @@ export default function PartnerPortal() {
 
                 <PartnerPlaygrounds
                   apiKey={apiKey}
-                  financeApiKey={financeApiKey}
                   decisionApiKey={decisionApiKey}
                   API={API}
                   fmtNominal={fmtNominal}
@@ -697,7 +619,6 @@ export default function PartnerPortal() {
             {activeView === "docs" && (
               <PartnerDocsTab
                 apiKey={apiKey}
-                financeApiKey={financeApiKey}
                 isMaskedKey={isMaskedKey}
                 API={API}
                 copiedLabel={copiedLabel}

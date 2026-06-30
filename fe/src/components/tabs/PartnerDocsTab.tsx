@@ -4,7 +4,7 @@ import { PortalTheme } from "../../pages/PartnerPortalConstants";
 
 export default function PartnerDocsTab({
   apiKey,
-  financeApiKey,
+
   isMaskedKey,
   API,
   copiedLabel,
@@ -13,7 +13,7 @@ export default function PartnerDocsTab({
   theme
 }: {
   apiKey: any;
-  financeApiKey: any;
+
   isMaskedKey: (k: string) => boolean;
   API: string;
   copiedLabel: string | null;
@@ -28,14 +28,7 @@ export default function PartnerDocsTab({
     : `curl -X GET "${API}/api/partner/v1/user-audit-by-phone/08xxxxxxxxxx" \\
   -H "x-api-key: sk-xxxx"`;
 
-  const financeScoringExample = financeApiKey
-    ? (isMaskedKey(financeApiKey.key_value)
-      ? `curl -X GET "${API}/api/v1/finance/overview-by-phone/08xxxxxxxxxx" \\
-  -H "x-api-key: fk-xxxx"`
-      : `curl -X GET "${API}/api/v1/finance/overview-by-phone/08xxxxxxxxxx" \\
-  -H "x-api-key: ${financeApiKey.key_value}"`)
-    : `curl -X GET "${API}/api/v1/finance/overview-by-phone/08xxxxxxxxxx" \\
-  -H "x-api-key: fk-xxxx"`;
+
 
   const decisionScoringExample = apiKey
     ? `curl -X GET "${API}/api/v1/partner/lookup-by-phone/08xxxxxxxxxx" \\
@@ -63,22 +56,7 @@ export default function PartnerDocsTab({
   "transactions": { "total": 24, "verified": 19 }
 }`;
 
-  const financeResponseExample = `{
-  "user_id": "uuid",
-  "nik": "3201xxxxxxxxxxxx",
-  "full_name": "Budi Santoso",
-  "email": "user@example.com",
-  "integrity_level": "HIGH",
-  "credit_grade": "B",
-  "otaru_index": 781,
-  "dsr_percent": 24.5,
-  "cicilan_aktif_total": 1200000,
-  "sisa_plafon_aman": 3800000,
-  "active_installments_count": 3,
-  "tampered_attempts": 1,
-  "salary_verified": true,
-  "checked_at": "2026-05-10T11:00:00Z"
-}`;
+
 
   const decisionResponseExample = `{
   "phone_number": "081234567890",
@@ -120,7 +98,7 @@ export default function PartnerDocsTab({
           </button>
         </div>
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="mt-4 grid gap-4 lg:grid-cols-1">
           <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-5">
             <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">OtaruChain API</p>
             <h4 className="mt-2 text-lg font-semibold text-zinc-900">Document trust and audit intelligence</h4>
@@ -140,26 +118,9 @@ export default function PartnerDocsTab({
             </div>
           </div>
 
-          <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-5">
-            <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Otaru Financial API</p>
-            <h4 className="mt-2 text-lg font-semibold text-zinc-900">Financial health & capacity</h4>
-            <ul className="mt-4 space-y-2 text-sm text-zinc-700">
-              <li>Base URL: <span className="font-mono">{API}</span></li>
-              <li>Header: <span className="font-mono">x-api-key: Otaru Financial Key</span></li>
-              <li>Endpoint utama: <span className="font-mono">GET /api/v1/finance/overview-by-phone/{`{phone}`}</span></li>
-              <li>Output: DSR, plafon aman, integrity level, otaru index.</li>
-            </ul>
-            <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">cURL</p>
-              <pre className="mt-2 whitespace-pre-wrap break-all font-mono text-xs text-zinc-900">{financeScoringExample}</pre>
-            </div>
-            <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Output</p>
-              <pre className="mt-2 whitespace-pre-wrap break-all font-mono text-xs text-zinc-900">{financeResponseExample}</pre>
-            </div>
-          </div>
 
-          <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-5 lg:col-span-2 xl:col-span-1">
+
+          <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-5">
             <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Unified Decision Gate API</p>
             <h4 className="mt-2 text-lg font-semibold text-zinc-900">Combined chain & financial data</h4>
             <ul className="mt-4 space-y-2 text-sm text-zinc-700">

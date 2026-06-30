@@ -102,10 +102,9 @@ const CreditsCard = ({ stats, loading }: { stats: DashboardStats; loading: boole
           <line x1="21.17" x2="12" y1="8" y2="8" /><line x1="3.95" x2="8.54" y1="6.06" y2="14" /><line x1="10.88" x2="15.46" y1="21.94" y2="14" />
         </svg>
       </div>
-    </div>
     <div className="mt-4">
       <div className="text-4xl font-black tracking-tighter text-black flex items-baseline gap-1">
-        {loading ? "..." : stats.credits}<span className="text-xl text-gray-400 font-bold">/12</span>
+        {loading ? "..." : stats.credits}<span className="text-xl text-gray-400 font-bold">/10</span>
       </div>
       <p className="text-xs text-gray-500 mt-2 font-medium">Reset setiap hari jam 00:00</p>
     </div>

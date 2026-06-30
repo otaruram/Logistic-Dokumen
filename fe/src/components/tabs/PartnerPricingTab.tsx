@@ -1,5 +1,5 @@
-import React from "react";
-import { Shield, Zap, TrendingUp, CheckCircle2, AlertTriangle, Lock, Cpu, Phone } from "lucide-react";
+import React, { useState } from "react";
+import { Shield, Zap, TrendingUp, CheckCircle2, AlertTriangle, Lock, Cpu, Phone, X, QrCode } from "lucide-react";
 
 const TIERS = [
   {
@@ -8,7 +8,7 @@ const TIERS = [
     price: "Rp 0",
     cadence: "/ bulan",
     target: "Developer individu atau PoC internal koperasi.",
-    volumeLabel: "12 Requests",
+    volumeLabel: "10 Requests",
     volumeSub: "per bulan — Hard Limit",
     volumeIsHard: true,
     sla: "Best-effort (antrean standar)",
@@ -25,17 +25,16 @@ const TIERS = [
   {
     id: "launch",
     name: "Launch",
-    price: "Rp 199.000",
+    price: "Rp 299.000",
     cadence: "/ bulan",
-    target: "Koperasi mikro yang memulai pilot underwriting kredit.",
-    volumeLabel: "75 Requests",
+    target: "Koperasi mikro yang memulai pilot underwriting kredit (Fokus habit builder).",
+    volumeLabel: "900 Requests",
     volumeSub: "per bulan",
     volumeIsHard: false,
     sla: "Max 24 jam verifikasi",
     features: [
       "Semua fitur Developer",
-      "Debt Service Ratio (DSR)",
-      "Otaru Financial Metrics",
+      "Unified Decision Gate API",
       "2 Admin Partner Seats",
     ],
     popular: false,
@@ -45,11 +44,11 @@ const TIERS = [
   {
     id: "growth",
     name: "Scale",
-    price: "Rp 899.000",
+    price: "Rp 999.000",
     cadence: "/ bulan",
-    target: "Koperasi logistik aktif dengan underwriting harian.",
-    volumeLabel: "150 Requests",
-    volumeSub: "per hari",
+    target: "Koperasi logistik aktif dengan underwriting harian untuk mengurangi kredit macet.",
+    volumeLabel: "2.000 Requests",
+    volumeSub: "per bulan",
     volumeIsHard: false,
     sla: "Prioritas < 2 jam",
     features: [
@@ -61,6 +60,27 @@ const TIERS = [
     ],
     popular: true,
     cta: "Aktivasi & Bayar",
+    ctaDisabled: false,
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    price: "Rp 2.499.000",
+    cadence: "/ bulan",
+    target: "Jaringan koperasi berskala nasional atau volume tinggi.",
+    volumeLabel: "10.000 Requests",
+    volumeSub: "per bulan",
+    volumeIsHard: false,
+    sla: "Dedicated 99.9%",
+    features: [
+      "Semua fitur Scale",
+      "Dedicated Support",
+      "Custom Integrations",
+      "Unlimited Admin Seats",
+      "White-label portal",
+    ],
+    popular: false,
+    cta: "Hubungi Sales",
     ctaDisabled: false,
   },
 ];
@@ -83,8 +103,10 @@ export default function PartnerPricingTab({
   handleCheckout: (planId: string) => void;
   th: any;
 }) {
+  const [selectedCheckout, setSelectedCheckout] = useState<{ title: string; price: string; type: 'plan' | 'topup' } | null>(null);
+
   return (
-    <section className="space-y-10 py-10 bg-slate-950 text-slate-200 rounded-[2rem] px-4 sm:px-8 border border-slate-800">
+    <section className="space-y-10 py-10 bg-slate-950 text-slate-200 rounded-[2rem] px-4 sm:px-8 border border-slate-800 relative">
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col items-center text-center gap-4">
@@ -109,7 +131,7 @@ export default function PartnerPricingTab({
       )}
 
       {/* ── Pricing Grid ───────────────────────────────────────────────── */}
-      <div className="grid gap-5 lg:grid-cols-3 max-w-6xl mx-auto items-stretch">
+      <div className="grid gap-5 lg:grid-cols-4 max-w-7xl mx-auto items-stretch">
         {TIERS.map((tier) => (
           <div
             key={tier.id}
@@ -192,8 +214,17 @@ export default function PartnerPricingTab({
 
             {/* CTA */}
             <button
-              onClick={() => !tier.ctaDisabled && handleCheckout(tier.id)}
-              disabled={tier.ctaDisabled || checkoutLoadingPlan === tier.id}
+              onClick={() => {
+                if (!tier.ctaDisabled) {
+                  if (tier.id === 'enterprise') {
+                    // Placeholder for Hubungi Sales
+                    alert("Silakan hubungi sales@otaruchain.id");
+                  } else {
+                    setSelectedCheckout({ title: `Paket ${tier.name}`, price: tier.price, type: 'plan' });
+                  }
+                }
+              }}
+              disabled={tier.ctaDisabled}
               className={`w-full rounded-xl py-3 text-sm font-bold tracking-wide transition-all duration-200 ${
                 tier.ctaDisabled
                   ? "bg-slate-800 text-slate-600 cursor-default border border-slate-700"
@@ -202,28 +233,36 @@ export default function PartnerPricingTab({
                   : "bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 hover:border-slate-600"
               } disabled:opacity-60 disabled:cursor-not-allowed`}
             >
-              {checkoutLoadingPlan === tier.id ? "Memproses..." : tier.cta}
+              {tier.cta}
             </button>
           </div>
         ))}
       </div>
 
       {/* ── Overage Alert Banner ────────────────────────────────────────── */}
-      <div className="max-w-6xl mx-auto rounded-2xl border border-amber-800/50 bg-amber-950/30 p-5 flex flex-col sm:flex-row items-start gap-4">
-        <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-amber-900/50 border border-amber-700/50 flex items-center justify-center">
-          <AlertTriangle className="h-4 w-4 text-amber-400" />
+      <div className="max-w-7xl mx-auto rounded-2xl border border-amber-800/50 bg-amber-950/30 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start gap-4">
+          <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-amber-900/50 border border-amber-700/50 flex items-center justify-center">
+            <AlertTriangle className="h-4 w-4 text-amber-400" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-amber-300 mb-1">Overage Credit System</p>
+            <p className="text-xs text-amber-500/90 leading-relaxed max-w-2xl">
+              Kuota ekstra di luar paket bulanan akan dikenakan <span className="font-semibold text-amber-400">Pay-per-Query Rp 3.000 – Rp 5.000 per request</span> menggunakan sistem deposit kredit.
+              Kredit dapat diisi kapan saja melalui portal Partner tanpa perlu upgrade plan.
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-bold text-amber-300 mb-1">Overage Credit System</p>
-          <p className="text-xs text-amber-500/90 leading-relaxed">
-            Kuota ekstra di luar paket bulanan akan dikenakan <span className="font-semibold text-amber-400">Pay-per-Query Rp 3.000 – Rp 5.000 per request</span> menggunakan sistem deposit kredit.
-            Kredit dapat diisi kapan saja melalui portal Partner tanpa perlu upgrade plan.
-          </p>
-        </div>
+        <button
+          onClick={() => setSelectedCheckout({ title: "Top-up Kredit (100 Requests)", price: "Rp 300.000", type: "topup" })}
+          className="flex-shrink-0 whitespace-nowrap rounded-xl bg-amber-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-amber-500 transition-colors shadow-lg shadow-amber-900/20"
+        >
+          Top-up Sekarang
+        </button>
       </div>
 
       {/* ── Gamification Benefit Context (TBA) ─────────────────────────── */}
-      <div className="max-w-6xl mx-auto rounded-2xl border border-slate-700 bg-slate-900/60 p-5 space-y-3">
+      <div className="max-w-7xl mx-auto rounded-2xl border border-slate-700 bg-slate-900/60 p-5 space-y-3">
         <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
           Konteks Benefit (TBA) • berlaku sinkron di otaruchain.id dan otaruchain.id/partner
         </p>
@@ -253,6 +292,55 @@ export default function PartnerPricingTab({
       <p className="text-center text-[11px] text-slate-700">
         Minimisasi data ketat diterapkan. Tidak ada penyimpanan atau transmisi NIK. Semua pencarian murni terikat pada Nomor Handphone.
       </p>
+
+      {/* ── QR Code Payment Modal ──────────────────────────────────────── */}
+      {selectedCheckout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden relative">
+            <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  {selectedCheckout.type === 'topup' ? 'Top-up Kuota' : 'Aktivasi Layanan'}
+                </p>
+                <h3 className="text-base font-semibold text-white mt-0.5">{selectedCheckout.title}</h3>
+              </div>
+              <button
+                onClick={() => setSelectedCheckout(null)}
+                className="rounded-full bg-slate-800 p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            
+            <div className="p-6 flex flex-col items-center text-center">
+              <div className="mb-6 rounded-2xl bg-white p-3 shadow-inner">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=OtaruChain-Payment-${selectedCheckout.price.replace(/\D/g,'')}`} 
+                  alt="QRIS Payment"
+                  className="w-48 h-48 rounded-lg"
+                />
+              </div>
+              
+              <p className="text-xs text-slate-400 mb-2">Scan QRIS ini menggunakan M-Banking atau E-Wallet Anda untuk menyelesaikan pembayaran.</p>
+              
+              <div className="w-full rounded-xl border border-slate-700 bg-slate-800/50 p-4 mt-2">
+                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Total Tagihan</p>
+                <p className="mt-1 text-2xl font-extrabold text-white">{selectedCheckout.price}</p>
+              </div>
+
+              <button
+                onClick={() => {
+                  alert("Pembayaran berhasil diverifikasi (Simulasi Hackathon)!");
+                  setSelectedCheckout(null);
+                }}
+                className="mt-6 w-full rounded-xl bg-violet-600 py-3.5 text-sm font-bold text-white hover:bg-violet-500 transition-colors shadow-lg shadow-violet-900/30"
+              >
+                Saya Sudah Membayar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

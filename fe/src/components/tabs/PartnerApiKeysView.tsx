@@ -3,22 +3,17 @@ import { KeyRound, RefreshCw, Trash2, Copy, Phone, Loader2, CheckCircle2 } from 
 
 interface Props {
   apiKey: any;
-  financeApiKey: any;
   decisionApiKey?: any;
   apiKeyLoading: boolean;
-  financeApiKeyLoading: boolean;
   decisionApiKeyLoading?: boolean;
   pageLoading: boolean;
   authError: string | null;
   fmtDate: (iso?: string) => string;
   isMaskedKey: (key: string) => boolean;
   generateKey: () => void;
-  generateFinanceKey: () => void;
   generateDecisionKey?: () => void;
   revokeKey: () => void;
-  revokeFinanceKey: () => void;
   fetchMyKey: () => void;
-  fetchMyFinanceKey: () => void;
   handleCopy: (value: string, label: string) => void;
   profilePhone: string;
   phoneSyncLoading: boolean;
@@ -127,13 +122,13 @@ function KeyCard({
 
 export default function PartnerApiKeysView(props: Props) {
   const {
-    apiKey, financeApiKey, decisionApiKey,
-    apiKeyLoading, financeApiKeyLoading, decisionApiKeyLoading,
+    apiKey, decisionApiKey,
+    apiKeyLoading, decisionApiKeyLoading,
     pageLoading, authError,
     fmtDate, isMaskedKey,
-    generateKey, generateFinanceKey, generateDecisionKey,
-    revokeKey, revokeFinanceKey,
-    fetchMyKey, fetchMyFinanceKey,
+    generateKey, generateDecisionKey,
+    revokeKey,
+    fetchMyKey,
     handleCopy,
     profilePhone,
     phoneSyncLoading,
@@ -212,30 +207,7 @@ export default function PartnerApiKeysView(props: Props) {
           onRefresh={fetchMyKey}
         />
 
-        <KeyCard
-          title="Otaru Financial Key"
-          subtitle="Financial Health Access"
-          description={
-            <>
-              <p><b>Kemampuan API:</b> Credit readiness, DSR health, cicilan aktif, plafon aman, salary verification.</p>
-              <ul className="space-y-1.5 text-zinc-700 ml-4 list-disc">
-                <li>Verifikasi gaji dan repayment signal.</li>
-                <li>Capacity to pay assessment via DSR.</li>
-                <li>Plafon aman untuk aman lending.</li>
-              </ul>
-            </>
-          }
-          keyObj={financeApiKey}
-          loading={financeApiKeyLoading}
-          pageLoading={pageLoading}
-          fmtDate={fmtDate}
-          isMaskedKey={isMaskedKey}
-          maskedWarning
-          onGenerate={generateFinanceKey}
-          onRevoke={revokeFinanceKey}
-          onCopy={() => financeApiKey && handleCopy(financeApiKey.key_value, "api-key-finance")}
-          onRefresh={fetchMyFinanceKey}
-        />
+
 
         <KeyCard
           title="Otaru Decision Key"

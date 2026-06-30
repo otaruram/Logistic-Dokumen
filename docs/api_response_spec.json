@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OtaruChain Decision API — Response Specification",
+  "description": "Canonical JSON output structure for the Unified Decision Gate (POST /api/v1/decision). This feeds the React.js Partner Portal dashboard.",
+  "version": "3.0.0",
+
+  "decision_response_example": {
+    "success": true,
+    "assessment_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "timestamp": "2026-06-30T22:30:00.000Z",
+
+    "worker": {
+      "phone_number": "+6281234567890",
+      "full_name": "Ahmad Suparman",
+      "company": "PT Maju Bersama Manufacturing",
+      "department": "Produksi",
+      "koperasi_member_since": "2023-01-15"
+    },
+
+    "status_rekomendasi": "APPROVE",
+    "decision_reasoning": "AI integrity check passed — receipt appears authentic | Sufficient capacity. Projected DSR 31.71% is well within the 70% threshold. | Trust score: 82.5/100 (GOLD). Eligible for expedited approval and reduced interest rates.",
+
+    "ai_integrity_analysis": {
+      "status": "PASS",
+      "receipt_image_url": "https://ik.imagekit.io/otaruchain/receipts/6281234567890/1719784200.jpg",
+      "ocr_extracted": {
+        "merchant_name": "Toko Bangunan Jaya",
+        "transaction_date": "2026-06-28",
+        "items": [
+          { "name": "Semen Tiga Roda 50kg", "qty": 2, "unit_price": 72000, "total": 144000 },
+          { "name": "Besi Beton 10mm", "qty": 10, "unit_price": 85000, "total": 850000 }
+        ],
+        "grand_total": 994000,
+        "currency": "IDR"
+      },
+      "tampering_assessment": {
+        "score": 8.5,
+        "verdict": "LOW_RISK",
+        "details": "No significant signs of digital manipulation detected. EXIF metadata consistent. Font rendering uniform across all text regions."
+      },
+      "price_anomalies": {
+        "flagged_items": [],
+        "anomaly_count": 0,
+        "assessment": "All item prices fall within expected Indonesian market ranges for construction materials."
+      },
+      "processing_time_ms": 3240.5
+    },
+
+    "financial_capacity": {
+      "status": "SAFE",
+      "verified_monthly_income": 5500000,
+      "existing_obligations": {
+        "active_loans": [
+          {
+            "type": "KOPERASI",
+            "monthly_installment": 750000,
+            "remaining_months": 8
+          }
+        ],
+        "total_monthly_debt": 750000
+      },
+      "proposed_addition": 994000,
+      "debt_service_ratio": {
+        "current_dsr": 0.1364,
+        "projected_dsr": 0.3171,
+        "dsr_threshold": 0.70,
+        "headroom": 0.3829
+      },
+      "verdict": "Sufficient capacity. Projected DSR 31.71% is well within the 70% threshold."
+    },
+
+    "gamification_trust_score": {
+      "overall_score": 82.5,
+      "tier": "GOLD",
+      "components": {
+        "repayment_streak": { "months": 11, "multiplier": 1.4 },
+        "receipt_authenticity_rate": { "passed": 23, "total": 24, "rate": 0.9583 },
+        "cooperative_tenure_months": 42,
+        "fraud_flags": 0
+      },
+      "benefits": "Eligible for expedited approval and reduced interest rates."
+    },
+
+    "sha256_seal": null,
+    "seal_status": "PENDING_ADMIN_REVIEW",
+    "seal_note": "SHA-256 cryptographic seal will be generated upon admin approval/rejection."
+  },
+
+  "admin_approval_response_example": {
+    "success": true,
+    "assessment_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "admin_action": "APPROVE",
+    "sha256_seal": {
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sealed_at": "2026-06-30T22:35:00.000Z",
+      "sealed_by": "admin_koperasi_01",
+      "payload_frozen": true
+    },
+    "ledger_entry_id": "f7e8d9c0-b1a2-3456-7890-abcdef123456",
+    "immutability_guarantee": "Any modification to the sealed payload will invalidate the SHA-256 hash. Verify at GET /api/v1/ledger/verify/{hash}"
+  },
+
+  "ledger_verification_response_examples": {
+    "intact": {
+      "hash_provided": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "is_valid": true,
+      "status": "INTACT",
+      "assessment_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "sealed_at": "2026-06-30T22:35:00.000Z",
+      "details": "Cryptographic seal is valid. Payload has not been tampered with."
+    },
+    "tampered": {
+      "hash_provided": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "is_valid": false,
+      "status": "TAMPERED",
+      "assessment_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "sealed_at": "2026-06-30T22:35:00.000Z",
+      "details": "CRITICAL: Cryptographic seal BROKEN. The stored payload has been modified after sealing. This record's integrity is compromised."
+    },
+    "not_found": {
+      "hash_provided": "0000000000000000000000000000000000000000000000000000000000000000",
+      "is_valid": false,
+      "status": "NOT_FOUND",
+      "assessment_id": null,
+      "sealed_at": null,
+      "details": "No ledger entry found with this hash."
+    }
+  },
+
+  "error_response_example": {
+    "success": false,
+    "error_code": "WORKER_NOT_FOUND",
+    "message": "Worker with phone +628123*** not found or inactive",
+    "details": null,
+    "timestamp": "2026-06-30T22:30:00.000Z"
+  },
+
+  "status_rekomendasi_values": {
+    "APPROVE": "All checks passed. Safe to proceed with disbursement.",
+    "REJECT": "Critical threshold breached (DSR >70%, fraud detected, or very low trust). Do not disburse.",
+    "REVISI": "One or more checks raised warnings. Manual admin review required before decision."
+  },
+
+  "saas_pricing_tiers": {
+    "launch": {
+      "name": "Launch",
+      "price_per_month_idr": 199000,
+      "max_workers": 50,
+      "features": ["Decision API", "Basic Dashboard", "SHA-256 Ledger"]
+    },
+    "growth": {
+      "name": "Growth",
+      "price_per_month_idr": 499000,
+      "max_workers": 200,
+      "features": ["Decision API", "Full Dashboard", "SHA-256 Ledger", "Gamification Analytics", "Priority Support"]
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "price_per_month_idr": "Custom",
+      "max_workers": "Unlimited",
+      "features": ["Everything in Growth", "Custom Rules Engine", "API Whitelabel", "SLA", "Dedicated Account Manager"]
+    }
+  },
+
+  "serverless_opex_estimate": {
+    "monthly_range_idr": "750000 - 900000",
+    "breakdown": {
+      "supabase_pro": "Rp 350.000 (25GB database, 250GB bandwidth)",
+      "gemini_flash_api": "Rp 150.000 - 300.000 (pay-per-use, ~1000 assessments/month)",
+      "imagekit_free_tier": "Rp 0 (20GB bandwidth/month)",
+      "vercel_hobby": "Rp 0 (frontend hosting)",
+      "domain_ssl": "Rp 250.000/year"
+    }
+  }
+}
