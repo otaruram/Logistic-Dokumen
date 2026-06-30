@@ -39,16 +39,6 @@ export default function PartnerPlaygrounds({
     }
   }, []);
 
-  if (!decisionApiKey) {
-    return (
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center text-zinc-500">
-        Generate API key terlebih dahulu untuk menggunakan Playgrounds.
-      </div>
-    );
-  }
-
-
-
   const handleDecisionSearch = useCallback(
     async (event: React.FormEvent) => {
       event.preventDefault();
@@ -88,6 +78,15 @@ export default function PartnerPlaygrounds({
     },
     [decisionSearchPhone, decisionApiKey, API]
   );
+
+  if (!decisionApiKey) {
+    return (
+      <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center text-zinc-500">
+        Generate API key terlebih dahulu untuk menggunakan Playgrounds.
+      </div>
+    );
+  }
+
 
   return (
     <div className="space-y-6">
