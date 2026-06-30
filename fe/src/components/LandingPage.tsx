@@ -59,7 +59,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
     {
       icon: <Cloud className="w-6 h-6" />,
       title: "B2B Partner API",
-      desc: "P2P Lenders can pull JSON Risk Profiles and Credit Scores directly into their underwriting systems.",
+      desc: "Integrasi satu pintu (plug-and-play) ke sistem koperasi Anda. Tarik data profil risiko dan kelayakan kredit secara instan langsung ke dalam sistem underwriting Anda.",
       color: "from-yellow-500 to-amber-500"
     },
     {
@@ -85,7 +85,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
   const steps = [
     { num: "01", title: "Upload", desc: "Take a photo or upload any document — receipt, invoice, or surat jalan." },
     { num: "02", title: "AI Analyzes", desc: "Our AI extracts text, detects fraud, and structures financial data automatically." },
-    { num: "03", title: "Get Results", desc: "View digitized data, verify authenticity, export to Drive, or generate invoices." },
+    { num: "03", title: "Get Results", desc: "Dapatkan output instan berupa Trust Grade dan pembuatan Immutable Audit Trail menggunakan kriptografi SHA-256 secara langsung." },
   ];
 
   return (
@@ -139,7 +139,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
             </h1>
 
             <p className="text-lg md:text-xl text-gray-400 max-w-3xl mx-auto mb-12 leading-relaxed">
-              Infrastruktur perlindungan finansial dan dokumen digital terpadu. Kami memadukan OtaruChain untuk verifikasi dokumen anti-fraud (OCR & Kriptografi) dengan OtaruFinancial untuk manajemen kasbon karyawan berbasis AI yang mematuhi standar rasio kredit BI & OJK.
+              Infrastruktur perlindungan finansial dan dokumen digital terpadu. OtaruChain menghadirkan verifikasi dokumen anti-fraud berbasis AI dan manajemen kredit karyawan yang terintegrasi penuh melalui satu pintu <b>Otaru Decision API</b>, mematuhi standar rasio kredit BI & OJK.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
