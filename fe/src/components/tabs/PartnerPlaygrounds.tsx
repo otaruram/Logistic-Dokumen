@@ -104,11 +104,12 @@ export default function PartnerPlaygrounds({
       </div>
 
       <div className="grid gap-5 lg:grid-cols-1">
+        <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+          <div>
             <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Playground</p>
             <h2 className="mt-1 text-xl font-semibold text-zinc-900">Unified Decision Gate</h2>
           </div>
-        </div>
-        <p className="mt-2 text-xs text-zinc-600">Gabungan chain + financial info menjadi 1 final grade & rekomendasi.</p>
+          <p className="mt-2 text-xs text-zinc-600">Gabungan chain + financial info menjadi 1 final grade & rekomendasi.</p>
         <form onSubmit={handleDecisionSearch} className="mt-4 flex flex-col gap-2 sm:flex-row">
           <input
             type="tel"
