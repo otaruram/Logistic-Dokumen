@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { APP_CONFIG } from "@/constants";
 import GamificationCard from "./GamificationCard";
+import TransactionTable, { Transaction } from "../TransactionTable";
 import {
   PieChart, Pie, Cell, ResponsiveContainer,
 } from "recharts";
@@ -449,6 +450,8 @@ const DashboardTab = () => {
   const [usdRate, setUsdRate] = useState(USD_RATE_FALLBACK);
   const [kasbonHistory, setKasbonHistory] = useState<KasbonHistoryItem[]>([]);
   const [kasbonLoading, setKasbonLoading] = useState(true);
+  const [auditTrail, setAuditTrail] = useState<Transaction[]>([]);
+  const [auditTrailLoading, setAuditTrailLoading] = useState(true);
   const isMounted = useRef(true);
   const refreshInFlight = useRef(false);
   const backendFailureCount = useRef(0);
@@ -653,6 +656,30 @@ const DashboardTab = () => {
     }
   }, []);
 
+  const fetchAuditTrail = useCallback(async () => {
+    setAuditTrailLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setAuditTrail([]);
+        return;
+      }
+      const res = await fetch(`${API_URL}/api/kasbon/audit-trail`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) {
+        setAuditTrail([]);
+        return;
+      }
+      const data = await res.json();
+      setAuditTrail(data?.transactions || []);
+    } catch {
+      setAuditTrail([]);
+    } finally {
+      setAuditTrailLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     isMounted.current = true;
     let subscription: ReturnType<typeof supabase.channel>;
@@ -691,6 +718,7 @@ const DashboardTab = () => {
       // Immediate refresh + delayed refresh to avoid DB write race conditions.
       fetchDashboardData(true);
       fetchKasbonHistory();
+      fetchAuditTrail();
       setTimeout(() => {
         if (isMounted.current) fetchDashboardData(true);
       }, 1500);
@@ -715,7 +743,7 @@ const DashboardTab = () => {
       if (realtimePoll) clearInterval(realtimePoll);
       if (subscription) supabase.removeChannel(subscription);
     };
-  }, [fetchDashboardData, fetchKasbonHistory]);
+  }, [fetchDashboardData, fetchKasbonHistory, fetchAuditTrail]);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] p-6 space-y-6 text-white font-sans pb-32">
@@ -746,7 +774,12 @@ const DashboardTab = () => {
 
       {/* Info Cards */}
       <SecurityInfoCard />
-      <KasbonHistoryCard items={kasbonHistory} loading={kasbonLoading} />
+      
+      {/* Kasbon History & Audit Trail */}
+      <div className="space-y-4 pt-4">
+        <KasbonHistoryCard items={kasbonHistory} loading={kasbonLoading} />
+        <TransactionTable transactions={auditTrail} loading={auditTrailLoading} />
+      </div>
     </div>
   );
 };

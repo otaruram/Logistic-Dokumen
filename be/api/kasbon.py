@@ -604,6 +604,61 @@ async def get_loan_history(current_user: dict = Depends(get_supabase_bearer_user
     return {"history": getattr(res, "data", None) or []}
 
 
+@router.get("/audit-trail")
+async def get_audit_trail(current_user: dict = Depends(get_supabase_bearer_user)):
+    """Return all loan_requests (Audit Trail) enriched with profile info for the Koperasi Admin."""
+    sb = _sb()
+    user_email = (current_user.get("email") or "").lower().strip()
+    
+    # Optional: check if authorized admin. For now, we allow it if they are logged in as admin.
+    if not _is_authorized_admin(sb, user_email):
+        raise HTTPException(status_code=403, detail="Admin only.")
+        
+    _ensure_loan_requests_ready(sb)
+    
+    res = (
+        sb.table("loan_requests")
+        .select("id, nik, nominal_pengajuan, image_url, ai_indicator, sha256_hash, submitted_at, status")
+        .order("submitted_at", desc=True)
+        .limit(100)
+        .execute()
+    )
+    rows = getattr(res, "data", None) or []
+    
+    nik_list = list({r.get("nik") for r in rows if r.get("nik")})
+    profile_map = {}
+    if nik_list:
+        prof_res = sb.table("profiles").select("nik, full_name, phone_number").in_("nik", nik_list).execute()
+        prof_rows = getattr(prof_res, "data", None) or []
+        profile_map = {p.get("nik"): p for p in prof_rows if p.get("nik")}
+        
+    transactions = []
+    for r in rows:
+        nik = r.get("nik")
+        prof = profile_map.get(nik, {})
+        
+        # Mapping final status just like UI for consistency
+        final_status = r.get("status")
+        ai_indicator = r.get("ai_indicator")
+        if ai_indicator == "TAMPERED" or final_status == "REJECTED":
+            final_status = "REJECTED"
+        elif ai_indicator == "UNCLEAR_BLURRY" or final_status == "NEED_REVISION":
+            final_status = "REVISION"
+        
+        transactions.append({
+            "id": r.get("id"),
+            "date": r.get("submitted_at"),
+            "workerName": prof.get("full_name") or nik or "Unknown Worker",
+            "phone": prof.get("phone_number") or "-",
+            "nominal": int(r.get("nominal_pengajuan") or 0),
+            "status": final_status,
+            "fileUrl": r.get("image_url") or "",
+            "hash": r.get("sha256_hash") or "Menunggu verifikasi..."
+        })
+        
+    return {"transactions": transactions}
+
+
 # ── Admin Access Request System ───────────────────────────────────────────────
 
 class AdminAccessRequest(BaseModel):

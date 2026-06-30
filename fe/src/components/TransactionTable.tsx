@@ -92,8 +92,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
   };
 
   return (
-    <div className="w-full bg-[#0a0a0a] min-h-screen p-6 text-zinc-100 font-sans">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full font-sans">
+      <div className="w-full space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white">Master Data / Audit Trail</h1>

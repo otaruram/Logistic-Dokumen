@@ -6,6 +6,7 @@ import PartnerPricingTab from "@/components/tabs/PartnerPricingTab";
 import PartnerDashboardTab from "@/components/tabs/PartnerDashboardTab";
 import PartnerPlaygrounds from "@/components/tabs/PartnerPlaygrounds";
 import PartnerApiKeysView from "@/components/tabs/PartnerApiKeysView";
+import PartnerAuditTrailTab from "@/components/tabs/PartnerAuditTrailTab";
 import { pricingPlans, partnerProducts, themeConfig, PortalTheme } from "./PartnerPortalConstants";
 import {
   ArrowRight,
@@ -115,7 +116,7 @@ interface BadgeProgress {
   plafon_bonus: number;
   progress_pct: number;
 }
-type PartnerView = "dashboard" | "api" | "docs" | "pricing" | "queue";
+type PartnerView = "dashboard" | "api" | "docs" | "pricing" | "queue" | "audit-trail";
 
 function fmt(value: number): string {
   return value.toLocaleString('id-ID');
@@ -479,6 +480,7 @@ export default function PartnerPortal() {
                 { id: "docs", label: "Docs", icon: TerminalSquare },
                 { id: "pricing", label: "Pricing", icon: Wallet },
                 { id: "queue", label: "Approval Queue", icon: ClipboardList },
+                { id: "audit-trail", label: "Audit Trail", icon: BarChart3 },
               ] as Array<{ id: PartnerView; label: string; icon: React.ComponentType<{ className?: string }> }>
             ).map((item) => {
               const Icon = item.icon;
@@ -550,6 +552,7 @@ export default function PartnerPortal() {
               { id: "docs", label: "Docs" },
               { id: "pricing", label: "Pricing" },
               { id: "queue", label: "Approval Queue" },
+              { id: "audit-trail", label: "Audit Trail" },
             ] as Array<{ id: PartnerView; label: string }>
           ).map((item) => (
             <button
@@ -637,10 +640,14 @@ export default function PartnerPortal() {
               />
             )}
 
-            {activeView === "queue" && (
+            { activeView === "queue" && (
               <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
                 <ApprovalQueueTab />
               </section>
+            )}
+
+            { activeView === "audit-trail" && (
+              <PartnerAuditTrailTab />
             )}
           </>
         )}
