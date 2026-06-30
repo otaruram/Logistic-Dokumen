@@ -2,62 +2,29 @@ import React, { useState } from 'react';
 import { Copy, ExternalLink, ChevronLeft, ChevronRight, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Mock Data
-const MOCK_TRANSACTIONS = [
-  {
-    id: 'TRX-101',
-    date: '2026-07-01T08:30:00',
-    workerName: 'Budi Santoso',
-    phone: '+62 812-3456-7890',
-    nominal: 500000,
-    status: 'APPROVED',
-    fileUrl: 'https://ik.imagekit.io/demo/tr:w-300/sample_receipt.jpg',
-    hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
-  },
-  {
-    id: 'TRX-102',
-    date: '2026-07-01T09:15:22',
-    workerName: 'Siti Aminah',
-    phone: '+62 813-9876-5432',
-    nominal: 750000,
-    status: 'REVISION',
-    fileUrl: 'https://ik.imagekit.io/demo/tr:w-300/sample_receipt2.jpg',
-    hash: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'
-  },
-  {
-    id: 'TRX-103',
-    date: '2026-07-01T10:05:10',
-    workerName: 'Agus Pratama',
-    phone: '+62 819-1122-3344',
-    nominal: 1200000,
-    status: 'REJECTED',
-    fileUrl: 'https://ik.imagekit.io/demo/tr:w-300/sample_receipt3.jpg',
-    hash: '4a0a19218e082a343a1b17e5333409af9d98f0f5b4d45d9475148006b52865b4'
-  },
-  // Add more items to demonstrate pagination
-];
+export interface Transaction {
+  id: string;
+  date: string;
+  workerName: string;
+  phone: string;
+  nominal: number;
+  status: string;
+  fileUrl: string;
+  hash: string;
+}
 
-// Generate extra mock data to reach more than 10 rows
-for (let i = 4; i <= 25; i++) {
-  MOCK_TRANSACTIONS.push({
-    id: `TRX-10${i}`,
-    date: new Date(new Date('2026-07-01T10:05:10').getTime() + i * 15 * 60000).toISOString(),
-    workerName: `Worker ${i}`,
-    phone: `+62 851-0000-00${i.toString().padStart(2, '0')}`,
-    nominal: Math.floor(Math.random() * 10 + 1) * 100000,
-    status: i % 3 === 0 ? 'REJECTED' : i % 5 === 0 ? 'REVISION' : 'APPROVED',
-    fileUrl: 'https://ik.imagekit.io/demo/tr:w-300/sample_receipt.jpg',
-    hash: Array(64).fill(0).map(() => Math.random().toString(16)[2]).join('').padEnd(64, '0')
-  });
+interface TransactionTableProps {
+  transactions: Transaction[];
+  loading?: boolean;
 }
 
 const ITEMS_PER_PAGE = 10;
 
-const TransactionTable: React.FC = () => {
+const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loading = false }) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = Math.ceil(MOCK_TRANSACTIONS.length / ITEMS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(transactions.length / ITEMS_PER_PAGE));
 
-  const paginatedData = MOCK_TRANSACTIONS.slice(
+  const paginatedData = transactions.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
@@ -149,7 +116,20 @@ const TransactionTable: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {paginatedData.map((trx) => (
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-zinc-500">
+                      Memuat data transaksi...
+                    </td>
+                  </tr>
+                ) : paginatedData.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-zinc-500">
+                      Belum ada transaksi untuk client ini.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedData.map((trx) => (
                   <tr key={trx.id} className="hover:bg-white/[0.02] transition-colors">
                     <td className="px-6 py-4">
                       <span className="text-zinc-300 font-medium">{formatDate(trx.date)}</span>
@@ -192,7 +172,7 @@ const TransactionTable: React.FC = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
