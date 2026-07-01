@@ -510,7 +510,7 @@ async def get_approval_queue(current_user: dict = Depends(get_supabase_bearer_us
 
         result.append({
             **{k: v for k, v in r.items() if k != "ocr_raw"},
-            "nama_lengkap": prof.get("full_name") or "-",
+            "nama_lengkap": ocr_raw.get("recipient_name") or prof.get("full_name") or "-",
             "limit_pinjaman": limit_pinjaman,
             "kasbon_aktif": kasbon_aktif_total,
             "kasbon_pending": kasbon_pending_total,

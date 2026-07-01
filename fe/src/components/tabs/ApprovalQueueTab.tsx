@@ -576,8 +576,8 @@ export default function ApprovalQueueTab() {
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-xl font-semibold text-zinc-900">Antrean Kasbon</h2>
-          <p className="text-sm text-zinc-500 mt-0.5">Pengajuan yang menunggu persetujuan koperasi.</p>
+          <h2 className="text-xl font-semibold text-zinc-900">Antrean Dokumen</h2>
+          <p className="text-sm text-zinc-500 mt-0.5">Pengajuan yang menunggu verifikasi koperasi.</p>
         </div>
         <div className="flex items-center gap-2">
           {userEmail === "okitr52@gmail.com" && (
@@ -698,10 +698,10 @@ export default function ApprovalQueueTab() {
                 <div className="border-t border-zinc-100 px-5 py-4 bg-zinc-50 space-y-4">
                   {/* Limit grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <InfoCard label="Limit Kasbon" value={fmtRp(loan.limit_pinjaman)} />
-                    <InfoCard label="Total Kasbon Aktif" value={fmtRp(loan.kasbon_aktif)} valueClass="text-amber-600" />
+                    <InfoCard label="Kuota Sistem" value={fmtRp(loan.limit_pinjaman)} />
+                    <InfoCard label="Dokumen Aktif" value={fmtRp(loan.kasbon_aktif)} valueClass="text-amber-600" />
                     <InfoCard
-                      label="Sisa Limit Kasbon"
+                      label="Sisa Kuota Validasi"
                       value={fmtRp(loan.sisa_limit)}
                       valueClass={loan.sisa_limit <= 0 ? "text-red-600" : "text-emerald-600"}
                     />
@@ -712,7 +712,7 @@ export default function ApprovalQueueTab() {
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
                       <p className="text-[11px] text-amber-800">
                         Reservasi pending: <span className="font-bold">{fmtRp(loan.kasbon_pending ?? 0)}</span>
-                        <span className="text-amber-700"> (ikut mengurangi sisa limit sementara)</span>
+                        <span className="text-amber-700"> (ikut mengurangi sisa kuota sementara)</span>
                       </p>
                     </div>
                   )}
@@ -880,8 +880,8 @@ export default function ApprovalQueueTab() {
             </div>
 
             {/* Tanda Tangan Digital */}
-            <p className="text-xs text-zinc-500 mb-2">
-              Tandatangani di bawah untuk menyetujui pengajuan kasbon ini:
+            <p className="text-sm text-zinc-500 mb-6">
+              Tandatangani di bawah untuk memvalidasi dokumen logistik ini:
             </p>
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <button
