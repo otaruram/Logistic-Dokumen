@@ -74,9 +74,12 @@ Mengapa harga ini sangat masuk akal bagi Koperasi?
 - **Tier Enterprise (Custom Pricing):** Volume 10.000+ Request/bulan (SLA 99.9% & White-label), dirancang untuk jaringan ritel atau pabrik berskala nasional. Harga disesuaikan berdasarkan arsitektur (On-Premise vs Cloud) dan SLA.
 *(Setiap kelebihan kuota di luar Tier Enterprise dikenakan Overage Fee sebesar Rp 3.000 - Rp 5.000 / request, mengamankan margin profit OtaruChain saat terjadi lonjakan traffic jam pergantian shift).*
 
-### 2. Credit Lead-Gen & Take Rate (Revenue Backbone Alternatif)
-Sebagai Enabler infrastruktur, OtaruChain akan menampung banyak profil pekerja (Platinum & Gold) yang memiliki *Credit Score* istimewa. Jika Koperasi internal tidak memiliki likuiditas dana yang cukup untuk membiayai *user* Platinum tersebut, OtaruChain bertindak sebagai **Lead Generator**. Kami melempar profil unggul tersebut (dengan *consent* pengguna) ke Bank atau platform P2P eksternal yang mencari debitur berkualitas.
-- **Model Monetisasi:** OtaruChain mengambil **Success Fee (Take Rate) sebesar 1% - 2%** dari setiap pinjaman eksternal yang berhasil dicairkan. Ini adalah potensi profit miliaran rupiah (Holy Grail B2B Fintech) yang jauh lebih masif dari sekadar biaya langganan bulanan.
+### 🗺️ Fase Ekpansi & Roadmap Monetisasi (Credit Lead-Gen)
+Kami sangat menyadari bahwa sebagai entitas baru (Day-1), menjual prospek kredit langsung ke Bank adalah bentuk *overclaiming*. Oleh karena itu, skema **Credit Lead-Gen (Take Rate)** kami posisikan sebagai *Roadmap Fase 2* setelah OtaruChain mencapai *critical mass*.
+
+Ketika data historis sudah matang, OtaruChain bertindak sebagai **Lead Generator** untuk Bank/P2P eksternal dengan *Syarat & Ketentuan (Risk Mitigation)* yang sangat ketat:
+- **Eligibilitas Super Ketat:** Hanya pengguna dengan **Usia Akun Minimal 3 Bulan** (memiliki rekam jejak konsisten) DAN telah mencapai **Tier Gold atau Platinum** yang berhak diproyeksikan ke pemberi pinjaman eksternal.
+- **Model Monetisasi (Backbone):** OtaruChain memungut **Success Fee (Take Rate) sebesar 1% - 2%** dari setiap pinjaman eksternal yang berhasil dicairkan. Pendekatan berbasis *meritokrasi* ini mengamankan Bank dari kredit macet sekaligus membuka potensi profit eksponensial (di luar batas pendapatan langganan API) bagi OtaruChain.
 
 ---
 
