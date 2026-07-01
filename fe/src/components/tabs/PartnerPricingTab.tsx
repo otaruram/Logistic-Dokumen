@@ -118,8 +118,7 @@ export default function PartnerPricingTab({
           Harga terprediksi untuk setiap skala
         </h1>
         <p className="max-w-xl text-sm leading-relaxed text-slate-400">
-          Satu paket untuk dua product layer — OtaruChain document intelligence
-          &amp; Otaru Financial credit readiness. Scale underwriting dengan clean business logic.
+          Satu paket untuk document intelligence & credit decision api. Scale underwriting dengan clean business logic.
         </p>
       </div>
 
@@ -267,7 +266,7 @@ export default function PartnerPricingTab({
           <div className="rounded-xl border border-amber-700/40 bg-amber-950/20 p-4">
             <p className="text-sm font-bold text-amber-300">Gold</p>
             <p className="text-xs text-slate-300 mt-1">≥ 150 Dokumen Lolos Audit · Priority</p>
-            <p className="text-xs text-amber-200 mt-2">+ Bonus Plafon +Rp 1 Juta</p>
+            <p className="text-xs text-amber-200 mt-2">+ Plafon Maksimal up to Rp 10 Juta</p>
             <p className="text-xs text-amber-200">+ Diskon Biaya Admin Koperasi 0.5%</p>
             <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
               Benefit aktif berbasis meritokrasi perilaku anggota Koperasi. Evaluasi otomatis dari kualitas dan konsistensi dokumen bulan berjalan.
