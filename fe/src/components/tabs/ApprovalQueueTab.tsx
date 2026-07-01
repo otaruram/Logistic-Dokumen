@@ -42,6 +42,7 @@ export interface LoanRequest {
   kasbon_pending?: number;
   sisa_limit: number;
   sisa_kredit: number;
+  member_since?: string;
   // SOP fields
   tenor_bulan: number | null;
   cicilan_sistem: number | null;
@@ -720,6 +721,11 @@ export default function ApprovalQueueTab() {
                   {/* SOP grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <InfoCard label="No. Referensi" value={loan.no_referensi || "-"} valueClass="font-mono" />
+
+                    <InfoCard
+                      label="Tanggal Bergabung"
+                      value={loan.member_since ? new Date(loan.member_since).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' }) : "-"}
+                    />
 
                     <InfoCard
                       label="DSR Status"

@@ -442,7 +442,7 @@ async def get_approval_queue(current_user: dict = Depends(get_supabase_bearer_us
     if nik_list:
         prof_res = (
             sb.table("profiles")
-            .select("id, nik, full_name, limit_pinjaman, credits")
+            .select("id, nik, full_name, limit_pinjaman, credits, created_at")
             .in_("nik", nik_list)
             .execute()
         )
@@ -516,6 +516,7 @@ async def get_approval_queue(current_user: dict = Depends(get_supabase_bearer_us
             "kasbon_pending": kasbon_pending_total,
             "sisa_limit": max(0, limit_pinjaman - kasbon_aktif_total),
             "sisa_kredit": int(prof.get("credits") or 0),
+            "member_since": prof.get("created_at"),
             "tenor_bulan": ocr_raw.get("tenor_bulan"),
             "cicilan_sistem": ocr_raw.get("cicilan_sistem"),
             "dsr_status": ocr_raw.get("dsr_status", "AMAN"),
