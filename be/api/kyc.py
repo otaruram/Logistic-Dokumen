@@ -128,7 +128,7 @@ async def get_kyc_prefill_beta():
     """
     return KycPrefillData(
         nik="3173051234567890",
-        full_name="John Doe",
+        full_name="",
         birth_place="Jakarta",
         birth_date="1990-01-15",
         gender="Laki-laki",

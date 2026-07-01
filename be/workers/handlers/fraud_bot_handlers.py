@@ -1,10 +1,12 @@
 from typing import Any
 import uuid
+import re
 from config.settings import settings
+from config.redis_client import RedisClient
 from services.telegram_service import get_link_by_chat_id, get_recent_fraud_history, get_dashboard_summary, process_fraud_scan_from_telegram
 from services.scan_helpers import get_supabase_admin
 from services.imagekit_service import ImageKitService
-
+from services.otaru_finance_service import calculate_otaru_index
 
 def handle_history(chat_id: int, send_message, format_idr) -> None:
     link = get_link_by_chat_id(chat_id)
@@ -17,12 +19,12 @@ def handle_history(chat_id: int, send_message, format_idr) -> None:
         if not logs:
             send_message(
                 chat_id,
-                "<b>🧾 Histori Fraud</b>\nBelum ada data scan fraud.",
+                "<b>📜 Histori Fraud</b>\nBelum ada data scan fraud.",
                 use_keyboard=True,
             )
             return
 
-        lines = ["<b>🧾 Histori Fraud Terbaru (5)</b>"]
+        lines = ["<b>📜 Histori Fraud Terbaru (5)</b>"]
         for i, row in enumerate(logs, start=1):
             status = str(row.get("status", "processing"))
             badge = {
@@ -90,14 +92,69 @@ async def handle_photo(chat_id: int, message: dict[str, Any], send_message, get_
     caption = (message.get("caption") or "").strip()
     recipient_name = caption if caption else "Telegram User"
 
-    send_message(chat_id, "<b>📤 Mengupload dokumen...</b> tunggu sebentar ya.", use_keyboard=True)
+    send_message(chat_id, "<b>⏳ Mengecek Sisa Limit Kasbon dan Tier Anda...</b>", use_keyboard=True)
 
     try:
-        content = get_file_bytes(file_id)
+        user_id = link["user_id"]
+        # Calculate Otaru Index & Get Limit + Gamification Tier
+        score_data = calculate_otaru_index(user_id)
+        limit_aman = int(score_data.get("sisa_plafon_aman", 0))
+        
+        # Get Gamification Tier from badges (or simple logic for now, fallback to Silver if none)
+        tier_name = "Silver"
+        sb = get_supabase_admin()
+        if sb:
+            badges_res = sb.table("gamification_badges").select("badge_type").eq("user_id", user_id).execute()
+            b_list = [b["badge_type"].lower() for b in getattr(badges_res, "data", [])]
+            if "platinum" in b_list:
+                tier_name = "Platinum"
+            elif "gold" in b_list:
+                tier_name = "Gold"
+
+        # Save to Redis FSM
+        state_data = {
+            "file_id": file_id,
+            "recipient_name": recipient_name,
+            "user_id": user_id,
+            "limit_aman": limit_aman,
+            "tier_name": tier_name
+        }
+        RedisClient.set_cache(f"kasbon_fsm:{chat_id}", state_data, ttl=600)
+
+        fmt_limit = f"Rp {limit_aman:,}".replace(",", ".")
+        send_message(chat_id, f"✅ <b>Foto diterima!</b>\n\n🏅 <b>Tier Anda:</b> {tier_name}\n💳 <b>Sisa Limit Kasbon:</b> {fmt_limit}\n\nSilakan balas pesan ini dengan <b>Nominal Pengajuan</b> (angka saja, contoh: 1500000):", use_keyboard=True)
+    except Exception as e:
+        send_message(chat_id, f"<b>❌ Gagal memproses foto</b>\n{str(e)[:300]}", use_keyboard=True)
+
+
+async def handle_nominal(chat_id: int, text: str, state: dict, send_message, get_file_bytes) -> None:
+    # 1. Parse Nominal
+    cleaned_text = re.sub(r"[^\d]", "", text)
+    if not cleaned_text:
+        send_message(chat_id, "❌ Nominal tidak valid. Mohon ketikkan angka saja (contoh: 1500000).", use_keyboard=True)
+        return
+    
+    nominal_input = int(cleaned_text)
+    limit_aman = state.get("limit_aman", 0)
+
+    if nominal_input > limit_aman:
+        fmt_limit = f"Rp {limit_aman:,}".replace(",", ".")
+        fmt_req = f"Rp {nominal_input:,}".replace(",", ".")
+        send_message(chat_id, f"❌ <b>Pengajuan Ditolak</b>\n\nNominal pengajuan ({fmt_req}) melebihi sisa limit Anda ({fmt_limit}).\nSilakan ketik ulang nominal yang lebih kecil, atau upload ulang dokumen.", use_keyboard=True)
+        return
+
+    # Clear state since it's valid
+    RedisClient.delete_cache(f"kasbon_fsm:{chat_id}")
+    send_message(chat_id, "<b>📤 Mengupload dan menganalisis dokumen dengan AI...</b> tunggu sebentar ya.", use_keyboard=True)
+
+    try:
+        content = get_file_bytes(state["file_id"])
         filename = f"tg_{uuid.uuid4().hex[:10]}.jpg"
+        recipient_name = state["recipient_name"]
+        user_id = state["user_id"]
 
         result = await process_fraud_scan_from_telegram(
-            user_id=link["user_id"],
+            user_id=user_id,
             recipient_name=recipient_name,
             signature_url="telegram:auto",
             content=content,
@@ -115,16 +172,14 @@ async def handle_photo(chat_id: int, message: dict[str, Any], send_message, get_
         try:
             sb = get_supabase_admin()
             if sb and image_url:
-                user_id = link["user_id"]
                 prof = sb.table("profiles").select("nik, full_name").eq("id", user_id).limit(1).execute()
                 prof_rows = getattr(prof, "data", None) or []
                 nik = prof_rows[0].get("nik") if prof_rows else None
 
                 if nik:
-                    nominal = result.get("nominal_total") or 0
                     sb.table("loan_requests").insert({
                         "nik": nik,
-                        "nominal_pengajuan": int(nominal) if nominal else 100000,
+                        "nominal_pengajuan": nominal_input,
                         "image_url": image_url,
                         "status": "PENDING",
                         "ai_indicator": str(result.get("status", "PROCESSING")).upper(),
@@ -141,8 +196,10 @@ async def handle_photo(chat_id: int, message: dict[str, Any], send_message, get_
             pass 
 
         credits_remaining = result.get("credits_remaining", "?")
+        fmt_req = f"Rp {nominal_input:,}".replace(",", ".")
         response = (
-            "<b>✅ Dokumen Diterima</b>\n\n"
+            "<b>✅ Pengajuan Kasbon Berhasil Dikirim</b>\n\n"
+            f"Nominal: <b>{fmt_req}</b>\n"
             "Dokumen kamu sudah masuk ke <b>antrean verifikasi Admin</b>.\n"
             "Admin akan mereview dan memberikan stamp verifikasi.\n\n"
             f"<b>Credits sisa:</b> {credits_remaining}/10\n"
@@ -154,9 +211,10 @@ async def handle_photo(chat_id: int, message: dict[str, Any], send_message, get_
             admin_chat_id = settings.TELEGRAM_ADMIN_CHAT_ID
             if admin_chat_id and image_url:
                 admin_msg = (
-                    "<b>📥 Dokumen Baru Masuk</b>\n"
+                    "<b>📥 Dokumen Kasbon Baru</b>\n"
                     f"<b>Dari:</b> {recipient_name}\n"
-                    f"<b>User:</b> <code>{link['user_id'][:8]}…</code>\n"
+                    f"<b>User:</b> <code>{user_id[:8]}…</code>\n"
+                    f"<b>Nominal:</b> {fmt_req}\n"
                     f"<b>Status AI:</b> {str(result.get('status', 'processing')).upper()}\n\n"
                     "Cek Approval Queue di Partner Portal untuk review."
                 )

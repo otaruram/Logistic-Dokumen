@@ -215,36 +215,12 @@ export default function PartnerPricingTab({
 
             {/* CTA */}
             <button
-              onClick={async () => {
+              onClick={() => {
                 if (!tier.ctaDisabled) {
-                  setIsGeneratingPayment(true);
-                  setSelectedCheckout({ title: `Paket ${tier.name}`, price: tier.price, type: 'plan', planId: tier.id });
-                  try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    const res = await fetch(`${API_BASE_URL}/api/v1/payment/checkout`, {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${session?.access_token}`,
-                      },
-                      body: JSON.stringify({ plan: tier.id }),
-                    });
-                    if (res.ok) {
-                      const data = await res.json();
-                      if (data.payment_url) {
-                        setSelectedCheckout({ title: `Paket ${tier.name}`, price: tier.price, type: 'plan', planId: tier.id, paymentUrl: data.payment_url });
-                      }
-                    } else {
-                      // Fallback simulasi
-                    }
-                  } catch (e) {
-                    // Fallback
-                  } finally {
-                    setIsGeneratingPayment(false);
-                  }
+                  handleCheckout(tier.id);
                 }
               }}
-              disabled={tier.ctaDisabled || isGeneratingPayment}
+              disabled={tier.ctaDisabled || checkoutLoadingPlan === tier.id}
               className={`w-full rounded-xl py-3 text-sm font-bold tracking-wide transition-all duration-200 ${
                 tier.ctaDisabled
                   ? "bg-slate-800 text-slate-600 cursor-default border border-slate-700"
@@ -253,7 +229,7 @@ export default function PartnerPricingTab({
                   : "bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 hover:border-slate-600"
               } disabled:opacity-60 disabled:cursor-not-allowed`}
             >
-              {isGeneratingPayment && selectedCheckout?.planId === tier.id ? "Memproses..." : tier.cta}
+              {checkoutLoadingPlan === tier.id ? "Memproses..." : tier.cta}
             </button>
           </div>
         ))}
@@ -274,35 +250,11 @@ export default function PartnerPricingTab({
           </div>
         </div>
         <button
-          onClick={async () => {
-            setIsGeneratingPayment(true);
-            setSelectedCheckout({ title: "Top-up Kredit (100 Requests)", price: "Rp 300.000", type: "topup", planId: "topup" });
-            try {
-              const { data: { session } } = await supabase.auth.getSession();
-              const res = await fetch(`${API_BASE_URL}/api/v1/payment/checkout`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${session?.access_token}`,
-                },
-                body: JSON.stringify({ plan: "topup" }),
-              });
-              if (res.ok) {
-                const data = await res.json();
-                if (data.payment_url) {
-                  setSelectedCheckout({ title: "Top-up Kredit (100 Requests)", price: "Rp 300.000", type: "topup", planId: "topup", paymentUrl: data.payment_url });
-                }
-              }
-            } catch (e) {
-              // Fallback
-            } finally {
-              setIsGeneratingPayment(false);
-            }
-          }}
-          disabled={isGeneratingPayment}
+          onClick={() => handleCheckout("topup")}
+          disabled={checkoutLoadingPlan === "topup"}
           className="flex-shrink-0 whitespace-nowrap rounded-xl bg-amber-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-amber-500 transition-colors shadow-lg shadow-amber-900/20 disabled:opacity-60"
         >
-          {isGeneratingPayment && selectedCheckout?.planId === "topup" ? "Memproses..." : "Top-up Sekarang"}
+          {checkoutLoadingPlan === "topup" ? "Memproses..." : "Top-up Sekarang"}
         </button>
       </div>
 

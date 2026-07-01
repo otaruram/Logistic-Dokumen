@@ -330,7 +330,7 @@ def calculate_otaru_index(user_id: str) -> dict[str, Any]:
     if nik:
         lr = sb.table("loan_requests").select("status, nominal_pengajuan, ocr_raw").eq("nik", nik).execute()
         for row in getattr(lr, "data", None) or []:
-            if (row.get("status") or "").upper() in {"PENDING", "APPROVED"}:
+            if (row.get("status") or "").upper() in {"APPROVED"}:
                 active_nominal_total += _si(row.get("nominal_pengajuan"))
                 cicilan_bot1 += _si((row.get("ocr_raw") or {}).get("cicilan_sistem"))
     cicilan_total = cicilan_manual + cicilan_bot1

@@ -510,8 +510,18 @@ async def handle_update(update: dict[str, Any]) -> None:
             await _handle_photo(chat_id, message)
         return
 
-    # Unknown text — guide user to the menu
+    # Unknown text — check Kasbon FSM first
     if text and not text.startswith("/"):
+        try:
+            from config.redis_client import RedisClient
+            state = RedisClient.get_cache(f"kasbon_fsm:{chat_id}")
+            if state:
+                from workers.handlers.fraud_bot_handlers import handle_nominal
+                await handle_nominal(chat_id, text, state, send_message, get_file_bytes)
+                return
+        except Exception as e:
+            print(f"[telegram_bot_worker] Redis state error: {e}")
+
         send_message(
             chat_id,
             "Ketuk tombol di bawah untuk menggunakan fitur OtaruChain. "
