@@ -9,82 +9,81 @@ Kami mengubah **"Kejujuran Perilaku Operasional"** (integritas pelaporan logisti
 
 ---
 
-## 🚀 Progress Update & Refinement (Tahap 2 ➡️ Tahap 3)
+## 🚀 Progress Update & Refinement (Proses Tahap 2 ➡️ Tahap 3)
 
-Sesuai dengan *feedback* dan iterasi pengembangan menuju Tahap 3, kami melakukan pivot strategis untuk menajamkan *Product-Market Fit*:
+Juri yang terhormat, kami percaya bahwa inovasi terbaik lahir dari iterasi tanpa henti. Berdasarkan pengujian lapangan dan *feedback* dari Tahap 2, kami melakukan proses *cutting the fat* dan penajaman agar sistem ini memiliki *Product-Market Fit* (PMF) yang absolut.
 
-### ✂️ Apa yang Di-CUT (Dihapus)?
-1. **Otaru Financial & Konsep Kasbon Internal:** Kami menghapus total ekosistem *Otaru Financial Bot* (beserta fitur *Family Sharing* dan *Debt Service Ratio / DSR* domestik) dan menghilangkan terminologi "Kasbon" dari sisi *user*. 
-   * **Alasan:** Fitur ini membuat platform tidak fokus. OtaruChain kini 100% menjadi **B2B API Pemeringkat Kredit murni (Enabler)** yang berfokus pada validasi *Logistics Document*. Penyaluran dana pinjaman sepenuhnya dikembalikan ke wewenang API *Core Banking* milik Koperasi.
+### ✂️ Apa yang Di-CUT (Dihapus) dan MENGAPA?
+1. **PENGHAPUSAN Otaru Financial & Konsep "Kasbon" dari Sisi User:**
+   * **Yang Terjadi:** Kami menghapus total ekosistem *Otaru Financial Bot* (beserta fitur *Family Sharing* dan *Debt Service Ratio / DSR* domestik) dan menghilangkan tombol/kata "Kasbon" saat pekerja menggunakan bot.
+   * **Mengapa (The "Why"):** Pada Tahap 2, platform kami mencoba melakukan terlalu banyak hal (manajemen utang keluarga sekaligus validasi pabrik), yang berujung pada kebingungan *user experience*. Kami sadar bahwa *core value* OtaruChain adalah **B2B API Pemeringkat Kredit murni (Enabler)** berbasis data logistik. Koperasi tidak butuh aplikasi pengatur utang keluarga, mereka butuh alat untuk memvalidasi kejujuran nota. Pencairan kredit ("kasbon") biarlah tetap berada di wewenang API *Core Banking* Koperasi.
 
-### 🔄 Apa yang Di-UPDATE & DIPERTAJAM?
-1. **Pricing Model B2B yang Realistis:** Skema harga dirombak agar *sustainable* namun tetap ramah untuk Koperasi mikro hingga Enterprise:
-   * **Developer (Rp 0/bulan):** 10 Request (Sandbox).
-   * **Launch (Rp 599.000/bulan):** 900 Request/bulan (Untuk Koperasi Mikro).
-   * **Scale (Rp 1.499.000/bulan):** 2.000 Request/bulan (Prioritas SLA < 2 Jam).
-   * **Enterprise (Rp 3.999.000/bulan):** 10.000 Request/bulan (SLA 99.9% & White-label).
-2. **Nominal Gamifikasi (Consistency Mission):** *Reward plafon* dari *Consistency Mission* ditingkatkan menjadi lebih realistis dan relevan untuk standar industri:
-   * **Silver (50+ dokumen):** Plafon Rp 5.500.000
-   * **Gold (150+ dokumen):** Plafon Rp 10.000.000
-   * **Platinum (250+ dokumen):** Plafon Rp 20.000.000
-3. **Data Identitas Otentik (Nomor HP & Nama Asli Telegram):** Menghapus data *dummy* "John Doe", kini sistem menangkap langsung nama *real-time* yang diinput oleh *user* di Telegram serta menambahkan indikator **"Tanggal Bergabung"** (minimal 3 bulan untuk mendapatkan *Credit Scoring* akurat).
-
----
-
-## 🌟 Nilai Utama & Inovasi (Value Proposition)
-
-1. **Jangkar Identitas Nomor HP (Data Minimization)**: Menggantikan NIK atau SLIK dengan Nomor HP yang di-*whitelist* langsung oleh HR Perusahaan, memastikan kepatuhan penuh terhadap UU Pelindungan Data Pribadi (UU PDP).
-2. **Zero-Friction Adoption via Telegram**: Tidak perlu instalasi aplikasi berat. Pekerja cukup berinteraksi dengan **OtaruChain Bot** untuk mengunggah dokumen logistik harian.
-3. **Zero-Tolerance Gamification**: Ekosistem dilengkapi fitur *Consistency Mission*. Dokumen tervalidasi mendapat poin dan *badge*. Jika AI mendeteksi dokumen palsu/markup (TAMPERED), sistem akan me-reset seluruh *streak* skor secara instan dan membekukan fasilitas (Zero-Tolerance Policy).
-4. **Consent-Driven API**: Rekam jejak kelayakan kredit hanya bisa ditarik oleh Koperasi/LJK melalui API setelah ada persetujuan eksplisit dari *user*.
+### 🔄 Apa yang Di-UPDATE & DIPERTAJAM dan MENGAPA?
+1. **Penajaman Data Identitas (Dari NIK & Nama Dummy ke Nomor HP Terverifikasi):**
+   * **Yang Terjadi:** Nama *dummy* "John Doe" dicabut, kini sistem menangkap nama asli saat *user* menginput data di Telegram (beserta input nominal). Jangkar identitas murni menggunakan **Nomor HP**. 
+   * **Mengapa (The "Why"):** Pendekatan Nomor HP yang di-*whitelist* oleh HRD sangat sejalan dengan prinsip *Data Minimization* dalam UU PDP (Pelindungan Data Pribadi). Kami tidak menyimpan NIK atau data KTP sensitif di *server* kami, memangkas risiko kebocoran data (*data breach*) yang membayangi industri *fintech*.
+2. **Peningkatan Syarat & Nominal Gamifikasi (Consistency Mission):**
+   * **Yang Terjadi:** Batas *reward* plafon kredit dinaikkan secara drastis (Silver: Rp 5.5 Juta | Gold: Rp 10 Juta | Platinum: Rp 20 Juta). Kami juga menambahkan sistem pembacaan **Tanggal Bergabung (Tenur)** pada kartu dasbor.
+   * **Mengapa (The "Why"):** Hasil wawancara kami dengan admin Kopkar menunjukkan batas plafon yang terlalu kecil (di Tahap 2) tidak menarik bagi pekerja pabrik berskala besar. Selain itu, model prediktif (XGBoost) kami membutuhkan data agregasi riwayat minimal 3 bulan agar tidak terjadi *bias* atau tebakan buta (*cold-start problem*). Fitur *Tanggal Bergabung* memastikan admin memiliki indikator visual apakah *user* sudah cukup lama bergabung untuk dihitung skornya.
+3. **Pembaruan Harga (Pricing) yang Logis & Berkelanjutan:**
+   * **Yang Terjadi:** Model langganan B2B dirombak (Detail di bab Model Bisnis).
+   * **Mengapa (The "Why"):** Model lama kami tidak menutupi biaya operasional (Token API Gemini, *storage* ImageKit, server). Kami beralih ke skema *Hybrid SaaS + Usage-Based* agar Koperasi kecil tetap bisa bergabung (barrier to entry rendah), namun OtaruChain tetap meraup profit besar dari Koperasi Enterprise berskala nasional melalui volume transaksi harian (Skema B2B Louvin).
 
 ---
 
-## 🧠 Dual-Engine Machine Learning Architecture
+## 🔄 Alur Sistem (End-to-End User Flow)
 
-OtaruChain menggunakan pendekatan **Dual-Engine ML** untuk memastikan keamanan dan akurasi skor kredit:
+Proses operasional dirancang agar sangat minim gesekan (*Zero-Friction*):
 
-### Engine 1: Fraud Detection & Verification (OtaruChain Layer)
-- **Tujuan**: Memverifikasi dokumen secara *real-time* dan mendeteksi anomali/pemalsuan.
-- **Model**: Ekstraksi OCR Multimodal menggunakan **Gemini 2.5 Flash** dipadukan dengan **Isolation Forest** (Anomaly Detection).
-- **Mekanisme**: Gambar yang diunggah ke CDN ImageKit langsung diproses. Dokumen dimanipulasi secara kriptografis (SHA-256) untuk *immutable audit trail*.
-- **Output**: Klasifikasi status dokumen (*Verified, Processing, Tampered*).
-
-### Engine 2: Credit Scoring & Forecasting (OtaruDecision Layer)
-- **Tujuan**: Memprediksi *Probability of Default* (PD) dan kelayakan bayar pengguna.
-- **Model**: Algoritma **XGBoost (Extreme Gradient Boosting)**.
-- **Mekanisme**: Sistem mengumpulkan agregasi data perilaku historis (seperti jumlah *verified*, rasio *tampered*, histori *streak*) dari user yang sudah bergabung minimal 3 bulan. XGBoost digunakan karena kapabilitas *Explainability* yang transparan bagi institusi finansial (menjelaskan alasan di balik skor, misal: "Sering manipulasi harga di 2 bulan terakhir").
-- **Output**: Skor kelayakan kredit akhir via JSON API (Endpoint `Unified Decision Gate`).
+1. **Input User (Telegram Bot):** Pekerja memfoto nota/surat jalan logistik ➡️ Bot meminta *user* mengetikkan Nama & Nominal ➡️ Data dikirim secara asinkron.
+2. **AI Screening (Pre-Analysis):** Asisten AI (Gemini 2.5 Flash) mengekstraksi teks OCR, mencocokkan nominal dengan gambar, dan memberikan analisis/indikator apakah dokumen wajar atau terindikasi manipulasi (*mark-up*).
+3. **Verifikasi Admin (Dashboard & Card System):** Dokumen masuk ke *Approval Queue*. Saat kartu dokumen diklik, Admin Koperasi dapat melihat seluruh indikator AI, kelengkapan data *user* (Tanggal Bergabung, Status Tier Platinum/Gold, Sisa Kuota Sistem), dan gambar nota.
+4. **Finalisasi & Stamping:** Admin melakukan pengecekan visual akhir dan menekan tombol *Approve*. Sistem akan mencetak tanda tangan Admin dan membubuhkan stempel digital (*Immutable Ledger*) pada gambar tersebut. 
 
 ---
 
 ## 🏦 Arsitektur Layer Analisis Kredit (Credit Analyst Layer)
 
-Berdasarkan kapabilitas AI & ML di atas, alur keputusan analis kredit di OtaruChain dirancang secara *end-to-end* ke dalam 3 *layer* utama:
+Alur keputusan analis kredit di OtaruChain terbagi dalam 3 *layer* utama:
 
-1. **Layer Verifikasi (Verification Layer)**: Sistem memeriksa setiap nota logistik yang diunggah secara *real-time* untuk memastikan keasliannya menggunakan teknologi AI (Gemini 2.5 Flash), sehingga potensi manipulasi atau *mark-up* harga langsung terdeteksi.
-2. **Layer Machine Learning (Scoring Layer)**: Data jejak dokumen historis dan profil pengguna dianalisis oleh model (*XGBoost*) untuk memberikan penilaian risiko secara otomatis dan tanpa bias.
-3. **Layer Akomodasi Data (Data Accommodation Layer)**: Sebelum keputusan final (*underwriting*) diambil, sistem akan menarik data tambahan (komplemen) dari pangkalan data *core banking* Koperasi, seperti **slip gaji** dan **riwayat pinjaman internal**, untuk merajut profil keuangan yang komprehensif.
+1. **Layer Verifikasi (Verification Layer)**: Sistem memeriksa setiap nota logistik yang diunggah secara *real-time* menggunakan Gemini 2.5 Flash. Potensi manipulasi foto/digital langsung terdeteksi.
+2. **Layer Machine Learning (Scoring Layer)**: Data historis pengguna (*Verified vs Tampered*) selama minimal 3 bulan terakhir dianalisis oleh algoritma XGBoost untuk memberikan penilaian risiko secara objektif, instan, dan *explainable* (dapat dijelaskan alasan naik-turunnya skor).
+3. **Layer Akomodasi Data (Data Accommodation Layer)**: Sistem berpadu melalui API ke *core banking* Koperasi untuk menarik komplementer seperti **slip gaji** dan **riwayat pinjaman internal**, menyatukan gambaran profil kelayakan final *user*.
 
 ---
 
 ## 🛡️ Human-in-the-Loop & Immutable Ledger (SupaLedger)
 
-OtaruChain tidak sepenuhnya menyerahkan keputusan akhir pada AI. Kami menggunakan pendekatan hibrida untuk memastikan akuntabilitas manajerial dan keamanan kriptografis:
+Inovasi kami tidak menyerahkan kendali finansial 100% pada AI, karena halusinasi AI dalam sektor keuangan adalah hal fatal:
 
-1. **Admin Verification Queue (Human-in-the-Loop)**: AI Gemini 2.5 Flash bertindak sebagai *co-pilot* yang mendeteksi anomali (misal: harga tidak wajar pada nota). Namun, keputusan final tetap berada di tangan Admin Koperasi. Admin meninjau rekomendasi AI melalui dasbor antrean (*Logistics Verification Queue*) dan melakukan klik persetujuan final.
-2. **SupaLedger & SHA-256 Stamping**: Segera setelah Admin menyetujui dokumen, sistem memicu pembentukan jejak audit tak terubahkan (*Immutable Ledger*). Metadata dokumen, stempel waktu, dan tanda tangan digital Admin di- *hash* menggunakan algoritma **SHA-256**. *Hash* unik ini kemudian diukir secara visual ke atas gambar (via transformasi dinamis ImageKit) dan dicatat ke dalam *database* (SupaLedger). Hal ini menjamin dokumen valid tidak akan pernah bisa diubah, dipalsukan ulang, atau disangkal (*non-repudiation*) di masa depan.
+1. **Admin Verification Queue (Human-in-the-Loop)**: Keputusan akhir tetap berada di tangan akal manusia (Admin Koperasi). AI Gemini hanya bertindak sebagai asisten spesialis penyaring *fraud*. 
+2. **SupaLedger (Non-Decentralized Immutable Ledger)**: 
+   * Segera setelah Admin menyetujui, metadata dokumen, waktu, dan TTD di-*hash* dengan **SHA-256** dan diukir *hardcoded* ke atas gambar melalui ImageKit. 
+   * **Catatan Penting:** SupaLedger **BUKAN** jaringan *blockchain decentralized* (seperti Ethereum) yang boros energi. Ini adalah *Centralized Immutable Ledger* berbasis *hash chaining* di dalam Supabase (PostgreSQL). Metode ini sangat hemat biaya, latensi milidetik, namun menjamin dokumen operasional tidak akan pernah bisa diedit atau disangkal oleh pihak manapun di kemudian hari (*non-repudiation*).
+
+---
+
+## 💼 Model Bisnis & Skema Harga (Pricing)
+
+Monetisasi menggunakan model **B2B Hybrid SaaS Subscription + Usage-Based (Pay-per-Query)** melalui *Payment Gateway* Louvin. Model ini dipilih karena biaya *overhead* (seperti token Gemini dan bandwidth CDN) meningkat sejalan dengan penggunaan *user*.
+
+Mengapa harga ini sangat masuk akal bagi Koperasi?
+- **Tier Developer (Rp 0/bulan):** 10 Request/bulan. Digunakan khusus oleh *Engineer* Koperasi untuk *testing* integrasi API ke *Core Banking* lokal mereka.
+- **Tier Launch (Rp 599.000/bulan):** 900 Request/bulan. Cocok untuk Kopkar pabrik kelas menengah. Biaya Rp 599k jauh lebih murah dibanding merekrut satu analis logistik manusia (UMP Rp 3-5 Juta) dan mampu mencegah kebocoran kas akibat *fraud* nota (yang sering bernilai belasan juta per bulan).
+- **Tier Scale (Rp 1.499.000/bulan):** 2.000 Request/bulan (Prioritas SLA < 2 Jam).
+- **Tier Enterprise (Rp 3.999.000/bulan):** 10.000 Request/bulan (SLA 99.9% & White-label), dirancang untuk jaringan ritel atau pabrik berskala nasional (puluhan ribu pekerja).
+*(Setiap kelebihan kuota dikenakan Overage Fee sebesar Rp 3.000 - Rp 5.000 / request, mengamankan margin profit OtaruChain saat terjadi lonjakan traffic jam pergantian shift).*
 
 ---
 
 ## ⚙️ Validasi Teknis & Arsitektur Sistem
 
 Platform dibangun dengan prinsip **API-First** dan arsitektur *Serverless Cloud*:
-- **Frontend**: React 18 + Vite + TypeScript + TailwindCSS (Sistem Portal Admin & Partner).
+- **Frontend**: React 18 + Vite + TypeScript + TailwindCSS.
 - **Backend**: FastAPI (Python) untuk *webhook* Telegram asinkron & Partner API.
 - **Database**: Supabase Pro Tier (PostgreSQL + Auth).
 - **Object Storage / CDN**: ImageKit.io (Transformasi gambar instan & manipulasi URL *stamping*).
-- **Payment Gateway**: Louvin Dev API terintegrasi penuh untuk penagihan *subscription* Koperasi.
+- **Keamanan (OJK & PDP Compliant)**: Enkripsi AES-256 (At-rest) & TLS 1.3 (In-transit), Strict RBAC.
 
 ### Endpoint API Utama
 - `POST /api/v1/partner/decision`: Unified Decision Gate (XGBoost Scoring Engine)
