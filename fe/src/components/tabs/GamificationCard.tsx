@@ -95,11 +95,19 @@ export default function GamificationCard() {
   const silverThreshold = badge?.silver_threshold ?? 50;
   const goldThreshold = badge?.gold_threshold ?? 150;
   const platinumThreshold = badge?.platinum_threshold ?? 250;
-  const verified = badge?.verified_count ?? 148;
-  const hasSilver  = badge?.has_silver  ?? (verified >= silverThreshold);
-  const hasGold    = badge?.has_gold    ?? (verified >= goldThreshold);
-  const hasPlatinum = badge?.has_platinum ?? (verified >= platinumThreshold);
+  
+  let rawVerified = badge?.verified_count ?? 148;
+  const hasSilver  = badge?.has_silver  ?? (rawVerified >= silverThreshold);
+  const hasGold    = badge?.has_gold    ?? (rawVerified >= goldThreshold);
+  const hasPlatinum = badge?.has_platinum ?? (rawVerified >= platinumThreshold);
   const hasTamperedDoc = badge?.streak_broken ?? false;
+  
+  // Realtime visual sync: if user has a badge, ensure the progress bar reflects at least that tier's threshold
+  let verified = rawVerified;
+  if (hasPlatinum) verified = Math.max(verified, platinumThreshold);
+  else if (hasGold) verified = Math.max(verified, goldThreshold);
+  else if (hasSilver) verified = Math.max(verified, silverThreshold);
+
   const goldContext = badge?.gold_context_tba || "Benefit Gold: Bonus Plafon +Rp 1 Juta & Diskon Biaya Admin 0.5% berbasis meritokrasi perilaku anggota Koperasi.";
   const platinumContext = badge?.platinum_context_tba || "Benefit Platinum: Plafon Maksimal up to Rp 20 Juta & Akses Prioritas Pencairan Instan < 5 Menit.";
 
