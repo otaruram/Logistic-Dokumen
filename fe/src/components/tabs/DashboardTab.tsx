@@ -1,4 +1,4 @@
-﻿import { motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { Activity, ShieldCheck, TrendingUp, RefreshCw, Calendar, Trophy, Award, Star, ExternalLink, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -232,7 +232,7 @@ const _GamificationCardLegacy = () => {
             {hasSilver && <span className="text-[10px] text-emerald-400">âœ“</span>}
           </div>
           <p className="text-[10px] text-gray-500 break-words">50+ verified/bulan</p>
-          <p className="text-[10px] text-gray-500 break-words">Limit Kasbon: Rp 5.500.000</p>
+          <p className="text-[10px] text-gray-500 break-words">Plafon: Rp 5.500.000</p>
         </div>
         <div className={`rounded-xl p-3 border w-full overflow-hidden ${hasGold ? "border-amber-500/30 bg-amber-500/5" : "border-white/5 bg-white/[0.02]"}`}>
           <div className="flex items-center gap-2 mb-1">
@@ -241,7 +241,7 @@ const _GamificationCardLegacy = () => {
             {hasGold && <span className="text-[10px] text-emerald-400">âœ“</span>}
           </div>
           <p className="text-[10px] text-gray-500 break-words">150+ verified/bulan</p>
-          <p className={`text-[10px] break-words ${hasGold ? "text-amber-400 font-semibold" : "text-gray-500"}`}>Limit Kasbon: Rp 10.000.000</p>
+          <p className={`text-[10px] break-words ${hasGold ? "text-amber-400 font-semibold" : "text-gray-500"}`}>Plafon: Rp 10.000.000</p>
         </div>
         <div className={`rounded-xl p-3 border w-full overflow-hidden ${hasPlatinum ? "border-indigo-500/30 bg-indigo-500/5" : "border-white/5 bg-white/[0.02]"}`}>
           <div className="flex items-center gap-2 mb-1">
@@ -250,7 +250,7 @@ const _GamificationCardLegacy = () => {
             {hasPlatinum && <span className="text-[10px] text-emerald-400">âœ“</span>}
           </div>
           <p className="text-[10px] text-gray-500 break-words">250+ verified/bulan</p>
-          <p className={`text-[10px] break-words ${hasPlatinum ? "text-indigo-400 font-semibold" : "text-gray-500"}`}>Limit Kasbon: Rp 20.000.000</p>
+          <p className={`text-[10px] break-words ${hasPlatinum ? "text-indigo-400 font-semibold" : "text-gray-500"}`}>Plafon: Rp 20.000.000</p>
         </div>
       </div>
 
@@ -301,7 +301,7 @@ const SisaLimitCard = ({ stats, loading }: { stats: DashboardStats; loading: boo
       <div className="w-full flex items-start justify-between mb-2 z-10">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-5 h-5" style={{ color: barColor }} />
-          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Sisa Limit Kasbon</span>
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Sisa Kuota Sistem</span>
         </div>
         {usedPct < 70 && (
           <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-1 rounded-full border border-green-500/30">AMAN</span>
@@ -346,7 +346,7 @@ const NominalVerifiedCard = ({ stats, loading }: {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-gray-300" />
-            <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Total Kasbon Aktif</span>
+            <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Total Dokumen Aktif</span>
           </div>
           <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-gray-300">
             IDR
