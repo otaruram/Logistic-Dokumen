@@ -1,178 +1,112 @@
-# OtaruChain
+# OtaruChain - Unified Ecosystem: Enabler Pemeringkat Kredit Alternatif
 
-Platform verifikasi dokumen, anti-fraud, kasbon approval, dan decision API untuk koperasi/institusi.
+**Digdaya x Hackathon 2026 - Tahap III Submission**
+**Team P0110: OtaruChain**
 
-OtaruChain menggabungkan:
-- Verifikasi dokumen operasional (OCR + anti-tamper)
-- Approval kasbon dengan stempel digital + TTD admin
-- Partner API (B2B) untuk lookup keputusan berbasis profil terverifikasi
-- Integrasi bot Telegram untuk jalur adopsi yang ringan
+OtaruChain adalah solusi inovatif **Pemeringkat Kredit Alternatif (PKA)** berkonsep *blue-ocean* yang dirancang untuk mengamankan likuiditas Koperasi Karyawan (Kopkar) dan LJK di sektor industri/manufaktur. 
 
-## Ringkasan Fitur
+Kami mengubah **"Kejujuran Perilaku Operasional"** (integritas pelaporan logistik lapangan) menjadi **"Aset Kelayakan Finansial"** untuk membuka akses kredit (inklusi finansial) bagi pekerja *blue-collar*, tanpa agunan fisik, sembari membasmi risiko *fraud* (moral hazard) dan menekan NPL (Non-Performing Loan) hingga 30%.
 
-### 1) Document Intelligence
-- Upload dokumen (receipt/nota/slip) dari web atau Telegram.
-- OCR ekstraksi field penting (nominal, tanggal, merchant, dll).
-- Review status dokumen (verified/processing/tampered).
+---
 
-### 2) Anti-Fraud dan Integritas Data
-- Dokumen disegel dengan hash SHA-256.
-- Jejak audit approval dan perubahan data.
-- Validasi berlapis sebelum data bisa dipakai untuk keputusan kredit.
+## 🌟 Nilai Utama & Inovasi (Value Proposition)
 
-### 3) Kasbon Approval Workflow
-- Admin queue untuk approve/reject pengajuan.
-- Stempel digital dapat dikustom:
-  - warna stempel
-  - nama stempel (editable)
-- Signature pad admin:
-  - garis lebih tebal (lebih terbaca)
-  - pilihan warna tanda tangan
+1. **Jangkar Identitas Nomor HP (Data Minimization)**: Menggantikan NIK atau SLIK dengan Nomor HP yang di-*whitelist* langsung oleh HR Perusahaan, memastikan kepatuhan penuh terhadap UU Pelindungan Data Pribadi (UU PDP).
+2. **Zero-Friction Adoption via Telegram**: Tidak perlu instalasi aplikasi berat. Pekerja berinteraksi dengan **OtaruChain Bot** (unggah nota operasional) dan **Otaru Financial Bot** (transparansi *Family Sharing*).
+3. **Zero-Tolerance Gamification**: Ekosistem dilengkapi fitur *Consistency Mission*. Dokumen tervalidasi mendapat poin dan *badge* (Silver, Gold, Platinum). Jika terdeteksi dokumen palsu (TAMPERED), sistem akan mereset skor menjadi 0 dan membekukan fasilitas (Zero-Tolerance Policy).
+4. **Consent-Driven API**: Rekam jejak kelayakan kredit hanya bisa ditarik oleh Koperasi/LJK melalui API setelah ada persetujuan eksplisit dari *user*.
 
-### 4) Partner API (B2B)
-- API key per partner.
-- Scopes akses per key.
-- Endpoint decision/lookup untuk integrasi koperasi internal atau mitra.
+---
 
-### 5) Security dan Compliance-Oriented
-- Data transit via HTTPS/TLS.
-- API key disimpan dalam bentuk hash.
-- Consent-driven access untuk data sensitif.
-- RBAC untuk pembatasan akses admin/partner.
+## 🧠 Dual-Engine Machine Learning Architecture
 
-## Arsitektur Singkat
+OtaruChain menggunakan pendekatan **Dual-Engine ML** untuk memastikan keamanan dan akurasi skor kredit:
 
-- Frontend: React 18 + Vite + TypeScript + Tailwind
-- Backend: FastAPI (Python)
-- Database/Auth: Supabase (PostgreSQL + Auth)
-- Queue/Cache: Redis
-- Storage Media: ImageKit
-- Worker:
-  - scan worker
-  - telegram worker
-  - finance bot worker
+### Engine 1: Fraud Detection & Verification (OtaruChain Layer)
+- **Tujuan**: Memverifikasi dokumen secara *real-time* dan mendeteksi anomali/pemalsuan.
+- **Model**: Ekstraksi OCR Multimodal menggunakan **Gemini 2.5 Flash** dipadukan dengan **Isolation Forest** (Anomaly Detection).
+- **Mekanisme**: Gambar yang diunggah ke CDN ImageKit langsung diproses. Dokumen dimanipulasi secara kriptografis (SHA-256) untuk *immutable audit trail*.
+- **Output**: Klasifikasi status dokumen (*Verified, Processing, Tampered*).
 
-## Struktur Proyek
+### Engine 2: Credit Scoring & Forecasting (OtaruDecision Layer)
+- **Tujuan**: Memprediksi *Probability of Default* (PD) dan kelayakan bayar pengguna.
+- **Model**: Algoritma **XGBoost (Extreme Gradient Boosting)**.
+- **Mekanisme**: Sistem mengumpulkan agregasi data perilaku historis (seperti jumlah *verified*, rasio *tampered*, histori *streak*) dari user yang sudah bergabung minimal 3 bulan. XGBoost digunakan karena tingkat akurasinya yang tinggi pada data tabular dan kapabilitas *Explainability* (memberikan alasan mengapa skor diturunkan, misal: "Sering manipulasi harga (Markup) di 2 bulan terakhir").
+- **Output**: Skor kelayakan kredit akhir via JSON API (Endpoint `Unified Decision Gate`).
 
-- fe/: aplikasi frontend (portal user/admin/partner)
-- be/: backend FastAPI, API routes, service layer, workers
-- database/: SQL schema dan migration utama
-- docker-compose.yml: orkestrasi backend + redis + workers
+---
 
-## Endpoint Utama (Ringkas)
+## 💼 Model Bisnis & Skema Harga (Pricing)
 
-- Kasbon:
-  - /api/kasbon/... (approval queue, preview stamping, approve)
-- Partner:
-  - /api/v1/partner/... (api key, unified decision, usage)
-- Scan/Fraud:
-  - /api/scans/..., /api/fraud/...
-- KYC/Profile/Admin:
-  - /api/kyc/..., /api/users/..., /api/admin/...
+Monetisasi menggunakan model **B2B Hybrid SaaS Subscription + Usage-Based (Pay-per-Query)** untuk Koperasi Mitra melalui *Payment Gateway* Louvin, sementara pengguna akhir (pekerja) menikmati akses **100% GRATIS**.
 
-## Local Development
+Terdapat 3 Tier Skema Harga:
+- **Tier Developer (Rp 0/bulan)**: Akses *Sandbox* & PoC (Proof of Concept) Internal.
+- **Tier Launch (Rp 199.000/bulan)**: Cocok untuk Kopkar mikro. Kuota hingga 75 *request* / bulan.
+- **Tier Scale (Rp 899.000/bulan)**: Akses SLA prioritas dengan kuota 150 *request* / hari.
+*(Kelebihan kuota dikenakan Overage Fee sebesar Rp 3.000 - Rp 5.000 / request via deposit prabayar).*
 
-## Prasyarat
+---
+
+## ⚙️ Validasi Teknis & Arsitektur Sistem
+
+Platform dibangun dengan prinsip **API-First** dan arsitektur *Serverless Cloud*:
+- **Frontend**: React 18 + Vite + TypeScript + TailwindCSS (Sistem Portal Admin & Partner).
+- **Backend**: FastAPI (Python) untuk *webhook* Telegram asinkron & Partner API.
+- **Database**: Supabase Pro Tier (PostgreSQL + Auth).
+- **Object Storage / CDN**: ImageKit.io (Transformasi gambar instan & manipulasi URL *stamping*).
+- **Keamanan (OJK & PDP Compliant)**: Enkripsi AES-256 (At-rest) & TLS 1.3 (In-transit), Strict RBAC.
+
+### Endpoint API Utama (Unified Ecosystem)
+- `POST /api/v1/partner/decision`: Unified Decision Gate (XGBoost Scoring Engine)
+- `GET /api/v1/gamification/progress`: Penarikan data *Consistency Mission*
+- `POST /api/fraud/...`: Analisis Dokumen Gemini 2.5 Flash
+- `GET /api/kasbon/queue`: Antrean validasi admin (*Logistics Verification Queue*)
+
+---
+
+## 🛠️ Panduan Menjalankan Sistem Lokal (Development)
+
+### Prasyarat
 - Node.js >= 18
-- Python 3.10+ (direkomendasikan 3.11+)
-- Redis
-- Supabase project (URL + keys)
+- Python 3.10+ (Direkomendasikan 3.11+)
+- Supabase Project & ImageKit API Keys
+- Louvin API Keys
 
-## 1) Setup Backend
-
+### 1. Setup Backend (FastAPI)
 ```bash
 cd be
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 ```
-
-Buat file be/.env (minimal):
-
-```env
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_DB=0
-JWT_SECRET=your_secret
-```
-
-Jalankan backend:
-
+Buat file `be/.env` sesuai `.env.example`.
+Jalankan server:
 ```bash
 uvicorn main:app --reload --port 8000
 ```
 
-## 2) Setup Frontend
-
+### 2. Setup Frontend (React)
 ```bash
 cd fe
 npm install
 npm run dev
 ```
+Buka `http://localhost:5173` di browser Anda.
 
-Buat file fe/.env.local (contoh):
-
-```env
-VITE_API_URL=http://localhost:8000
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-
-Frontend default berjalan di http://localhost:5173.
-
-## 3) Jalankan Worker (opsional saat development)
-
-Dari folder be/ dengan environment aktif:
-
+### 3. Setup Worker (Asynchronous Tasks)
+Dari folder `be/` jalankan worker berikut (bisa via tmux/supervisor atau CMD terpisah):
 ```bash
-python -m workers.scan_worker
 python -m workers.telegram_bot_worker
 python -m workers.finance_bot_worker
+python -m workers.scan_worker
 ```
 
-## Menjalankan via Docker Compose
-
+### 4. Menjalankan via Docker Compose
 ```bash
 docker compose up -d --build
 ```
+*(Gunakan `docker builder prune -a` jika terjadi error caching saat build)*
 
-Service utama:
-- backend: port 8000
-- redis: port 6379
-- scan-worker
-- telegram-worker
-- finance-bot-worker
-
-## Branding
-
-Brand utama untuk landing page dan produk adalah OtaruChain.
-
-Jika ingin update branding lain:
-- UI landing utama: fe/src/components/LandingPage.tsx
-- Landing alternatif: fe/src/pages/Landing.tsx
-- Konstanta app: fe/src/constants/index.ts
-
-## Catatan Operasional
-
-- Dokumen proposal sensitif tidak disimpan di repo publik.
-- File lokal/non-relevan disarankan masuk .gitignore.
-- Jangan commit credential, token, atau private key.
-
-## Troubleshooting Singkat
-
-- API error 401/403:
-  - cek token Supabase dan header Authorization
-- Koneksi Redis gagal:
-  - cek REDIS_HOST/REDIS_PORT dan service redis aktif
-- Stamping preview tidak muncul:
-  - pastikan URL dokumen valid dan body request mengirim field stamp/sig yang benar
-- Partner insert gagal plan constraint:
-  - pastikan schema/migration plan terbaru sudah diterapkan
-
-## Lisensi dan Kepemilikan
-
-Proyek ini dimiliki oleh tim OtaruChain.
-Gunakan akses repository sesuai kebijakan internal tim.
+---
+*Proyek ini merupakan purwarupa tahap akhir (MVP Fully Functional) yang dikembangkan eksklusif untuk ajang Hackathon Digdaya 2026.*
