@@ -71,8 +71,12 @@ Mengapa harga ini sangat masuk akal bagi Koperasi?
 - **Tier Developer (Rp 0/bulan):** 10 Request/bulan. Digunakan khusus oleh *Engineer* Koperasi untuk *testing* integrasi API ke *Core Banking* lokal mereka.
 - **Tier Launch (Rp 599.000/bulan):** 900 Request/bulan. Cocok untuk Kopkar pabrik kelas menengah. Biaya Rp 599k jauh lebih murah dibanding merekrut satu analis logistik manusia (UMP Rp 3-5 Juta) dan mampu mencegah kebocoran kas akibat *fraud* nota (yang sering bernilai belasan juta per bulan).
 - **Tier Scale (Rp 1.499.000/bulan):** 2.000 Request/bulan (Prioritas SLA < 2 Jam).
-- **Tier Enterprise (Rp 3.999.000/bulan):** 10.000 Request/bulan (SLA 99.9% & White-label), dirancang untuk jaringan ritel atau pabrik berskala nasional (puluhan ribu pekerja).
-*(Setiap kelebihan kuota dikenakan Overage Fee sebesar Rp 3.000 - Rp 5.000 / request, mengamankan margin profit OtaruChain saat terjadi lonjakan traffic jam pergantian shift).*
+- **Tier Enterprise (Custom Pricing):** Volume 10.000+ Request/bulan (SLA 99.9% & White-label), dirancang untuk jaringan ritel atau pabrik berskala nasional. Harga disesuaikan berdasarkan arsitektur (On-Premise vs Cloud) dan SLA.
+*(Setiap kelebihan kuota di luar Tier Enterprise dikenakan Overage Fee sebesar Rp 3.000 - Rp 5.000 / request, mengamankan margin profit OtaruChain saat terjadi lonjakan traffic jam pergantian shift).*
+
+### 2. Credit Lead-Gen & Take Rate (Revenue Backbone Alternatif)
+Sebagai Enabler infrastruktur, OtaruChain akan menampung banyak profil pekerja (Platinum & Gold) yang memiliki *Credit Score* istimewa. Jika Koperasi internal tidak memiliki likuiditas dana yang cukup untuk membiayai *user* Platinum tersebut, OtaruChain bertindak sebagai **Lead Generator**. Kami melempar profil unggul tersebut (dengan *consent* pengguna) ke Bank atau platform P2P eksternal yang mencari debitur berkualitas.
+- **Model Monetisasi:** OtaruChain mengambil **Success Fee (Take Rate) sebesar 1% - 2%** dari setiap pinjaman eksternal yang berhasil dicairkan. Ini adalah potensi profit miliaran rupiah (Holy Grail B2B Fintech) yang jauh lebih masif dari sekadar biaya langganan bulanan.
 
 ---
 

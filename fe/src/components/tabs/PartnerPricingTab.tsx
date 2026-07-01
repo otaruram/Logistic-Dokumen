@@ -66,10 +66,10 @@ const TIERS = [
   {
     id: "enterprise",
     name: "Enterprise",
-    price: "Rp 3.999.000",
-    cadence: "/ bulan",
+    price: "Custom",
+    cadence: "",
     target: "Jaringan koperasi berskala nasional atau volume tinggi.",
-    volumeLabel: "10.000 Requests",
+    volumeLabel: "10.000+ Requests",
     volumeSub: "per bulan",
     volumeIsHard: false,
     sla: "Dedicated 99.9%",
@@ -81,8 +81,8 @@ const TIERS = [
       "White-label portal",
     ],
     popular: false,
-    cta: "Aktivasi & Bayar",
-    ctaDisabled: false,
+    cta: "Hubungi Sales",
+    ctaDisabled: true,
   },
 ];
 
