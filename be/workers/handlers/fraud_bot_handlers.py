@@ -122,16 +122,25 @@ async def handle_photo(chat_id: int, message: dict[str, Any], send_message, get_
         RedisClient.set_cache(f"kasbon_fsm:{chat_id}", state_data, ttl=600)
 
         fmt_limit = f"Rp {limit_aman:,}".replace(",", ".")
-        send_message(chat_id, f"✅ <b>Foto diterima!</b>\n\n🏅 <b>Tier Anda:</b> {tier_name}\n💳 <b>Sisa Limit Kasbon:</b> {fmt_limit}\n\nSilakan balas pesan ini dengan <b>Nominal Pengajuan</b> (angka saja, contoh: 1500000):", use_keyboard=True)
+        send_message(chat_id, f"✅ <b>Foto diterima!</b>\n\n🏅 <b>Tier Anda:</b> {tier_name}\n💳 <b>Sisa Limit Kasbon:</b> {fmt_limit}\n\nSilakan balas pesan ini dengan format:\n<b>Nama - Nominal Pengajuan</b>\n\nContoh:\n<code>Budi - 1500000</code>", use_keyboard=True)
     except Exception as e:
         send_message(chat_id, f"<b>❌ Gagal memproses foto</b>\n{str(e)[:300]}", use_keyboard=True)
 
 
 async def handle_nominal(chat_id: int, text: str, state: dict, send_message, get_file_bytes) -> None:
+    text = text.strip()
+    parts = text.split("-")
+    if len(parts) >= 2:
+        nama_input = parts[0].strip()
+        nominal_str = parts[-1].strip()
+    else:
+        nama_input = state.get("recipient_name")
+        nominal_str = text
+
     # 1. Parse Nominal
-    cleaned_text = re.sub(r"[^\d]", "", text)
+    cleaned_text = re.sub(r"[^\d]", "", nominal_str)
     if not cleaned_text:
-        send_message(chat_id, "❌ Nominal tidak valid. Mohon ketikkan angka saja (contoh: 1500000).", use_keyboard=True)
+        send_message(chat_id, "❌ Format tidak valid. Mohon ketikkan Nama dan Nominal (contoh: Budi - 1500000).", use_keyboard=True)
         return
     
     nominal_input = int(cleaned_text)
@@ -150,7 +159,7 @@ async def handle_nominal(chat_id: int, text: str, state: dict, send_message, get
     try:
         content = get_file_bytes(state["file_id"])
         filename = f"tg_{uuid.uuid4().hex[:10]}.jpg"
-        recipient_name = state["recipient_name"]
+        recipient_name = nama_input if 'nama_input' in locals() and nama_input else state.get("recipient_name", "Telegram User")
         user_id = state["user_id"]
 
         result = await process_fraud_scan_from_telegram(
