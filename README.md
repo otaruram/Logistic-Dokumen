@@ -58,6 +58,16 @@ OtaruChain menggunakan pendekatan **Dual-Engine ML** untuk memastikan keamanan d
 
 ---
 
+## 🏦 Arsitektur Layer Analisis Kredit (Credit Analyst Layer)
+
+Berdasarkan kapabilitas AI & ML di atas, alur keputusan analis kredit di OtaruChain dirancang secara *end-to-end* ke dalam 3 *layer* utama:
+
+1. **Layer Verifikasi (Verification Layer)**: Sistem memeriksa setiap nota logistik yang diunggah secara *real-time* untuk memastikan keasliannya menggunakan teknologi AI (Gemini 2.5 Flash), sehingga potensi manipulasi atau *mark-up* harga langsung terdeteksi.
+2. **Layer Machine Learning (Scoring Layer)**: Data jejak dokumen historis dan profil pengguna dianalisis oleh model (*XGBoost*) untuk memberikan penilaian risiko secara otomatis dan tanpa bias.
+3. **Layer Akomodasi Data (Data Accommodation Layer)**: Sebelum keputusan final (*underwriting*) diambil, sistem akan menarik data tambahan (komplemen) dari pangkalan data *core banking* Koperasi, seperti **slip gaji** dan **riwayat pinjaman internal**, untuk merajut profil keuangan yang komprehensif.
+
+---
+
 ## ⚙️ Validasi Teknis & Arsitektur Sistem
 
 Platform dibangun dengan prinsip **API-First** dan arsitektur *Serverless Cloud*:
