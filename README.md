@@ -74,12 +74,16 @@ Mengapa harga ini sangat masuk akal bagi Koperasi?
 - **Tier Enterprise (Custom Pricing):** Volume 10.000+ Request/bulan (SLA 99.9% & White-label), dirancang untuk jaringan ritel atau pabrik berskala nasional. Harga disesuaikan berdasarkan arsitektur (On-Premise vs Cloud) dan SLA.
 *(Setiap kelebihan kuota di luar Tier Enterprise dikenakan Overage Fee sebesar Rp 3.000 - Rp 5.000 / request, mengamankan margin profit OtaruChain saat terjadi lonjakan traffic jam pergantian shift).*
 
-### 🗺️ Fase Ekpansi & Roadmap Monetisasi (Credit Lead-Gen)
+### 🗺️ Roadmap Fase Ekpansi (Teknologi & Monetisasi)
 Kami sangat menyadari bahwa sebagai entitas baru (Day-1), menjual prospek kredit langsung ke Bank adalah bentuk *overclaiming*. Oleh karena itu, skema **Credit Lead-Gen (Take Rate)** kami posisikan sebagai *Roadmap Fase 2* setelah OtaruChain mencapai *critical mass*.
 
 Ketika data historis sudah matang, OtaruChain bertindak sebagai **Lead Generator** untuk Bank/P2P eksternal dengan *Syarat & Ketentuan (Risk Mitigation)* yang sangat ketat:
 - **Eligibilitas Super Ketat:** Hanya pengguna dengan **Usia Akun Minimal 3 Bulan** (memiliki rekam jejak konsisten) DAN telah mencapai **Tier Gold atau Platinum** yang berhak diproyeksikan ke pemberi pinjaman eksternal.
 - **Model Monetisasi (Backbone):** OtaruChain memungut **Success Fee (Take Rate) sebesar 1% - 2%** dari setiap pinjaman eksternal yang berhasil dicairkan. Pendekatan berbasis *meritokrasi* ini mengamankan Bank dari kredit macet sekaligus membuka potensi profit eksponensial (di luar batas pendapatan langganan API) bagi OtaruChain.
+
+Selain monetisasi, kami juga memiliki *Roadmap Teknologi* untuk 6 bulan ke depan demi memperkuat akuisisi dan akurasi sistem:
+1. **Integrasi WhatsApp Business API (Official):** Migrasi dari Telegram ke WhatsApp untuk penetrasi massal, khususnya bagi pekerja/pengemudi senior (usia 45+) yang kurang terbiasa dengan Telegram namun menggunakan WA sebagai aplikasi harian.
+2. **In-House AI Localized Receipt Engine:** Saat ini kami bergantung penuh pada Gemini 2.5 Flash. Ke depan, kami akan melatih (*fine-tuning*) API model AI kami sendiri (In-House OCR & Anomaly Detection) khusus untuk mengenali tekstur, format, dan *hash dataset* "Bon/Nota Warung Tradisional Indonesia" yang lecek dan tulisan tangan. Ini akan menekan *False Positives* secara drastis dibandingkan mengandalkan LLM generalis asal Amerika Serikat.
 
 ---
 
