@@ -92,7 +92,7 @@ async def handle_photo(chat_id: int, message: dict[str, Any], send_message, get_
     caption = (message.get("caption") or "").strip()
     recipient_name = caption if caption else "Telegram User"
 
-    send_message(chat_id, "<b>⏳ Mengecek Sisa Limit Kasbon dan Tier Anda...</b>", use_keyboard=True)
+    send_message(chat_id, "<b>⏳ Mengecek Sisa Kuota Sistem dan Tier Anda...</b>", use_keyboard=True)
 
     try:
         user_id = link["user_id"]
@@ -122,7 +122,7 @@ async def handle_photo(chat_id: int, message: dict[str, Any], send_message, get_
         RedisClient.set_cache(f"kasbon_fsm:{chat_id}", state_data, ttl=600)
 
         fmt_limit = f"Rp {limit_aman:,}".replace(",", ".")
-        send_message(chat_id, f"✅ <b>Foto diterima!</b>\n\n🏅 <b>Tier Anda:</b> {tier_name}\n💳 <b>Sisa Limit Kasbon:</b> {fmt_limit}\n\nSilakan balas pesan ini dengan format:\n<b>Nama - Nominal Pengajuan</b>\n\nContoh:\n<code>Budi - 1500000</code>", use_keyboard=True)
+        send_message(chat_id, f"✅ <b>Dokumen Logistik Diterima!</b>\n\n🏅 <b>Tier Anda:</b> {tier_name}\n💳 <b>Sisa Kuota Validasi:</b> {fmt_limit}\n\nSilakan balas pesan ini dengan format:\n<b>Nama Klien/Vendor - Nominal Dokumen</b>\n\nContoh:\n<code>PT Logistik Maju - 1500000</code>", use_keyboard=True)
     except Exception as e:
         send_message(chat_id, f"<b>❌ Gagal memproses foto</b>\n{str(e)[:300]}", use_keyboard=True)
 
@@ -149,7 +149,7 @@ async def handle_nominal(chat_id: int, text: str, state: dict, send_message, get
     if nominal_input > limit_aman:
         fmt_limit = f"Rp {limit_aman:,}".replace(",", ".")
         fmt_req = f"Rp {nominal_input:,}".replace(",", ".")
-        send_message(chat_id, f"❌ <b>Pengajuan Ditolak</b>\n\nNominal pengajuan ({fmt_req}) melebihi sisa limit Anda ({fmt_limit}).\nSilakan ketik ulang nominal yang lebih kecil, atau upload ulang dokumen.", use_keyboard=True)
+        send_message(chat_id, f"❌ <b>Dokumen Ditolak</b>\n\nNominal dokumen ({fmt_req}) melebihi sisa kuota validasi Anda ({fmt_limit}).\nSilakan ketik ulang nominal yang lebih kecil, atau hubungi admin.", use_keyboard=True)
         return
 
     # Clear state since it's valid
@@ -207,7 +207,7 @@ async def handle_nominal(chat_id: int, text: str, state: dict, send_message, get
         credits_remaining = result.get("credits_remaining", "?")
         fmt_req = f"Rp {nominal_input:,}".replace(",", ".")
         response = (
-            "<b>✅ Pengajuan Kasbon Berhasil Dikirim</b>\n\n"
+            "<b>✅ Dokumen Logistik Berhasil Dikirim</b>\n\n"
             f"Nominal: <b>{fmt_req}</b>\n"
             "Dokumen kamu sudah masuk ke <b>antrean verifikasi Admin</b>.\n"
             "Admin akan mereview dan memberikan stamp verifikasi.\n\n"
@@ -220,7 +220,7 @@ async def handle_nominal(chat_id: int, text: str, state: dict, send_message, get
             admin_chat_id = settings.TELEGRAM_ADMIN_CHAT_ID
             if admin_chat_id and image_url:
                 admin_msg = (
-                    "<b>📥 Dokumen Kasbon Baru</b>\n"
+                    "<b>📥 Dokumen Logistik Baru</b>\n"
                     f"<b>Dari:</b> {recipient_name}\n"
                     f"<b>User:</b> <code>{user_id[:8]}…</code>\n"
                     f"<b>Nominal:</b> {fmt_req}\n"
