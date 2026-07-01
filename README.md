@@ -68,6 +68,15 @@ Berdasarkan kapabilitas AI & ML di atas, alur keputusan analis kredit di OtaruCh
 
 ---
 
+## 🛡️ Human-in-the-Loop & Immutable Ledger (SupaLedger)
+
+OtaruChain tidak sepenuhnya menyerahkan keputusan akhir pada AI. Kami menggunakan pendekatan hibrida untuk memastikan akuntabilitas manajerial dan keamanan kriptografis:
+
+1. **Admin Verification Queue (Human-in-the-Loop)**: AI Gemini 2.5 Flash bertindak sebagai *co-pilot* yang mendeteksi anomali (misal: harga tidak wajar pada nota). Namun, keputusan final tetap berada di tangan Admin Koperasi. Admin meninjau rekomendasi AI melalui dasbor antrean (*Logistics Verification Queue*) dan melakukan klik persetujuan final.
+2. **SupaLedger & SHA-256 Stamping**: Segera setelah Admin menyetujui dokumen, sistem memicu pembentukan jejak audit tak terubahkan (*Immutable Ledger*). Metadata dokumen, stempel waktu, dan tanda tangan digital Admin di- *hash* menggunakan algoritma **SHA-256**. *Hash* unik ini kemudian diukir secara visual ke atas gambar (via transformasi dinamis ImageKit) dan dicatat ke dalam *database* (SupaLedger). Hal ini menjamin dokumen valid tidak akan pernah bisa diubah, dipalsukan ulang, atau disangkal (*non-repudiation*) di masa depan.
+
+---
+
 ## ⚙️ Validasi Teknis & Arsitektur Sistem
 
 Platform dibangun dengan prinsip **API-First** dan arsitektur *Serverless Cloud*:
