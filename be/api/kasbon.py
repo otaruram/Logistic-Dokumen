@@ -420,15 +420,9 @@ async def get_approval_queue(current_user: dict = Depends(get_supabase_bearer_us
     
     Access restricted to ADMIN_WHITELIST emails only.
     """
-    # ── Access Control: Admin Whitelist ──
+    # ── Access Control: Open to all logged in users ──
     user_email = (current_user.get("email") or "").lower().strip()
     sb = _sb()
-    if not _is_authorized_admin(sb, user_email):
-        raise HTTPException(
-            status_code=403,
-            detail="access_denied",
-            headers={"X-Access-Requestable": "true"},
-        )
 
     _ensure_loan_requests_ready(sb)
 

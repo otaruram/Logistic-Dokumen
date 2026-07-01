@@ -96,26 +96,26 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
       <div className="w-full space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">Master Data / Audit Trail</h1>
-            <p className="text-sm text-zinc-400 mt-1">Supa Ledger immutable transaction logs.</p>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Master Data / Audit Trail</h1>
+            <p className="text-sm text-zinc-600 mt-1">Supa Ledger immutable transaction logs.</p>
           </div>
         </div>
 
-        {/* Table Container with Glassmorphism */}
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-xl overflow-hidden shadow-2xl">
+        {/* Table Container */}
+        <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-white/[0.04] border-b border-white/10 text-zinc-400">
+              <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-600">
                 <tr>
                   <th className="px-6 py-4 font-semibold tracking-wider">Tanggal & Waktu</th>
                   <th className="px-6 py-4 font-semibold tracking-wider">Nama Pengaju</th>
-                  <th className="px-6 py-4 font-semibold tracking-wider">Nominal Kasbon</th>
+                  <th className="px-6 py-4 font-semibold tracking-wider">Nominal Dokumen</th>
                   <th className="px-6 py-4 font-semibold tracking-wider">Status</th>
                   <th className="px-6 py-4 font-semibold tracking-wider text-center">Nota / File</th>
                   <th className="px-6 py-4 font-semibold tracking-wider">Kriptografi SHA-256</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-zinc-100">
                 {loading ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-8 text-center text-zinc-500">
@@ -130,18 +130,18 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
                   </tr>
                 ) : (
                   paginatedData.map((trx) => (
-                  <tr key={trx.id} className="hover:bg-white/[0.02] transition-colors">
+                  <tr key={trx.id} className="hover:bg-zinc-50 transition-colors">
                     <td className="px-6 py-4">
-                      <span className="text-zinc-300 font-medium">{formatDate(trx.date)}</span>
+                      <span className="text-zinc-800 font-medium">{formatDate(trx.date)}</span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="text-zinc-200 font-semibold">{trx.workerName}</span>
+                        <span className="text-zinc-900 font-bold">{trx.workerName}</span>
                         <span className="text-xs text-zinc-500 font-mono mt-0.5">{trx.phone}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-zinc-200 font-semibold">{formatRupiah(trx.nominal)}</span>
+                      <span className="text-zinc-900 font-bold">{formatRupiah(trx.nominal)}</span>
                     </td>
                     <td className="px-6 py-4">
                       {getStatusBadge(trx.status)}
@@ -151,7 +151,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
                         href={trx.fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-all group"
+                        className="inline-flex items-center justify-center p-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-600 hover:text-zinc-900 transition-all group"
                         title="View Document"
                       >
                         <ExternalLink className="w-4 h-4 group-hover:scale-110 transition-transform" />
@@ -159,12 +159,12 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <code className="text-xs font-mono text-zinc-400 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5">
+                        <code className="text-xs font-mono text-zinc-700 bg-zinc-100 px-2.5 py-1.5 rounded-lg border border-zinc-200 font-semibold">
                           {truncateHash(trx.hash)}
                         </code>
                         <button
                           onClick={() => copyToClipboard(trx.hash)}
-                          className="p-1.5 rounded-md hover:bg-white/10 text-zinc-500 hover:text-zinc-300 transition-colors"
+                          className="p-1.5 rounded-md hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 transition-colors"
                           title="Copy full hash"
                         >
                           <Copy className="w-4 h-4" />
@@ -178,15 +178,15 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-white/10 bg-white/[0.01]">
-            <span className="text-sm text-zinc-400 font-medium">
-              Page <span className="text-white">{currentPage}</span> of <span className="text-white">{totalPages}</span>
+          <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50">
+            <span className="text-sm text-zinc-600 font-medium">
+              Page <span className="text-zinc-900 font-bold">{currentPage}</span> of <span className="text-zinc-900 font-bold">{totalPages}</span>
             </span>
             <div className="flex gap-2">
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed border border-white/10 text-zinc-300 transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg bg-white hover:bg-zinc-100 disabled:opacity-40 disabled:cursor-not-allowed border border-zinc-200 text-zinc-700 transition-all shadow-sm"
               >
                 <ChevronLeft className="w-4 h-4" />
                 Previous
@@ -194,7 +194,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed border border-white/10 text-zinc-300 transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg bg-white hover:bg-zinc-100 disabled:opacity-40 disabled:cursor-not-allowed border border-zinc-200 text-zinc-700 transition-all shadow-sm"
               >
                 Next
                 <ChevronRight className="w-4 h-4" />

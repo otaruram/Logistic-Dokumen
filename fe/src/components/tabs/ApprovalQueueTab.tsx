@@ -606,28 +606,7 @@ export default function ApprovalQueueTab() {
         </div>
       )}
       
-      {error && error.includes("403") ? (
-        <div className="text-center py-16 border border-zinc-200 bg-white rounded-2xl shadow-sm px-4">
-          <Shield className="w-12 h-12 text-zinc-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-zinc-900 mb-2">Akses Terbatas</h3>
-          <p className="text-sm text-zinc-500 mb-6 max-w-md mx-auto">
-            Kamu tidak memiliki akses ke Approval Queue. Silakan minta akses untuk dapat mereview pengajuan.
-          </p>
-          {requestSuccess ? (
-            <p className="text-sm text-emerald-600 bg-emerald-50 py-2.5 px-5 rounded-full inline-block font-medium border border-emerald-100">
-              {requestSuccess}
-            </p>
-          ) : (
-            <button
-              onClick={handleRequestAccess}
-              disabled={requestingAccess}
-              className="inline-flex items-center justify-center rounded-full bg-black px-6 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
-            >
-              {requestingAccess ? "Mengirim..." : "Request Akses Admin"}
-            </button>
-          )}
-        </div>
-      ) : error ? (
+      {error ? (
         <p className="text-sm text-red-600 bg-red-50 rounded-xl p-4">{error}</p>
       ) : null}
 
