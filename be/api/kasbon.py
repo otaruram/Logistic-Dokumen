@@ -949,60 +949,67 @@ async def ai_recommendation(body: AIRecommendationRequest, user=Depends(get_supa
             salary = int(float(prof.get("salary") or 0))
             credit_score = int(prof.get("credit_score") or 0)
             fraud_flags = int(prof.get("fraud_flags") or 0)
+            dsr_status = ocr.get("dsr_status", "AMAN")
+            ai_indicator = loan.get("ai_indicator", "PROCESSING")
 
-            # AI Fraud checks (highest priority)
-            if loan.get("ai_fraud_status") == "FRAUD" or loan.get("ai_indicator") == "TAMPERED":
+            # ── Priority 1: Document tampering (highest priority) ─────────
+            if ai_indicator == "TAMPERED" or loan.get("ai_fraud_status") == "FRAUD":
                 verdict, risk = "TOLAK", "KRITIS"
-                reasons.append("Dokumen terindikasi manipulasi/fraud (POJK 35/2018)")
+                reasons.append("Dokumen terindikasi manipulasi visual (digital editing detected via Gemini 2.5 Vision)")
+
+            # ── Priority 2: DSR check (synced with SOP engine) ────────────
+            elif dsr_status == "OVER":
+                verdict, risk = "TOLAK", "TINGGI"
+                reasons.append("Dokumen asli, namun total cicilan melebihi batas DSR 70%")
+
+            # ── Priority 3: AI needs review ───────────────────────────────
             elif loan.get("ai_fraud_status") == "NEEDS_REVIEW":
                 verdict, risk = "REVISI", "TINGGI"
                 reasons.append("AI meminta review manual — dokumen mencurigakan")
 
-            # Fraud flags
-            if fraud_flags > 2:
-                verdict, risk = "TOLAK", "KRITIS"
-                reasons.append(f"Terdapat {fraud_flags} fraud flag (melebihi batas toleransi)")
-            elif fraud_flags > 0:
-                if verdict != "TOLAK":
-                    verdict = "REVISI"
-                risk = "TINGGI" if risk not in ("KRITIS",) else risk
-                reasons.append(f"Terdapat {fraud_flags} fraud flag pada profil pemohon")
-
-            # Salary-to-loan ratio (SE BI 15/2013)
-            if salary > 0:
-                ratio = nominal / salary
-                if ratio > 3:
+            # ── Standard checks (only if not already TOLAK) ───────────────
+            if verdict not in ("TOLAK",):
+                # Fraud flags
+                if fraud_flags > 2:
+                    verdict, risk = "TOLAK", "KRITIS"
+                    reasons.append(f"Terdapat {fraud_flags} fraud flag (melebihi batas toleransi)")
+                elif fraud_flags > 0:
                     if verdict != "TOLAK":
-                        verdict = "TOLAK"
-                    risk = "TINGGI"
-                    reasons.append(f"Rasio pinjaman/gaji {ratio:.1f}x (maks 3x per SE BI)")
-                elif ratio > 1.5:
+                        verdict = "REVISI"
+                    risk = "TINGGI" if risk not in ("KRITIS",) else risk
+                    reasons.append(f"Terdapat {fraud_flags} fraud flag pada profil pemohon")
+
+                # Salary-to-loan ratio (SE BI 15/2013)
+                # Only flag salary=0 if DSR was NOT already evaluated as AMAN by SOP
+                if salary > 0:
+                    ratio = nominal / salary
+                    if ratio > 3:
+                        if verdict != "TOLAK":
+                            verdict = "TOLAK"
+                        risk = "TINGGI"
+                        reasons.append(f"Rasio pinjaman/gaji {ratio:.1f}x (maks 3x per SE BI)")
+                    elif ratio > 1.5:
+                        if verdict not in ("TOLAK",):
+                            verdict = "REVISI"
+                        reasons.append(f"Rasio pinjaman/gaji {ratio:.1f}x (perlu justifikasi)")
+                elif nominal > 0 and dsr_status != "AMAN":
+                    # Only flag missing salary if DSR was NOT already AMAN
                     if verdict not in ("TOLAK",):
                         verdict = "REVISI"
-                    reasons.append(f"Rasio pinjaman/gaji {ratio:.1f}x (perlu justifikasi)")
-            elif nominal > 0:
-                if verdict not in ("TOLAK",):
-                    verdict = "REVISI"
-                reasons.append("Data gaji tidak tersedia — tidak bisa hitung DSR")
+                    reasons.append("Data gaji tidak tersedia — tidak bisa hitung DSR")
 
-            # DSR check
-            if ocr.get("dsr_status") == "OVER":
-                if verdict != "TOLAK":
-                    verdict = "TOLAK"
-                risk = "TINGGI"
-                reasons.append("DSR melebihi batas 30% (SE BI 15/40/DKMP/2013)")
+                # Credit score
+                if credit_score < 300 and credit_score > 0:
+                    verdict, risk = "TOLAK", "KRITIS"
+                    reasons.append(f"Credit score {credit_score}/1000 (di bawah ambang minimum)")
+                elif 300 <= credit_score < 500:
+                    if verdict not in ("TOLAK",):
+                        verdict = "REVISI"
+                    reasons.append(f"Credit score {credit_score}/1000 (zona kuning, perlu jaminan)")
 
-            # Credit score
-            if credit_score < 300 and credit_score > 0:
-                verdict, risk = "TOLAK", "KRITIS"
-                reasons.append(f"Credit score {credit_score}/1000 (di bawah ambang minimum)")
-            elif 300 <= credit_score < 500:
-                if verdict not in ("TOLAK",):
-                    verdict = "REVISI"
-                reasons.append(f"Credit score {credit_score}/1000 (zona kuning, perlu jaminan)")
-
+            # ── Clean pass: all criteria met ──────────────────────────────
             if not reasons:
-                reasons.append("Seluruh parameter memenuhi standar BI/OJK — pengajuan layak disetujui")
+                reasons.append("Dokumen valid & kapasitas finansial memenuhi syarat")
 
             rec_text = f"VERDICT: {verdict}\n"
             for r in reasons:

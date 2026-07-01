@@ -43,7 +43,7 @@ const TIERS = [
     threshold: 150,
     unit: "Dokumen",
     status: "Priority",
-    benefits: ["Bonus Plafon +Rp 1 Jt", "Diskon Bunga 0.5%"],
+    benefits: ["Bonus Plafon +Rp 1 Juta", "Diskon Biaya Admin 0.5%"],
     icon: Star,
     activeClasses: "border-amber-500/40 bg-amber-500/5 shadow-[0_0_24px_-4px_rgba(245,158,11,0.35)]",
     glowClasses: "",
@@ -58,7 +58,7 @@ const TIERS = [
     threshold: 250,
     unit: "Dokumen",
     status: "VIP",
-    benefits: ["Bonus Plafon +Rp 2.5 Jt", "Diskon Bunga 1.0%"],
+    benefits: ["Plafon Maks up to Rp 20 Juta", "Pencairan Instan < 5 Menit"],
     icon: Trophy,
     activeClasses: "border-violet-500/40 bg-violet-500/5 shadow-[0_0_28px_-4px_rgba(139,92,246,0.4)]",
     glowClasses: "",
@@ -100,8 +100,8 @@ export default function GamificationCard() {
   const hasGold    = badge?.has_gold    ?? (verified >= goldThreshold);
   const hasPlatinum = badge?.has_platinum ?? (verified >= platinumThreshold);
   const hasTamperedDoc = badge?.streak_broken ?? false;
-  const goldContext = badge?.gold_context_tba || "Benefit Gold: Pencairan kasbon lebih cepat & prioritas antrean bila DSR aman.";
-  const platinumContext = badge?.platinum_context_tba || "Benefit Platinum: Pencairan instan & limit kasbon ekstra berbasis performa DSR sempurna.";
+  const goldContext = badge?.gold_context_tba || "Benefit Gold: Bonus Plafon +Rp 1 Juta & Diskon Biaya Admin 0.5% berbasis meritokrasi perilaku anggota Koperasi.";
+  const platinumContext = badge?.platinum_context_tba || "Benefit Platinum: Plafon Maksimal up to Rp 20 Juta & Akses Prioritas Pencairan Instan < 5 Menit.";
 
   // Current tier for header badge
   const currentTier = hasPlatinum ? TIERS[2] : hasGold ? TIERS[1] : hasSilver ? TIERS[0] : null;

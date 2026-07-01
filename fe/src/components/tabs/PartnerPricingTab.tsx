@@ -314,20 +314,20 @@ export default function PartnerPricingTab({
         <div className="grid gap-3 md:grid-cols-2">
           <div className="rounded-xl border border-amber-700/40 bg-amber-950/20 p-4">
             <p className="text-sm font-bold text-amber-300">Gold</p>
-            <p className="text-xs text-slate-300 mt-1">≥ 150 Dokumen · Priority</p>
-            <p className="text-xs text-amber-200 mt-2">+ Bonus Plafon +Rp 1 Jt</p>
-            <p className="text-xs text-amber-200">+ Diskon Bunga 0.5%</p>
+            <p className="text-xs text-slate-300 mt-1">≥ 150 Dokumen Lolos Audit · Priority</p>
+            <p className="text-xs text-amber-200 mt-2">+ Bonus Plafon +Rp 1 Juta</p>
+            <p className="text-xs text-amber-200">+ Diskon Biaya Admin Koperasi 0.5%</p>
             <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
-              TBA: benefit aktif setelah verifikasi risiko koperasi dan kualitas dokumen bulan berjalan.
+              Benefit aktif berbasis meritokrasi perilaku anggota Koperasi. Evaluasi otomatis dari kualitas dan konsistensi dokumen bulan berjalan.
             </p>
           </div>
           <div className="rounded-xl border border-violet-700/40 bg-violet-950/20 p-4">
             <p className="text-sm font-bold text-violet-300">Platinum</p>
-            <p className="text-xs text-slate-300 mt-1">≥ 250 Dokumen · VIP</p>
-            <p className="text-xs text-violet-200 mt-2">+ Bonus Plafon +Rp 2.5 Jt</p>
-            <p className="text-xs text-violet-200">+ Diskon Bunga 1.0%</p>
+            <p className="text-xs text-slate-300 mt-1">≥ 250 Dokumen Lolos Audit · VIP</p>
+            <p className="text-xs text-violet-200 mt-2">+ Bonus Plafon Maksimal up to Rp 20 Juta</p>
+            <p className="text-xs text-violet-200">+ Akses Prioritas Pencairan Instan &lt; 5 Menit</p>
             <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
-              TBA: benefit aktif setelah validasi partner + governance check untuk mitigasi fraud.
+              Benefit tertinggi berbasis meritokrasi perilaku anggota Koperasi. Performa dokumen sempurna, pencairan instan tanpa antrean.
             </p>
           </div>
         </div>

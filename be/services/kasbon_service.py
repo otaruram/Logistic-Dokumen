@@ -405,7 +405,42 @@ async def kasbon_process_document(sb, image_url: str, telegram_chat_id: Optional
     if settings.KASBON_FAST_QUEUE and telegram_chat_id:
         nik_fast = _resolve_nik_from_telegram_chat(sb, telegram_chat_id)
         if nik_fast:
-            nominal_fast = 100_000
+            # ── Dynamic amount extraction via Gemini Vision (replaces hardcoded 100K) ──
+            nominal_fast = 0
+            try:
+                from services.fraud_ai_service import extract_amount_from_image
+                nominal_fast = await extract_amount_from_image(image_url)
+                print(f"[FastQueue] Gemini Vision extracted: Rp {nominal_fast:,}")
+            except Exception as e:
+                print(f"[FastQueue] Gemini Vision failed: {e}")
+
+            # Fallback: OCR Tesseract + regex if Gemini returned 0
+            if nominal_fast <= 0:
+                try:
+                    import tempfile
+                    resp_img = requests.get(image_url, timeout=30)
+                    resp_img.raise_for_status()
+                    suffix = os.path.splitext(image_url.split("?")[0])[1] or ".jpg"
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                    tmp.write(resp_img.content)
+                    tmp.close()
+                    raw_text_fb, _, _ = await OCRService.extract_text_tesseract(tmp.name)
+                    os.unlink(tmp.name)
+                    _, nominal_ocr = extract_nik_and_nominal(raw_text_fb or "")
+                    if nominal_ocr and nominal_ocr > 0:
+                        nominal_fast = nominal_ocr
+                        print(f"[FastQueue] OCR fallback extracted: Rp {nominal_fast:,}")
+                except Exception as e2:
+                    print(f"[FastQueue] OCR fallback also failed: {e2}")
+
+            # Final fallback: reject if we couldn't extract any amount
+            if nominal_fast <= 0:
+                return {
+                    "success": False, "nik": nik_fast, "nominal_pengajuan": 0,
+                    "ai_indicator": "PROCESSING", "status": "ERROR",
+                    "message": "Nominal tidak terdeteksi dari gambar. Pastikan foto bon/struk jelas dan memuat angka total.",
+                }
+
             profile_fast = _get_profile_by_nik(sb, nik_fast)
             available_fast = int(profile_fast.get("limit_pinjaman") or 0) - _active_loan_total(sb, nik_fast)
             if nominal_fast > available_fast:
@@ -421,8 +456,8 @@ async def kasbon_process_document(sb, image_url: str, telegram_chat_id: Optional
                 "source": "CHAIN",
                 "doc_type": "receipt",
                 "ai_fraud_status": "NEEDS_REVIEW",
-                "ai_fraud_reason": "Dokumen fast-queue (mode test). Analisis AI dilewati — review manual diperlukan.",
-                "ocr_raw": {"mode": "fast_queue_test", "source": "telegram"},
+                "ai_fraud_reason": "Dokumen fast-queue. Nominal diekstrak otomatis via Gemini Vision. Review manual diperlukan.",
+                "ocr_raw": {"mode": "fast_queue_gemini_vision", "source": "telegram", "ocr_extracted_amount": nominal_fast},
             }).execute()
             rows = getattr(ins, "data", None) or []
             loan_id = rows[0]["id"] if rows else None
@@ -430,7 +465,7 @@ async def kasbon_process_document(sb, image_url: str, telegram_chat_id: Optional
                 "success": True, "loan_id": str(loan_id) if loan_id else None,
                 "nik": nik_fast, "nominal_pengajuan": nominal_fast,
                 "ai_indicator": "PROCESSING", "status": "PENDING",
-                "message": "Pengajuan langsung masuk Approval Queue (fast test mode).",
+                "message": f"Pengajuan kasbon Rp {nominal_fast:,} berhasil diterima (fast queue, nominal diekstrak otomatis).",
             }
 
     tmp_name = ""

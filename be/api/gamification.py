@@ -33,11 +33,11 @@ PLATINUM_THRESHOLD = 250
 GOLD_INTEREST_DISCOUNT = 0.5
 PLATINUM_INTEREST_DISCOUNT = 1.0
 GOLD_PLAFON_BONUS = 1_000_000
-PLATINUM_PLAFON_BONUS = 2_500_000
+PLATINUM_PLAFON_BONUS = 20_000_000
 
 DEFAULT_GAMIFICATION_CONTEXT = {
-    "gold": "Benefit Gold: Pencairan kasbon lebih cepat & prioritas antrean bila DSR aman.",
-    "platinum": "Benefit Platinum: Pencairan instan & limit kasbon ekstra berbasis performa DSR sempurna.",
+    "gold": "Benefit Gold: Bonus Plafon +Rp 1 Juta & Diskon Biaya Admin 0.5% berbasis meritokrasi perilaku anggota Koperasi.",
+    "platinum": "Benefit Platinum: Plafon Maksimal up to Rp 20 Juta & Akses Prioritas Pencairan Instan < 5 Menit.",
 }
 
 DEFAULT_BADGE_BASE_URL = "https://api.dicebear.com/9.x/shapes/png"

@@ -1,5 +1,5 @@
-import { motion } from "framer-motion";
-import { Activity, ShieldCheck, TrendingUp, RefreshCw, Calendar, Trophy, Award, Star } from "lucide-react";
+﻿import { motion } from "framer-motion";
+import { Activity, ShieldCheck, TrendingUp, RefreshCw, Calendar, Trophy, Award, Star, ExternalLink, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -10,9 +10,9 @@ import {
 } from "recharts";
 
 const API_URL = APP_CONFIG.apiUrl;
-const USD_RATE_FALLBACK = 16000; // Fallback IDR/USD rate
+const MAX_KASBON_LIMIT = 20_000_000; // Rp 20 Juta â€” Platinum tier max
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface DashboardStats {
   trustScore: number;
@@ -28,13 +28,14 @@ interface DashboardStats {
   nextCleanupDate: string;
 }
 
-interface KasbonHistoryItem {
+interface AuditTrailItem {
   id: string;
-  nominal_pengajuan: number;
-  status: "PENDING" | "APPROVED" | "REJECTED";
-  ai_indicator: "PROCESSING" | "VERIFIED" | "TAMPERED";
-  sha256_hash?: string | null;
-  submitted_at?: string;
+  date: string;
+  workerName: string;
+  nominal: number;
+  status: string;
+  fileUrl: string;
+  hash: string;
 }
 
 const DURATION_OPTIONS = [
@@ -43,6 +44,9 @@ const DURATION_OPTIONS = [
   { key: "1y", label: "1 Tahun" },
   { key: "all", label: "Semua" },
 ] as const;
+
+const fmtRpDashboard = (value: number) =>
+  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
 
 const TotalActivityCard = ({ stats, loading }: { stats: DashboardStats; loading: boolean }) => {
 
@@ -62,7 +66,7 @@ const TotalActivityCard = ({ stats, loading }: { stats: DashboardStats; loading:
       </div>
       <div className="mt-5">
         <div className="text-6xl font-black tracking-tighter text-white tabular-nums">
-          {loading ? <span className="text-gray-600 animate-pulse">—</span> : stats.totalActivity}
+          {loading ? <span className="text-gray-600 animate-pulse">â€”</span> : stats.totalActivity}
         </div>
         <p className="text-xs text-gray-500 mt-1 font-medium">
           Total aktivitas fraud scan
@@ -120,7 +124,7 @@ const CreditsCard = ({ stats, loading }: { stats: DashboardStats; loading: boole
   </motion.div>
 );
 
-// ── Gamification: Consistency Mission Card (moved to GamificationCard.tsx) ────
+// â”€â”€ Gamification: Consistency Mission Card (moved to GamificationCard.tsx) â”€â”€â”€â”€
 const _GamificationCardLegacy = () => {
   const [badge, setBadge] = useState<any>(null);
   const [gLoading, setGLoading] = useState(true);
@@ -180,7 +184,7 @@ const _GamificationCardLegacy = () => {
             </div>
             <div className="min-w-0 overflow-hidden">
               <h3 className="font-bold text-white text-sm truncate">Consistency Mission</h3>
-              <p className="text-[11px] text-gray-500 truncate">{badge?.month_year || "—"}</p>
+              <p className="text-[11px] text-gray-500 truncate">{badge?.month_year || "â€”"}</p>
             </div>
           </div>
           <div className={`px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wider bg-gradient-to-r ${tierColor} text-black shrink-0 whitespace-nowrap`}>
@@ -192,7 +196,7 @@ const _GamificationCardLegacy = () => {
       {/* Zero-Tolerance Warning */}
       {streakBroken && (
         <div className="mb-4 p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl w-full overflow-hidden">
-          <p className="text-[11px] text-red-400 font-semibold break-words">⚠️ Streak Reset — Dokumen TAMPERED terdeteksi bulan ini.</p>
+          <p className="text-[11px] text-red-400 font-semibold break-words">âš ï¸ Streak Reset â€” Dokumen TAMPERED terdeteksi bulan ini.</p>
           <p className="text-[10px] text-red-400/70 mt-0.5 break-words">Badge dan benefit bulan ini ditangguhkan (Zero-Tolerance Policy).</p>
         </div>
       )}
@@ -215,7 +219,7 @@ const _GamificationCardLegacy = () => {
           <span>0</span>
           <span className="flex items-center gap-0.5"><Award className="w-3 h-3" /> 50</span>
           <span className="flex items-center gap-0.5"><Star className="w-3 h-3 text-amber-500" /> 150</span>
-          <span>💎 250</span>
+          <span>ðŸ’Ž 250</span>
         </div>
       </div>
 
@@ -225,47 +229,47 @@ const _GamificationCardLegacy = () => {
           <div className="flex items-center gap-2 mb-1">
             <Award className={`w-4 h-4 shrink-0 ${hasSilver ? "text-gray-300" : "text-gray-600"}`} />
             <span className={`text-xs font-bold ${hasSilver ? "text-gray-200" : "text-gray-600"}`}>Silver</span>
-            {hasSilver && <span className="text-[10px] text-emerald-400">✓</span>}
+            {hasSilver && <span className="text-[10px] text-emerald-400">âœ“</span>}
           </div>
           <p className="text-[10px] text-gray-500 break-words">50+ verified/bulan</p>
-          <p className="text-[10px] text-gray-500 break-words">Verified Badge</p>
+          <p className="text-[10px] text-gray-500 break-words">Limit Kasbon: Rp 5.500.000</p>
         </div>
         <div className={`rounded-xl p-3 border w-full overflow-hidden ${hasGold ? "border-amber-500/30 bg-amber-500/5" : "border-white/5 bg-white/[0.02]"}`}>
           <div className="flex items-center gap-2 mb-1">
             <Star className={`w-4 h-4 shrink-0 ${hasGold ? "text-amber-400" : "text-gray-600"}`} />
             <span className={`text-xs font-bold ${hasGold ? "text-amber-300" : "text-gray-600"}`}>Gold</span>
-            {hasGold && <span className="text-[10px] text-emerald-400">✓</span>}
+            {hasGold && <span className="text-[10px] text-emerald-400">âœ“</span>}
           </div>
           <p className="text-[10px] text-gray-500 break-words">150+ verified/bulan</p>
-          <p className={`text-[10px] break-words ${hasGold ? "text-amber-400 font-semibold" : "text-gray-500"}`}>Priority Approval Queue</p>
+          <p className={`text-[10px] break-words ${hasGold ? "text-amber-400 font-semibold" : "text-gray-500"}`}>Limit Kasbon: Rp 10.000.000</p>
         </div>
         <div className={`rounded-xl p-3 border w-full overflow-hidden ${hasPlatinum ? "border-indigo-500/30 bg-indigo-500/5" : "border-white/5 bg-white/[0.02]"}`}>
           <div className="flex items-center gap-2 mb-1">
-            <span className={`text-sm shrink-0 ${hasPlatinum ? "" : "grayscale opacity-40"}`}>💎</span>
+            <span className={`text-sm shrink-0 ${hasPlatinum ? "" : "grayscale opacity-40"}`}>ðŸ’Ž</span>
             <span className={`text-xs font-bold ${hasPlatinum ? "text-indigo-300" : "text-gray-600"}`}>Platinum</span>
-            {hasPlatinum && <span className="text-[10px] text-emerald-400">✓</span>}
+            {hasPlatinum && <span className="text-[10px] text-emerald-400">âœ“</span>}
           </div>
           <p className="text-[10px] text-gray-500 break-words">250+ verified/bulan</p>
-          <p className={`text-[10px] break-words ${hasPlatinum ? "text-indigo-400 font-semibold" : "text-gray-500"}`}>VIP Support & Instant Routing</p>
+          <p className={`text-[10px] break-words ${hasPlatinum ? "text-indigo-400 font-semibold" : "text-gray-500"}`}>Limit Kasbon: Rp 20.000.000</p>
         </div>
       </div>
 
       {/* Active Badge Banner */}
       {hasPlatinum && (
         <div className="mt-4 p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl w-full overflow-hidden">
-          <p className="text-xs text-indigo-300 font-medium break-words">💎 Platinum Integrity Badge Aktif!</p>
-          <p className="text-[11px] text-indigo-400/70 mt-0.5 break-words">VIP Support & Instant Decision Routing otomatis diterapkan. Sertifikat digital tersedia.</p>
+          <p className="text-xs text-indigo-300 font-medium break-words">ðŸ’Ž Platinum Integrity Badge Aktif!</p>
+          <p className="text-[11px] text-indigo-400/70 mt-0.5 break-words">Plafon Maksimal up to Rp 20 Juta & Pencairan Instan &lt; 5 Menit otomatis diterapkan.</p>
         </div>
       )}
       {hasGold && !hasPlatinum && (
         <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl w-full overflow-hidden">
-          <p className="text-xs text-amber-300 font-medium break-words">🏆 Gold Integrity Badge Aktif!</p>
-          <p className="text-[11px] text-amber-400/70 mt-0.5 break-words">Priority Approval Queue otomatis diterapkan.</p>
+          <p className="text-xs text-amber-300 font-medium break-words">ðŸ† Gold Integrity Badge Aktif!</p>
+          <p className="text-[11px] text-amber-400/70 mt-0.5 break-words">Bonus Plafon +Rp 1 Juta & Diskon Biaya Admin 0.5% otomatis diterapkan.</p>
         </div>
       )}
       {hasSilver && !hasGold && !hasPlatinum && (
         <div className="mt-4 p-3 bg-gray-400/10 border border-gray-400/20 rounded-xl w-full overflow-hidden">
-          <p className="text-xs text-gray-300 font-medium break-words">🥈 Silver Integrity Badge Aktif!</p>
+          <p className="text-xs text-gray-300 font-medium break-words">ðŸ¥ˆ Silver Integrity Badge Aktif!</p>
           <p className="text-[11px] text-gray-400/70 mt-0.5 break-words">Standard Queue aktif. Lanjutkan ke 150 dokumen untuk unlock Gold!</p>
         </div>
       )}
@@ -273,20 +277,19 @@ const _GamificationCardLegacy = () => {
   );
 };
 
-const TrustScoreCard = ({ stats, loading }: { stats: DashboardStats; loading: boolean }) => {
-  const SCORE_MAX = 1000;
-  const currentScore = stats.trustScore;
+const SisaLimitCard = ({ stats, loading }: { stats: DashboardStats; loading: boolean }) => {
+  const sisaLimit = MAX_KASBON_LIMIT - stats.totalNominalVerified;
+  const usedPct = Math.min((stats.totalNominalVerified / MAX_KASBON_LIMIT) * 100, 100);
   const data = [
-    { name: "Score", value: currentScore },
-    { name: "Remaining", value: SCORE_MAX - currentScore },
+    { name: "Used", value: stats.totalNominalVerified },
+    { name: "Remaining", value: Math.max(0, sisaLimit) },
   ];
-  const getScoreColor = (score: number) => {
-    if (score >= 800) return "#10b981";
-    if (score >= 500) return "#f59e0b";
-    if (score >= 300) return "#f97316";
-    return "#ef4444";
+  const getColor = (pct: number) => {
+    if (pct >= 90) return "#ef4444";
+    if (pct >= 70) return "#f59e0b";
+    return "#10b981";
   };
-  const scoreColor = getScoreColor(currentScore);
+  const barColor = getColor(usedPct);
 
   return (
     <motion.div
@@ -294,39 +297,44 @@ const TrustScoreCard = ({ stats, loading }: { stats: DashboardStats; loading: bo
       className="border border-white/10 rounded-xl p-6 bg-[#111] hover:bg-[#161616] transition-all flex flex-col items-center justify-center relative overflow-hidden"
     >
       <div className="absolute -top-10 flex w-full justify-center opacity-20 blur-2xl pointer-events-none"
-        style={{ backgroundColor: scoreColor, width: "150px", height: "150px", borderRadius: "50%" }} />
+        style={{ backgroundColor: barColor, width: "150px", height: "150px", borderRadius: "50%" }} />
       <div className="w-full flex items-start justify-between mb-2 z-10">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5" style={{ color: scoreColor }} />
+          <ShieldCheck className="w-5 h-5" style={{ color: barColor }} />
           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Sisa Limit Kasbon</span>
         </div>
-        {currentScore >= 800 && (
-          <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-1 rounded-full border border-green-500/30">EXCELLENT</span>
+        {usedPct < 70 && (
+          <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-1 rounded-full border border-green-500/30">AMAN</span>
+        )}
+        {usedPct >= 70 && usedPct < 90 && (
+          <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full border border-amber-500/30">HATI-HATI</span>
+        )}
+        {usedPct >= 90 && (
+          <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded-full border border-red-500/30">LIMIT PENUH</span>
         )}
       </div>
       <div className="h-48 w-full relative z-10">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie data={data} cx="50%" cy="70%" startAngle={180} endAngle={0} innerRadius={70} outerRadius={90} paddingAngle={0} dataKey="value" stroke="none">
-              <Cell key="cell-0" fill={scoreColor} />
+              <Cell key="cell-0" fill={barColor} />
               <Cell key="cell-1" fill="#222" />
             </Pie>
           </PieChart>
         </ResponsiveContainer>
         <div className="absolute inset-0 flex flex-col items-center justify-end pb-8 pointer-events-none">
-          <span className="text-5xl font-bold text-white tracking-tighter shadow-sm" style={{ textShadow: `0 0 20px ${scoreColor}40` }}>
-            {loading ? "..." : currentScore}
+          <span className="text-3xl font-bold text-white tracking-tighter shadow-sm" style={{ textShadow: `0 0 20px ${barColor}40` }}>
+            {loading ? "..." : fmtRpDashboard(Math.max(0, sisaLimit))}
           </span>
-          <span className="text-xs text-gray-500 mt-1">of 1000 Poin</span>
+          <span className="text-xs text-gray-500 mt-1">dari {fmtRpDashboard(MAX_KASBON_LIMIT)}</span>
         </div>
       </div>
     </motion.div>
   );
 };
 
-const NominalVerifiedCard = ({ stats, loading, currency, onToggleCurrency, formatCurrency }: {
-  stats: DashboardStats; loading: boolean; currency: "IDR" | "USD";
-  onToggleCurrency: () => void; formatCurrency: (n: number) => string;
+const NominalVerifiedCard = ({ stats, loading }: {
+  stats: DashboardStats; loading: boolean;
 }) => (
   <motion.div
     initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
@@ -340,16 +348,12 @@ const NominalVerifiedCard = ({ stats, loading, currency, onToggleCurrency, forma
             <TrendingUp className="w-5 h-5 text-gray-300" />
             <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Total Kasbon Aktif</span>
           </div>
-          <button
-            onClick={onToggleCurrency}
-            className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-gray-300"
-          >
-            <RefreshCw className="w-3 h-3" />
-            {currency}
-          </button>
+          <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-gray-300">
+            IDR
+          </span>
         </div>
         <div className="text-3xl font-bold text-white mb-2 tracking-tight">
-          {loading ? "..." : formatCurrency(stats.totalNominalVerified)}
+          {loading ? "..." : fmtRpDashboard(stats.totalNominalVerified)}
         </div>
         <p className="text-xs text-green-400 flex items-center gap-1">
           <TrendingUp className="w-3 h-3" />*Dihitung secara real-time dari dokumen yang telah Approved
@@ -388,53 +392,130 @@ const SecurityInfoCard = () => (
   </motion.div>
 );
 
-const KasbonHistoryCard = ({ items, loading }: { items: KasbonHistoryItem[]; loading: boolean }) => (
-  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="border border-white/10 rounded-xl p-6 bg-[#111]">
-    <div className="flex items-center justify-between mb-4">
-      <h4 className="font-bold text-white">Histori Kasbon</h4>
-      <span className="text-xs text-gray-500">Web User</span>
-    </div>
+// â”€â”€ STATUS BADGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const StatusBadge = ({ status }: { status: string }) => {
+  const s = (status || "").toUpperCase();
+  if (s === "APPROVED") return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 tracking-wide">APPROVED</span>;
+  if (s === "REJECTED") return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-500/15 text-red-400 border border-red-500/30 tracking-wide">REJECTED</span>;
+  if (s === "REVISION" || s === "NEED_REVISION") return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 tracking-wide">REVISION</span>;
+  return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-500/15 text-gray-400 border border-gray-500/30 tracking-wide">{s || "PENDING"}</span>;
+};
 
-    {loading ? (
-      <p className="text-sm text-gray-500">Memuat histori...</p>
-    ) : items.length === 0 ? (
-      <p className="text-sm text-gray-500">Belum ada histori kasbon.</p>
-    ) : (
-      <div className="space-y-3">
-        {items.map((item) => {
-          let finalStatus = item.status;
-          if (item.ai_indicator === "TAMPERED" || item.status === "REJECTED") finalStatus = "REJECTED";
-          else if (item.ai_indicator === "UNCLEAR_BLURRY" || item.status === "NEED_REVISION") finalStatus = "NEED_REVISION";
-          else if (item.status === "APPROVED") finalStatus = "APPROVED";
-          else if (item.status === "PENDING") finalStatus = "PROCESSING";
-          
-          return (
-          <div key={item.id} className="rounded-lg border border-white/10 p-3 bg-white/5">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-white font-semibold">
-                {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(item.nominal_pengajuan)}
-              </p>
-              <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${
-                finalStatus === "APPROVED" ? "bg-green-500/20 text-green-400" :
-                finalStatus === "REJECTED" ? "bg-red-500/20 text-red-400" :
-                "bg-yellow-500/20 text-yellow-400"
-              }`}>
-                {finalStatus}
-              </span>
-            </div>
-            <p className="text-xs text-gray-400 mt-1">AI: {finalStatus === "REJECTED" ? "DETECTED: FRAUD DSR/TAMPERED" : item.ai_indicator}</p>
-            <p className="text-xs text-gray-500 mt-1">
-              Integrity Seal: {item.sha256_hash ? `${item.sha256_hash.slice(0, 14)}...` : "Belum disegel"}
-            </p>
+// â”€â”€ MASTER AUDIT TRAIL TABLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const ROWS_PER_PAGE = 10;
+
+const MasterAuditTable = ({ items, loading }: { items: AuditTrailItem[]; loading: boolean }) => {
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(items.length / ROWS_PER_PAGE));
+  const paged = items.slice(page * ROWS_PER_PAGE, (page + 1) * ROWS_PER_PAGE);
+
+  useEffect(() => { setPage(0); }, [items.length]);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}
+      className="border border-white/10 rounded-2xl bg-[#111] overflow-hidden"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg">
+            <FileText className="w-5 h-5 text-white" />
           </div>
-          );
-        })}
+          <div>
+            <h4 className="font-bold text-white text-sm">Master Data & Transaction Audit Trail</h4>
+            <p className="text-[11px] text-gray-500">{items.length} transaksi tercatat</p>
+          </div>
+        </div>
       </div>
-    )}
-  </motion.div>
-);
 
-// ── Main Component ───────────────────────────────────────────────────────────
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        </div>
+      ) : items.length === 0 ? (
+        <div className="text-center py-16 px-6">
+          <FileText className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+          <p className="text-sm text-gray-500 font-medium">Belum ada data transaksi.</p>
+        </div>
+      ) : (
+        <>
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Tanggal/Waktu</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Nama Pengaju</th>
+                  <th className="text-right px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Nominal</th>
+                  <th className="text-center px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Status</th>
+                  <th className="text-center px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Dokumen</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest">SHA-256 Seal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paged.map((item, i) => (
+                  <tr key={item.id} className={`border-b border-white/5 hover:bg-white/[0.03] transition-colors ${i % 2 === 0 ? "bg-white/[0.01]" : ""}`}>
+                    <td className="px-6 py-3 text-xs text-gray-400 whitespace-nowrap">
+                      {item.date ? new Date(item.date).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "â€”"}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-white font-medium truncate max-w-[160px]">{item.workerName}</td>
+                    <td className="px-4 py-3 text-xs text-white font-semibold text-right tabular-nums whitespace-nowrap">
+                      {fmtRpDashboard(item.nominal)}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <StatusBadge status={item.status} />
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {item.fileUrl ? (
+                        <a href={item.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 transition-colors font-medium">
+                          <ExternalLink className="w-3 h-3" /> Lihat
+                        </a>
+                      ) : (
+                        <span className="text-[11px] text-gray-600">â€”</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-mono text-[11px] text-gray-500 bg-white/5 px-2 py-1 rounded">
+                        {item.hash && item.hash.length >= 8 ? item.hash.slice(0, 8) : "â€”"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-white/5">
+              <p className="text-[11px] text-gray-500">
+                Halaman {page + 1} dari {totalPages}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(Math.max(0, page - 1))}
+                  disabled={page === 0}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-xs font-medium text-gray-400 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-3 h-3" /> Prev
+                </button>
+                <button
+                  onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                  disabled={page >= totalPages - 1}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-xs font-medium text-gray-400 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </motion.div>
+  );
+};
+
+// â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const DashboardTab = () => {
   const [stats, setStats] = useState<DashboardStats>({
@@ -445,32 +526,12 @@ const DashboardTab = () => {
   });
   const [weeklyData, setWeeklyData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currency, setCurrency] = useState<"IDR" | "USD">("IDR");
-  const [usdRate, setUsdRate] = useState(USD_RATE_FALLBACK);
-  const [kasbonHistory, setKasbonHistory] = useState<KasbonHistoryItem[]>([]);
-  const [kasbonLoading, setKasbonLoading] = useState(true);
+  const [auditTrail, setAuditTrail] = useState<AuditTrailItem[]>([]);
+  const [auditLoading, setAuditLoading] = useState(true);
   const isMounted = useRef(true);
   const refreshInFlight = useRef(false);
   const backendFailureCount = useRef(0);
   const backendCooldownUntil = useRef(0);
-
-  // Fetch USD rate on mount
-  useEffect(() => {
-    fetch("https://api.exchangerate-api.com/v4/latest/USD")
-      .then(r => r.json())
-      .then(d => { if (d?.rates?.IDR) setUsdRate(d.rates.IDR); })
-      .catch(() => setUsdRate(USD_RATE_FALLBACK));
-  }, []);
-
-  const toggleCurrency = () => setCurrency(prev => prev === "IDR" ? "USD" : "IDR");
-
-  const formatCurrency = (amountIDR: number) => {
-    if (currency === "USD") {
-      const usd = amountIDR / usdRate;
-      return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(usd);
-    }
-    return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amountIDR);
-  };
 
   const fetchDashboardData = useCallback(async (silent = false) => {
     if (refreshInFlight.current) return;
@@ -482,7 +543,7 @@ const DashboardTab = () => {
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error || !session) { toast.error("Anda harus login terlebih dahulu"); setLoading(false); return; }
 
-      // ── Primary: backend realtime-stats (uses supabase_admin — bypasses RLS) ──
+      // â”€â”€ Primary: backend realtime-stats (uses supabase_admin â€” bypasses RLS) â”€â”€
       let backendOk = false;
       const nowMs = Date.now();
       try {
@@ -549,7 +610,7 @@ const DashboardTab = () => {
 
       if (backendOk) return;
 
-      // ── Fallback: direct Supabase client query (may be affected by RLS) ──
+      // â”€â”€ Fallback: direct Supabase client query (may be affected by RLS) â”€â”€
       const userId = session.user.id;
       const fraudQuery = supabase.from("fraud_scans").select("status, created_at, nominal_total").eq("user_id", userId);
       const { data: allFraud } = await fraudQuery;
@@ -629,27 +690,45 @@ const DashboardTab = () => {
     }
   }, []);
 
-  const fetchKasbonHistory = useCallback(async () => {
-    setKasbonLoading(true);
+  const fetchAuditTrail = useCallback(async () => {
+    setAuditLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        setKasbonHistory([]);
+        setAuditTrail([]);
         return;
       }
-      const res = await fetch(`${API_URL}/api/kasbon/history`, {
+      const res = await fetch(`${API_URL}/api/kasbon/audit-trail`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (!res.ok) {
-        setKasbonHistory([]);
+        // Fallback to user history if audit-trail is admin-only
+        const fallbackRes = await fetch(`${API_URL}/api/kasbon/history`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json();
+          const history = (fallbackData?.history || []).map((h: any) => ({
+            id: h.id,
+            date: h.submitted_at,
+            workerName: "Anda",
+            nominal: h.nominal_pengajuan || 0,
+            status: h.status,
+            fileUrl: "",
+            hash: h.sha256_hash || "",
+          }));
+          setAuditTrail(history);
+        } else {
+          setAuditTrail([]);
+        }
         return;
       }
       const data = await res.json();
-      setKasbonHistory((data?.history || []).slice(0, 5));
+      setAuditTrail(data?.transactions || []);
     } catch {
-      setKasbonHistory([]);
+      setAuditTrail([]);
     } finally {
-      setKasbonLoading(false);
+      setAuditLoading(false);
     }
   }, []);
 
@@ -660,7 +739,7 @@ const DashboardTab = () => {
 
     const setupDashboard = async () => {
       await fetchDashboardData();
-      await fetchKasbonHistory();
+      await fetchAuditTrail();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       const userId = session.user.id;
@@ -674,7 +753,7 @@ const DashboardTab = () => {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'extracted_finance_data', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDashboardData(true); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'fraud_scans', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDashboardData(true); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'loan_requests' }, () => {
-          if (isMounted.current) fetchKasbonHistory();
+          if (isMounted.current) fetchAuditTrail();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'scans', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDashboardData(true); })
         .subscribe();
@@ -690,7 +769,7 @@ const DashboardTab = () => {
       if (!isMounted.current) return;
       // Immediate refresh + delayed refresh to avoid DB write race conditions.
       fetchDashboardData(true);
-      fetchKasbonHistory();
+      fetchAuditTrail();
       setTimeout(() => {
         if (isMounted.current) fetchDashboardData(true);
       }, 1500);
@@ -715,7 +794,7 @@ const DashboardTab = () => {
       if (realtimePoll) clearInterval(realtimePoll);
       if (subscription) supabase.removeChannel(subscription);
     };
-  }, [fetchDashboardData, fetchKasbonHistory]);
+  }, [fetchDashboardData, fetchAuditTrail]);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] p-6 space-y-6 text-white font-sans pb-32">
@@ -737,16 +816,18 @@ const DashboardTab = () => {
 
       {/* Main Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <TrustScoreCard stats={stats} loading={loading} />
-        <NominalVerifiedCard stats={stats} loading={loading} currency={currency} onToggleCurrency={toggleCurrency} formatCurrency={formatCurrency} />
+        <SisaLimitCard stats={stats} loading={loading} />
+        <NominalVerifiedCard stats={stats} loading={loading} />
       </div>
 
-      {/* Gamification — Consistency Mission */}
+      {/* Gamification â€” Consistency Mission */}
       <GamificationCard />
 
       {/* Info Cards */}
       <SecurityInfoCard />
-      <KasbonHistoryCard items={kasbonHistory} loading={kasbonLoading} />
+
+      {/* Master Data & Transaction Audit Trail */}
+      <MasterAuditTable items={auditTrail} loading={auditLoading} />
     </div>
   );
 };

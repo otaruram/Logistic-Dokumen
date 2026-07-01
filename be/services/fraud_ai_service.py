@@ -152,3 +152,70 @@ async def analyze_fraud_with_gemini(
             status="NEEDS_REVIEW",
             reason=f"Analisis AI gagal ({type(exc).__name__}). Admin harus review manual.",
         )
+
+
+# ── Receipt Amount Extraction via Gemini Vision ──────────────────────────────
+
+async def extract_amount_from_image(image_url: str) -> int:
+    """Use Gemini 2.5 Flash Vision to extract the total receipt amount.
+
+    Downloads the image, sends it to Gemini with a structured JSON prompt,
+    and returns the extracted integer amount (IDR).
+    Returns 0 on any failure so the caller can fall back to OCR/regex.
+    """
+    if not _gemini_model:
+        return 0
+
+    try:
+        import httpx as _httpx
+        from PIL import Image as _Image
+        import io
+
+        # Download image
+        async with _httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(image_url)
+            resp.raise_for_status()
+
+        img_bytes = resp.content
+        img = _Image.open(io.BytesIO(img_bytes))
+
+        extraction_prompt = (
+            "You are a receipt/invoice OCR specialist. "
+            "Analyze this image of an Indonesian receipt, invoice, or financial document. "
+            "Extract the TOTAL amount (grand total / jumlah / total bayar) from the document. "
+            "Return ONLY a valid JSON object with this exact structure:\n"
+            '{"ocr_extracted_amount": <integer in IDR, e.g. 150000 for Rp 150.000>}\n\n'
+            "Rules:\n"
+            "- The amount must be an integer in IDR (Indonesian Rupiah)\n"
+            "- Strip all dots, commas, and currency symbols\n"
+            "- If multiple totals exist, use the GRAND TOTAL (largest final amount)\n"
+            "- If no amount is found, return {\"ocr_extracted_amount\": 0}\n"
+            "- Return ONLY the JSON object, no explanation"
+        )
+
+        response = _gemini_model.generate_content(
+            [extraction_prompt, img],
+            generation_config={
+                "temperature": 0.1,
+                "max_output_tokens": 100,
+                "response_mime_type": "application/json",
+            },
+        )
+
+        raw = response.text.strip()
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+
+        json_match = re.search(r"\{.*\}", raw, re.DOTALL)
+        if json_match:
+            parsed = json.loads(json_match.group())
+            amount = int(parsed.get("ocr_extracted_amount", 0))
+            if amount > 0:
+                print(f"[GeminiVision] Extracted amount: Rp {amount:,}")
+                return amount
+
+    except Exception as exc:
+        print(f"[GeminiVision] Amount extraction failed: {exc}")
+
+    return 0
+
