@@ -335,6 +335,9 @@ async def verify_whitelist(
         "verified_at": now_iso,
         "whitelist_company_id": company_id,
         "role": "user",
+        "data_consent_given": True,
+        "data_consent_at": now_iso,
+        "data_consent_version": "v1.0 (Whitelist auto-grant)",
     }
 
     # Set full_name from whitelist if available and profile doesn't have one
