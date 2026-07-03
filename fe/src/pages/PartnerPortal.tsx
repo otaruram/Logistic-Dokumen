@@ -7,6 +7,7 @@ import PartnerDashboardTab from "@/components/tabs/PartnerDashboardTab";
 import PartnerPlaygrounds from "@/components/tabs/PartnerPlaygrounds";
 import PartnerApiKeysView from "@/components/tabs/PartnerApiKeysView";
 import PartnerAuditTrailTab from "@/components/tabs/PartnerAuditTrailTab";
+import WhitelistManagement from "@/components/tabs/WhitelistManagement";
 import { pricingPlans, partnerProducts, themeConfig, PortalTheme } from "./PartnerPortalConstants";
 import {
   ArrowRight,
@@ -24,6 +25,7 @@ import {
   ShieldCheck,
   TerminalSquare,
   Trash2,
+  Users,
   Wallet,
   X,
   Wand2,
@@ -116,7 +118,7 @@ interface BadgeProgress {
   plafon_bonus: number;
   progress_pct: number;
 }
-type PartnerView = "dashboard" | "api" | "docs" | "pricing" | "queue" | "audit-trail";
+type PartnerView = "dashboard" | "api" | "docs" | "pricing" | "queue" | "audit-trail" | "whitelist";
 
 function fmt(value: number): string {
   return value.toLocaleString('id-ID');
@@ -481,6 +483,7 @@ export default function PartnerPortal() {
                 { id: "pricing", label: "Pricing", icon: Wallet },
                 { id: "queue", label: "Approval Queue", icon: ClipboardList },
                 { id: "audit-trail", label: "Audit Trail", icon: BarChart3 },
+                { id: "whitelist", label: "Whitelist", icon: Users },
               ] as Array<{ id: PartnerView; label: string; icon: React.ComponentType<{ className?: string }> }>
             ).map((item) => {
               const Icon = item.icon;
@@ -553,6 +556,7 @@ export default function PartnerPortal() {
               { id: "pricing", label: "Pricing" },
               { id: "queue", label: "Approval Queue" },
               { id: "audit-trail", label: "Audit Trail" },
+              { id: "whitelist", label: "Whitelist HP" },
             ] as Array<{ id: PartnerView; label: string }>
           ).map((item) => (
             <button
@@ -648,6 +652,18 @@ export default function PartnerPortal() {
 
             { activeView === "audit-trail" && (
               <PartnerAuditTrailTab />
+            )}
+
+            { activeView === "whitelist" && (
+              <section className="space-y-5">
+                <div className="mb-2">
+                  <h2 className="text-xl font-semibold text-zinc-900">Kelola Whitelist Karyawan</h2>
+                  <p className="text-sm text-zinc-500 mt-1">
+                    Tambah, hapus, atau upload daftar nomor HP karyawan yang berhak mengakses OtaruChain.
+                  </p>
+                </div>
+                <WhitelistManagement />
+              </section>
             )}
           </>
         )}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Scan, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Scan, ArrowLeft, ArrowRight, CheckCircle2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
@@ -83,10 +83,10 @@ const LoginPage = ({ onBack, onSuccess }: LoginPageProps) => {
               <Scan className="w-8 h-8" />
             </div>
             <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-500 mb-2">
-              Welcome Back
+              Masuk ke OtaruChain
             </h1>
             <p className="text-gray-400 text-lg">
-              Sign in to your dashboard
+              Login untuk akses dashboard Anda
             </p>
           </div>
 
@@ -100,7 +100,7 @@ const LoginPage = ({ onBack, onSuccess }: LoginPageProps) => {
               {isLoading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                  <span>Connecting...</span>
+                  <span>Menghubungkan...</span>
                 </div>
               ) : (
                 <div className="flex items-center justify-center gap-3 relative z-10">
@@ -118,12 +118,12 @@ const LoginPage = ({ onBack, onSuccess }: LoginPageProps) => {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center gap-3">
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
-                <span className="text-xs text-gray-400">Secure Access</span>
+                <Shield className="w-4 h-4 text-emerald-500" />
+                <span className="text-xs text-gray-400">UU PDP Compliant</span>
               </div>
               <div className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center gap-3">
                 <CheckCircle2 className="w-4 h-4 text-green-500" />
-                <span className="text-xs text-gray-400">Encrypted</span>
+                <span className="text-xs text-gray-400">Terenkripsi</span>
               </div>
             </div>
           </div>

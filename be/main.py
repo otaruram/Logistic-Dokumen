@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from config.settings import settings
-from api import auth, scans, fraud, exports, invoices, users, upload, config as config_api, reviews, dashboard, cleanup, chatbot, chat_history, admin, report, scan_insight, telegram, partner, payment, ledger, transactions, audit, kyc, kasbon, finance, gamification
+from api import auth, scans, fraud, exports, invoices, users, upload, config as config_api, reviews, dashboard, cleanup, chatbot, chat_history, admin, report, scan_insight, telegram, partner, payment, ledger, transactions, audit, kyc, kasbon, finance, gamification, whitelist
 from middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware, IPBlockingMiddleware
 
 # Database will be handled by Prisma
@@ -112,7 +112,8 @@ app.include_router(payment.router, tags=["Payment"])  # /api/v1/payment/* — Lo
 app.include_router(ledger.router, prefix="/api/ledger", tags=["Ledger"])  # OtaruChain integrity seal
 app.include_router(transactions.router, prefix="/api/transactions", tags=["Transactions"])  # Duration-filtered aggregates
 app.include_router(audit.router, tags=["Partner Audit"])  # /api/partner/v1/user-audit/*
-app.include_router(kyc.router, prefix="/api/kyc", tags=["KYC"])  # Identity verification
+app.include_router(kyc.router, prefix="/api/kyc", tags=["KYC"])  # Identity verification (legacy)
+app.include_router(whitelist.router, tags=["Whitelist Auth"])  # Google Login + Phone Whitelist
 app.include_router(kasbon.router, tags=["Kasbon"])  # Digital Intake Gateway
 app.include_router(finance.router)  # /api/v1/verify-credit + family sharing
 
