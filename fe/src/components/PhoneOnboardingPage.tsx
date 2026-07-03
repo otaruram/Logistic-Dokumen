@@ -258,9 +258,29 @@ export default function PhoneOnboardingPage({
                       maxLength={20}
                     />
                   </div>
-                  <p className="text-[11px] text-zinc-600 mt-2">
-                    Contoh: 081234567890 atau +6281234567890
-                  </p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-[11px] text-zinc-600">
+                      Contoh: 081234567890 atau +6281234567890
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleDemoAutofill(DEMO_PHONES.valid, "valid")}
+                        className="text-[10px] font-medium text-zinc-500 hover:text-emerald-500 transition-colors flex items-center gap-1"
+                        type="button"
+                      >
+                        <span>💡</span>
+                        <span>Valid</span>
+                      </button>
+                      <button
+                        onClick={() => handleDemoAutofill(DEMO_PHONES.invalid, "invalid")}
+                        className="text-[10px] font-medium text-zinc-500 hover:text-red-500 transition-colors flex items-center gap-1"
+                        type="button"
+                      >
+                        <span>⚠️</span>
+                        <span>Invalid</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Error Message */}
@@ -391,59 +411,7 @@ export default function PhoneOnboardingPage({
           Hubungi admin Koperasi jika nomor Anda belum terdaftar.
         </p>
 
-        {/* ── Demo Sandbox Helper ─────────────────────────────────── */}
-        <div className="mt-5 flex flex-col items-center">
-          <button
-            onClick={() => setShowSandbox((v) => !v)}
-            className="inline-flex items-center gap-1.5 text-[10px] text-zinc-700 hover:text-zinc-400 transition-colors select-none"
-            aria-label="Toggle demo sandbox"
-          >
-            <FlaskConical className="w-3 h-3" />
-            <span className="tracking-wider uppercase font-medium">
-              {showSandbox ? "Tutup Sandbox" : "Sandbox"}
-            </span>
-          </button>
 
-          <AnimatePresence>
-            {showSandbox && (
-              <motion.div
-                initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                animate={{ opacity: 1, height: "auto", marginTop: 8 }}
-                exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="flex flex-col items-center gap-2 rounded-xl border border-white/[0.04] bg-white/[0.02] px-4 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-600 font-semibold">
-                    Demo Autofill
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() =>
-                        handleDemoAutofill(DEMO_PHONES.valid, "valid")
-                      }
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/10 bg-emerald-500/5 px-3 py-1.5 text-[11px] font-medium text-zinc-500 hover:text-emerald-300 hover:border-emerald-500/25 transition-colors"
-                    >
-                      <span>💡</span>
-                      <span>Success Demo</span>
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleDemoAutofill(DEMO_PHONES.invalid, "invalid")
-                      }
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/10 bg-red-500/5 px-3 py-1.5 text-[11px] font-medium text-zinc-500 hover:text-red-300 hover:border-red-500/25 transition-colors"
-                    >
-                      <span>⚠️</span>
-                      <span>Fraud Demo</span>
-                    </button>
-                  </div>
-                  <p className="text-[9px] text-zinc-700 text-center leading-relaxed max-w-[280px]">
-                    Klik untuk mengisi nomor HP otomatis, lalu tekan Verifikasi.
-                  </p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
       </div>
     </div>
   );
