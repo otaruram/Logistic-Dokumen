@@ -168,7 +168,7 @@ export default function PartnerPlaygrounds({
                 </div>
                 <div className="rounded-lg bg-white/80 px-3 py-2 text-center border border-indigo-100">
                   <p className="text-[10px] uppercase text-indigo-500 font-medium">Data Source</p>
-                  <span className="inline-block mt-1 text-[10px] font-semibold text-zinc-700">{comp.data_source || "Telegram"}</span>
+                  <span className="inline-block mt-1 text-[10px] font-semibold text-zinc-700">{comp.data_source || "HRD Whitelist + Google Auth"}</span>
                 </div>
               </div>
             </div>
@@ -176,16 +176,15 @@ export default function PartnerPlaygrounds({
             {/* 👤 KYC & Identity */}
             <div className="rounded-xl border border-zinc-200 bg-white p-4">
               <div className="flex items-center gap-2 mb-3">
-                <User className="h-4 w-4 text-zinc-700" />
-                <span className="text-xs font-bold uppercase tracking-widest text-zinc-600">KYC & Identity Verification</span>
+                <User className="h-4 w-4 text-emerald-600" />
+                <span className="text-xs font-bold uppercase tracking-widest text-emerald-700">Identitas Karyawan (Verified)</span>
               </div>
               <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                <div><span className="text-zinc-500">Nama:</span> <span className="font-semibold text-zinc-900">{pd.full_name || "—"}</span></div>
-                <div><span className="text-zinc-500">NIK:</span> <span className="font-mono font-semibold text-zinc-900">{pd.nik || "—"}</span></div>
-                <div><span className="text-zinc-500">No. HP:</span> <span className="font-mono text-zinc-900">{pd.phone_number || "—"}</span></div>
-                <div className="flex items-center gap-3">
-                  {kyc.ktp_photo_url ? <a href={kyc.ktp_photo_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline"><ExternalLink className="h-3 w-3"/>View KTP</a> : <span className="text-xs text-zinc-400">KTP: —</span>}
-                  {kyc.selfie_photo_url ? <a href={kyc.selfie_photo_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline"><ExternalLink className="h-3 w-3"/>View Selfie</a> : <span className="text-xs text-zinc-400">Selfie: —</span>}
+                <div><span className="text-zinc-500">Nama Lengkap:</span> <span className="font-semibold text-zinc-900">{pd.full_name || "—"}</span></div>
+                <div><span className="text-zinc-500">No. Handphone:</span> <span className="font-mono text-zinc-900">{pd.phone_number || "—"}</span></div>
+                <div className="col-span-2 flex items-center gap-2 mt-1">
+                  <Shield className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="text-xs font-medium text-emerald-600">Data Minimization Applied — Identitas divalidasi silang secara internal tanpa mengoleksi KTP/NIK baru.</span>
                 </div>
               </div>
             </div>
