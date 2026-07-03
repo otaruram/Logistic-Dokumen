@@ -298,6 +298,21 @@ async def verify_whitelist(
     )
     whitelist_rows = getattr(whitelist_res, "data", None) or []
 
+    # --- DEMO HELPER: Auto-seed the Valid Demo Number if missing ---
+    if not whitelist_rows and phone == "+6281234567890":
+        try:
+            sb.table("employee_whitelist").insert({
+                "phone_number": phone,
+                "company_id": "demo-company",
+                "employee_name": "Demo User",
+                "is_active": True,
+                "created_by": "system-demo",
+            }).execute()
+            whitelist_rows = [{"phone_number": phone, "company_id": "demo-company", "employee_name": "Demo User"}]
+        except Exception as e:
+            print(f"Demo auto-seed failed: {e}")
+    # ---------------------------------------------------------------
+
     if not whitelist_rows:
         raise HTTPException(
             status_code=403,
