@@ -592,28 +592,34 @@ export default function ApprovalQueueTab() {
               <span className={`absolute top-1 right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${adminRequests.length > 0 ? "bg-red-500" : "bg-amber-500"}`} />
             </button>
             {showQueueTooltip && (
-              <div className="absolute top-full mt-2 right-0 z-50 w-72 rounded-xl border border-zinc-200 bg-white p-4 shadow-xl animate-in fade-in slide-in-from-top-2 text-left">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2">
-                    <Bell className="h-4 w-4 text-amber-500" />
-                    <p className="text-sm font-semibold text-zinc-900">Approval Queue</p>
+              <>
+                <div 
+                  className="fixed inset-0 z-40 sm:hidden bg-black/20 backdrop-blur-sm"
+                  onClick={() => setShowQueueTooltip(false)}
+                />
+                <div className="fixed sm:absolute bottom-4 sm:bottom-auto left-4 right-4 sm:left-auto sm:right-0 sm:top-full sm:mt-2 z-50 sm:w-80 rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-top-2 text-left">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <Bell className="h-4 w-4 text-amber-500" />
+                      <p className="text-sm font-semibold text-zinc-900">Approval Queue</p>
+                    </div>
+                    <button onClick={() => setShowQueueTooltip(false)} className="text-zinc-400 hover:text-zinc-600">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
                   </div>
-                  <button onClick={() => setShowQueueTooltip(false)} className="text-zinc-400 hover:text-zinc-600">
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                  <p className="text-xs text-zinc-600 leading-relaxed">
+                    Approval Queue adalah antrian pengajuan dokumen operasional yang menunggu verifikasi dan persetujuan admin koperasi sebelum diproses lebih lanjut.
+                  </p>
+                  {userEmail === "okitr52@gmail.com" && (
+                    <button 
+                      onClick={() => { setShowQueueTooltip(false); setShowAdminRequests(true); }}
+                      className="mt-3 w-full rounded-lg bg-black text-white px-3 py-2 text-xs font-semibold hover:bg-zinc-800 transition-colors"
+                    >
+                      Kelola Akses Admin {adminRequests.length > 0 && `(${adminRequests.length} Baru)`}
+                    </button>
+                  )}
                 </div>
-                <p className="text-xs text-zinc-600 leading-relaxed">
-                  Approval Queue adalah antrian pengajuan dokumen operasional yang menunggu verifikasi dan persetujuan admin koperasi sebelum diproses lebih lanjut.
-                </p>
-                {userEmail === "okitr52@gmail.com" && (
-                  <button 
-                    onClick={() => { setShowQueueTooltip(false); setShowAdminRequests(true); }}
-                    className="mt-3 w-full rounded-lg bg-black text-white px-3 py-2 text-xs font-semibold hover:bg-zinc-800 transition-colors"
-                  >
-                    Kelola Akses Admin {adminRequests.length > 0 && `(${adminRequests.length} Baru)`}
-                  </button>
-                )}
-              </div>
+              </>
             )}
           </div>
           <button

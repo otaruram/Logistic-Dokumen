@@ -33,6 +33,7 @@ import {
   Home,
   User,
   LogOut,
+  Menu,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { APP_CONFIG } from "@/constants";
@@ -209,6 +210,19 @@ export default function PartnerPortal() {
   const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsSidebarOpen(true);
+      } else {
+        setIsSidebarOpen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     const close = () => setShowProfileMenu(false);
@@ -487,9 +501,19 @@ export default function PartnerPortal() {
     <div className={`min-h-screen ${th.bg} ${theme === "enterprise" ? "text-slate-100" : "text-zinc-900"}`}>
       <header className={`sticky top-0 z-30 border-b ${th.cardBorder} ${th.headerBg} backdrop-blur`}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-          <div>
-            <Link to="/" className="text-lg font-semibold tracking-tight">OtaruChain</Link>
-            <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">Partner Portal</p>
+          <div className="flex items-center gap-3">
+            {session && (
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="p-1.5 -ml-1.5 hover:bg-zinc-100 rounded-full transition-colors text-zinc-600"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            )}
+            <div>
+              <Link to="/" className="text-lg font-semibold tracking-tight">OtaruChain</Link>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">Partner Portal</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -575,38 +599,53 @@ export default function PartnerPortal() {
         </div>
       )}
 
-      <div className="mx-auto flex max-w-7xl flex-col md:flex-row gap-8 px-4 py-6 sm:px-6">
-        {session && (
-          <aside className="w-full md:w-64 shrink-0">
-            <nav className="flex flex-col gap-2">
-              {(
-                [
-                  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-                  { id: "api", label: "API Key", icon: KeyRound },
-                  { id: "docs", label: "Docs", icon: TerminalSquare },
-                  { id: "pricing", label: "Pricing", icon: Wallet },
-                  { id: "queue", label: "Approval Queue", icon: ClipboardList },
-                  { id: "audit-trail", label: "Audit Trail", icon: BarChart3 },
-                  { id: "whitelist", label: "Whitelist HP", icon: Users },
-                ] as Array<{ id: PartnerView; label: string; icon: React.ComponentType<{ className?: string }> }>
-              ).map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveView(item.id)}
-                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
-                      activeView === item.id
-                        ? "bg-black text-white"
-                        : "border border-transparent text-zinc-600 hover:bg-zinc-100"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" /> {item.label}
-                  </button>
-                );
-              })}
-            </nav>
-          </aside>
+      <div className="mx-auto flex max-w-7xl flex-col md:flex-row gap-8 px-4 py-6 sm:px-6 relative">
+        {session && isSidebarOpen && (
+          <>
+            <div 
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden animate-in fade-in"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+            <aside className="fixed inset-y-0 left-0 z-50 w-64 shrink-0 bg-white border-r border-zinc-200 p-6 shadow-2xl md:sticky md:top-24 md:z-0 md:h-auto md:bg-transparent md:border-r-0 md:p-0 md:shadow-none animate-in slide-in-from-left-4 md:animate-none">
+              <div className="flex items-center justify-between md:hidden mb-6">
+                <span className="font-semibold text-zinc-900">Menu</span>
+                <button onClick={() => setIsSidebarOpen(false)} className="p-1 text-zinc-500 hover:bg-zinc-100 rounded-full">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <nav className="flex flex-col gap-2">
+                {(
+                  [
+                    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+                    { id: "api", label: "API Key", icon: KeyRound },
+                    { id: "docs", label: "Docs", icon: TerminalSquare },
+                    { id: "pricing", label: "Pricing", icon: Wallet },
+                    { id: "queue", label: "Approval Queue", icon: ClipboardList },
+                    { id: "audit-trail", label: "Audit Trail", icon: BarChart3 },
+                    { id: "whitelist", label: "Whitelist HP", icon: Users },
+                  ] as Array<{ id: PartnerView; label: string; icon: React.ComponentType<{ className?: string }> }>
+                ).map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveView(item.id);
+                        if (window.innerWidth < 768) setIsSidebarOpen(false);
+                      }}
+                      className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                        activeView === item.id
+                          ? "bg-black text-white"
+                          : "border border-transparent text-zinc-600 hover:bg-zinc-100"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" /> {item.label}
+                    </button>
+                  );
+                })}
+              </nav>
+            </aside>
+          </>
         )}
 
         <main className="flex-1 min-w-0">
