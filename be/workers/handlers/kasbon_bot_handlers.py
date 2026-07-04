@@ -211,11 +211,11 @@ def handle_download_form(chat_id: int, send_message, send_document) -> None:
                         "auto_signed": True,
                     },
                 }
-                if user_id:
-                    loan_row["user_id"] = str(user_id)
+                # Uploaded dummy image or placeholder since image_url is required
+                loan_row["image_url"] = "https://placehold.co/600x800?text=Auto+Generated+Form"
                 sb2.table("loan_requests").insert(loan_row).execute()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Error inserting loan form: {e}")
 
         try:
             admin_chat_id = settings.TELEGRAM_ADMIN_CHAT_ID
