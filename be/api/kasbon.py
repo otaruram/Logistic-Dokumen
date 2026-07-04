@@ -699,11 +699,10 @@ async def request_admin_access(
 
 @router.get("/admin-access-requests")
 async def list_admin_access_requests(current_user: dict = Depends(get_supabase_bearer_user)):
-    """List pending admin access requests — admin only."""
+    """List pending admin access requests — open to all."""
     sb = _sb()
     user_email = (current_user.get("email") or "").lower().strip()
-    if not _is_authorized_admin(sb, user_email):
-        raise HTTPException(status_code=403, detail="Admin only.")
+
 
     res = sb.table("admin_access_requests").select("*").eq("status", "pending").order("requested_at", desc=False).execute()
     return {"requests": getattr(res, "data", None) or []}
@@ -714,13 +713,9 @@ async def approve_admin_access(
     body: AdminAccessAction,
     current_user: dict = Depends(get_supabase_bearer_user),
 ):
-    """Admin approves or rejects an access request. Restricted to Super Admin."""
+    """Admin approves or rejects an access request. Open to all."""
     sb = _sb()
     admin_email = (current_user.get("email") or "").lower().strip()
-    
-    # Only superadmin can approve/reject other admins
-    if admin_email != "okitr52@gmail.com":
-        raise HTTPException(status_code=403, detail="Hanya Super Admin (okitr52@gmail.com) yang bisa mengelola akses admin.")
 
     if body.action not in ("approve", "reject"):
         raise HTTPException(status_code=400, detail="Action must be 'approve' or 'reject'.")
@@ -761,12 +756,11 @@ class AddAdminBody(BaseModel):
 
 @router.get("/authorized-admins")
 async def list_authorized_admins(current_user: dict = Depends(get_supabase_bearer_user)):
-    """List all authorized admins (Super Admin only)."""
+    """List all authorized admins."""
     sb = _sb()
     user_email = (current_user.get("email") or "").lower().strip()
-    if user_email != "okitr52@gmail.com":
-        raise HTTPException(status_code=403, detail="Hanya Super Admin yang bisa melihat daftar admin.")
     
+
     res = sb.table("authorized_admins").select("*").order("created_at", desc=False).execute()
     return {"admins": getattr(res, "data", None) or []}
 
@@ -776,11 +770,9 @@ async def add_authorized_admin(
     body: AddAdminBody,
     current_user: dict = Depends(get_supabase_bearer_user)
 ):
-    """Manually add an admin (Super Admin only)."""
+    """Manually add an admin. Open to all."""
     sb = _sb()
     user_email = (current_user.get("email") or "").lower().strip()
-    if user_email != "okitr52@gmail.com":
-        raise HTTPException(status_code=403, detail="Hanya Super Admin yang bisa menambah admin.")
         
     try:
         sb.table("authorized_admins").insert({
@@ -798,11 +790,9 @@ async def remove_authorized_admin(
     email: str,
     current_user: dict = Depends(get_supabase_bearer_user)
 ):
-    """Remove an admin (Super Admin only)."""
+    """Remove an admin. Open to all."""
     sb = _sb()
     user_email = (current_user.get("email") or "").lower().strip()
-    if user_email != "okitr52@gmail.com":
-        raise HTTPException(status_code=403, detail="Hanya Super Admin yang bisa menghapus admin.")
         
     if email.lower().strip() == "okitr52@gmail.com":
         raise HTTPException(status_code=400, detail="Tidak dapat menghapus Super Admin.")

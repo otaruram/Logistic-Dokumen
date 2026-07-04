@@ -254,10 +254,8 @@ export default function ApprovalQueueTab() {
   };
 
   useEffect(() => {
-    if (userEmail === "okitr52@gmail.com") {
-      fetchAdminRequests();
-      fetchAdmins();
-    }
+    fetchAdminRequests();
+    fetchAdmins();
   }, [userEmail]);
 
   useEffect(() => {
@@ -610,14 +608,13 @@ export default function ApprovalQueueTab() {
                   <p className="text-xs text-zinc-600 leading-relaxed">
                     Approval Queue adalah antrian pengajuan dokumen operasional yang menunggu verifikasi dan persetujuan admin koperasi sebelum diproses lebih lanjut.
                   </p>
-                  {userEmail === "okitr52@gmail.com" && (
-                    <button 
-                      onClick={() => { setShowQueueTooltip(false); setShowAdminRequests(true); }}
-                      className="mt-3 w-full rounded-lg bg-black text-white px-3 py-2 text-xs font-semibold hover:bg-zinc-800 transition-colors"
-                    >
-                      Kelola Akses Admin {adminRequests.length > 0 && `(${adminRequests.length} Baru)`}
-                    </button>
-                  )}
+                  <button 
+                    onClick={() => { setShowQueueTooltip(false); setShowAdminRequests(true); }}
+                    className="mt-3 w-full rounded-lg bg-black text-white px-3 py-2 text-xs font-semibold hover:bg-zinc-800 transition-colors"
+                  >
+                    Kelola Akses Admin {adminRequests.length > 0 && `(${adminRequests.length} Baru)`}
+                  </button>
+
                 </div>
               </>
             )}
