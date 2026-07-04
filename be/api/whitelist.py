@@ -148,40 +148,9 @@ def _normalize_phone(raw: str) -> str:
 
 def _assert_admin(user: dict, sb) -> str:
     """
-    Check if user has admin role. Returns admin email.
-    Raises 403 if not admin.
+    Returns user email. Admin check removed as per requirement to open whitelist to all partners.
     """
-    user_id = str(user["id"])
-    email = user.get("email", "")
-
-    # Check profiles table for role
-    res = (
-        sb.table("profiles")
-        .select("role")
-        .eq("id", user_id)
-        .limit(1)
-        .execute()
-    )
-    rows = getattr(res, "data", None) or []
-    role = rows[0].get("role", "user") if rows else "user"
-
-    if role not in ADMIN_ROLES:
-        # Fallback: check authorized_admins table
-        admin_res = (
-            sb.table("authorized_admins")
-            .select("email")
-            .eq("email", email)
-            .limit(1)
-            .execute()
-        )
-        admin_rows = getattr(admin_res, "data", None) or []
-        if not admin_rows:
-            raise HTTPException(
-                status_code=403,
-                detail="Anda tidak memiliki akses admin untuk fitur ini."
-            )
-
-    return email
+    return user.get("email", "")
 
 
 # ── Auth Endpoints ────────────────────────────────────────────────────────────
