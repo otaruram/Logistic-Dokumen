@@ -488,6 +488,7 @@ export default function PartnerPortal() {
               ] as Array<{ id: PartnerView; label: string; icon: React.ComponentType<{ className?: string }> }>
             ).map((item) => {
               const Icon = item.icon;
+              return (
                 <button
                   key={item.id}
                   onClick={() => setActiveView(item.id)}
@@ -499,6 +500,7 @@ export default function PartnerPortal() {
                 >
                   <Icon className="h-3.5 w-3.5" /> {item.label}
                 </button>
+              );
             })}
 
             <button
