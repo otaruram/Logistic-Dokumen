@@ -360,10 +360,14 @@ async def sync_phone_number(
 @router.get("/api/v1/profiles/phone/autofill", response_model=PhoneAutoFillResponse, tags=["Partner"])
 async def autofill_phone_number():
     """
-    Auto-fill helper for Partner API - returns dummy test phone number.
-    No authentication required. Returns a test phone number for initial Partner API setup.
+    Auto-fill helper for Partner API - returns a random test phone number.
+    No authentication required. Returns a unique test phone number for initial Partner API setup.
     """
-    test_phone = "081234567890"
+    import random
+    prefixes = ["0812", "0813", "0821", "0822", "0852", "0853", "0857", "0858", "0878", "0877"]
+    prefix = random.choice(prefixes)
+    suffix = "".join([str(random.randint(0, 9)) for _ in range(8)])
+    test_phone = f"{prefix}{suffix}"
     return PhoneAutoFillResponse(
         phone_number=test_phone,
         source="generated",

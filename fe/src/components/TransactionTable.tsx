@@ -55,7 +55,9 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
   };
 
   const truncateHash = (hash: string) => {
-    if (!hash || hash.length < 16) return hash;
+    if (!hash || hash.length < 16) return hash || "—";
+    // Detect mojibake / non-hex placeholders (â€", —, etc.)
+    if (!/^[0-9a-fA-F]+$/.test(hash.replace(/\.\.\./g, ""))) return "Menunggu verifikasi...";
     return `${hash.slice(0, 8)}...${hash.slice(-8)}`;
   };
 
@@ -147,6 +149,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
                       {getStatusBadge(trx.status)}
                     </td>
                     <td className="px-6 py-4 text-center">
+                      {trx.fileUrl && trx.fileUrl.startsWith("http") ? (
                       <a
                         href={trx.fileUrl}
                         target="_blank"
@@ -156,6 +159,9 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
                       >
                         <ExternalLink className="w-4 h-4 group-hover:scale-110 transition-transform" />
                       </a>
+                      ) : (
+                        <span className="text-xs text-zinc-400">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
