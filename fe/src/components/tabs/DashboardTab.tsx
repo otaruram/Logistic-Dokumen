@@ -5,9 +5,6 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { APP_CONFIG } from "@/constants";
 import GamificationCard from "./GamificationCard";
-import {
-  PieChart, Pie, Cell, ResponsiveContainer,
-} from "recharts";
 
 const API_URL = APP_CONFIG.apiUrl;
 const MAX_KASBON_LIMIT = 20_000_000; // Rp 20 Juta â€” Platinum tier max
@@ -111,7 +108,7 @@ const CreditsCard = ({ stats, loading }: { stats: DashboardStats; loading: boole
       <div className="text-4xl font-black tracking-tighter text-black flex items-baseline gap-1">
         {loading ? "..." : stats.credits}<span className="text-xl text-gray-400 font-bold">/10</span>
       </div>
-      <p className="text-xs text-gray-500 mt-2 font-medium">Reset setiap hari jam 00:00</p>
+      <p className="text-xs text-gray-500 mt-2 font-medium">+1 kredit otomatis setiap hari (maks 10)</p>
     </div>
     <div className="mt-4 pt-3 border-t border-gray-200 grid grid-cols-2 gap-2">
       {[{ label: "Deteksi Fraud", cost: "1 kredit" }, { label: "Validasi Signature", cost: "Included" }].map((item) => (
@@ -277,120 +274,59 @@ const _GamificationCardLegacy = () => {
   );
 };
 
-const SisaLimitCard = ({ stats, loading }: { stats: DashboardStats; loading: boolean }) => {
-  const sisaLimit = MAX_KASBON_LIMIT - stats.totalNominalVerified;
-  const usedPct = Math.min((stats.totalNominalVerified / MAX_KASBON_LIMIT) * 100, 100);
-  const data = [
-    { name: "Used", value: stats.totalNominalVerified },
-    { name: "Remaining", value: Math.max(0, sisaLimit) },
-  ];
-  const getColor = (pct: number) => {
-    if (pct >= 90) return "#ef4444";
-    if (pct >= 70) return "#f59e0b";
-    return "#10b981";
-  };
-  const barColor = getColor(usedPct);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}
-      className="border border-white/10 rounded-xl p-6 bg-[#111] hover:bg-[#161616] transition-all flex flex-col items-center justify-center relative overflow-hidden"
-    >
-      <div className="absolute -top-10 flex w-full justify-center opacity-20 blur-2xl pointer-events-none"
-        style={{ backgroundColor: barColor, width: "150px", height: "150px", borderRadius: "50%" }} />
-      <div className="w-full flex items-start justify-between mb-2 z-10">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5" style={{ color: barColor }} />
-          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Sisa Kuota Sistem</span>
-        </div>
-        {usedPct < 70 && (
-          <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-1 rounded-full border border-green-500/30">AMAN</span>
-        )}
-        {usedPct >= 70 && usedPct < 90 && (
-          <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full border border-amber-500/30">HATI-HATI</span>
-        )}
-        {usedPct >= 90 && (
-          <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded-full border border-red-500/30">LIMIT PENUH</span>
-        )}
-      </div>
-      <div className="h-48 w-full relative z-10">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie data={data} cx="50%" cy="70%" startAngle={180} endAngle={0} innerRadius={70} outerRadius={90} paddingAngle={0} dataKey="value" stroke="none">
-              <Cell key="cell-0" fill={barColor} />
-              <Cell key="cell-1" fill="#222" />
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="absolute inset-0 flex flex-col items-center justify-end pb-8 pointer-events-none">
-          <span className="text-3xl font-bold text-white tracking-tighter shadow-sm" style={{ textShadow: `0 0 20px ${barColor}40` }}>
-            {loading ? "..." : fmtRpDashboard(Math.max(0, sisaLimit))}
-          </span>
-          <span className="text-xs text-gray-500 mt-1">dari {fmtRpDashboard(MAX_KASBON_LIMIT)}</span>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
+// SisaLimitCard removed — no longer displayed
 
 const NominalVerifiedCard = ({ stats, loading }: {
   stats: DashboardStats; loading: boolean;
 }) => (
   <motion.div
-    initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-    className="border border-white/10 rounded-xl p-6 bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] relative overflow-hidden group"
+    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+    className="border border-white/10 rounded-2xl p-6 bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] relative overflow-hidden group"
   >
-    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-white/10 transition-colors" />
-    <div className="flex items-start justify-between relative z-10">
-      <div className="flex-1">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-gray-300" />
-            <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Total Dokumen Aktif</span>
+    <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-white/10 transition-colors" />
+    <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl -ml-10 -mb-10 pointer-events-none" />
+    <div className="relative z-10">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-white/10 flex items-center justify-center border border-white/10">
+              <TrendingUp className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Dokumen Aktif</span>
+              <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10 bg-white/5 text-gray-400">IDR</span>
+            </div>
           </div>
-          <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-gray-300">
-            IDR
-          </span>
+          <div className="text-4xl sm:text-5xl font-black text-white mb-2 tracking-tighter">
+            {loading ? <span className="text-gray-600 animate-pulse">—</span> : fmtRpDashboard(stats.totalNominalVerified)}
+          </div>
+          <p className="text-xs text-emerald-400/80 flex items-center gap-1 font-medium">
+            <TrendingUp className="w-3 h-3" />Dihitung real-time dari dokumen yang telah Approved
+          </p>
         </div>
-        <div className="text-3xl font-bold text-white mb-2 tracking-tight">
-          {loading ? "..." : fmtRpDashboard(stats.totalNominalVerified)}
+        <div className="flex-shrink-0 hidden sm:flex items-center justify-center">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-transparent border border-white/5 flex items-center justify-center">
+            <FileText className="w-8 h-8 text-emerald-500/40" />
+          </div>
         </div>
-        <p className="text-xs text-green-400 flex items-center gap-1">
-          <TrendingUp className="w-3 h-3" />*Dihitung secara real-time dari dokumen yang telah Approved
-        </p>
       </div>
-    </div>
-    <div className="mt-8 pt-4 border-t border-white/10 grid grid-cols-3 gap-2 text-center relative z-10">
-      {[
-        { label: "Verified", value: stats.verifiedDocuments, color: "text-green-400" },
-        { label: "Processing", value: stats.processingDocuments, color: "text-yellow-500" },
-        { label: "Tampered", value: stats.tamperedDocuments, color: "text-red-500" },
-      ].map((item) => (
-        <div key={item.label}>
-          <div className={`text-lg font-bold ${item.color}`}>{item.value}</div>
-          <div className="text-[10px] text-gray-500 uppercase">{item.label}</div>
-        </div>
-      ))}
+      <div className="mt-6 pt-4 border-t border-white/10 grid grid-cols-3 gap-3 text-center">
+        {[
+          { label: "Verified", value: stats.verifiedDocuments, color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/20" },
+          { label: "Processing", value: stats.processingDocuments, color: "text-yellow-500", bg: "bg-yellow-500/10", border: "border-yellow-500/20" },
+          { label: "Tampered", value: stats.tamperedDocuments, color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/20" },
+        ].map((item) => (
+          <div key={item.label} className={`${item.bg} border ${item.border} rounded-xl px-3 py-3`}>
+            <div className={`text-2xl font-bold ${item.color} tabular-nums`}>{loading ? "..." : item.value}</div>
+            <div className="text-[10px] text-gray-500 uppercase font-semibold tracking-wide mt-1">{item.label}</div>
+          </div>
+        ))}
+      </div>
     </div>
   </motion.div>
 );
 
-const SecurityInfoCard = () => (
-  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="border border-white/10 rounded-xl p-6 bg-[#111]">
-    <div className="flex items-start gap-4">
-      <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center flex-shrink-0 border border-white/10">
-        <ShieldCheck className="w-6 h-6 text-gray-300" />
-      </div>
-      <div className="flex-1">
-        <h4 className="font-bold text-white mb-1">Cryptographic Security Active</h4>
-        <p className="text-sm text-gray-400 leading-relaxed">
-          Semua dokumen yang diproses menggunakan algoritma Anti-Fraud (Digital Signature Hash). Dokumen bertanda{" "}
-          <strong className="text-red-400">Tampered</strong> tidak akan dihitung ke dalam Total Pendapatan atau skor kredit.
-        </p>
-      </div>
-    </div>
-  </motion.div>
-);
+// SecurityInfoCard removed — Cryptographic Security Active card no longer shown
 
 // â”€â”€ STATUS BADGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const StatusBadge = ({ status }: { status: string }) => {
@@ -814,17 +750,11 @@ const DashboardTab = () => {
         <CreditsCard stats={stats} loading={loading} />
       </div>
 
-      {/* Main Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SisaLimitCard stats={stats} loading={loading} />
-        <NominalVerifiedCard stats={stats} loading={loading} />
-      </div>
+      {/* Total Dokumen Aktif — Full Width */}
+      <NominalVerifiedCard stats={stats} loading={loading} />
 
-      {/* Gamification â€” Consistency Mission */}
+      {/* Gamification — Consistency Mission */}
       <GamificationCard />
-
-      {/* Info Cards */}
-      <SecurityInfoCard />
 
       {/* Master Data & Transaction Audit Trail */}
       <MasterAuditTable items={auditTrail} loading={auditLoading} />

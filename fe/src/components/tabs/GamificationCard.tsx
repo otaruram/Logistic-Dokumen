@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Shield, Trophy, Star, Award, AlertTriangle, Zap, CheckCircle2, FlaskConical } from "lucide-react";
+import { Trophy, Star, Award, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { APP_CONFIG } from "@/constants";
 
@@ -249,24 +249,7 @@ export default function GamificationCard() {
             </div>
           );
         })}
-      </div>
-
-      {/* ── Security Footer ─────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 sm:p-4 flex flex-col sm:flex-row items-start gap-3 w-full">
-        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center">
-          <Shield className="h-4 w-4 text-slate-500" />
-        </div>
-        <div>
-          <div className="flex items-center gap-1.5 mb-1">
-            <p className="text-[11px] font-bold text-slate-400">Cryptographic Security Active</p>
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          </div>
-          <p className="text-[10px] text-slate-600 leading-relaxed">
-            Semua dokumen diproses menggunakan algoritma Anti-Fraud (SHA-256).
-            Dokumen bertanda Tampered tidak akan dihitung ke dalam Total Pendapatan atau skor kredit.
-          </p>
-        </div>
-      </div>
+    </div>
     </div>
   );
 }

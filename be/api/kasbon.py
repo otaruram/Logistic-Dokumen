@@ -601,13 +601,17 @@ async def get_loan_history(current_user: dict = Depends(get_supabase_bearer_user
 
 @router.get("/audit-trail")
 async def get_audit_trail(current_user: dict = Depends(get_supabase_bearer_user)):
-    """Return all loan_requests (Audit Trail) enriched with profile info for the Koperasi Admin."""
+    """Return all loan_requests (Audit Trail) enriched with profile info.
+    
+    Access is open to any authorized admin — including users approved via
+    the request-admin-access flow (stored in authorized_admins table).
+    """
     sb = _sb()
     user_email = (current_user.get("email") or "").lower().strip()
     
-    # Optional: check if authorized admin. For now, we allow it if they are logged in as admin.
+    # Check admin whitelist + authorized_admins table
     if not _is_authorized_admin(sb, user_email):
-        raise HTTPException(status_code=403, detail="Admin only.")
+        raise HTTPException(status_code=403, detail="Akses ditolak. Silakan minta akses admin melalui Approval Queue.")
         
     _ensure_loan_requests_ready(sb)
     

@@ -12,6 +12,7 @@ import { pricingPlans, partnerProducts, themeConfig, PortalTheme } from "./Partn
 import {
   ArrowRight,
   BarChart3,
+  Bell,
   CheckCircle2,
   ClipboardList,
   Copy,
@@ -204,6 +205,7 @@ export default function PartnerPortal() {
   const [showAccessPopup, setShowAccessPopup] = useState(false);
   const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [showQueueTooltip, setShowQueueTooltip] = useState(false);
 
   useEffect(() => {
     const {
@@ -488,17 +490,44 @@ export default function PartnerPortal() {
             ).map((item) => {
               const Icon = item.icon;
               return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveView(item.id)}
-                  className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold sm:inline-flex ${
-                    activeView === item.id
-                      ? "bg-black text-white"
-                      : "border border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" /> {item.label}
-                </button>
+                <div key={item.id} className="relative inline-flex items-center">
+                  <button
+                    onClick={() => setActiveView(item.id)}
+                    className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold sm:inline-flex ${
+                      activeView === item.id
+                        ? "bg-black text-white"
+                        : "border border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" /> {item.label}
+                  </button>
+                  {item.id === "queue" && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowQueueTooltip(!showQueueTooltip); }}
+                      className="hidden sm:inline-flex ml-1 w-6 h-6 rounded-full items-center justify-center text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors relative"
+                      title="Info tentang Approval Queue"
+                    >
+                      <Bell className="h-3.5 w-3.5" />
+                      <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    </button>
+                  )}
+                  {item.id === "queue" && showQueueTooltip && (
+                    <div className="absolute top-full mt-2 left-0 z-50 w-72 rounded-xl border border-zinc-200 bg-white p-4 shadow-xl animate-in fade-in slide-in-from-top-2">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <Bell className="h-4 w-4 text-amber-500" />
+                          <p className="text-sm font-semibold text-zinc-900">Approval Queue</p>
+                        </div>
+                        <button onClick={() => setShowQueueTooltip(false)} className="text-zinc-400 hover:text-zinc-600">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <p className="text-xs text-zinc-600 leading-relaxed">
+                        Approval Queue adalah antrian pengajuan dokumen operasional yang menunggu verifikasi dan persetujuan admin koperasi sebelum diproses lebih lanjut.
+                      </p>
+                    </div>
+                  )}
+                </div>
               );
             })}
 
@@ -559,15 +588,21 @@ export default function PartnerPortal() {
               { id: "whitelist", label: "Whitelist HP" },
             ] as Array<{ id: PartnerView; label: string }>
           ).map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveView(item.id)}
-              className={`rounded-xl px-4 py-3 text-sm font-semibold ${
-                activeView === item.id ? "bg-black text-white" : "border border-zinc-300 bg-white text-zinc-700"
-              }`}
-            >
-              {item.label}
-            </button>
+            <div key={item.id} className="relative">
+              <button
+                onClick={() => setActiveView(item.id)}
+                className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-left ${
+                  activeView === item.id ? "bg-black text-white" : "border border-zinc-300 bg-white text-zinc-700"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  {item.label}
+                  {item.id === "queue" && (
+                    <Bell className="h-3.5 w-3.5 text-amber-500" />
+                  )}
+                </span>
+              </button>
+            </div>
           ))}
         </div>
 
@@ -640,7 +675,6 @@ export default function PartnerPortal() {
                 checkoutError={checkoutError}
                 checkoutLoadingPlan={checkoutLoadingPlan}
                 handleCheckout={handleCheckout}
-                th={th}
               />
             )}
 
