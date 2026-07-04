@@ -476,32 +476,7 @@ export default function PartnerPortal() {
           </div>
 
           <div className="flex items-center gap-2">
-            {(
-              [
-                { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-                { id: "api", label: "API Key", icon: KeyRound },
-                { id: "docs", label: "Docs", icon: TerminalSquare },
-                { id: "pricing", label: "Pricing", icon: Wallet },
-                { id: "queue", label: "Approval Queue", icon: ClipboardList },
-                { id: "audit-trail", label: "Audit Trail", icon: BarChart3 },
-                { id: "whitelist", label: "Whitelist", icon: Users },
-              ] as Array<{ id: PartnerView; label: string; icon: React.ComponentType<{ className?: string }> }>
-            ).map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveView(item.id)}
-                  className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold sm:inline-flex ${
-                    activeView === item.id
-                      ? "bg-black text-white"
-                      : "border border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" /> {item.label}
-                </button>
-              );
-            })}
+            {/* Navigation moved to sidebar */}
 
             <button
               onClick={() => {
@@ -547,30 +522,41 @@ export default function PartnerPortal() {
         </div>
       )}
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        <div className="mb-5 grid grid-cols-1 gap-2 sm:hidden">
-          {(
-            [
-              { id: "dashboard", label: "Dashboard" },
-              { id: "api", label: "API Key" },
-              { id: "docs", label: "Docs" },
-              { id: "pricing", label: "Pricing" },
-              { id: "queue", label: "Approval Queue" },
-              { id: "audit-trail", label: "Audit Trail" },
-              { id: "whitelist", label: "Whitelist HP" },
-            ] as Array<{ id: PartnerView; label: string }>
-          ).map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveView(item.id)}
-              className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-left ${
-                activeView === item.id ? "bg-black text-white" : "border border-zinc-300 bg-white text-zinc-700"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+      <div className="mx-auto flex max-w-7xl flex-col md:flex-row gap-8 px-4 py-6 sm:px-6">
+        {session && (
+          <aside className="w-full md:w-64 shrink-0">
+            <nav className="flex flex-col gap-2">
+              {(
+                [
+                  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+                  { id: "api", label: "API Key", icon: KeyRound },
+                  { id: "docs", label: "Docs", icon: TerminalSquare },
+                  { id: "pricing", label: "Pricing", icon: Wallet },
+                  { id: "queue", label: "Approval Queue", icon: ClipboardList },
+                  { id: "audit-trail", label: "Audit Trail", icon: BarChart3 },
+                  { id: "whitelist", label: "Whitelist HP", icon: Users },
+                ] as Array<{ id: PartnerView; label: string; icon: React.ComponentType<{ className?: string }> }>
+              ).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveView(item.id)}
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                      activeView === item.id
+                        ? "bg-black text-white"
+                        : "border border-transparent text-zinc-600 hover:bg-zinc-100"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" /> {item.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </aside>
+        )}
+
+        <main className="flex-1 min-w-0">
 
         {!session ? (
           <section className="rounded-3xl border border-zinc-200 bg-white p-8 text-center">
@@ -667,7 +653,8 @@ export default function PartnerPortal() {
             )}
           </>
         )}
-      </main>
+        </main>
+      </div>
       <ScrollNavigator bottomOffsetClass="bottom-6" />
     </div>
   );
