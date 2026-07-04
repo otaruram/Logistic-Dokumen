@@ -84,6 +84,7 @@ async def global_exception_handler(request: StarletteRequest, exc: Exception):
 
 # Create upload directory
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+os.makedirs('static', exist_ok=True)
 
 # Mount static files
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
