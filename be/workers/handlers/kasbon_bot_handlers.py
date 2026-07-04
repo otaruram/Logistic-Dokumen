@@ -196,6 +196,22 @@ def handle_download_form(chat_id: int, send_message, send_document) -> None:
             sb2 = get_supabase_admin()
             if sb2:
                 import uuid as _uuid
+                
+                # Ensure profile exists for NIK to avoid foreign key violation
+                try:
+                    prof_chk = sb2.table("profiles").select("nik").eq("nik", nik).limit(1).execute()
+                    if not getattr(prof_chk, "data", None):
+                        sb2.table("profiles").insert({
+                            "id": str(_uuid.uuid4()),
+                            "nik": nik,
+                            "full_name": full_name,
+                            "user_email": email,
+                            "limit_pinjaman": 5000000,
+                            "phone_number": "08123456789"
+                        }).execute()
+                except Exception as e:
+                    print(f"Warning: dummy profile check/insert failed: {e}")
+
                 loan_row = {
                     "id": str(_uuid.uuid4()),
                     "nik": nik,
@@ -203,6 +219,10 @@ def handle_download_form(chat_id: int, send_message, send_document) -> None:
                     "status": "PENDING",
                     "ai_indicator": "PROCESSING",
                     "submitted_at": _dt.utcnow().isoformat(),
+                    "source": "CHAIN",
+                    "doc_type": "form",
+                    "ai_fraud_status": "NEEDS_REVIEW",
+                    "ai_fraud_reason": "Form generate otomatis via bot",
                     "ocr_raw": {
                         "source": "telegram_form",
                         "full_name": full_name,
