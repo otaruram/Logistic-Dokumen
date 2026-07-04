@@ -30,6 +30,9 @@ import {
   Wallet,
   X,
   Wand2,
+  Home,
+  User,
+  LogOut,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { APP_CONFIG } from "@/constants";
@@ -205,6 +208,20 @@ export default function PartnerPortal() {
   const [showAccessPopup, setShowAccessPopup] = useState(false);
   const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+
+  useEffect(() => {
+    const close = () => setShowProfileMenu(false);
+    if (showProfileMenu) {
+      window.addEventListener("click", close);
+    }
+    return () => window.removeEventListener("click", close);
+  }, [showProfileMenu]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  };
 
   useEffect(() => {
     const {
@@ -478,19 +495,55 @@ export default function PartnerPortal() {
           <div className="flex items-center gap-2">
             {/* Navigation moved to sidebar */}
 
-            <button
-              onClick={() => {
-                if (!session) {
-                  handlePartnerLogin();
-                  return;
-                }
-                window.location.href = "/";
-              }}
-              className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-400"
-            >
-              {session ? "Dashboard" : "Sign In"}
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
+            {!session ? (
+              <button
+                onClick={handlePartnerLogin}
+                className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-400"
+              >
+                Sign In
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    window.location.href = "/";
+                  }}
+                  title="Ke Dashboard Utama"
+                  className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white p-2 text-zinc-700 hover:border-zinc-400 transition-colors"
+                >
+                  <Home className="h-4 w-4" />
+                </button>
+
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowProfileMenu(!showProfileMenu);
+                    }}
+                    title="Profil"
+                    className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white p-2 text-zinc-700 hover:border-zinc-400 transition-colors"
+                  >
+                    <User className="h-4 w-4" />
+                  </button>
+
+                  {showProfileMenu && (
+                    <div 
+                      className="absolute right-0 mt-2 w-40 rounded-xl border border-zinc-200 bg-white shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-zinc-50 transition-colors"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
 
           </div>

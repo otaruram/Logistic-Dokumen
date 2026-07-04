@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>README</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<h1
+id="otaruchain---unified-ecosystem-enabler-pemeringkat-kredit-alternatif">OtaruChain
+- Unified Ecosystem: Enabler Pemeringkat Kredit Alternatif</h1>
+<p><strong>Digdaya x Hackathon 2026 - Tahap III Submission</strong>
+<strong>Team P0110: OtaruChain</strong></p>
+<p>OtaruChain adalah solusi inovatif <strong>Pemeringkat Kredit
+Alternatif (PKA)</strong> berkonsep <em>blue-ocean</em> yang dirancang
+untuk mengamankan likuiditas Koperasi Karyawan (Kopkar) dan LJK di
+sektor industri/manufaktur.</p>
+<p>Kami mengubah <strong>“Kejujuran Perilaku Operasional”</strong>
+(integritas pelaporan logistik lapangan) menjadi <strong>“Aset Kelayakan
+Finansial”</strong> untuk membuka akses kredit bagi pekerja
+<em>blue-collar</em>, tanpa agunan fisik, sembari membasmi risiko
+<em>fraud</em> (moral hazard) dan menekan NPL (Non-Performing Loan)
+hingga 30%.</p>
+<hr />
+<h2 id="progress-update-refinement-proses-tahap-2-tahap-3">🚀 Progress
+Update &amp; Refinement (Proses Tahap 2 ➡️ Tahap 3)</h2>
+<p>Juri yang terhormat, kami percaya bahwa inovasi terbaik lahir dari
+iterasi tanpa henti. Berdasarkan pengujian lapangan dan
+<em>feedback</em> dari Tahap 2, kami melakukan proses <em>cutting the
+fat</em> dan penajaman agar sistem ini memiliki <em>Product-Market
+Fit</em> (PMF) yang absolut.</p>
+<h3 id="apa-yang-di-cut-dihapus-dan-mengapa">✂️ Apa yang Di-CUT
+(Dihapus) dan MENGAPA?</h3>
+<ol type="1">
+<li><strong>PENGHAPUSAN Otaru Financial &amp; Konsep “Kasbon” dari Sisi
+User:</strong>
+<ul>
+<li><strong>Yang Terjadi:</strong> Kami menghapus total ekosistem
+<em>Otaru Financial Bot</em> (beserta fitur <em>Family Sharing</em> dan
+<em>Debt Service Ratio / DSR</em> domestik) dan menghilangkan
+tombol/kata “Kasbon” saat pekerja menggunakan bot.</li>
+<li><strong>Mengapa (The “Why”):</strong> Pada Tahap 2, platform kami
+mencoba melakukan terlalu banyak hal (manajemen utang keluarga sekaligus
+validasi pabrik), yang berujung pada kebingungan <em>user
+experience</em>. Kami sadar bahwa <em>core value</em> OtaruChain adalah
+<strong>B2B API Pemeringkat Kredit murni (Enabler)</strong> berbasis
+data logistik. Koperasi tidak butuh aplikasi pengatur utang keluarga,
+mereka butuh alat untuk memvalidasi kejujuran nota. Pencairan kredit
+(“kasbon”) biarlah tetap berada di wewenang API <em>Core Banking</em>
+Koperasi.</li>
+</ul></li>
+</ol>
+<h3 id="apa-yang-di-update-dipertajam-dan-mengapa">🔄 Apa yang Di-UPDATE
+&amp; DIPERTAJAM dan MENGAPA?</h3>
+<ol type="1">
+<li><strong>Penajaman Data Identitas (Dari NIK &amp; Nama Dummy ke Nomor
+HP Terverifikasi):</strong>
+<ul>
+<li><strong>Yang Terjadi:</strong> Nama <em>dummy</em> “John Doe”
+dicabut, kini sistem menangkap nama asli saat <em>user</em> menginput
+data di Telegram (beserta input nominal). Jangkar identitas murni
+menggunakan <strong>Nomor HP</strong>.</li>
+<li><strong>Mengapa (The “Why”):</strong> Pendekatan Nomor HP yang
+di-<em>whitelist</em> oleh HRD sangat sejalan dengan prinsip <em>Data
+Minimization</em> dalam UU PDP (Pelindungan Data Pribadi). Kami tidak
+menyimpan NIK atau data KTP sensitif di <em>server</em> kami, memangkas
+risiko kebocoran data (<em>data breach</em>) yang membayangi industri
+<em>fintech</em>.</li>
+</ul></li>
+<li><strong>Peningkatan Syarat &amp; Nominal Gamifikasi (Consistency
+Mission):</strong>
+<ul>
+<li><strong>Yang Terjadi:</strong> Batas <em>reward</em> plafon kredit
+dinaikkan secara drastis (Silver: Rp 5.5 Juta | Gold: Rp 10 Juta |
+Platinum: Rp 20 Juta). Kami juga menambahkan sistem pembacaan
+<strong>Tanggal Bergabung (Tenur)</strong> pada kartu dasbor.</li>
+<li><strong>Mengapa (The “Why”):</strong> Hasil wawancara kami dengan
+admin Kopkar menunjukkan batas plafon yang terlalu kecil (di Tahap 2)
+tidak menarik bagi pekerja pabrik berskala besar. Selain itu, model
+prediktif (XGBoost) kami membutuhkan data agregasi riwayat minimal 3
+bulan agar tidak terjadi <em>bias</em> atau tebakan buta (<em>cold-start
+problem</em>). Fitur <em>Tanggal Bergabung</em> memastikan admin
+memiliki indikator visual apakah <em>user</em> sudah cukup lama
+bergabung untuk dihitung skornya.</li>
+</ul></li>
+<li><strong>Pembaruan Harga (Pricing) yang Logis &amp;
+Berkelanjutan:</strong>
+<ul>
+<li><strong>Yang Terjadi:</strong> Model langganan B2B dirombak (Detail
+di bab Model Bisnis).</li>
+<li><strong>Mengapa (The “Why”):</strong> Model lama kami tidak menutupi
+biaya operasional (Token API Gemini, <em>storage</em> ImageKit, server).
+Kami beralih ke skema <em>Hybrid SaaS + Usage-Based</em> agar Koperasi
+kecil tetap bisa bergabung (barrier to entry rendah), namun OtaruChain
+tetap meraup profit besar dari Koperasi Enterprise berskala nasional
+melalui volume transaksi harian (Skema B2B Louvin).</li>
+</ul></li>
+</ol>
+<hr />
+<h2 id="alur-sistem-end-to-end-user-flow">🔄 Alur Sistem (End-to-End
+User Flow)</h2>
+<p>Proses operasional dirancang agar sangat minim gesekan
+(<em>Zero-Friction</em>):</p>
+<ol type="1">
+<li><strong>Input User (Telegram Bot):</strong> Pekerja memfoto
+nota/surat jalan logistik ➡️ Bot meminta <em>user</em> mengetikkan Nama
+&amp; Nominal ➡️ Data dikirim secara asinkron.</li>
+<li><strong>AI Screening (Pre-Analysis):</strong> Asisten AI (Gemini 2.5
+Flash) mengekstraksi teks OCR, mencocokkan nominal dengan gambar, dan
+memberikan analisis/indikator apakah dokumen wajar atau terindikasi
+manipulasi (<em>mark-up</em>).</li>
+<li><strong>Verifikasi Admin (Dashboard &amp; Card System):</strong>
+Dokumen masuk ke <em>Approval Queue</em>. Saat kartu dokumen diklik,
+Admin Koperasi dapat melihat seluruh indikator AI, kelengkapan data
+<em>user</em> (Tanggal Bergabung, Status Tier Platinum/Gold, Sisa Kuota
+Sistem), dan gambar nota.</li>
+<li><strong>Finalisasi &amp; Stamping:</strong> Admin melakukan
+pengecekan visual akhir dan menekan tombol <em>Approve</em>. Sistem akan
+mencetak tanda tangan Admin dan membubuhkan stempel digital
+(<em>Immutable Ledger</em>) pada gambar tersebut.</li>
+</ol>
+<hr />
+<h2 id="arsitektur-layer-analisis-kredit-credit-analyst-layer">🏦
+Arsitektur Layer Analisis Kredit (Credit Analyst Layer)</h2>
+<p>Alur keputusan analis kredit di OtaruChain terbagi dalam 3
+<em>layer</em> utama:</p>
+<ol type="1">
+<li><strong>Layer Verifikasi (Verification Layer)</strong>: Sistem
+memeriksa setiap nota logistik yang diunggah secara <em>real-time</em>
+menggunakan Gemini 2.5 Flash. Potensi manipulasi foto/digital langsung
+terdeteksi.</li>
+<li><strong>Layer Machine Learning (Scoring Layer)</strong>: Data
+historis pengguna (<em>Verified vs Tampered</em>) selama minimal 3 bulan
+terakhir dianalisis oleh algoritma XGBoost untuk memberikan penilaian
+risiko secara objektif, instan, dan <em>explainable</em> (dapat
+dijelaskan alasan naik-turunnya skor).</li>
+<li><strong>Layer Akomodasi Data (Data Accommodation Layer)</strong>:
+Sistem berpadu melalui API ke <em>core banking</em> Koperasi untuk
+menarik komplementer seperti <strong>slip gaji</strong> dan
+<strong>riwayat pinjaman internal</strong>, menyatukan gambaran profil
+kelayakan final <em>user</em>.</li>
+</ol>
+<hr />
+<h2 id="human-in-the-loop-immutable-ledger-supaledger">🛡️
+Human-in-the-Loop &amp; Immutable Ledger (SupaLedger)</h2>
+<p>Inovasi kami tidak menyerahkan kendali finansial 100% pada AI, karena
+halusinasi AI dalam sektor keuangan adalah hal fatal:</p>
+<ol type="1">
+<li><strong>Admin Verification Queue (Human-in-the-Loop)</strong>:
+Keputusan akhir tetap berada di tangan akal manusia (Admin Koperasi). AI
+Gemini hanya bertindak sebagai asisten spesialis penyaring
+<em>fraud</em>.</li>
+<li><strong>SupaLedger (Non-Decentralized Immutable Ledger)</strong>:
+<ul>
+<li>Segera setelah Admin menyetujui, metadata dokumen, waktu, dan TTD
+di-<em>hash</em> dengan <strong>SHA-256</strong> dan diukir
+<em>hardcoded</em> ke atas gambar melalui ImageKit.</li>
+<li><strong>Catatan Penting:</strong> SupaLedger <strong>BUKAN</strong>
+jaringan <em>blockchain decentralized</em> (seperti Ethereum) yang boros
+energi. Ini adalah <em>Centralized Immutable Ledger</em> berbasis
+<em>hash chaining</em> di dalam Supabase (PostgreSQL). Metode ini sangat
+hemat biaya, latensi milidetik, namun menjamin dokumen operasional tidak
+akan pernah bisa diedit atau disangkal oleh pihak manapun di kemudian
+hari (<em>non-repudiation</em>).</li>
+</ul></li>
+</ol>
+<hr />
+<h2 id="model-bisnis-skema-harga-pricing">💼 Model Bisnis &amp; Skema
+Harga (Pricing)</h2>
+<p>Monetisasi menggunakan model <strong>B2B Hybrid SaaS Subscription +
+Usage-Based (Pay-per-Query)</strong> melalui <em>Payment Gateway</em>
+Louvin. Model ini dipilih karena biaya <em>overhead</em> (seperti token
+Gemini dan bandwidth CDN) meningkat sejalan dengan penggunaan
+<em>user</em>.</p>
+<p>Mengapa harga ini sangat masuk akal bagi Koperasi? - <strong>Tier
+Developer (Rp 0/bulan):</strong> 10 Request/bulan. Digunakan khusus oleh
+<em>Engineer</em> Koperasi untuk <em>testing</em> integrasi API ke
+<em>Core Banking</em> lokal mereka. - <strong>Tier Launch (Rp
+599.000/bulan):</strong> 900 Request/bulan. Cocok untuk Kopkar pabrik
+kelas menengah. Biaya Rp 599k jauh lebih murah dibanding merekrut satu
+analis logistik manusia (UMP Rp 3-5 Juta) dan mampu mencegah kebocoran
+kas akibat <em>fraud</em> nota (yang sering bernilai belasan juta per
+bulan). - <strong>Tier Scale (Rp 1.499.000/bulan):</strong> 2.000
+Request/bulan (Prioritas SLA &lt; 2 Jam). - <strong>Tier Enterprise
+(Custom Pricing):</strong> Volume 10.000+ Request/bulan (SLA 99.9% &amp;
+White-label), dirancang untuk jaringan ritel atau pabrik berskala
+nasional. Harga disesuaikan berdasarkan arsitektur (On-Premise vs Cloud)
+dan SLA. <em>(Setiap kelebihan kuota di luar Tier Enterprise dikenakan
+Overage Fee sebesar Rp 3.000 - Rp 5.000 / request, mengamankan margin
+profit OtaruChain saat terjadi lonjakan traffic jam pergantian
+shift).</em></p>
+<h3 id="roadmap-fase-ekpansi-teknologi-monetisasi">🗺️ Roadmap Fase
+Ekpansi (Teknologi &amp; Monetisasi)</h3>
+<p>Kami sangat menyadari bahwa sebagai entitas baru (Day-1), menjual
+prospek kredit langsung ke Bank adalah bentuk <em>overclaiming</em>.
+Oleh karena itu, skema <strong>Credit Lead-Gen (Take Rate)</strong> kami
+posisikan sebagai <em>Roadmap Fase 2</em> setelah OtaruChain mencapai
+<em>critical mass</em>.</p>
+<p>Ketika data historis sudah matang, OtaruChain bertindak sebagai
+<strong>Lead Generator</strong> untuk Bank/P2P eksternal dengan
+<em>Syarat &amp; Ketentuan (Risk Mitigation)</em> yang sangat ketat: -
+<strong>Eligibilitas Super Ketat:</strong> Hanya pengguna dengan
+<strong>Usia Akun Minimal 3 Bulan</strong> (memiliki rekam jejak
+konsisten) DAN telah mencapai <strong>Tier Gold atau Platinum</strong>
+yang berhak diproyeksikan ke pemberi pinjaman eksternal. - <strong>Model
+Monetisasi (Backbone):</strong> OtaruChain memungut <strong>Success Fee
+(Take Rate) sebesar 1% - 2%</strong> dari setiap pinjaman eksternal yang
+berhasil dicairkan. Pendekatan berbasis <em>meritokrasi</em> ini
+mengamankan Bank dari kredit macet sekaligus membuka potensi profit
+eksponensial (di luar batas pendapatan langganan API) bagi
+OtaruChain.</p>
+<p>Selain monetisasi, kami juga memiliki <em>Roadmap Teknologi</em>
+untuk 6 bulan ke depan demi memperkuat akuisisi dan akurasi sistem: 1.
+<strong>Integrasi WhatsApp Business API (Official):</strong> Migrasi
+dari Telegram ke WhatsApp untuk penetrasi massal, khususnya bagi
+pekerja/pengemudi senior (usia 45+) yang kurang terbiasa dengan Telegram
+namun menggunakan WA sebagai aplikasi harian. 2. <strong>In-House AI
+Localized Receipt Engine:</strong> Saat ini kami bergantung penuh pada
+Gemini 2.5 Flash. Ke depan, kami akan melatih (<em>fine-tuning</em>) API
+model AI kami sendiri (In-House OCR &amp; Anomaly Detection) khusus
+untuk mengenali tekstur, format, dan <em>hash dataset</em> “Bon/Nota
+Warung Tradisional Indonesia” yang lecek dan tulisan tangan. Ini akan
+menekan <em>False Positives</em> secara drastis dibandingkan
+mengandalkan LLM generalis asal Amerika Serikat.</p>
+<hr />
+<h2 id="validasi-teknis-arsitektur-sistem">⚙️ Validasi Teknis &amp;
+Arsitektur Sistem</h2>
+<p>Platform dibangun dengan prinsip <strong>API-First</strong> dan
+arsitektur <em>Serverless Cloud</em>: - <strong>Frontend</strong>: React
+18 + Vite + TypeScript + TailwindCSS. - <strong>Backend</strong>:
+FastAPI (Python) untuk <em>webhook</em> Telegram asinkron &amp; Partner
+API. - <strong>Database</strong>: Supabase Pro Tier (PostgreSQL + Auth).
+- <strong>Object Storage / CDN</strong>: ImageKit.io (Transformasi
+gambar instan &amp; manipulasi URL <em>stamping</em>). -
+<strong>Keamanan (OJK &amp; PDP Compliant)</strong>: Enkripsi AES-256
+(At-rest) &amp; TLS 1.3 (In-transit), Strict RBAC.</p>
+<h3 id="endpoint-api-utama">Endpoint API Utama</h3>
+<ul>
+<li><code>POST /api/v1/partner/decision</code>: Unified Decision Gate
+(XGBoost Scoring Engine)</li>
+<li><code>GET /api/v1/gamification/progress</code>: Penarikan data
+<em>Consistency Mission</em></li>
+<li><code>POST /api/fraud/...</code>: Analisis Dokumen Logistik via
+Gemini 2.5 Flash</li>
+<li><code>GET /api/kasbon/queue</code>: Antrean validasi admin
+(<em>Logistics Verification Queue</em>)</li>
+</ul>
+<hr />
+<h2 id="panduan-menjalankan-sistem-lokal-development">🛠️ Panduan
+Menjalankan Sistem Lokal (Development)</h2>
+<h3 id="prasyarat">Prasyarat</h3>
+<ul>
+<li>Node.js &gt;= 18</li>
+<li>Python 3.10+</li>
+<li>Supabase Project, ImageKit API Keys, &amp; Louvin API Keys</li>
+</ul>
+<h3 id="setup-backend-fastapi">1. Setup Backend (FastAPI)</h3>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> be</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> venv .venv</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">.venv\Scripts\activate</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="at">-r</span> requirements.txt</span></code></pre></div>
+<p>Buat file <code>be/.env</code> sesuai <code>.env.example</code>.
+Jalankan server:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">uvicorn</span> main:app <span class="at">--reload</span> <span class="at">--port</span> 8000</span></code></pre></div>
+<h3 id="setup-frontend-react">2. Setup Frontend (React)</h3>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> fe</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> install</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run dev</span></code></pre></div>
+<h3 id="setup-worker-asynchronous-tasks">3. Setup Worker (Asynchronous
+Tasks)</h3>
+<p>Dari folder <code>be/</code> jalankan worker:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> workers.telegram_bot_worker</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> workers.scan_worker</span></code></pre></div>
+<h3 id="menjalankan-via-docker-compose">4. Menjalankan via Docker
+Compose</h3>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose up <span class="at">-d</span> <span class="at">--build</span></span></code></pre></div>
+<p><em>(Gunakan <code>docker builder prune -a -f</code> jika terjadi
+error caching snapshot saat build).</em></p>
+<hr />
+<p><em>Proyek ini merupakan purwarupa tahap akhir (MVP Fully Functional)
+yang dikembangkan eksklusif untuk ajang Hackathon Digdaya 2026.</em></p>
+</body>
+</html>

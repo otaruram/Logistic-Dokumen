@@ -7,7 +7,6 @@ import { useState, useEffect } from "react";
 const Header = () => {
   const [userInitials, setUserInitials] = useState(APP_CONFIG.userInitials);
   const [userNik, setUserNik] = useState<string>("-");
-  const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -36,13 +35,6 @@ const Header = () => {
     loadUser();
   }, []);
 
-  useEffect(() => {
-    const close = () => setMenuOpen(false);
-    if (menuOpen) {
-      window.addEventListener("click", close);
-    }
-    return () => window.removeEventListener("click", close);
-  }, [menuOpen]);
 
   const handleCopyNik = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -79,33 +71,9 @@ const Header = () => {
           transition={{ duration: 0.3, delay: 0.1 }}
           className="relative"
         >
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setMenuOpen((prev) => !prev);
-            }}
-            className="w-8 h-8 rounded-full bg-foreground flex items-center justify-center text-sm font-medium text-background"
-          >
+          <div className="w-8 h-8 rounded-full bg-foreground flex items-center justify-center text-sm font-medium text-background opacity-90 cursor-default">
             {userInitials}
-          </button>
-
-          {menuOpen && (
-            <div
-              className="absolute right-0 mt-2 w-64 rounded-xl border border-white/15 bg-[#111] p-3 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1">NIK User</p>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-mono text-gray-100 truncate">{userNik}</p>
-                <button
-                  onClick={handleCopyNik}
-                  className="rounded-md border border-white/15 px-2 py-1 text-[11px] font-semibold text-gray-200 hover:bg-white/10"
-                >
-                  {copied ? "Copied" : "Copy"}
-                </button>
-              </div>
-            </div>
-          )}
+          </div>
         </motion.div>
       </div>
     </header>
