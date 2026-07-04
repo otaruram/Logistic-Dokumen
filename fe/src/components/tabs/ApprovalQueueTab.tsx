@@ -129,6 +129,7 @@ export default function ApprovalQueueTab() {
   const [authorizedAdmins, setAuthorizedAdmins] = useState<any[]>([]);
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [isAddingAdmin, setIsAddingAdmin] = useState(false);
+  const [showQueueTooltip, setShowQueueTooltip] = useState(false);
 
   // Approve modal
   const [modalLoan, setModalLoan] = useState<LoanRequest | null>(null);
@@ -581,17 +582,40 @@ export default function ApprovalQueueTab() {
           <p className="text-sm text-zinc-500 mt-0.5">Pengajuan yang menunggu verifikasi koperasi.</p>
         </div>
         <div className="flex items-center gap-2">
-          {userEmail === "okitr52@gmail.com" && (
+          <div className="relative inline-flex items-center">
             <button
-              onClick={() => setShowAdminRequests(true)}
-              className="relative p-2.5 rounded-full hover:bg-zinc-100 transition-colors"
+              onClick={() => setShowQueueTooltip(!showQueueTooltip)}
+              className="p-2.5 rounded-full hover:bg-zinc-100 transition-colors relative"
+              title="Info tentang Approval Queue"
             >
               <Bell className="w-5 h-5 text-zinc-600" />
-              {adminRequests.length > 0 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
-              )}
+              <span className={`absolute top-1 right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${adminRequests.length > 0 ? "bg-red-500" : "bg-amber-500"}`} />
             </button>
-          )}
+            {showQueueTooltip && (
+              <div className="absolute top-full mt-2 right-0 z-50 w-72 rounded-xl border border-zinc-200 bg-white p-4 shadow-xl animate-in fade-in slide-in-from-top-2 text-left">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <Bell className="h-4 w-4 text-amber-500" />
+                    <p className="text-sm font-semibold text-zinc-900">Approval Queue</p>
+                  </div>
+                  <button onClick={() => setShowQueueTooltip(false)} className="text-zinc-400 hover:text-zinc-600">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <p className="text-xs text-zinc-600 leading-relaxed">
+                  Approval Queue adalah antrian pengajuan dokumen operasional yang menunggu verifikasi dan persetujuan admin koperasi sebelum diproses lebih lanjut.
+                </p>
+                {userEmail === "okitr52@gmail.com" && (
+                  <button 
+                    onClick={() => { setShowQueueTooltip(false); setShowAdminRequests(true); }}
+                    className="mt-3 w-full rounded-lg bg-black text-white px-3 py-2 text-xs font-semibold hover:bg-zinc-800 transition-colors"
+                  >
+                    Kelola Akses Admin {adminRequests.length > 0 && `(${adminRequests.length} Baru)`}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <button
             onClick={fetchQueue}
             className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-400"
