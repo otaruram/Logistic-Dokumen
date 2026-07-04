@@ -606,13 +606,20 @@ async def get_audit_trail(current_user: dict = Depends(get_supabase_bearer_user)
     Open to all logged-in users.
     """
     sb = _sb()
-    user_email = (current_user.get("email") or "").lower().strip()
+    user_id = str(current_user["id"])
         
     _ensure_loan_requests_ready(sb)
+    
+    prof = sb.table("profiles").select("nik").eq("id", user_id).limit(1).execute()
+    prof_rows = getattr(prof, "data", None) or []
+    if not prof_rows or not prof_rows[0].get("nik"):
+        return {"history": []}
+    user_nik = prof_rows[0]["nik"]
     
     res = (
         sb.table("loan_requests")
         .select("id, nik, nominal_pengajuan, image_url, ai_indicator, sha256_hash, submitted_at, status")
+        .eq("nik", user_nik)
         .order("submitted_at", desc=True)
         .limit(100)
         .execute()
