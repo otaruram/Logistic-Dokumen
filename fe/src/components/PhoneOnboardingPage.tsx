@@ -6,7 +6,7 @@
  *
  * Design: Dark mode glassmorphism, consistent with LoginPage.tsx
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Phone,
@@ -45,14 +45,27 @@ export default function PhoneOnboardingPage({
   onBack,
 }: PhoneOnboardingPageProps) {
   const [phoneInput, setPhoneInput] = useState("");
+  const [sandboxPhones, setSandboxPhones] = useState<string[]>([]);
   const [state, setState] = useState<OnboardingState>("input");
   const [errorMessage, setErrorMessage] = useState("");
   const [showSandbox, setShowSandbox] = useState(false);
 
+  useEffect(() => {
+    fetch(`${API}/api/v1/sandbox/whitelist-random`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.phones && data.phones.length > 0) {
+          const shuffled = data.phones.sort(() => 0.5 - Math.random());
+          setSandboxPhones(shuffled);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
   /**
    * Format raw input into display format:
-   *   "81234567890" → "+62 812-3456-7890"
-   *   "081234567890" → "+62 812-3456-7890"
+   *   "81234567890" -> "+62 812-3456-7890"
+   *   "081234567890" -> "+62 812-3456-7890"
    */
   const formatDisplayPhone = useCallback((raw: string): string => {
     const digits = raw.replace(/\D/g, "");
@@ -165,11 +178,25 @@ export default function PhoneOnboardingPage({
   };
 
   /** Demo sandbox: autofill a phone number and reset state */
-  const handleDemoAutofill = (phone: string, label: string) => {
-    setPhoneInput(phone);
+  const handleDemoAutofill = (type: "valid" | "invalid") => {
+    let phoneToUse = "";
+    if (type === "valid") {
+      if (sandboxPhones.length > 0) {
+        phoneToUse = sandboxPhones[0];
+        setSandboxPhones(prev => prev.slice(1)); // pop the used one so it won't repeat
+      } else {
+        phoneToUse = DEMO_PHONES.valid; // fallback
+      }
+    } else {
+      // Pick a random invalid number each time so it varies slightly
+      const randomDigit = Math.floor(Math.random() * 9) + 1;
+      phoneToUse = `+628999111222${randomDigit}`;
+    }
+    
+    setPhoneInput(phoneToUse);
     setState("input");
     setErrorMessage("");
-    toast.info(`Demo: nomor ${label} terisi otomatis`, { duration: 2000 });
+    toast.info(`Demo: nomor ${type} terisi otomatis`, { duration: 2000 });
   };
 
   const displayPhone = formatDisplayPhone(phoneInput);
@@ -264,19 +291,19 @@ export default function PhoneOnboardingPage({
                     </p>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleDemoAutofill(DEMO_PHONES.valid, "valid")}
+                        onClick={() => handleDemoAutofill("valid")}
                         className="text-[10px] font-medium text-zinc-500 hover:text-emerald-500 transition-colors flex items-center gap-1"
                         type="button"
                       >
-                        <span>💡</span>
+                        <span>🧪</span>
                         <span>Valid</span>
                       </button>
                       <button
-                        onClick={() => handleDemoAutofill(DEMO_PHONES.invalid, "invalid")}
+                        onClick={() => handleDemoAutofill("invalid")}
                         className="text-[10px] font-medium text-zinc-500 hover:text-red-500 transition-colors flex items-center gap-1"
                         type="button"
                       >
-                        <span>⚠️</span>
+                        <span>🧪</span>
                         <span>Invalid</span>
                       </button>
                     </div>

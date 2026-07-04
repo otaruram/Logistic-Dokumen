@@ -587,3 +587,15 @@ async def delete_whitelist_entry(
         }).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gagal menghapus entry: {e}")
+
+
+@router.get('/api/v1/sandbox/whitelist-random', tags=['Sandbox'])
+async def get_sandbox_whitelist_numbers():
+    sb = _get_sb()
+    res = sb.table('employee_whitelist').select('phone_number').eq('is_active', True).limit(100).execute()
+    rows = getattr(res, 'data', None) or []
+    phones = [r['phone_number'] for r in rows]
+    if not phones:
+        phones = ['+6281234567890']
+    return {'phones': phones}
+
