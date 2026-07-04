@@ -172,11 +172,40 @@ async def get_realtime_stats(
     user_id = str(current_user.id)
 
     try:
+        # 0. Get user profile (credits and nik)
+        prof = sa.table("profiles").select("nik, credits").eq("id", user_id).limit(1).execute()
+        prof_data = prof.data[0] if prof.data else {}
+        credits = int(prof_data.get("credits", 10) or 10)
+        nik = prof_data.get("nik")
+
         # 1. Fetch fraud_scans for this user
         q = sa.table("fraud_scans").select("status,nominal_total,created_at").eq("user_id", user_id)
         if year:
             q = q.gte("created_at", f"{year}-01-01T00:00:00").lte("created_at", f"{year}-12-31T23:59:59")
         rows = (q.execute().data) or []
+
+        # 1.5 Fetch loan_requests (Kasbon) for this user's NIK
+        if nik:
+            lq = sa.table("loan_requests").select("status,nominal_pengajuan,created_at").eq("nik", nik)
+            if year:
+                lq = lq.gte("created_at", f"{year}-01-01T00:00:00").lte("created_at", f"{year}-12-31T23:59:59")
+            loan_rows = (lq.execute().data) or []
+            
+            for lr in loan_rows:
+                s = lr.get("status", "")
+                mapped_status = "processing"
+                if s == "APPROVED":
+                    mapped_status = "verified"
+                elif s == "REJECTED":
+                    mapped_status = "tampered"
+                elif s == "PENDING":
+                    mapped_status = "processing"
+                
+                rows.append({
+                    "status": mapped_status,
+                    "nominal_total": lr.get("nominal_pengajuan") or 0,
+                    "created_at": lr.get("created_at")
+                })
 
         verified = tampered = processing = 0
         total_nominal = 0.0
@@ -213,12 +242,6 @@ async def get_realtime_stats(
                     pass
 
         weekly = [{"day": day_labels[i], "scans": daily[i]} for i in range(7)]
-
-        # 2. Credits from profiles (supabase_admin — no RLS)
-        prof = sa.table("profiles").select("credits").eq("id", user_id).limit(1).execute()
-        credits = 10
-        if prof.data:
-            credits = int((prof.data[0] or {}).get("credits", 10) or 10)
 
         # 3. Trust score (local calc if RPC not available)
         trust_score = 0

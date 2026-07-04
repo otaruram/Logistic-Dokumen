@@ -665,7 +665,6 @@ export default function ApprovalQueueTab() {
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="min-w-0">
                     <p className="font-semibold text-zinc-900 truncate">{loan.nama_lengkap || "-"}</p>
-                    <p className="text-xs text-zinc-400 font-mono">{loan.nik}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
