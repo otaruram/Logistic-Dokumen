@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from config.settings import settings
-from api import auth, scans, fraud, exports, invoices, users, upload, config as config_api, reviews, dashboard, cleanup, chatbot, chat_history, admin, report, scan_insight, telegram, partner, payment, ledger, transactions, audit, kyc, kasbon, finance, gamification, whitelist
+from api import auth, scans, fraud, exports, invoices, users, upload, config as config_api, reviews, dashboard, cleanup, chatbot, chat_history, admin, report, scan_insight, telegram, partner, payment, ledger, transactions, audit, kyc, kasbon, kasbon_admin, finance, gamification, whitelist
 from middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware, IPBlockingMiddleware
 
 # Database will be handled by Prisma
@@ -115,6 +115,7 @@ app.include_router(audit.router, tags=["Partner Audit"])  # /api/partner/v1/user
 app.include_router(kyc.router, prefix="/api/kyc", tags=["KYC"])  # Identity verification (legacy)
 app.include_router(whitelist.router, tags=["Whitelist Auth"])  # Google Login + Phone Whitelist
 app.include_router(kasbon.router, tags=["Kasbon"])  # Digital Intake Gateway
+app.include_router(kasbon_admin.router, tags=["Kasbon Admin"])
 app.include_router(finance.router)  # /api/v1/verify-credit + family sharing
 
 app.include_router(gamification.router)  # /api/v1/gamification/* — badge progress

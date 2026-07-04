@@ -1,4 +1,4 @@
-"""
+﻿"""
 Telegram integration service helpers.
 
 Handles:
@@ -12,8 +12,22 @@ from __future__ import annotations
 import hashlib
 import secrets
 import time
+import requests
 from datetime import datetime, timedelta
 from typing import Any, Optional
+
+def send_telegram_notif(chat_id: int, text: str) -> None:
+    token = settings.TELEGRAM_BOT_TOKEN
+    if not token or not chat_id:
+        return
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": True},
+            timeout=8,
+        )
+    except Exception:
+        pass
 
 from fastapi import HTTPException
 from openai import AsyncOpenAI
@@ -96,7 +110,7 @@ def unlink_chat(chat_id: int) -> bool:
             .execute()
         return True
     except Exception as e:
-        print(f"❌ [Telegram] unlink_chat failed for chat_id={chat_id}: {e}")
+        print(f"âŒ [Telegram] unlink_chat failed for chat_id={chat_id}: {e}")
         return False
 
 
@@ -119,7 +133,7 @@ def link_chat_to_user(*, tele_key: str, chat_id: int, telegram_user_id: Optional
             .neq("id", link["id"]) \
             .execute()
     except Exception as e:
-        print(f"⚠️ [Telegram] Could not clear old chat_id bindings: {e}")
+        print(f"âš ï¸ [Telegram] Could not clear old chat_id bindings: {e}")
 
     payload = {
         "is_linked": True,
@@ -139,7 +153,7 @@ def link_chat_to_user(*, tele_key: str, chat_id: int, telegram_user_id: Optional
             try:
                 sb.table("profiles").update({"phone_number": clean_phone}).eq("id", user_id).execute()
             except Exception as e:
-                print(f"⚠️ [Telegram] Could not update profile phone_number: {e}")
+                print(f"âš ï¸ [Telegram] Could not update profile phone_number: {e}")
 
     (
         sb.table("telegram_links")
@@ -244,7 +258,7 @@ async def process_fraud_scan_from_telegram(*, user_id: str, recipient_name: str,
         ocr_result=ocr_result,
         is_fraud=True,
     )
-    print(f"✅ [Telegram] sync_to_supabase completed for user={user_id}, file={filename}, status={fraud_status}")
+    print(f"âœ… [Telegram] sync_to_supabase completed for user={user_id}, file={filename}, status={fraud_status}")
 
     # Ensure a fraud history row exists even if sync helper insert is skipped by DB constraints.
     sb = get_supabase_admin()
@@ -280,11 +294,11 @@ async def process_fraud_scan_from_telegram(*, user_id: str, recipient_name: str,
                     "status": fraud_status,
                 }
                 res = sb.table("fraud_scans").insert(fallback_payload).execute()
-                print(f"✅ [Telegram] Fallback fraud_scans insert for user={user_id}, rows={len(getattr(res, 'data', None) or [])}")
+                print(f"âœ… [Telegram] Fallback fraud_scans insert for user={user_id}, rows={len(getattr(res, 'data', None) or [])}")
             else:
-                print(f"ℹ️ [Telegram] fraud_scans row already exists for hash={content_hash[:16]}...")
+                print(f"â„¹ï¸ [Telegram] fraud_scans row already exists for hash={content_hash[:16]}...")
         except Exception as e:
-            print(f"❌ [Telegram] Fallback fraud_scans insert FAILED for user={user_id}: {e}")
+            print(f"âŒ [Telegram] Fallback fraud_scans insert FAILED for user={user_id}: {e}")
 
     result = {
         "status": fraud_status,
@@ -325,7 +339,7 @@ def get_dashboard_summary(user_id: str) -> dict[str, Any]:
     )
     scans = getattr(scans_res, "data", None) or []
 
-    # Only count verified/tampered if admin has reviewed — prevents auto-classified counts
+    # Only count verified/tampered if admin has reviewed â€” prevents auto-classified counts
     verified = sum(1 for s in scans if s.get("status") == "verified" and s.get("admin_reviewed") is True)
     processing = sum(1 for s in scans if s.get("status") == "processing")
     tampered = sum(1 for s in scans if s.get("status") == "tampered" and s.get("admin_reviewed") is True)
@@ -382,15 +396,15 @@ def analyze_signature(image_bytes: bytes) -> dict[str, Any]:
     Uses OpenAI vision if available, falls back to a basic heuristic via PIL.
 
     Returns a dict with:
-      - found: bool — whether a signature/stempel region was detected
-      - stempel: bool — whether an official stamp (cap/stempel) was detected
-      - verdict: str — "asli" | "mencurigakan" | "tidak ada TTD"
-      - detail: str — human-readable explanation (Indonesian)
-      - confidence: str — "high" | "medium" | "low"
+      - found: bool â€” whether a signature/stempel region was detected
+      - stempel: bool â€” whether an official stamp (cap/stempel) was detected
+      - verdict: str â€” "asli" | "mencurigakan" | "tidak ada TTD"
+      - detail: str â€” human-readable explanation (Indonesian)
+      - confidence: str â€” "high" | "medium" | "low"
     """
     from config.settings import settings
 
-    # ── Try OpenAI / Groq vision ─────────────────────────────────────────────
+    # â”€â”€ Try OpenAI / Groq vision â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         import base64
         from openai import OpenAI
@@ -465,9 +479,9 @@ def analyze_signature(image_bytes: bytes) -> dict[str, Any]:
                 except Exception:
                     continue
     except Exception as e:
-        print(f"⚠️ [TTD] Vision API error: {e}")
+        print(f"âš ï¸ [TTD] Vision API error: {e}")
 
-    # ── Heuristic fallback via PIL ───────────────────────────────────────────
+    # â”€â”€ Heuristic fallback via PIL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         import io
         from PIL import Image, ImageFilter
@@ -503,9 +517,9 @@ def analyze_signature(image_bytes: bytes) -> dict[str, Any]:
 
         return {"found": found, "stempel": stempel, "verdict": verdict, "detail": detail, "confidence": confidence}
     except Exception as e:
-        print(f"⚠️ [TTD] PIL fallback error: {e}")
+        print(f"âš ï¸ [TTD] PIL fallback error: {e}")
 
-    # ── Last resort: unknown ─────────────────────────────────────────────────
+    # â”€â”€ Last resort: unknown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     return {
         "found": False,
         "stempel": False,
@@ -519,16 +533,16 @@ async def answer_finance_question_with_context(user_id: str, question: str) -> s
     """Answer a financial question as Otaru Financial Consultant Expert.
 
     Uses Gemini 2.0 Flash with:
-    • strict 200 token cap for cost-efficient, blunt responses
-    • Redis cache keyed on user_id + hash(financial_data)
-    • auto-follow-up question at the end of each response
-    • clean formatting (no markdown asterisks)
+    â€¢ strict 200 token cap for cost-efficient, blunt responses
+    â€¢ Redis cache keyed on user_id + hash(financial_data)
+    â€¢ auto-follow-up question at the end of each response
+    â€¢ clean formatting (no markdown asterisks)
     """
     q = (question or "").strip()
     if not q:
         return "Ketik pertanyaan dulu ya, Otaru siap membantu."
 
-    # ── Gather UNIFIED context ──────────────────────────────────────────
+    # â”€â”€ Gather UNIFIED context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     context_lines: list[str] = []
     try:
         from services.scan_helpers import get_supabase_admin
@@ -597,10 +611,10 @@ async def answer_finance_question_with_context(user_id: str, question: str) -> s
                 if badges:
                     context_lines.append(f"\n--- GAMIFICATION ---")
                     for b in badges:
-                        context_lines.append(f"🏅 {b['badge_type']} ({b['month_year']})")
+                        context_lines.append(f"ðŸ… {b['badge_type']} ({b['month_year']})")
                     has_gold = any(b['badge_type'] == 'gold' for b in badges)
                     if has_gold:
-                        context_lines.append("✨ Aktif mendapat 0.5% diskon bunga + Rp 1jt bonus plafon")
+                        context_lines.append("âœ¨ Aktif mendapat 0.5% diskon bunga + Rp 1jt bonus plafon")
             except Exception:
                 pass
 
@@ -636,7 +650,7 @@ async def answer_finance_question_with_context(user_id: str, question: str) -> s
 
     user_context = "\n".join(context_lines) if context_lines else "Data profil tidak tersedia."
     
-    # ── Redis Cache: user_id + hash(financial_data) ─────────────────────
+    # â”€â”€ Redis Cache: user_id + hash(financial_data) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     import json as _json
     q_hash = hashlib.md5(q.encode()).hexdigest()[:10]
     ctx_hash = hashlib.md5(user_context.encode()).hexdigest()[:12]
@@ -650,14 +664,14 @@ async def answer_finance_question_with_context(user_id: str, question: str) -> s
     except Exception:
         pass
 
-    # ── System Prompt (Gemini 2.0 Flash optimized) ──────────────────────
+    # â”€â”€ System Prompt (Gemini 2.0 Flash optimized) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     system_prompt = (
         "Kamu adalah OTARU, Financial Consultant Expert untuk OtaruChain & Otaru Financial.\n\n"
         "ATURAN KETAT:\n"
-        "• Proaktif dan blak-blakan. SELALU berikan saran spesifik berdasarkan DATA user di bawah.\n"
-        "• Data-driven: gunakan angka real dari profil, bukan nasihat generik.\n"
-        "• Actionable: berikan langkah konkret yang bisa dilakukan HARI INI.\n"
-        "• Jujur: jangan sugarcoat kondisi finansial yang buruk.\n\n"
+        "â€¢ Proaktif dan blak-blakan. SELALU berikan saran spesifik berdasarkan DATA user di bawah.\n"
+        "â€¢ Data-driven: gunakan angka real dari profil, bukan nasihat generik.\n"
+        "â€¢ Actionable: berikan langkah konkret yang bisa dilakukan HARI INI.\n"
+        "â€¢ Jujur: jangan sugarcoat kondisi finansial yang buruk.\n\n"
         "DATA USER (RAHASIA, hanya untuk konteks):\n"
         f"{user_context}\n\n"
         "TUGAS:\n"
@@ -666,15 +680,15 @@ async def answer_finance_question_with_context(user_id: str, question: str) -> s
         "3. Jika ada Tampered Attempts >0, JELASKAN dampaknya.\n"
         "4. Berikan budget harian berdasarkan gaji - cicilan.\n\n"
         "FORMAT (DILARANG DILANGGAR):\n"
-        "• DILARANG menggunakan asterisk (*), bold (**), heading (#), atau format markdown.\n"
-        "• Gunakan HANYA simbol bullet \u2022 untuk daftar.\n"
-        "• Jawaban MAKSIMAL 3-4 kalimat pendek.\n\n"
+        "â€¢ DILARANG menggunakan asterisk (*), bold (**), heading (#), atau format markdown.\n"
+        "â€¢ Gunakan HANYA simbol bullet \u2022 untuk daftar.\n"
+        "â€¢ Jawaban MAKSIMAL 3-4 kalimat pendek.\n\n"
         "WAJIB: Setiap jawaban HARUS diakhiri dengan 1 pertanyaan lanjutan yang kontekstual "
         "dan engaging untuk menjaga percakapan. Contoh: "
         "'Apakah ada cicilan lain yang belum kamu laporkan ke sistem?'"
     )
 
-    # ── Try Gemini 2.0 Flash first ──────────────────────────────────────
+    # â”€â”€ Try Gemini 2.0 Flash first â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     gemini_api_key = settings.GEMINI_API_KEY or ""
     if gemini_api_key:
         try:
@@ -708,7 +722,7 @@ async def answer_finance_question_with_context(user_id: str, question: str) -> s
         except Exception as e:
             print(f"[Otaru AI] Gemini 2.0 Flash error, falling back to OpenAI: {e}")
 
-    # ── Fallback: OpenAI proxy ──────────────────────────────────────────
+    # â”€â”€ Fallback: OpenAI proxy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     api_key = getattr(settings, "OPENAI_API_KEY", "") or ""
     if not api_key:
         return "Otaru sedang offline untuk konsultasi saat ini. Coba lagi sebentar."
@@ -824,3 +838,6 @@ def get_recent_fraud_history(user_id: str, *, limit: int = 5) -> list[dict[str, 
             }
         )
     return result
+
+
+

@@ -20,7 +20,7 @@ from services.kasbon_sop import (
     extract_tenor,
     update_credit_score,
 )
-from services.otaru_finance_service import calculate_otaru_index, build_chain_notification, build_finance_notification
+from services.telegram_service import send_telegram_notif
 
 def _get_sb():
     sb = get_supabase_admin()
@@ -71,38 +71,6 @@ def _resolve_nik_from_telegram_chat(sb, chat_id: int) -> Optional[str]:
     prof_res = sb.table("profiles").select("nik").eq("id", user_id).limit(1).execute()
     prof_rows = getattr(prof_res, "data", None) or []
     return prof_rows[0].get("nik") if prof_rows else None
-
-def _send_telegram_notif(chat_id: int, text: str) -> None:
-    token = settings.TELEGRAM_BOT_TOKEN
-    if not token or not chat_id:
-        return
-    try:
-        requests.post(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": True},
-            timeout=8,
-        )
-    except Exception:
-        pass
-
-def _send_finance_bot_notif(chat_id: int, text: str) -> None:
-    token = settings.TELEGRAM_FINANCE_BOT_TOKEN
-    if not token or not chat_id:
-        return
-    try:
-        requests.post(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": True},
-            timeout=8,
-        )
-    except Exception:
-        pass
-
-def _notify_by_source(chat_id: int, text: str, source: str) -> None:
-    if source == "FINANCE":
-        _send_finance_bot_notif(chat_id, text)
-    else:
-        _send_telegram_notif(chat_id, text)
 
 ADMIN_WHITELIST = {
     "okitr52@gmail.com",
@@ -284,17 +252,14 @@ async def kasbon_approve_loan(sb, current_user: dict, loan_id: str, admin_signat
             "no_referensi": no_referensi,
             "doc_type": loan.get("doc_type") or "receipt",
         }
-        if loan_source == "FINANCE":
-            msg = build_finance_notification("APPROVED", doc_info)
-        else:
-            msg = build_chain_notification("APPROVED", doc_info)
+        msg = f"<b>Pemberitahuan</b>\nStatus Dokumen Kamu: <b>APPROVED</b>\nNominal: Rp {doc_info['nominal']:,}".replace(",", ".")
         msg += f"\n\n🛡️ <b>SHA-256 Seal:</b> <code>{sha256_hash[:16]}…</code>"
         if stamped_image_url:
             msg += f"\n\n🖼️ <a href='{stamped_image_url}'>Lihat Dokumen Berstempel</a>"
         # PDF form link disabled (sementara dinonaktifkan)
         # if pdf_url:
         #     msg += f"\n\n📄 <a href='{pdf_url}'>Lihat Form Persetujuan (PDF)</a>"
-        _notify_by_source(chat_id, msg, loan_source)
+        send_telegram_notif(chat_id, msg)
 
     try:
         prof_gam = sb.table("profiles").select("id").eq("nik", loan["nik"]).limit(1).execute()
@@ -388,13 +353,10 @@ async def kasbon_reject_loan(sb, current_user: dict, loan_id: str, reason: str):
             "doc_type": loan_full.get("doc_type") or "receipt",
         }
         notif_status = "TAMPERED" if is_tampered else "REJECTED"
-        if loan_source == "FINANCE":
-            msg = build_finance_notification(notif_status, doc_info)
-        else:
-            msg = build_chain_notification(notif_status, doc_info)
+        msg = f"<b>Pemberitahuan</b>\nStatus Dokumen Kamu: <b>{notif_status}</b>\nNominal: Rp {doc_info['nominal']:,}".replace(",", ".")
         if reject_reason:
             msg += f"\n\n📝 <b>Catatan Admin:</b>\n{escape(reject_reason)}"
-        _notify_by_source(chat_id, msg, loan_source)
+        send_telegram_notif(chat_id, msg)
 
     return {"success": True, "loan_id": loan_id, "message": "Pengajuan berhasil ditolak."}
 
@@ -587,13 +549,10 @@ async def kasbon_need_revision(sb, current_user: dict, loan_id: str, notes: str)
             "no_referensi": existing_ocr.get("no_referensi") or str(loan.get("id", ""))[:8].upper(),
             "doc_type": loan.get("doc_type") or "receipt",
         }
-        if loan_source == "FINANCE":
-            msg = build_finance_notification("REVISION", doc_info)
-        else:
-            msg = build_chain_notification("REVISION", doc_info)
+        msg = f"<b>Pemberitahuan</b>\nStatus Dokumen Kamu: <b>REVISION</b>\nNominal: Rp {doc_info['nominal']:,}".replace(",", ".")
         
         msg += f"\n\n📝 <b>Catatan Admin:</b>\n{escape(notes)}\n\n<i>Silakan perbaiki dokumen dan kirim ulang pengajuan.</i>"
-        _notify_by_source(chat_id, msg, loan_source)
+        send_telegram_notif(chat_id, msg)
 
     return {"success": True, "loan_id": loan_id, "message": "Notifikasi revisi berhasil dikirim."}
 
