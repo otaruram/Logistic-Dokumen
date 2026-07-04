@@ -17,7 +17,7 @@ from typing import Optional
 
 import requests
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from config.settings import settings
@@ -600,7 +600,10 @@ async def get_loan_history(current_user: dict = Depends(get_supabase_bearer_user
 
 
 @router.get("/audit-trail")
-async def get_audit_trail(current_user: dict = Depends(get_supabase_bearer_user)):
+async def get_audit_trail(
+    scope: str = Query(None),
+    current_user: dict = Depends(get_supabase_bearer_user)
+):
     """Return all loan_requests (Audit Trail) enriched with profile info.
     
     Open to all logged-in users.
@@ -612,18 +615,20 @@ async def get_audit_trail(current_user: dict = Depends(get_supabase_bearer_user)
     
     prof = sb.table("profiles").select("nik").eq("id", user_id).limit(1).execute()
     prof_rows = getattr(prof, "data", None) or []
-    if not prof_rows or not prof_rows[0].get("nik"):
-        return {"history": []}
-    user_nik = prof_rows[0]["nik"]
+    user_nik = prof_rows[0].get("nik") if prof_rows else None
     
-    res = (
+    if scope != "all" and not user_nik:
+        return {"history": []}
+    
+    query = (
         sb.table("loan_requests")
         .select("id, nik, nominal_pengajuan, image_url, ai_indicator, sha256_hash, submitted_at, status")
-        .eq("nik", user_nik)
-        .order("submitted_at", desc=True)
-        .limit(100)
-        .execute()
     )
+    
+    if scope != "all":
+        query = query.eq("nik", user_nik)
+        
+    res = query.order("submitted_at", desc=True).limit(100).execute()
     rows = getattr(res, "data", None) or []
     
     nik_list = list({r.get("nik") for r in rows if r.get("nik")})
