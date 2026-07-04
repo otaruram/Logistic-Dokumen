@@ -185,6 +185,14 @@ async def handle_nominal(chat_id: int, text: str, state: dict, send_message, get
                 prof_rows = getattr(prof, "data", None) or []
                 nik = prof_rows[0].get("nik") if prof_rows else None
 
+                if not nik and user_id:
+                    import uuid as _uuid
+                    nik = "3201" + str(_uuid.uuid4().int)[:12]
+                    try:
+                        sb.table("profiles").update({"nik": nik}).eq("id", user_id).execute()
+                    except Exception:
+                        pass
+
                 if nik:
                     sb.table("loan_requests").insert({
                         "nik": nik,
