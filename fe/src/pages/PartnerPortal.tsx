@@ -563,7 +563,7 @@ export default function PartnerPortal() {
             <button
               key={item.id}
               onClick={() => setActiveView(item.id)}
-              className={`rounded-xl px-4 py-3 text-sm font-semibold text-left ${
+              className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-left ${
                 activeView === item.id ? "bg-black text-white" : "border border-zinc-300 bg-white text-zinc-700"
               }`}
             >
