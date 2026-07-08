@@ -278,10 +278,10 @@ export default function PartnerPricingTab({
         </button>
       </div>
 
-      {/* ── Gamification Benefit Context (TBA) ─────────────────────────── */}
+      {/* ── Gamification Benefit Context ─────────────────────────── */}
       <div className="max-w-7xl mx-auto rounded-2xl border border-slate-700 bg-slate-900/60 p-5 space-y-3">
         <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-          Konteks Benefit (TBA) • berlaku sinkron di otaruchain.id dan otaruchain.id/partner
+          Konteks Benefit Gamifikasi • berlaku sinkron di otaruchain.id dan otaruchain.id/partner
         </p>
         <div className="grid gap-3 md:grid-cols-3">
           {/* Silver */}

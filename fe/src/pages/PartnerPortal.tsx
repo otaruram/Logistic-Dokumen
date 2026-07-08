@@ -228,32 +228,33 @@ export default function PartnerPortal() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Partner API Quota — separate from user scan credits (10)
+  // Maps subscription_plan → monthly API requests
+  const PARTNER_QUOTA: Record<string, number> = {
+    free: 50,
+    launch: 900,
+    scale: 2000,
+    enterprise: 10000,
+  };
+
   useEffect(() => {
     if (!userId) {
       setApiCredits(null);
       return;
     }
-    supabase.from('profiles').select('credits').eq('id', userId).single()
+    // Read subscription_plan to determine partner tier quota
+    supabase.from('profiles').select('subscription_plan').eq('id', userId).single()
       .then(({ data }) => {
-        if (data && typeof data.credits === 'number') {
-          if (data.credits === 10) {
-            // Upgrade end-user default (10) to partner default (50) for hackathon
-            supabase.from('profiles').update({ credits: 50 }).eq('id', userId).then();
-            setApiCredits(50);
-          } else {
-            setApiCredits(data.credits);
-          }
-        } else {
-          setApiCredits(50); // Hackathon default
-        }
+        const plan = data?.subscription_plan ?? 'free';
+        setApiCredits(PARTNER_QUOTA[plan] ?? 50);
       })
-      .catch(() => setApiCredits(50)); // Hackathon default on error
+      .catch(() => setApiCredits(50));
 
-    const channel = supabase.channel(`public:profiles:id=eq.${userId}`)
+    // Real-time: if subscription_plan changes (e.g. upgrade), update quota instantly
+    const channel = supabase.channel(`partner-quota:${userId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` }, (payload) => {
-        if (payload.new && typeof payload.new.credits === 'number') {
-          setApiCredits(payload.new.credits);
-        }
+        const plan = (payload.new as any)?.subscription_plan ?? 'free';
+        setApiCredits(PARTNER_QUOTA[plan] ?? 50);
       })
       .subscribe();
 

@@ -390,8 +390,8 @@ const ProfileTab = () => {
 
         {(rewardContext.gold || rewardContext.platinum) && (
           <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-[11px] text-gray-400 space-y-1">
-            {rewardContext.gold && <p>Gold TBA: {rewardContext.gold}</p>}
-            {rewardContext.platinum && <p>Platinum TBA: {rewardContext.platinum}</p>}
+            {rewardContext.gold && <p>Gold Benefit: {rewardContext.gold}</p>}
+            {rewardContext.platinum && <p>Platinum Benefit: {rewardContext.platinum}</p>}
           </div>
         )}
       </motion.div>

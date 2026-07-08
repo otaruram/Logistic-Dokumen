@@ -113,7 +113,7 @@ async def get_current_user(
                         email=email,
                         username=email.split('@')[0] if email else "user",
                         hashed_password="",  # No password for OAuth users
-                        credits=10,  # Initial 10 credits (1 per feature use)
+                        credits=10,  # Initial 10 credits for user (1 per scan)
                         is_active=True,
                         created_at=now,
                         updated_at=now,

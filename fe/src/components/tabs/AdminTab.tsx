@@ -355,7 +355,7 @@ export default function AdminTab() {
                     <div className="flex items-center justify-between gap-3">
                         <div>
                             <p className="text-sm font-semibold text-white">Gamification Controls</p>
-                            <p className="text-xs text-gray-500">Naikkan/turunkan reward user/admin + ubah context TBA dan threshold.</p>
+                            <p className="text-xs text-gray-500">Naikkan/turunkan reward user/admin + ubah context benefit dan threshold.</p>
                         </div>
                     </div>
 
@@ -380,11 +380,11 @@ export default function AdminTab() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <label className="text-xs text-gray-400 space-y-1">
-                            <span>Gold Context TBA</span>
+                            <span>Gold Context Benefit</span>
                             <input value={gamificationConfig.gold_context_tba} onChange={(e) => setGamificationConfig({ ...gamificationConfig, gold_context_tba: e.target.value })} className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-white" />
                         </label>
                         <label className="text-xs text-gray-400 space-y-1">
-                            <span>Platinum Context TBA</span>
+                            <span>Platinum Context Benefit</span>
                             <input value={gamificationConfig.platinum_context_tba} onChange={(e) => setGamificationConfig({ ...gamificationConfig, platinum_context_tba: e.target.value })} className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-white" />
                         </label>
                     </div>

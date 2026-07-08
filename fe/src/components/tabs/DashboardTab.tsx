@@ -270,21 +270,30 @@ const _GamificationCardLegacy = () => {
 
       {/* Active Badge Banner */}
       {hasPlatinum && (
-        <div className="mt-4 p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl w-full overflow-hidden">
-          <p className="text-xs text-indigo-300 font-medium break-words">ðŸ’Ž Platinum Integrity Badge Aktif!</p>
-          <p className="text-[11px] text-indigo-400/70 mt-0.5 break-words">Plafon Maksimal up to Rp 20 Juta & Pencairan Instan &lt; 5 Menit otomatis diterapkan.</p>
+        <div className="mt-4 p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl w-full overflow-hidden flex items-start gap-3">
+          <Zap className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs text-indigo-300 font-medium break-words">Platinum Integrity Badge Aktif!</p>
+            <p className="text-[11px] text-indigo-400/70 mt-0.5 break-words">Plafon Maksimal up to Rp 20 Juta & Pencairan Instan &lt; 5 Menit otomatis diterapkan.</p>
+          </div>
         </div>
       )}
       {hasGold && !hasPlatinum && (
-        <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl w-full overflow-hidden">
-          <p className="text-xs text-amber-300 font-medium break-words">ðŸ† Gold Integrity Badge Aktif!</p>
-          <p className="text-[11px] text-amber-400/70 mt-0.5 break-words">Bonus Plafon +Rp 1 Juta & Diskon Biaya Admin 0.5% otomatis diterapkan.</p>
+        <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl w-full overflow-hidden flex items-start gap-3">
+          <TrendingUp className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs text-amber-300 font-medium break-words">Gold Integrity Badge Aktif!</p>
+            <p className="text-[11px] text-amber-400/70 mt-0.5 break-words">Plafon Maksimal up to Rp 10 Juta & Diskon Biaya Admin 0.5% otomatis diterapkan.</p>
+          </div>
         </div>
       )}
       {hasSilver && !hasGold && !hasPlatinum && (
-        <div className="mt-4 p-3 bg-gray-400/10 border border-gray-400/20 rounded-xl w-full overflow-hidden">
-          <p className="text-xs text-gray-300 font-medium break-words">ðŸ¥ˆ Silver Integrity Badge Aktif!</p>
-          <p className="text-[11px] text-gray-400/70 mt-0.5 break-words">Standard Queue aktif. Lanjutkan ke 150 dokumen untuk unlock Gold!</p>
+        <div className="mt-4 p-3 bg-slate-500/10 border border-slate-500/20 rounded-xl w-full overflow-hidden flex items-start gap-3">
+          <Shield className="w-5 h-5 text-slate-300 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs text-slate-300 font-medium break-words">Silver Integrity Badge Aktif!</p>
+            <p className="text-[11px] text-slate-400/70 mt-0.5 break-words">Plafon Maksimal up to Rp 5 Juta & Prioritas Pencairan 1x24 Jam otomatis diterapkan.</p>
+          </div>
         </div>
       )}
     </motion.div>
