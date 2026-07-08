@@ -236,7 +236,13 @@ export default function PartnerPortal() {
     supabase.from('profiles').select('credits').eq('id', userId).single()
       .then(({ data }) => {
         if (data && typeof data.credits === 'number') {
-          setApiCredits(data.credits);
+          if (data.credits === 10) {
+            // Upgrade end-user default (10) to partner default (50) for hackathon
+            supabase.from('profiles').update({ credits: 50 }).eq('id', userId).then();
+            setApiCredits(50);
+          } else {
+            setApiCredits(data.credits);
+          }
         } else {
           setApiCredits(50); // Hackathon default
         }
