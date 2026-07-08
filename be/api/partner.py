@@ -14,7 +14,7 @@ import hashlib
 import secrets
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from utils.auth import get_supabase_bearer_user, supabase_admin
@@ -68,12 +68,12 @@ def _deduct_credit_for_api_key_owner(sb, api_key_owner: str) -> None:
         if not rows:
             return
         owner_uid = rows[0]["user_id"]
-        prof_res = sb.table("profiles").select("credits").eq("id", owner_uid).limit(1).execute()
+        prof_res = sb.table("profiles").select("partner_api_credits").eq("id", owner_uid).limit(1).execute()
         prof_rows = getattr(prof_res, "data", None) or []
-        current = int((prof_rows[0].get("credits") or 0)) if prof_rows else 0
+        current = int((prof_rows[0].get("partner_api_credits") or 0)) if prof_rows else 0
         if current <= 0:
-            raise HTTPException(status_code=402, detail="Kredit habis. Top-up kredit untuk melanjutkan.")
-        sb.table("profiles").update({"credits": current - 1}).eq("id", owner_uid).execute()
+            raise HTTPException(status_code=402, detail="Kredit API Partner habis. Upgrade plan untuk melanjutkan.")
+        sb.table("profiles").update({"partner_api_credits": current - 1}).eq("id", owner_uid).execute()
     except HTTPException:
         raise
     except Exception:
@@ -358,11 +358,31 @@ async def sync_phone_number(
 
 
 @router.get("/api/v1/profiles/phone/autofill", response_model=PhoneAutoFillResponse, tags=["Partner"])
-async def autofill_phone_number():
+async def autofill_phone_number(request: Request):
     """
-    Auto-fill helper for Partner API - returns a random test phone number.
-    No authentication required. Returns a unique test phone number for initial Partner API setup.
+    Auto-fill helper for Partner API - returns the user's actual phone number from their profile.
+    Falls back to a generated test number if no profile phone is found.
     """
+    # Try to get user's phone from their profile
+    try:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            sb = supabase_admin
+            user_res = sb.auth.get_user(token)
+            if user_res and user_res.user:
+                user_id = str(user_res.user.id)
+                profile = sb.table("profiles").select("phone_number").eq("id", user_id).limit(1).execute()
+                if profile.data and profile.data[0].get("phone_number"):
+                    return PhoneAutoFillResponse(
+                        phone_number=profile.data[0]["phone_number"],
+                        source="profile",
+                        message="Nomor HP dari profil akun Anda.",
+                    )
+    except Exception:
+        pass
+
+    # Fallback: generate random test phone
     import random
     prefixes = ["0812", "0813", "0821", "0822", "0852", "0853", "0857", "0858", "0878", "0877"]
     prefix = random.choice(prefixes)

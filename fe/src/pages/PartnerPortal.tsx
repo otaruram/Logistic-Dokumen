@@ -237,24 +237,35 @@ export default function PartnerPortal() {
     enterprise: 10000,
   };
 
+  const [maxApiCredits, setMaxApiCredits] = useState(50);
+
   useEffect(() => {
     if (!userId) {
       setApiCredits(null);
       return;
     }
-    // Read subscription_plan to determine partner tier quota
-    supabase.from('profiles').select('subscription_plan').eq('id', userId).single()
+    // Read partner_api_credits to determine remaining quota, and subscription_plan for max quota
+    supabase.from('profiles').select('subscription_plan, partner_api_credits').eq('id', userId).single()
       .then(({ data }) => {
         const plan = data?.subscription_plan ?? 'free';
-        setApiCredits(PARTNER_QUOTA[plan] ?? 50);
+        setMaxApiCredits(PARTNER_QUOTA[plan] ?? 50);
+        setApiCredits(data?.partner_api_credits ?? 50);
       })
-      .catch(() => setApiCredits(50));
+      .catch(() => {
+        setApiCredits(50);
+        setMaxApiCredits(50);
+      });
 
-    // Real-time: if subscription_plan changes (e.g. upgrade), update quota instantly
+    // Real-time: if partner_api_credits or subscription_plan changes
     const channel = supabase.channel(`partner-quota:${userId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` }, (payload) => {
         const plan = (payload.new as any)?.subscription_plan ?? 'free';
-        setApiCredits(PARTNER_QUOTA[plan] ?? 50);
+        setMaxApiCredits(PARTNER_QUOTA[plan] ?? 50);
+        
+        const credits = (payload.new as any)?.partner_api_credits;
+        if (credits !== undefined) {
+          setApiCredits(credits);
+        }
       })
       .subscribe();
 
@@ -569,7 +580,7 @@ export default function PartnerPortal() {
                 {apiCredits !== null && (
                   <div className="flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1.5 sm:px-3 text-xs font-semibold text-blue-700 shadow-sm transition-all cursor-help" title="Sisa Kuota API Validation (Realtime)">
                     <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
-                    <span className="hidden sm:inline-block">{apiCredits} Req</span>
+                    <span className="hidden sm:inline-block">{apiCredits} / {maxApiCredits} Req</span>
                     <span className="inline-block sm:hidden">{apiCredits}</span>
                   </div>
                 )}

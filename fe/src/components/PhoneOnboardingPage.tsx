@@ -19,6 +19,7 @@ import {
   Building2,
   LogOut,
   FlaskConical,
+  Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -48,6 +49,7 @@ export default function PhoneOnboardingPage({
   const [sandboxPhones, setSandboxPhones] = useState<string[]>([]);
   const [state, setState] = useState<OnboardingState>("input");
   const [errorMessage, setErrorMessage] = useState("");
+  const [autoFillLoading, setAutoFillLoading] = useState(false);
   const [showSandbox, setShowSandbox] = useState(false);
 
   useEffect(() => {
@@ -177,6 +179,34 @@ export default function PhoneOnboardingPage({
     setErrorMessage("");
   };
 
+  const handleAutoFill = async () => {
+    setAutoFillLoading(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      
+      // cache: "no-store" as per user instruction "jangan pake sistem cache ya"
+      const res = await fetch(`${API}/api/v1/profiles/phone/autofill`, {
+        headers,
+        cache: "no-store", 
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPhoneInput(data.phone_number);
+        setState("input");
+        setErrorMessage("");
+        toast.success(data.message || "Nomor HP berhasil di-autofill");
+      } else {
+        toast.error("Gagal mendapatkan nomor HP otomatis");
+      }
+    } catch {
+      toast.error("Gagal terhubung ke server");
+    } finally {
+      setAutoFillLoading(false);
+    }
+  };
+
   /** Demo sandbox: autofill a phone number and reset state */
   const handleDemoAutofill = (type: "valid" | "invalid") => {
     let phoneToUse = "";
@@ -291,20 +321,13 @@ export default function PhoneOnboardingPage({
                     </p>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleDemoAutofill("valid")}
-                        className="text-[10px] font-medium text-zinc-500 hover:text-emerald-500 transition-colors flex items-center gap-1"
+                        onClick={handleAutoFill}
+                        disabled={autoFillLoading}
+                        className="text-[10px] font-medium text-emerald-500 hover:text-emerald-400 transition-colors flex items-center gap-1 bg-emerald-500/10 px-2 py-1 rounded-md"
                         type="button"
                       >
-                        <span>🧪</span>
-                        <span>Valid</span>
-                      </button>
-                      <button
-                        onClick={() => handleDemoAutofill("invalid")}
-                        className="text-[10px] font-medium text-zinc-500 hover:text-red-500 transition-colors flex items-center gap-1"
-                        type="button"
-                      >
-                        <span>🧪</span>
-                        <span>Invalid</span>
+                        {autoFillLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                        <span>Auto Fill</span>
                       </button>
                     </div>
                   </div>
