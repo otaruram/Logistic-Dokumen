@@ -34,6 +34,7 @@ import {
   User,
   LogOut,
   Menu,
+  Zap,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { APP_CONFIG } from "@/constants";
@@ -203,6 +204,9 @@ export default function PartnerPortal() {
   // Gamification badge progress
   const [badgeProgress, setBadgeProgress] = useState<BadgeProgress | null>(null);
 
+  // API Credits tracking
+  const [apiCredits, setApiCredits] = useState<number | null>(null);
+
   const [session, setSession] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<PartnerView>("dashboard");
@@ -223,6 +227,32 @@ export default function PartnerPortal() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    if (!userId) {
+      setApiCredits(null);
+      return;
+    }
+    supabase.from('profiles').select('credits').eq('id', userId).single()
+      .then(({ data }) => {
+        if (data && typeof data.credits === 'number') {
+          setApiCredits(data.credits);
+        } else {
+          setApiCredits(50); // Hackathon default
+        }
+      })
+      .catch(() => setApiCredits(50)); // Hackathon default on error
+
+    const channel = supabase.channel(`public:profiles:id=eq.${userId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` }, (payload) => {
+        if (payload.new && typeof payload.new.credits === 'number') {
+          setApiCredits(payload.new.credits);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [userId]);
 
   useEffect(() => {
     const close = () => setShowProfileMenu(false);
@@ -528,7 +558,14 @@ export default function PartnerPortal() {
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 sm:gap-3">
+                {apiCredits !== null && (
+                  <div className="flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1.5 sm:px-3 text-xs font-semibold text-blue-700 shadow-sm transition-all cursor-help" title="Sisa Kuota API Validation (Realtime)">
+                    <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
+                    <span className="hidden sm:inline-block">{apiCredits} Req</span>
+                    <span className="inline-block sm:hidden">{apiCredits}</span>
+                  </div>
+                )}
                 <button
                   onClick={() => {
                     window.location.href = "/";

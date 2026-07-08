@@ -95,22 +95,28 @@ export default function QueueItemCard({
 
       {/* Main row */}
       <div
-        className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-zinc-50 transition-colors"
+        className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-4 cursor-pointer hover:bg-zinc-50 transition-colors gap-3 sm:gap-0"
         onClick={onToggleExpand}
       >
-        <div className="flex items-center gap-4 min-w-0">
+        <div className="flex items-center justify-between sm:justify-start gap-4 min-w-0 w-full sm:w-auto">
           <div className="min-w-0">
             <p className="font-semibold text-zinc-900 truncate">{loan.nama_lengkap || "-"}</p>
           </div>
+          <div className="flex items-center gap-2 sm:hidden shrink-0">
+            <span className="font-semibold text-zinc-900 text-sm">{fmtRp(loan.nominal_pengajuan)}</span>
+            <svg className={`w-4 h-4 text-zinc-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {loan.badge_tier && (
-            <span className={`hidden sm:inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${GAMIFICATION_TIER_BADGE[loan.badge_tier] || "bg-zinc-100 text-zinc-700 border border-zinc-300"}`}>
+            <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${GAMIFICATION_TIER_BADGE[loan.badge_tier] || "bg-zinc-100 text-zinc-700 border border-zinc-300"}`}>
               {loan.badge_tier}
             </span>
           )}
           {loan.ai_fraud_status && (
-            <span className={`hidden sm:inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${fraudConfig.style}`}>
+            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${fraudConfig.style}`}>
               {fraudConfig.label}
             </span>
           )}
@@ -120,19 +126,21 @@ export default function QueueItemCard({
                 e.stopPropagation();
                 setShowFraudSummary(true);
               }}
-              className="hidden sm:inline-flex items-center justify-center w-6 h-6 rounded-full border border-zinc-300 bg-white text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 transition-colors"
+              className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-zinc-300 bg-white text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 transition-colors"
               title="Lihat Analisis AI"
             >
               <Info className="h-3 w-3" />
             </button>
           )}
-          <span className={`hidden sm:inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${AI_BADGE_STYLE[loan.ai_indicator] ?? ""}`}>
+          <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${AI_BADGE_STYLE[loan.ai_indicator] ?? ""}`}>
             {loan.ai_indicator}
           </span>
-          <span className="font-semibold text-zinc-900 text-sm">{fmtRp(loan.nominal_pengajuan)}</span>
-          <svg className={`w-4 h-4 text-zinc-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="m6 9 6 6 6-6" />
-          </svg>
+          <div className="hidden sm:flex items-center gap-3 ml-2">
+            <span className="font-semibold text-zinc-900 text-sm">{fmtRp(loan.nominal_pengajuan)}</span>
+            <svg className={`w-4 h-4 text-zinc-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
         </div>
       </div>
 

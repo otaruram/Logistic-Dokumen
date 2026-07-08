@@ -89,7 +89,7 @@ export default function ApprovalQueueTab() {
               <span className={`absolute top-1 right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${adminRequestCount > 0 ? "bg-red-500" : "bg-amber-500"}`} />
             </button>
             {showQueueTooltip && (
-              <div className="absolute right-0 top-full mt-2 w-64 rounded-xl bg-white border border-zinc-200 shadow-xl p-4 z-40 animate-in fade-in slide-in-from-top-2">
+              <div className="absolute -right-2 sm:right-0 top-full mt-2 w-[280px] sm:w-64 max-w-[90vw] rounded-xl bg-white border border-zinc-200 shadow-xl p-4 z-50 animate-in fade-in slide-in-from-top-2">
                 <div className="flex items-start gap-3">
                   <div className={`p-2 rounded-full mt-0.5 ${adminRequestCount > 0 ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"}`}>
                     <AlertCircle className="w-5 h-5" />
