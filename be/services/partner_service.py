@@ -131,10 +131,12 @@ def get_unified_decision_data(sb, profile: dict) -> dict:
         scans = getattr(scans_res, "data", None) or []
         verified_docs = sum(1 for s in scans if (s.get("status") or "").upper() == "VERIFIED")
         tampered_docs = sum(1 for s in scans if (s.get("status") or "").upper() == "TAMPERED")
+        processing_docs = sum(1 for s in scans if (s.get("status") or "").upper() == "PROCESSING")
         trust_score_chain = int(profile.get("credit_score") or 0)
     except Exception:
         verified_docs = 0
         tampered_docs = 0
+        processing_docs = 0
         trust_score_chain = 0
 
     # ── Financial metrics (Otaru Index) ──────────────────────────────────
@@ -157,34 +159,48 @@ def get_unified_decision_data(sb, profile: dict) -> dict:
 
     # ── Trust Grade calculation ───────────────────────────────────────────
     fraud_flags = int(profile.get("fraud_flags") or 0)
-    trust_grade = credit_grade
     
-    if trust_grade in ["A", "B"] and tampered_docs == 0 and fraud_flags == 0:
+    doc_grade = credit_grade
+    total_docs = verified_docs + tampered_docs + processing_docs
+    if total_docs > 0:
+        if tampered_docs > 0:
+            doc_grade = "E" if tampered_docs > 1 else "D"
+        elif processing_docs > verified_docs:
+            doc_grade = "C"
+        elif verified_docs > 0:
+            doc_grade = "A" if verified_docs > 2 else "B"
+
+    # Combine document integrity with financial grade
+    # If doc_grade is bad, it overrides credit_grade
+    trust_grade = doc_grade
+    
+    if trust_grade in ["A", "B"]:
         recommendation_code = "LAYAK_KREDIT"
         recommendation_desc = (
-            f"{profile.get('full_name') or 'Nasabah'} memiliki rekam jejak dokumen bersih "
-            f"(0 TAMPERED) dan Otaru Index tinggi ({otaru_index}/1000). "
+            f"{profile.get('full_name') or 'Nasabah'} memiliki rekam jejak dokumen sangat baik "
+            f"({verified_docs} APPROVED/VERIFIED, 0 TAMPERED). "
             "Rekomendasikan DITERIMA dengan batas plafon penuh."
         )
-    elif trust_grade == "C" or (trust_grade in ["A", "B"] and tampered_docs > 0):
+    elif trust_grade == "C":
         recommendation_code = "RISIKO_MENENGAH"
         recommendation_desc = (
             f"{profile.get('full_name') or 'Nasabah'} memiliki Trust Grade {trust_grade} "
-            f"dengan {tampered_docs} dokumen terindikasi manipulasi. "
-            "Rekomendasikan PERTIMBANGKAN dengan batas plafon terbatas dan verifikasi manual."
+            f"karena ada {processing_docs} dokumen masih PROCESSING atau butuh validasi lanjut. "
+            "Rekomendasikan PERTIMBANGKAN dengan verifikasi manual."
         )
     else:
         recommendation_code = "TOLAK"
         recommendation_desc = (
-            f"{profile.get('full_name') or 'Nasabah'} memiliki Trust Grade rendah ({trust_grade}) "
-            f"dengan {tampered_docs} dokumen TAMPERED dan {fraud_flags} fraud flags. "
-            "Rekomendasikan DITOLAK atau verifikasi mendalam sebelum diproses."
+            f"{profile.get('full_name') or 'Nasabah'} memiliki skor rendah (Trust Grade {trust_grade}) "
+            f"karena terindikasi {tampered_docs} dokumen TAMPERED. "
+            "Rekomendasikan DITOLAK karena risiko integritas."
         )
 
     return {
         "trust_score_chain": trust_score_chain,
         "verified_docs": verified_docs,
         "tampered_docs": tampered_docs,
+        "processing_docs": processing_docs,
         "fraud_flags": fraud_flags,
         "otaru_index": otaru_index,
         "credit_grade": credit_grade,
@@ -343,6 +359,7 @@ def handle_unified_decision(sb, phone: str, x_api_key: str, mask_profile_for_par
         "otaruchain_metric": {
             "verified_docs": ud["verified_docs"],
             "tampered_docs": ud["tampered_docs"],
+            "processing_docs": ud["processing_docs"],
             "fraud_flags": ud["fraud_flags"],
             "trust_score_chain": ud["trust_score_chain"],
         },

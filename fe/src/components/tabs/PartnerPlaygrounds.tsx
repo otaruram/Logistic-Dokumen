@@ -199,6 +199,7 @@ export default function PartnerPlaygrounds({
                 <div className="space-y-2">
                   {[
                     ["Verified Docs", chain.verified_docs ?? 0, "text-emerald-700"],
+                    ["Processing Docs", chain.processing_docs ?? 0, "text-amber-600"],
                     ["Tampered Docs", chain.tampered_docs ?? 0, "text-red-600"],
                     ["Fraud Flags", chain.fraud_flags ?? 0, "text-red-600"],
                   ].map(([label, val, cls]) => (
