@@ -61,13 +61,10 @@ def _validate_phone(phone: str) -> str:
 
 
 def _deduct_credit_for_api_key_owner(sb, api_key_owner: str) -> None:
-    """Deduct 1 credit from the API key owner's profile. Raises 402 if none left."""
+    """Deduct 1 credit from the API key owner's profile (api_key_owner is user_id). Raises 402 if none left."""
     try:
-        res = sb.table("api_keys").select("user_id").eq("key_value", api_key_owner).eq("is_active", True).limit(1).execute()
-        rows = getattr(res, "data", None) or []
-        if not rows:
-            return
-        owner_uid = rows[0]["user_id"]
+        # api_key_owner from _validate_api_key is already the user_id
+        owner_uid = api_key_owner
         prof_res = sb.table("profiles").select("partner_api_credits").eq("id", owner_uid).limit(1).execute()
         prof_rows = getattr(prof_res, "data", None) or []
         current = int((prof_rows[0].get("partner_api_credits") or 0)) if prof_rows else 0
@@ -837,6 +834,17 @@ async def unified_decision(
             scopes = rows[0].get("scopes") or []
             if "decision_gate" not in scopes and "unified" not in scopes:
                 raise HTTPException(status_code=403, detail="Key tidak memiliki scope unified atau decision_gate")
+            
+            # Deduct credit using email from partner_api_keys
+            email = rows[0].get("email")
+            if email:
+                try:
+                    prof_res = sb.table("profiles").select("id").eq("user_email", email).limit(1).execute()
+                    prof_rows = getattr(prof_res, "data", None) or []
+                    if prof_rows:
+                        _deduct_credit_for_api_key_owner(sb, prof_rows[0]["id"])
+                except Exception as e:
+                    print("Error deducting credit:", e)
         else:
             # Fallback to standard api key validation
             from utils.api_key import validate_api_key_full as _vk_full
