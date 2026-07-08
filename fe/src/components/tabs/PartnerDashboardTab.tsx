@@ -1,5 +1,5 @@
 import React from "react";
-import { BarChart3, ShieldCheck, CheckCircle2, Mail, ArrowRight } from "lucide-react";
+import { BarChart3, ShieldCheck, CheckCircle2, Mail, ArrowRight, Shield, TrendingUp, Zap } from "lucide-react";
 
 export default function PartnerDashboardTab({
   stats,
@@ -55,43 +55,48 @@ export default function PartnerDashboardTab({
         </div>
         
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl bg-white p-4 border border-zinc-200 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-3 opacity-10">
-              <ShieldCheck className="w-12 h-12" />
+          {/* Silver */}
+          <div className="rounded-xl bg-gradient-to-br from-slate-50 to-white p-5 border border-slate-200 shadow-[0_4px_20px_-5px_rgba(148,163,184,0.15)] relative overflow-hidden group hover:border-slate-300 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Shield className="w-16 h-16 text-slate-500" />
             </div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tier 1</p>
-            <h3 className="text-xl font-bold text-slate-700 mt-1">Silver</h3>
-            <p className="text-sm text-zinc-600 mt-2">50 - 149 Dokumen</p>
-            <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col gap-1">
-              <p className="text-xs text-slate-600 flex justify-between"><span>Status:</span> <span className="font-medium">Trusted</span></p>
-            </div>
-          </div>
-          
-          <div className="rounded-xl bg-gradient-to-br from-amber-50 to-white p-4 border border-amber-200 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-3 opacity-10">
-              <ShieldCheck className="w-12 h-12 text-amber-600" />
-            </div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-amber-600">Tier 2</p>
-            <h3 className="text-xl font-bold text-amber-700 mt-1">Gold</h3>
-            <p className="text-sm text-zinc-600 mt-2">150 - 249 Dokumen</p>
-            <div className="mt-4 pt-3 border-t border-amber-100 flex flex-col gap-1">
-              <p className="text-xs text-amber-800 flex justify-between"><span>Status:</span> <span className="font-medium">Priority</span></p>
-              <p className="text-xs text-amber-800 flex justify-between"><span>Bonus Plafon:</span> <span className="font-medium">+ Rp 1Jt</span></p>
-              <p className="text-xs text-amber-800 flex justify-between"><span>Diskon Bunga:</span> <span className="font-medium">0.5%</span></p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Tier 1</p>
+            <h3 className="text-xl font-extrabold text-slate-700 mt-1">Silver</h3>
+            <p className="text-xs text-slate-500 mt-2 font-medium">50 - 149 Dokumen</p>
+            <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-2 relative z-10">
+              <p className="text-xs text-slate-600 flex justify-between items-center"><span>Status</span> <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">Starter</span></p>
+              <p className="text-xs text-slate-600 flex justify-between items-center"><span>Plafon Maksimal</span> <span className="font-bold text-slate-700">Rp 5 Juta</span></p>
+              <p className="text-xs text-slate-600 flex justify-between items-center"><span>Prioritas Pencairan</span> <span className="font-bold text-slate-700">1x24 Jam</span></p>
             </div>
           </div>
           
-          <div className="rounded-xl bg-gradient-to-br from-indigo-50 to-white p-4 border border-indigo-200 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-3 opacity-10">
-              <ShieldCheck className="w-12 h-12 text-indigo-600" />
+          {/* Gold */}
+          <div className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-50/30 p-5 border border-amber-200 shadow-[0_4px_20px_-5px_rgba(251,191,36,0.15)] relative overflow-hidden group hover:border-amber-300 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <TrendingUp className="w-16 h-16 text-amber-600" />
             </div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Tier 3</p>
-            <h3 className="text-xl font-bold text-indigo-700 mt-1">Platinum</h3>
-            <p className="text-sm text-zinc-600 mt-2">&ge; 250 Dokumen</p>
-            <div className="mt-4 pt-3 border-t border-indigo-100 flex flex-col gap-1">
-              <p className="text-xs text-indigo-800 flex justify-between"><span>Status:</span> <span className="font-medium">VIP</span></p>
-              <p className="text-xs text-indigo-800 flex justify-between"><span>Bonus Plafon:</span> <span className="font-medium">+ Rp 2.5Jt</span></p>
-              <p className="text-xs text-indigo-800 flex justify-between"><span>Diskon Bunga:</span> <span className="font-medium">1.0%</span></p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500/70">Tier 2</p>
+            <h3 className="text-xl font-extrabold text-amber-600 mt-1">Gold</h3>
+            <p className="text-xs text-amber-700/70 mt-2 font-medium">150 - 249 Dokumen</p>
+            <div className="mt-4 pt-4 border-t border-amber-100/50 flex flex-col gap-2 relative z-10">
+              <p className="text-xs text-amber-800 flex justify-between items-center"><span>Status</span> <span className="font-bold text-amber-700 bg-amber-100/50 px-2 py-0.5 rounded">Priority</span></p>
+              <p className="text-xs text-amber-800 flex justify-between items-center"><span>Plafon Maksimal</span> <span className="font-bold text-amber-700">Rp 10 Juta</span></p>
+              <p className="text-xs text-amber-800 flex justify-between items-center"><span>Diskon Biaya Admin</span> <span className="font-bold text-amber-700">0.5%</span></p>
+            </div>
+          </div>
+          
+          {/* Platinum */}
+          <div className="rounded-xl bg-gradient-to-br from-violet-50 to-fuchsia-50/30 p-5 border border-violet-200 shadow-[0_4px_20px_-5px_rgba(167,139,250,0.2)] relative overflow-hidden group hover:border-violet-300 transition-colors ring-1 ring-violet-100">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
+              <Zap className="w-16 h-16 text-violet-600" />
+            </div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-violet-500/70">Tier 3</p>
+            <h3 className="text-xl font-extrabold text-violet-700 mt-1">Platinum</h3>
+            <p className="text-xs text-violet-700/70 mt-2 font-medium">&ge; 250 Dokumen</p>
+            <div className="mt-4 pt-4 border-t border-violet-100/50 flex flex-col gap-2 relative z-10">
+              <p className="text-xs text-violet-800 flex justify-between items-center"><span>Status</span> <span className="font-bold text-violet-700 bg-violet-100/50 px-2 py-0.5 rounded">VIP</span></p>
+              <p className="text-xs text-violet-800 flex justify-between items-center"><span>Bonus Plafon</span> <span className="font-bold text-violet-700">up to Rp 20 Juta</span></p>
+              <p className="text-xs text-violet-800 flex justify-between items-center"><span>Pencairan Instan</span> <span className="font-bold text-violet-700">&lt; 5 Menit</span></p>
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Activity, ShieldCheck, TrendingUp, RefreshCw, Calendar, Trophy, Award, Star, ExternalLink, ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { Activity, ShieldCheck, Shield, TrendingUp, Zap, RefreshCw, Calendar, Trophy, Award, Star, ExternalLink, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -222,32 +222,49 @@ const _GamificationCardLegacy = () => {
 
       {/* Tier Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 w-full">
-        <div className={`rounded-xl p-3 border w-full overflow-hidden ${hasSilver ? "border-gray-400/30 bg-gray-400/5" : "border-white/5 bg-white/[0.02]"}`}>
-          <div className="flex items-center gap-2 mb-1">
-            <Award className={`w-4 h-4 shrink-0 ${hasSilver ? "text-gray-300" : "text-gray-600"}`} />
-            <span className={`text-xs font-bold ${hasSilver ? "text-gray-200" : "text-gray-600"}`}>Silver</span>
-            {hasSilver && <span className="text-[10px] text-emerald-400">âœ“</span>}
+        <div className={`rounded-xl p-3 sm:p-4 border w-full overflow-hidden relative group transition-all duration-300 ${hasSilver ? "border-slate-500/50 bg-slate-800/60 shadow-[0_0_15px_-3px_rgba(148,163,184,0.2)]" : "border-white/5 bg-white/[0.02]"}`}>
+          <div className={`absolute -right-4 -top-4 opacity-10 transition-opacity ${hasSilver ? "group-hover:opacity-20" : ""}`}>
+             <Shield className={`w-20 h-20 ${hasSilver ? "text-slate-300" : "text-gray-600"}`} />
           </div>
-          <p className="text-[10px] text-gray-500 break-words">50+ verified/bulan</p>
-          <p className="text-[10px] text-gray-500 break-words">Plafon: Rp 5.500.000</p>
+          <div className="flex items-center gap-2 mb-2 relative z-10">
+            <Shield className={`w-4 h-4 shrink-0 ${hasSilver ? "text-slate-300" : "text-gray-600"}`} />
+            <span className={`text-sm font-bold tracking-wide ${hasSilver ? "text-slate-200" : "text-gray-600"}`}>Silver</span>
+            {hasSilver && <span className="text-[10px] text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded ml-auto">Aktif</span>}
+          </div>
+          <div className="relative z-10 space-y-1">
+            <p className="text-[10px] sm:text-xs text-gray-500 font-medium">50+ verified/bulan</p>
+            <p className={`text-[10px] sm:text-xs font-semibold ${hasSilver ? "text-slate-300" : "text-gray-600"}`}>Plafon: Rp 5 Juta</p>
+          </div>
         </div>
-        <div className={`rounded-xl p-3 border w-full overflow-hidden ${hasGold ? "border-amber-500/30 bg-amber-500/5" : "border-white/5 bg-white/[0.02]"}`}>
-          <div className="flex items-center gap-2 mb-1">
-            <Star className={`w-4 h-4 shrink-0 ${hasGold ? "text-amber-400" : "text-gray-600"}`} />
-            <span className={`text-xs font-bold ${hasGold ? "text-amber-300" : "text-gray-600"}`}>Gold</span>
-            {hasGold && <span className="text-[10px] text-emerald-400">âœ“</span>}
+        
+        <div className={`rounded-xl p-3 sm:p-4 border w-full overflow-hidden relative group transition-all duration-300 ${hasGold ? "border-amber-500/50 bg-amber-950/40 shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]" : "border-white/5 bg-white/[0.02]"}`}>
+          <div className={`absolute -right-4 -top-4 opacity-10 transition-opacity ${hasGold ? "group-hover:opacity-20" : ""}`}>
+             <TrendingUp className={`w-20 h-20 ${hasGold ? "text-amber-500" : "text-gray-600"}`} />
           </div>
-          <p className="text-[10px] text-gray-500 break-words">150+ verified/bulan</p>
-          <p className={`text-[10px] break-words ${hasGold ? "text-amber-400 font-semibold" : "text-gray-500"}`}>Plafon: Rp 10.000.000</p>
+          <div className="flex items-center gap-2 mb-2 relative z-10">
+            <TrendingUp className={`w-4 h-4 shrink-0 ${hasGold ? "text-amber-400" : "text-gray-600"}`} />
+            <span className={`text-sm font-bold tracking-wide ${hasGold ? "text-amber-300" : "text-gray-600"}`}>Gold</span>
+            {hasGold && <span className="text-[10px] text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded ml-auto">Aktif</span>}
+          </div>
+          <div className="relative z-10 space-y-1">
+            <p className="text-[10px] sm:text-xs text-gray-500 font-medium">150+ verified/bulan</p>
+            <p className={`text-[10px] sm:text-xs font-semibold ${hasGold ? "text-amber-400" : "text-gray-600"}`}>Plafon: Rp 10 Juta</p>
+          </div>
         </div>
-        <div className={`rounded-xl p-3 border w-full overflow-hidden ${hasPlatinum ? "border-indigo-500/30 bg-indigo-500/5" : "border-white/5 bg-white/[0.02]"}`}>
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-sm shrink-0 ${hasPlatinum ? "" : "grayscale opacity-40"}`}>ðŸ’Ž</span>
-            <span className={`text-xs font-bold ${hasPlatinum ? "text-indigo-300" : "text-gray-600"}`}>Platinum</span>
-            {hasPlatinum && <span className="text-[10px] text-emerald-400">âœ“</span>}
+        
+        <div className={`rounded-xl p-3 sm:p-4 border w-full overflow-hidden relative group transition-all duration-300 ${hasPlatinum ? "border-indigo-500/50 bg-indigo-950/40 shadow-[0_0_20px_-3px_rgba(99,102,241,0.25)] ring-1 ring-indigo-500/20" : "border-white/5 bg-white/[0.02]"}`}>
+          <div className={`absolute -right-4 -top-4 opacity-10 transition-opacity ${hasPlatinum ? "group-hover:opacity-30" : ""}`}>
+             <Zap className={`w-20 h-20 ${hasPlatinum ? "text-indigo-400" : "text-gray-600"}`} />
           </div>
-          <p className="text-[10px] text-gray-500 break-words">250+ verified/bulan</p>
-          <p className={`text-[10px] break-words ${hasPlatinum ? "text-indigo-400 font-semibold" : "text-gray-500"}`}>Plafon: Rp 20.000.000</p>
+          <div className="flex items-center gap-2 mb-2 relative z-10">
+            <Zap className={`w-4 h-4 shrink-0 ${hasPlatinum ? "text-indigo-400" : "text-gray-600"}`} />
+            <span className={`text-sm font-bold tracking-wide ${hasPlatinum ? "text-indigo-300" : "text-gray-600"}`}>Platinum</span>
+            {hasPlatinum && <span className="text-[10px] text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded ml-auto">Aktif</span>}
+          </div>
+          <div className="relative z-10 space-y-1">
+            <p className="text-[10px] sm:text-xs text-gray-500 font-medium">250+ verified/bulan</p>
+            <p className={`text-[10px] sm:text-xs font-semibold ${hasPlatinum ? "text-indigo-400" : "text-gray-600"}`}>Plafon: Rp 20 Juta</p>
+          </div>
         </div>
       </div>
 

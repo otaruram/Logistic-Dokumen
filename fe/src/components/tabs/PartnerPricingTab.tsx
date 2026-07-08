@@ -5,19 +5,17 @@ import { supabase } from "@/lib/supabaseClient";
 const TIERS = [
   {
     id: "developer",
-    name: "Developer",
+    name: "Gratis Selamanya",
     price: "Rp 0",
     cadence: "/ bulan",
-    target: "Developer individu atau PoC internal koperasi.",
-    volumeLabel: "10 Requests",
-    volumeSub: "per bulan — Hard Limit",
+    target: "Cocok untuk mencoba dan mengenal sistem dasar.",
+    volumeLabel: "50 Requests",
+    volumeSub: "per bulan",
     volumeIsHard: true,
     sla: "Best-effort (antrean standar)",
     features: [
-      "Core OtaruChain Engine",
-      "SHA-256 Document Stamping",
-      "Baseline Fraud Filter",
-      "1 Akun Developer",
+      "Validasi manual admin",
+      "Tanpa AI/ML scoring",
     ],
     popular: false,
     cta: "Gratis Selamanya",
@@ -28,7 +26,7 @@ const TIERS = [
     name: "Launch",
     price: "Rp 599.000",
     cadence: "/ bulan",
-    target: "Koperasi mikro yang memulai pilot underwriting kredit.",
+    target: "Langkah awal digitalisasi dan mitigasi risiko untuk Koperasi Anda.",
     volumeLabel: "900 Requests",
     volumeSub: "per bulan",
     volumeIsHard: false,
@@ -37,7 +35,14 @@ const TIERS = [
       "Semua fitur Developer",
       "Unified Decision Gate API",
       "2 Admin Partner Seats",
+      "Keamanan standar OJK/PDP",
+      "SHA-256 Trail",
+      "Gemini 2.5 Flash Screening",
+      "Akses Rekaman Video Edukasi Eksklusif: 'Panduan Mitigasi Risiko Fraud & Digitalisasi Koperasi Modern' untuk Admin.",
+      "Standard Operational SOP Templates: Dokumen panduan SOP verifikasi digital siap pakai untuk tim admin Koperasi.",
+      "Akses OtaruChain Mitra Community: Grup diskusi eksklusif antar admin koperasi se-Indonesia untuk berbagi best practice penanganan moral hazard."
     ],
+    footerNote: "* Plafon Aman Fleksibel: Limit kredit acuan default Rp5,5 - Rp20 Juta sepenuhnya dapat dikustomisasi, disesuaikan, dan ditentukan secara mandiri oleh kebijakan pengurus Koperasi Anda.",
     popular: false,
     cta: "Aktivasi & Bayar",
     ctaDisabled: false,
@@ -47,7 +52,7 @@ const TIERS = [
     name: "Scale",
     price: "Rp 1.499.000",
     cadence: "/ bulan",
-    target: "Koperasi logistik aktif dengan underwriting harian (Tahan fluktuasi infra dollar).",
+    target: "Solusi komprehensif untuk Koperasi dengan volume transaksi tinggi yang siap berkembang.",
     volumeLabel: "2.000 Requests",
     volumeSub: "per bulan",
     volumeIsHard: false,
@@ -58,7 +63,14 @@ const TIERS = [
       "Full Analytics Dashboard",
       "Burst Traffic Handling",
       "5 Admin Partner Seats",
+      "Keamanan standar OJK/PDP",
+      "SHA-256 Trail",
+      "Gemini 2.5 Flash Screening",
+      "1x Sesi Live Workshop/Konsultasi Tatap Maya (Zoom): Pendampingan langsung oleh tim expert OtaruChain untuk menyelaraskan workflow operasional internal Koperasi Anda.",
+      "Sertifikat Implementasi Digital OtaruChain: Bukti akreditasi resmi bahwa Koperasi Anda telah tersertifikasi menggunakan sistem keamanan berbasis AI.",
+      "OtaruChain Mitra Community (Priority Access): Akses prioritas utama ke komunitas pengurus koperasi karyawan, lengkap dengan sesi sharing bulanan bersama praktisi manajemen risiko keuangan."
     ],
+    footerNote: "* Plafon Aman Fleksibel: Limit kredit acuan default Rp5,5 - Rp20 Juta sepenuhnya dapat dikustomisasi, disesuaikan, dan ditentukan secara mandiri oleh kebijakan pengurus Koperasi Anda.",
     popular: true,
     cta: "Aktivasi & Bayar",
     ctaDisabled: false,
@@ -68,7 +80,7 @@ const TIERS = [
     name: "Enterprise",
     price: "Custom",
     cadence: "",
-    target: "Jaringan koperasi berskala nasional atau volume tinggi.",
+    target: "Kapasitas tak terbatas dan dukungan khusus untuk Koperasi berskala besar.",
     volumeLabel: "10.000+ Requests",
     volumeSub: "per bulan",
     volumeIsHard: false,
@@ -80,6 +92,7 @@ const TIERS = [
       "Unlimited Admin Seats",
       "White-label portal",
     ],
+    footerNote: "* Plafon Aman Fleksibel: Limit kredit acuan default Rp5,5 - Rp20 Juta sepenuhnya dapat dikustomisasi, disesuaikan, dan ditentukan secara mandiri oleh kebijakan pengurus Koperasi Anda.",
     popular: false,
     cta: "Hubungi Sales",
     ctaDisabled: true,
@@ -188,7 +201,7 @@ export default function PartnerPricingTab({
             </div>
 
             {/* Features */}
-            <ul className="mb-5 flex-1 space-y-2.5">
+            <ul className="mb-4 flex-1 space-y-2.5">
               {tier.features.map((feat) => (
                 <li key={feat} className="flex items-start gap-2.5 text-sm text-slate-300">
                   <CheckCircle2 className={`h-4 w-4 flex-shrink-0 mt-0.5 ${
@@ -198,6 +211,14 @@ export default function PartnerPricingTab({
                 </li>
               ))}
             </ul>
+
+            {tier.footerNote && (
+              <div className="mb-5 rounded-lg bg-slate-900/50 p-3 border border-slate-700/50">
+                <p className="text-[11px] text-slate-400 leading-relaxed italic">
+                  {tier.footerNote}
+                </p>
+              </div>
+            )}
 
             {/* Compliance badges */}
             <div className={`mb-5 rounded-xl border p-3 space-y-2 ${
@@ -262,22 +283,43 @@ export default function PartnerPricingTab({
         <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
           Konteks Benefit (TBA) • berlaku sinkron di otaruchain.id dan otaruchain.id/partner
         </p>
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-xl border border-amber-700/40 bg-amber-950/20 p-4">
-            <p className="text-sm font-bold text-amber-300">Gold</p>
-            <p className="text-xs text-slate-300 mt-1">≥ 150 Dokumen Lolos Audit · Priority</p>
-            <p className="text-xs text-amber-200 mt-2">+ Plafon Maksimal up to Rp 10 Juta</p>
-            <p className="text-xs text-amber-200">+ Diskon Biaya Admin Koperasi 0.5%</p>
-            <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
+        <div className="grid gap-3 md:grid-cols-3">
+          {/* Silver */}
+          <div className="rounded-xl border border-slate-600/50 bg-slate-800/40 p-4 relative overflow-hidden group hover:border-slate-500/80 transition-colors">
+            <div className="absolute -right-4 -top-4 opacity-10 group-hover:opacity-20 transition-opacity">
+               <Shield className="h-20 w-20 text-slate-300" />
+            </div>
+            <p className="text-sm font-bold text-slate-300">Silver</p>
+            <p className="text-xs text-slate-400 mt-1">≥ 50 Dokumen Lolos Audit · Starter</p>
+            <p className="text-xs text-slate-200 mt-2 font-medium">+ Plafon Maksimal up to Rp 5 Juta</p>
+            <p className="text-xs text-slate-200 font-medium">+ Prioritas Pencairan 1x24 Jam</p>
+            <p className="text-[11px] text-slate-500 mt-2 leading-relaxed relative z-10">
+              Benefit awal untuk anggota Koperasi yang mulai aktif bertransaksi dan menjaga kualitas dokumen.
+            </p>
+          </div>
+          {/* Gold */}
+          <div className="rounded-xl border border-amber-700/40 bg-amber-950/20 p-4 relative overflow-hidden group hover:border-amber-600/60 transition-colors shadow-[0_0_15px_-5px_rgba(245,158,11,0.1)]">
+            <div className="absolute -right-4 -top-4 opacity-10 group-hover:opacity-20 transition-opacity">
+               <TrendingUp className="h-20 w-20 text-amber-500" />
+            </div>
+            <p className="text-sm font-bold text-amber-400">Gold</p>
+            <p className="text-xs text-amber-500/80 mt-1">≥ 150 Dokumen Lolos Audit · Priority</p>
+            <p className="text-xs text-amber-200 mt-2 font-medium">+ Plafon Maksimal up to Rp 10 Juta</p>
+            <p className="text-xs text-amber-200 font-medium">+ Diskon Biaya Admin Koperasi 0.5%</p>
+            <p className="text-[11px] text-slate-400/80 mt-2 leading-relaxed relative z-10">
               Benefit aktif berbasis meritokrasi perilaku anggota Koperasi. Evaluasi otomatis dari kualitas dan konsistensi dokumen bulan berjalan.
             </p>
           </div>
-          <div className="rounded-xl border border-violet-700/40 bg-violet-950/20 p-4">
-            <p className="text-sm font-bold text-violet-300">Platinum</p>
-            <p className="text-xs text-slate-300 mt-1">≥ 250 Dokumen Lolos Audit · VIP</p>
-            <p className="text-xs text-violet-200 mt-2">+ Bonus Plafon Maksimal up to Rp 20 Juta</p>
-            <p className="text-xs text-violet-200">+ Akses Prioritas Pencairan Instan &lt; 5 Menit</p>
-            <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
+          {/* Platinum */}
+          <div className="rounded-xl border border-violet-700/40 bg-violet-950/20 p-4 relative overflow-hidden group hover:border-violet-600/60 transition-colors shadow-[0_0_20px_-5px_rgba(139,92,246,0.2)] ring-1 ring-violet-500/10">
+            <div className="absolute -right-4 -top-4 opacity-10 group-hover:opacity-30 transition-opacity">
+               <Zap className="h-20 w-20 text-violet-500" />
+            </div>
+            <p className="text-sm font-bold text-violet-400">Platinum</p>
+            <p className="text-xs text-violet-500/80 mt-1">≥ 250 Dokumen Lolos Audit · VIP</p>
+            <p className="text-xs text-violet-200 mt-2 font-medium">+ Bonus Plafon Maksimal up to Rp 20 Juta</p>
+            <p className="text-xs text-violet-200 font-medium">+ Akses Prioritas Pencairan Instan &lt; 5 Menit</p>
+            <p className="text-[11px] text-slate-400/80 mt-2 leading-relaxed relative z-10">
               Benefit tertinggi berbasis meritokrasi perilaku anggota Koperasi. Performa dokumen sempurna, pencairan instan tanpa antrean.
             </p>
           </div>
