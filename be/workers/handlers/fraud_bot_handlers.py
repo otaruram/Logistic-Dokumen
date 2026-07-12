@@ -200,7 +200,7 @@ async def handle_nominal(chat_id: int, text: str, state: dict, send_message, get
                         "image_url": image_url,
                         "status": "PENDING",
                         "ai_indicator": str(result.get("status", "PROCESSING")).upper(),
-                        "ai_fraud_status": str(result.get("status", "VERIFIED")).upper(),
+                        "ai_fraud_status": "TRUSTED" if str(result.get("status", "VERIFIED")).upper() == "VERIFIED" else "FRAUD",
                         "ai_fraud_reason": "Dianalisis AI saat upload via Telegram",
                         "source": "CHAIN",
                         "doc_type": result.get("doc_type") or "receipt",
@@ -211,8 +211,8 @@ async def handle_nominal(chat_id: int, text: str, state: dict, send_message, get
                             "confidence": result.get("confidence"),
                         },
                     }).execute()
-        except Exception:
-            pass 
+        except Exception as e:
+            print(f"[telegram_bot_worker] error inserting to loan_requests: {e}")
 
         credits_remaining = result.get("credits_remaining", "?")
         fmt_req = f"Rp {nominal_input:,}".replace(",", ".")
