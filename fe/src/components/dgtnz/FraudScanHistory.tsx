@@ -225,14 +225,11 @@ export const FraudScanHistory = ({ records, onDelete }: FraudScanHistoryProps) =
     };
 
     const getConfidenceBadge = (confidence?: string) => {
-        if (!confidence) return <span className="text-gray-600 text-xs">-</span>;
-        switch (confidence) {
-            case 'high':
-                return <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-green-500/20 text-green-400 border border-green-500/30">HIGH</span>;
-            case 'medium':
-                return <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">MEDIUM</span>;
-            default:
-                return <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-gray-500/20 text-gray-400 border border-gray-500/30">LOW</span>;
+        switch (confidence?.toLowerCase()) {
+            case 'high': return <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/20 text-green-400">HIGH (85%)</span>;
+            case 'medium': return <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500/20 text-yellow-400">MEDIUM (50%)</span>;
+            case 'low': return <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400">LOW (15%)</span>;
+            default: return <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gray-500/20 text-gray-400">-</span>;
         }
     };
 

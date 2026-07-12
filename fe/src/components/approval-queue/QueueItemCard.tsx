@@ -189,7 +189,7 @@ export default function QueueItemCard({
             </button>
           )}
           <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${AI_BADGE_STYLE[loan.ai_indicator] ?? ""}`}>
-            {loan.ai_indicator}
+            {loan.ai_indicator} {confidencePct}%
           </span>
           {/* Confidence percentage indicator */}
           <ConfidenceBadge pct={confidencePct} />
