@@ -99,7 +99,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Master Data / Audit Trail</h1>
-            <p className="text-sm text-zinc-600 mt-1">Supa Ledger immutable transaction logs.</p>
+            <p className="text-sm text-zinc-600 mt-1">OtaruChain immutable transaction logs.</p>
           </div>
         </div>
 

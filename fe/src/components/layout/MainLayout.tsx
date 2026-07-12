@@ -33,7 +33,7 @@ const MainLayout = () => {
       try {
         const { supabase } = await import("@/lib/supabaseClient");
         const { data } = await supabase.auth.getSession();
-        if (data?.session?.user?.email === ADMIN_EMAIL) {
+        if (data?.session?.user) {
           setIsAdmin(true);
         }
       } catch {
