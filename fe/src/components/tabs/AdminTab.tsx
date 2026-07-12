@@ -7,7 +7,6 @@ import {
     X, Check
 } from "lucide-react";
 import { toast } from "sonner";
-import ApprovalQueueTab from "./ApprovalQueueTab";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -38,9 +37,9 @@ interface UserActivity {
     total_fraud_scans: number;
     total_chat_sessions: number;
     total_messages: number;
-    credits: number;
+    phone: string | null;
     recent_fraud_scans: any[];
-    recent_chat_sessions: any[];
+    recent_loan_requests: any[];
 }
 
 interface GamificationConfig {
@@ -312,11 +311,6 @@ export default function AdminTab() {
                 </button>
             </div>
 
-            {/* Approval Queue Section */}
-            <div className="bg-white rounded-2xl overflow-hidden p-4">
-                <ApprovalQueueTab />
-            </div>
-
             {/* Stats Grid */}
             {stats && (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -552,29 +546,32 @@ export default function AdminTab() {
                                         ) : userActivity ? (
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                                 <div className="p-3 rounded-lg bg-white/[0.03]">
-                                                    <p className="text-xs text-gray-500">Scans</p>
-                                                    <p className="text-lg font-bold text-white">{userActivity.total_scans}</p>
+                                                    <p className="text-xs text-gray-500">Phone</p>
+                                                    <p className="text-sm font-bold text-white break-words">{userActivity.phone || "-"}</p>
                                                 </div>
                                                 <div className="p-3 rounded-lg bg-white/[0.03]">
                                                     <p className="text-xs text-gray-500">Fraud Scans</p>
                                                     <p className="text-lg font-bold text-white">{userActivity.total_fraud_scans}</p>
                                                 </div>
                                                 <div className="p-3 rounded-lg bg-white/[0.03]">
-                                                    <p className="text-xs text-gray-500">Chat Sessions</p>
-                                                    <p className="text-lg font-bold text-white">{userActivity.total_chat_sessions}</p>
+                                                    <p className="text-xs text-gray-500">Scans</p>
+                                                    <p className="text-lg font-bold text-white">{userActivity.total_scans}</p>
                                                 </div>
                                                 <div className="p-3 rounded-lg bg-white/[0.03]">
                                                     <p className="text-xs text-gray-500">Messages</p>
                                                     <p className="text-lg font-bold text-white">{userActivity.total_messages}</p>
                                                 </div>
-                                                {userActivity.recent_chat_sessions.length > 0 && (
+                                                {userActivity.recent_loan_requests && userActivity.recent_loan_requests.length > 0 && (
                                                     <div className="col-span-full">
-                                                        <p className="text-xs text-gray-500 mb-2">Recent Chat Sessions</p>
+                                                        <p className="text-xs text-gray-500 mb-2">Recent Loan Requests</p>
                                                         <div className="space-y-1">
-                                                            {userActivity.recent_chat_sessions.map((s: any) => (
-                                                                <div key={s.id} className="text-xs text-gray-400 flex justify-between p-2 rounded bg-white/[0.02]">
-                                                                    <span className="truncate">{s.title}</span>
-                                                                    <span className="text-gray-600 flex-shrink-0 ml-2">{formatDate(s.created_at)}</span>
+                                                            {userActivity.recent_loan_requests.map((r: any) => (
+                                                                <div key={r.id} className="text-xs text-gray-400 flex justify-between p-2 rounded bg-white/[0.02]">
+                                                                    <span className="truncate uppercase font-semibold">Rp {r.nominal_pengajuan?.toLocaleString('id-ID')}</span>
+                                                                    <div className="flex gap-3 text-gray-600 flex-shrink-0">
+                                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${r.status === 'APPROVED' ? 'bg-green-500/20 text-green-400' : r.status === 'REJECTED' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>{r.status}</span>
+                                                                        <span>{formatDate(r.submitted_at)}</span>
+                                                                    </div>
                                                                 </div>
                                                             ))}
                                                         </div>

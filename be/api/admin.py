@@ -231,15 +231,29 @@ async def get_user_activity(
     except Exception:
         profile = None
 
+    phone = profile.get("phone") if profile else None
+    nik = profile.get("nik") if profile else None
+
+    # Loan requests
+    loan_requests = []
+    if nik:
+        try:
+            loan_res = sb.table("loan_requests").select("id, nominal_pengajuan, status, submitted_at").eq("nik", nik).order("submitted_at", desc=True).limit(10).execute()
+            l_data = getattr(loan_res, "data", None)
+            loan_requests = [item for item in l_data] if l_data else []
+        except Exception:
+            loan_requests = []
+
     return {
         "user_id": user_id,
+        "phone": phone,
         "total_scans": local_scans,
         "total_fraud_scans": len(fraud_scans),
         "total_chat_sessions": len(chat_sessions),
         "total_messages": total_messages,
         "credits": profile.get("credits", 0) if profile else 0,
         "recent_fraud_scans": [fraud_scans[i] for i in range(min(10, len(fraud_scans)))],  # pyre-ignore
-        "recent_chat_sessions": [chat_sessions[i] for i in range(min(10, len(chat_sessions)))],  # pyre-ignore
+        "recent_loan_requests": loan_requests,
     }
 
 
