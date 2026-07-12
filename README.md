@@ -26,6 +26,15 @@ Inovasi kami menggabungkan kecepatan AI dengan kebijaksanaan manusia:
 
 ---
 
+## 🧠 Machine Learning (Explainable AI)
+
+Kami menolak penggunaan model *black-box* untuk sistem penilaian (scoring) pinjaman. OtaruChain memproses data historis melalui **Adaptive Logistic Regression** yang sepenuhnya transparan, di mana setiap variabel (seperti rasio persetujuan, konsistensi kehadiran, dan rata-rata nominal pengajuan) dapat dilacak persentase kontribusinya (*Explainable AI*).
+
+👉 **[Lihat Model Output ML (scoring_model.pkl)](be/models/scoring_model.pkl)** 
+👉 **[Lihat Script Training (train_scoring_model.py)](be/scripts/train_scoring_model.py)**
+
+---
+
 ## 💼 Model Bisnis
 Monetisasi menggunakan model B2B Hybrid SaaS Subscription + Usage-Based (Pay-per-Query), memungkinkan akses mudah bagi Koperasi menengah maupun Enterprise berskala nasional dengan sistem SLA yang terjamin.
 
