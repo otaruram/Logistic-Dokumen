@@ -63,3 +63,5 @@ comtypes==1.4.1  # For PPTX to PDF conversion on Windows
 google-api-python-client>=2.100.0
 google-auth-httplib2>=0.1.0
 google-auth-oauthlib>=1.0.0
+scikit-learn==1.4.2
+pandas==2.2.2

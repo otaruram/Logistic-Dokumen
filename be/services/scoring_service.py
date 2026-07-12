@@ -10,6 +10,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Optional
+import os
+import joblib
+import pandas as pd
+import numpy as np
 
 from services.scan_helpers import get_supabase_admin
 
@@ -241,3 +245,87 @@ def compute_and_sync_cycles(user_id: str, trust_score: int) -> dict:
     }).execute()
 
     return get_scoring_summary(user_id)
+
+
+def explain_score(user_id: str) -> dict:
+    """
+    Menghitung skor kredit berbasis ML (Logistic Regression) berdasarkan histori
+    dokumen kasbon di database, dan mengembalikan penjelasan kontribusi fiturnya
+    dalam Bahasa Indonesia.
+    """
+    sb = _get_sb()
+    
+    # 1. Fetch user's loan_requests (or transactions)
+    res = sb.table("loan_requests").select("*").eq("user_id", user_id).execute()
+    data = getattr(res, "data", None) or []
+    
+    if not data:
+        return {
+            "trust_score": 0,
+            "keputusan": "NOT_ELIGIBLE",
+            "penjelasan": ["Belum ada data pengajuan yang cukup untuk dinilai."]
+        }
+    
+    # 2. Extract features
+    approved_count = len([d for d in data if str(d.get("status", "")).upper() == "APPROVED"])
+    total_count = len(data)
+    approval_ratio = approved_count / total_count if total_count > 0 else 0
+    
+    submission_count = total_count
+    
+    dates = []
+    for d in data:
+        if d.get("created_at"):
+            try:
+                dates.append(d["created_at"][:10])
+            except:
+                pass
+    active_days = len(set(dates)) if dates else 1
+    
+    approved_nominals = [float(d.get("nominal", 0)) for d in data if str(d.get("status", "")).upper() == "APPROVED"]
+    avg_nominal = sum(approved_nominals) / len(approved_nominals) if approved_nominals else 0
+    
+    consistency_score = 0.5 
+    
+    # Load model
+    try:
+        model_path = os.path.join(os.path.dirname(__file__), '..', 'models', 'scoring_model.pkl')
+        model = joblib.load(model_path)
+    except Exception as e:
+        return {"error": "Model ML belum ditraining atau tidak ditemukan."}
+    
+    # Prepare input
+    X_input = pd.DataFrame({
+        'approval_ratio': [approval_ratio],
+        'submission_count': [submission_count],
+        'active_days': [active_days],
+        'avg_nominal': [avg_nominal / 1000000.0],
+        'consistency_score': [consistency_score]
+    })
+    
+    proba = model.predict_proba(X_input)[0][1]
+    trust_score = int(proba * 1000)
+    keputusan = "ELIGIBLE" if trust_score >= 400 else "NOT_ELIGIBLE"
+    
+    penjelasan = []
+    if approval_ratio > 0.7:
+        penjelasan.append(f"Rasio persetujuan nota Anda sangat baik ({approval_ratio*100:.0f}%), berkontribusi kuat menaikkan skor.")
+    else:
+        penjelasan.append(f"Rasio persetujuan nota Anda masih kurang ({approval_ratio*100:.0f}%), menarik skor Anda turun.")
+        
+    if active_days >= 5:
+        penjelasan.append(f"Konsistensi pelaporan cukup rutin ({active_days} hari aktif), berdampak positif.")
+    else:
+        penjelasan.append(f"Keaktifan pelaporan masih minim ({active_days} hari aktif).")
+        
+    if avg_nominal < 1000000:
+        penjelasan.append("Rata-rata nominal pengajuan wajar dan aman untuk likuiditas.")
+    else:
+        penjelasan.append("Rata-rata nominal pengajuan cukup tinggi, meningkatkan profil risiko koperasi.")
+        
+    return {
+        "trust_score": trust_score,
+        "keputusan": keputusan,
+        "penjelasan": penjelasan
+    }
+
