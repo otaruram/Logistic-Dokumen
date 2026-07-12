@@ -3,7 +3,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from config.settings import settings
-from utils.redis_client import RedisClient
+from config.redis_client import RedisClient
 from services.scan_helpers import get_supabase_admin
 
 async def answer_finance_question_with_context(user_id: str, question: str) -> str:
