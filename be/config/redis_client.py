@@ -8,6 +8,7 @@ import json
 
 class RedisClient:
     _instance: Optional[redis.Redis] = None
+    _fallback_cache: dict[str, any] = {}
     
     @classmethod
     def get_client(cls) -> redis.Redis:
@@ -46,10 +47,14 @@ class RedisClient:
         """Set cache with TTL (default 1 hour)"""
         try:
             client = cls.get_client()
+            if isinstance(value, (dict, list)):
+                value = json.dumps(value)
+            
             if client:
-                if isinstance(value, (dict, list)):
-                    value = json.dumps(value)
                 client.setex(key, ttl, value)
+                return True
+            else:
+                cls._fallback_cache[key] = value
                 return True
         except Exception as e:
             print(f"⚠️ Redis set error: {e}")
@@ -60,13 +65,17 @@ class RedisClient:
         """Get cache by key"""
         try:
             client = cls.get_client()
+            value = None
             if client:
                 value = client.get(key)
-                if value:
-                    try:
-                        return json.loads(value)
-                    except:
-                        return value
+            else:
+                value = cls._fallback_cache.get(key)
+                
+            if value:
+                try:
+                    return json.loads(value)
+                except:
+                    return value
         except Exception as e:
             print(f"⚠️ Redis get error: {e}")
         return None
@@ -78,6 +87,10 @@ class RedisClient:
             client = cls.get_client()
             if client:
                 client.delete(key)
+                return True
+            else:
+                if key in cls._fallback_cache:
+                    del cls._fallback_cache[key]
                 return True
         except Exception as e:
             print(f"⚠️ Redis delete error: {e}")

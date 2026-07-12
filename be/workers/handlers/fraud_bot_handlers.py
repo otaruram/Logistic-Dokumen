@@ -200,6 +200,8 @@ async def handle_nominal(chat_id: int, text: str, state: dict, send_message, get
                         "image_url": image_url,
                         "status": "PENDING",
                         "ai_indicator": str(result.get("status", "PROCESSING")).upper(),
+                        "ai_fraud_status": str(result.get("status", "VERIFIED")).upper(),
+                        "ai_fraud_reason": "Dianalisis AI saat upload via Telegram",
                         "source": "CHAIN",
                         "doc_type": result.get("doc_type") or "receipt",
                         "ocr_raw": {
