@@ -3,6 +3,14 @@ Backend Configuration
 Load environment variables and setup configurations
 """
 import os
+import sys
+import io
+
+if isinstance(sys.stdout, io.TextIOWrapper):
+    sys.stdout.reconfigure(encoding='utf-8')
+if isinstance(sys.stderr, io.TextIOWrapper):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 from dotenv import load_dotenv
 from pathlib import Path
 
