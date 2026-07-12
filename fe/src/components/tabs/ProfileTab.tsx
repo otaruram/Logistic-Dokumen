@@ -111,7 +111,13 @@ const ProfileTab = () => {
   const handleAutoFillPhone = async () => {
     setAutoFillLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/telegram/phone/autofill`);
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+      
+      const res = await fetch(`${API_BASE_URL}/api/v1/profiles/phone/autofill`, {
+        headers,
+        cache: "no-store",
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.detail || "Gagal auto fill nomor HP");
 
@@ -123,7 +129,7 @@ const ProfileTab = () => {
       }
 
       setTgStatus((prev: any) => ({ ...(prev || {}), phone_number: phone }));
-      toast.success("Nomor HP beta berhasil diisi otomatis.");
+      toast.success("Nomor HP berhasil diisi otomatis dari profil.");
     } catch (e: any) {
       toast.error(e?.message || "Gagal auto fill nomor HP");
     } finally {
