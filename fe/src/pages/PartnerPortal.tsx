@@ -209,7 +209,30 @@ export default function PartnerPortal() {
 
   const [session, setSession] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<PartnerView>("dashboard");
+  
+  const [activeView, setActiveViewState] = useState<PartnerView>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get("view");
+    return (viewParam as PartnerView) || "dashboard";
+  });
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const viewParam = params.get("view");
+      setActiveViewState((viewParam as PartnerView) || "dashboard");
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const setActiveView = useCallback((viewId: PartnerView) => {
+    setActiveViewState(viewId);
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", viewId);
+    window.history.pushState({}, "", url);
+  }, []);
+
   const [showAccessPopup, setShowAccessPopup] = useState(false);
   const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);

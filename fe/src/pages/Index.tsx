@@ -124,19 +124,19 @@ const Index = () => {
         console.log("✅ Login Berhasil:", session.user.email);
 
         // If we already have a persisted "app" view AND a valid session,
+        // or if we've already done the auth check,
         // skip the full auth check to avoid flash/reset.
         const persisted = readPersistedView();
-        if (persisted === "app" && !authCheckDone.current) {
+        if (authCheckDone.current || persisted === "app") {
           authCheckDone.current = true;
-          setCurrentView("app");
           setLoading(false);
           // Still verify auth status in the background (silently).
-          // If it turns out onboarding is needed, it will update.
           checkAuthStatus();
           return;
         }
 
         // First time or no persisted view — do full auth check
+        authCheckDone.current = true;
         setCurrentView("auth_check");
         checkAuthStatus();
       } else {
