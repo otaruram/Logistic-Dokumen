@@ -7,6 +7,7 @@ import {
     X, Check
 } from "lucide-react";
 import { toast } from "sonner";
+import ApprovalQueueTab from "./ApprovalQueueTab";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -309,6 +310,11 @@ export default function AdminTab() {
                 >
                     <RefreshCw className="w-4 h-4 text-gray-400" />
                 </button>
+            </div>
+
+            {/* Approval Queue Section */}
+            <div className="bg-white rounded-2xl overflow-hidden p-4">
+                <ApprovalQueueTab />
             </div>
 
             {/* Stats Grid */}
