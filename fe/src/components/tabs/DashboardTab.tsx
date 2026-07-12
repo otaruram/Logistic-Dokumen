@@ -660,7 +660,7 @@ const DashboardTab = () => {
         setAuditTrail([]);
         return;
       }
-      const res = await fetch(`${API_URL}/api/kasbon/audit-trail`, {
+      const res = await fetch(`${API_URL}/api/kasbon/audit-trail?scope=all`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (!res.ok) {
