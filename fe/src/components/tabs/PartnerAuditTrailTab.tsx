@@ -42,7 +42,7 @@ export default function PartnerAuditTrailTab() {
   const downloadCsv = () => {
     if (!auditTrail || auditTrail.length === 0) return;
     
-    const headers = ["ID", "Tanggal", "Nama Pekerja", "No HP", "Nominal", "Status"];
+    const headers = ["ID", "Tanggal", "Nama Pekerja", "No HP", "Nominal", "Status", "Link Foto"];
     
     const csvContent = [
       headers.join(","),
@@ -52,7 +52,8 @@ export default function PartnerAuditTrailTab() {
         `"${tx.workerName || ""}"`,
         `"${tx.phone || ""}"`,
         tx.nominal || 0,
-        tx.status || ""
+        tx.status || "",
+        `"${tx.fileUrl || ""}"`
       ].join(","))
     ].join("\n");
     
