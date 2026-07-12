@@ -20,18 +20,19 @@ elif os.path.exists(DEFAULT_WIN_PATH):
 else:
     pytesseract.pytesseract.tesseract_cmd = "tesseract"
 
-# --- OPENAI SETUP ---
+# --- SUMOPOD GEMINI SETUP ---
 openai_client = None
 try:
-    if settings.OPENAI_API_KEY:
+    if settings.GEMINI_API_KEY:
+        base_url = getattr(settings, "GEMINI_BASE_URL", "https://ai.sumopod.com/v1")
         openai_client = OpenAI(
-            api_key=settings.OPENAI_API_KEY,
-            base_url=settings.OPENAI_BASE_URL,
+            api_key=settings.GEMINI_API_KEY,
+            base_url=base_url if base_url else None,
             http_client=httpx.Client(timeout=30.0)
         )
-        print("OpenAI client initialized")
+        print("Gemini OpenAI proxy client initialized for OCR")
 except Exception as e:
-    print(f"OpenAI Client Init Failed: {e}")
+    print(f"Gemini Proxy Client Init Failed: {e}")
 
 # --- GROQ SETUP (BACKUP) ---
 groq_clients = []
@@ -307,7 +308,8 @@ class OCRService:
         """Fix OCR typos using AI."""
         clients_to_try = []
         if openai_client:
-            clients_to_try.append(("OpenAI", openai_client, "gpt-4o-mini"))
+            model_name = getattr(settings, "GEMINI_MODEL", "gemini/gemini-2.5-flash")
+            clients_to_try.append(("GeminiProxy", openai_client, model_name))
         if groq_clients:
             shuffled = groq_clients.copy()
             random.shuffle(shuffled)
@@ -341,7 +343,8 @@ class OCRService:
         """
         clients_to_try = []
         if openai_client:
-            clients_to_try.append(("OpenAI", openai_client, "gpt-4o-mini"))
+            model_name = getattr(settings, "GEMINI_MODEL", "gemini/gemini-2.5-flash")
+            clients_to_try.append(("GeminiProxy", openai_client, model_name))
         if groq_clients:
             shuffled = groq_clients.copy()
             random.shuffle(shuffled)

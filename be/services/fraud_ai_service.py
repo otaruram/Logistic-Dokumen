@@ -23,22 +23,27 @@ from typing import TypedDict
 
 # ── Gemini SDK ────────────────────────────────────────────────────────────────
 
-_gemini_model = None
+_gemini_client = None
 
 try:
-    import google.generativeai as genai  # type: ignore
+    import openai
 
     _GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+    _GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL", "")
+    _GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
     if _GEMINI_API_KEY:
-        genai.configure(api_key=_GEMINI_API_KEY)
-        _gemini_model = genai.GenerativeModel("gemini-2.5-flash")
-        print("✅ Gemini 2.5 Flash initialized for AI Fraud Detection")
+        _gemini_client = openai.OpenAI(
+            api_key=_GEMINI_API_KEY,
+            base_url=_GEMINI_BASE_URL if _GEMINI_BASE_URL else None
+        )
+        print("✅ Gemini AI initialized via OpenAI Proxy for Fraud Detection")
     else:
         print("⚠️  GEMINI_API_KEY not set — AI Fraud Detection disabled")
 except ImportError:
-    print("⚠️  google-generativeai package not installed — AI Fraud Detection disabled")
+    print("⚠️  openai package not installed — AI Fraud Detection disabled")
 except Exception as exc:
-    print(f"⚠️  Gemini init failed: {exc}")
+    print(f"⚠️  Gemini proxy init failed: {exc}")
 
 
 # ── Types ─────────────────────────────────────────────────────────────────────
@@ -79,7 +84,7 @@ async def analyze_fraud_with_gemini(
     ``NEEDS_REVIEW`` with a descriptive reason so the queue is never blocked.
     """
 
-    if not _gemini_model:
+    if not _gemini_client:
         return FraudResult(
             status="NEEDS_REVIEW",
             reason="Analisis AI tidak tersedia (API key belum dikonfigurasi). Admin harus review manual.",
@@ -101,19 +106,16 @@ async def analyze_fraud_with_gemini(
     user_prompt = f"{context_label}\n\nOCR TEXT:\n{trimmed}"
 
     try:
-        response = _gemini_model.generate_content(
-            [
-                {"role": "user", "parts": [{"text": FRAUD_SYSTEM_PROMPT}]},
-                {"role": "model", "parts": [{"text": "Understood. Send the OCR text and I will respond with JSON only."}]},
-                {"role": "user", "parts": [{"text": user_prompt}]},
+        response = _gemini_client.chat.completions.create(
+            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            messages=[
+                {"role": "system", "content": FRAUD_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
             ],
-            generation_config={
-                "temperature": 0.1,
-                "max_output_tokens": 300,
-            },
+            temperature=0.1,
+            max_tokens=400,
         )
-
-        raw = response.text.strip()
+        raw = response.choices[0].message.content.strip()
 
         # Strip markdown code fences if present (```json ... ```)
         raw = re.sub(r"^```(?:json)?\s*", "", raw)

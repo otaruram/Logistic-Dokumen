@@ -129,6 +129,8 @@ class Settings:
 
     # Gemini AI (Fraud Analysis + Financial Advisor)
     GEMINI_API_KEY: str = os.getenv('GEMINI_API_KEY', '')
+    GEMINI_BASE_URL: str = os.getenv('GEMINI_BASE_URL', '')
+    GEMINI_MODEL: str = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
 
     # Kasbon fast queue mode (testing): skip OCR and push directly to approval queue
     KASBON_FAST_QUEUE: bool = os.getenv('KASBON_FAST_QUEUE', 'false').lower() == 'true'

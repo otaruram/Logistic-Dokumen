@@ -1,4 +1,4 @@
-﻿"""
+"""
 Telegram integration service helpers.
 
 Handles:
@@ -688,51 +688,18 @@ async def answer_finance_question_with_context(user_id: str, question: str) -> s
         "'Apakah ada cicilan lain yang belum kamu laporkan ke sistem?'"
     )
 
-    # â”€â”€ Try Gemini 2.0 Flash first â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    gemini_api_key = settings.GEMINI_API_KEY or ""
-    if gemini_api_key:
-        try:
-            import google.generativeai as genai
-            genai.configure(api_key=gemini_api_key)
-            model = genai.GenerativeModel("gemini-2.0-flash")
-
-            response = model.generate_content(
-                [
-                    {"role": "user", "parts": [{"text": system_prompt}]},
-                    {"role": "model", "parts": [{"text": "Dipahami. Saya siap menjawab berdasarkan data user secara singkat, blak-blakan, dan tanpa markdown. Setiap jawaban akan diakhiri pertanyaan lanjutan."}]},
-                    {"role": "user", "parts": [{"text": q}]},
-                ],
-                generation_config={
-                    "temperature": 0.3,
-                    "max_output_tokens": 200,
-                },
-            )
-
-            content = (response.text or "").strip()
-            # Strict formatting cleanup
-            clean = content.replace("**", "").replace("*", "").replace("# ", "").replace("## ", "")
-            
-            if clean:
-                # Cache the response
-                try:
-                    RedisClient.set_cache(cache_key, {"answer": clean, "ctx_hash": ctx_hash}, ttl=3600)
-                except Exception:
-                    pass
-                return clean
-        except Exception as e:
-            print(f"[Otaru AI] Gemini 2.0 Flash error, falling back to OpenAI: {e}")
-
-    # â”€â”€ Fallback: OpenAI proxy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    api_key = getattr(settings, "OPENAI_API_KEY", "") or ""
+    # ── Sumopod Gemini Proxy via OpenAI client ──
+    api_key = settings.GEMINI_API_KEY or ""
     if not api_key:
         return "Otaru sedang offline untuk konsultasi saat ini. Coba lagi sebentar."
 
-    base_url = getattr(settings, "OPENAI_BASE_URL", "https://ai.sumopod.com/v1")
+    base_url = getattr(settings, "GEMINI_BASE_URL", "https://ai.sumopod.com/v1")
+    model_name = getattr(settings, "GEMINI_MODEL", "gemini/gemini-2.5-flash")
     client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
     try:
         resp = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": q},
@@ -740,17 +707,22 @@ async def answer_finance_question_with_context(user_id: str, question: str) -> s
             temperature=0.3,
             max_tokens=200,
         )
+
         content = (resp.choices[0].message.content or "").strip()
-        clean_content = content.replace("**", "").replace("*", "").replace("# ", "").replace("## ", "")
+        # Strict formatting cleanup
+        clean = content.replace("**", "").replace("*", "").replace("# ", "").replace("## ", "")
         
-        # Cache the response
-        try:
-            RedisClient.set_cache(cache_key, {"answer": clean_content, "ctx_hash": ctx_hash}, ttl=3600)
-        except Exception:
-            pass
+        if clean:
+            # Cache the response
+            try:
+                RedisClient.set_cache(cache_key, {"answer": clean, "ctx_hash": ctx_hash}, ttl=3600)
+            except Exception:
+                pass
+            return clean
             
-        return clean_content or "Otaru tidak dapat menghasilkan jawaban saat ini. Coba ulangi pertanyaannya."
-    except Exception:
+        return "Otaru tidak dapat menghasilkan jawaban saat ini. Coba ulangi pertanyaannya."
+    except Exception as e:
+        print(f"[Otaru AI] AI proxy error: {e}")
         return "Otaru lagi gangguan sesaat. Coba kirim ulang pertanyaan dalam beberapa detik."
 
 
@@ -773,11 +745,13 @@ async def answer_freeform_question(
             "Ringkas dulu ya, biar Otaru jawab cepat dan tepat."
         )
 
-    api_key = getattr(settings, "OPENAI_API_KEY", "") or ""
+    # ── Sumopod Gemini Proxy via OpenAI client ──
+    api_key = getattr(settings, "GEMINI_API_KEY", "") or ""
     if not api_key:
         return "Otaru sedang offline untuk Q&A saat ini. Coba lagi sebentar lagi."
 
-    base_url = getattr(settings, "OPENAI_BASE_URL", "https://ai.sumopod.com/v1")
+    base_url = getattr(settings, "GEMINI_BASE_URL", "https://ai.sumopod.com/v1")
+    model_name = getattr(settings, "GEMINI_MODEL", "gemini/gemini-2.5-flash")
     client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
     system_prompt = (
@@ -790,7 +764,7 @@ async def answer_freeform_question(
 
     try:
         resp = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": q},
@@ -803,7 +777,8 @@ async def answer_freeform_question(
         if len(out_words) > max_output_words:
             content = " ".join(out_words[:max_output_words]).rstrip(".,;: ") + "..."
         return content or "Belum ada jawaban yang valid. Coba ulangi pertanyaannya secara lebih spesifik."
-    except Exception:
+    except Exception as e:
+        print(f"[Otaru AI] AI proxy freeform error: {e}")
         return "Otaru lagi gangguan sesaat. Coba kirim ulang pertanyaan dalam beberapa detik."
 
 

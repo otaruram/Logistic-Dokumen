@@ -75,7 +75,6 @@ from services.kasbon_helpers import (
 router = APIRouter(prefix="/api/kasbon", tags=["Kasbon"])
 
 
-        return None
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -595,54 +594,53 @@ async def ai_recommendation(
     context_text = _build_ai_context(enriched_loan, profile, approved_total, pending_total)
     image_url = loan_raw.get("image_url") or ""
 
-    # Call Gemini Vision
+    # Call AI via OpenAI proxy
     try:
-        import google.generativeai as genai
+        import openai
 
         _GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+        _GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL", "")
+        _GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
         if not _GEMINI_API_KEY:
             raise HTTPException(status_code=503, detail="GEMINI_API_KEY tidak dikonfigurasi.")
 
-        genai.configure(api_key=_GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-2.5-flash")
-
-        # Build message parts
-        parts = [
-            {"text": AI_REC_SYSTEM_PROMPT},
-        ]
-
-        # Try to include the document image via Vision
-        img_included = False
-        if image_url:
-            try:
-                import httpx
-                from PIL import Image as _PILImage
-                import io
-
-                # Synchronous download for simplicity
-                img_resp = requests.get(image_url, timeout=30)
-                img_resp.raise_for_status()
-                img = _PILImage.open(io.BytesIO(img_resp.content))
-                parts.append(img)
-                img_included = True
-                print(f"[AI-Rec] Image loaded from {image_url[:60]}...")
-            except Exception as img_exc:
-                print(f"[AI-Rec] Image load failed: {img_exc}, proceeding text-only")
-
-        if not img_included:
-            parts.append({"text": "\n[CATATAN: Foto dokumen tidak dapat dimuat. Analisis hanya berdasarkan konteks keuangan.]\n"})
-
-        parts.append({"text": f"\n\n{context_text}"})
-
-        response = model.generate_content(
-            parts,
-            generation_config={
-                "temperature": 0.2,
-                "max_output_tokens": 800,
-            },
+        client = openai.OpenAI(
+            api_key=_GEMINI_API_KEY,
+            base_url=_GEMINI_BASE_URL if _GEMINI_BASE_URL else None
         )
 
-        raw = response.text.strip()
+        messages = [
+            {"role": "system", "content": AI_REC_SYSTEM_PROMPT},
+            {"role": "user", "content": []}
+        ]
+
+        img_included = False
+        if image_url:
+            messages[1]["content"].append({
+                "type": "image_url",
+                "image_url": {"url": image_url}
+            })
+            img_included = True
+        else:
+            messages[1]["content"].append({
+                "type": "text",
+                "text": "\n[CATATAN: Foto dokumen tidak dapat dimuat. Analisis hanya berdasarkan konteks keuangan.]\n"
+            })
+
+        messages[1]["content"].append({
+            "type": "text",
+            "text": f"\n\n{context_text}"
+        })
+
+        response = client.chat.completions.create(
+            model=_GEMINI_MODEL,
+            messages=messages,
+            temperature=0.2,
+            max_tokens=800,
+        )
+
+        raw = response.choices[0].message.content.strip()
         # Strip markdown code fences if present
         raw = _re.sub(r"^```(?:json)?\s*", "", raw)
         raw = _re.sub(r"\s*```$", "", raw)

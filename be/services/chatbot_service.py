@@ -7,12 +7,13 @@ class ChatbotService:
     def __init__(self, db: Session, user: User):
         self.db = db
         self.user = user
-        self.api_key = os.getenv("SUMOPOD_API_KEY")
+        self.api_key = os.getenv("GEMINI_API_KEY")
         if not self.api_key:
-            raise ValueError("SUMOPOD_API_KEY environment variable not set.")
+            raise ValueError("GEMINI_API_KEY environment variable not set.")
 
+        base_url = os.getenv("GEMINI_BASE_URL", "https://ai.sumopod.com/v1")
         self.client = AsyncOpenAI(
-            base_url=os.getenv("OPENAI_BASE_URL", "https://ai.sumopod.com/v1"),
+            base_url=base_url if base_url else None,
             api_key=self.api_key,
         )
 
@@ -77,7 +78,7 @@ When a user uploads a document (like an invoice, delivery order, or receipt), yo
 
         try:
             chat_completion = await self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=os.getenv("GEMINI_MODEL", "gemini/gemini-2.5-flash"),
                 messages=messages,
                 max_tokens=2048,
             )

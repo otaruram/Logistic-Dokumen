@@ -24,11 +24,11 @@ _client = None
 def _get_ai_client():
     global _client
     if _client is None:
-        api_key = os.getenv("SUMOPOD_API_KEY") or os.getenv("OPENAI_API_KEY")
-        base_url = os.getenv("OPENAI_BASE_URL", "https://ai.sumopod.com/v1")
+        api_key = os.getenv("GEMINI_API_KEY")
+        base_url = os.getenv("GEMINI_BASE_URL", "https://ai.sumopod.com/v1")
         if not api_key:
             raise ValueError("No AI API key configured")
-        _client = AsyncOpenAI(base_url=base_url, api_key=api_key)
+        _client = AsyncOpenAI(base_url=base_url if base_url else None, api_key=api_key)
     return _client
 
 # ── Request model ──────────────────────────────────────────────────────────
@@ -182,7 +182,7 @@ async def analyze_scan(
 
     try:
         completion = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=os.getenv("GEMINI_MODEL", "gemini/gemini-2.5-flash"),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message},
