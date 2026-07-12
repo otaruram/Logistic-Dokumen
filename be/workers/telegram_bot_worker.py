@@ -32,7 +32,6 @@ from services.pdf_service import generate_kasbon_template_pdf
 from services.otaru_finance_service import calculate_otaru_index, resolve_user_id_by_chat
 from services.scan_helpers import get_supabase_admin
 from services.telegram_service import (
-    answer_freeform_question,
     analyze_signature,
     get_dashboard_summary,
     get_link_by_chat_id,
@@ -41,6 +40,7 @@ from services.telegram_service import (
     process_fraud_scan_from_telegram,
     unlink_chat,
 )
+from services.telegram_ai import answer_finance_question_with_context
 
 # Per-chat state for TTD-only mode: chat_id => True means awaiting a signature photo
 _ttd_pending: set[int] = set()
