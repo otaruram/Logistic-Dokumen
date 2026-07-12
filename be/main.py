@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from config.settings import settings
-from api import auth, scans, fraud, exports, invoices, users, upload, config as config_api, reviews, dashboard, cleanup, chatbot, chat_history, admin, report, scan_insight, telegram, partner, payment, ledger, transactions, audit, kyc, kasbon, kasbon_admin, gamification, whitelist
+from api import auth, scans, batch_scans, signature, fraud, exports, invoices, users, upload, config as config_api, reviews, dashboard, cleanup, chatbot, chat_history, admin, report, cron_report, scan_insight, telegram, partner, payment, ledger, transactions, audit, kyc, kasbon, kasbon_admin, gamification, whitelist
 from middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware, IPBlockingMiddleware
 
 # Database will be handled by Prisma
@@ -94,6 +94,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(scans.router, prefix="/api/scans", tags=["Scans"])
+app.include_router(signature.router)
+app.include_router(batch_scans.router)
 app.include_router(fraud.router, prefix="/api/scans", tags=["Fraud Scans"])
 app.include_router(exports.router, prefix="/api/scans", tags=["Exports"])
 app.include_router(invoices.router, prefix="/api/invoices", tags=["Invoices"])
@@ -106,6 +108,7 @@ app.include_router(chatbot.router)
 app.include_router(chat_history.router)
 app.include_router(admin.router)
 app.include_router(report.router, prefix="/api/report", tags=["Reports"])
+app.include_router(cron_report.router)
 app.include_router(scan_insight.router, prefix="/api/insight", tags=["Scan Insight"])
 app.include_router(telegram.router, prefix="/api/telegram", tags=["Telegram"])
 app.include_router(partner.router, tags=["Partner"])  # /api/v1/* routes defined inside partner.py
