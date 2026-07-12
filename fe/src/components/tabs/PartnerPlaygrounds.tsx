@@ -238,11 +238,6 @@ export default function PartnerPlaygrounds({
                 </div>
               </div>
               <p className="text-sm text-zinc-700 leading-relaxed mb-3">{fd.description || "—"}</p>
-              {fd.digital_stamp_hash && (
-                <div className="rounded-lg bg-zinc-800 text-green-400 p-3 font-mono text-[10px] break-all leading-relaxed">
-                  <span className="text-zinc-500">SHA-256 Seal:</span> {fd.digital_stamp_hash}
-                </div>
-              )}
             </div>
           </div>
           );
