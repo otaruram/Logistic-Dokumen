@@ -15,82 +15,27 @@ import secrets
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
-from pydantic import BaseModel
+from schemas.partner import (
+    ApiKeyOut, GenerateKeyRequest, DecisionApiKeyOut,
+    PhoneSyncRequest, PhoneSyncResponse, PhoneAutoFillResponse,
+    PlatformStats, ScanSummary, CycleInfo, RiskDetail, ScoringResponse
+)
 
 from utils.auth import get_supabase_bearer_user, supabase_admin
 from utils.api_key import validate_api_key as _validate_api_key, validate_api_key_full as _validate_api_key_full
 from services.otaru_finance_service import verify_partner_api_key
+from services.partner_helpers import (
+    _get_sb, _assert_api_key_owner, _validate_nik, _validate_phone,
+    _deduct_credit_for_api_key_owner, _decision_api_key_owner_label,
+    _generate_unique_phone_for_user, _resolve_phone_to_profile,
+    _mask_profile_for_partner, _get_compliance_block
+)
 
 router = APIRouter()
 
 # ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-def _get_sb():
-    """Return a supabase_admin client; raises 503 if not configured."""
-    if not supabase_admin:
-        raise HTTPException(status_code=503, detail="Supabase admin not configured")
-    return supabase_admin
-
-
-def _assert_api_key_owner(target_user_id: str, api_key_owner: str, *, key_type: str = "individual") -> None:
-    """Check ownership. Partner keys (key_type='partner') have read_all_users and skip this check."""
-    if key_type == "partner":
-        return  # Partners (Koperasi) can access any user's data
-    if str(target_user_id) != str(api_key_owner):
-        raise HTTPException(
-            status_code=403,
-            detail="API key hanya bisa mengakses data milik pemilik key",
-        )
-
-
-def _validate_nik(nik: str) -> str:
-    clean = (nik or "").strip()
-    if not clean.isdigit() or len(clean) != 16:
-        raise HTTPException(status_code=422, detail="NIK harus 16 digit angka")
-    return clean
-
-
-def _validate_phone(phone: str) -> str:
-    """Validate Indonesian mobile number: 08xxxxxxxxxx (10-13 digits)."""
-    clean = (phone or "").strip().replace("+62", "0").replace("-", "").replace(" ", "")
-    if not clean.isdigit() or len(clean) < 10 or len(clean) > 13 or not clean.startswith("0"):
-        raise HTTPException(status_code=422, detail="Nomor HP harus format 08xxxxxxxxxx (10-13 digit)")
-    return clean
-
-
-def _deduct_credit_for_api_key_owner(sb, api_key_owner: str) -> None:
-    """Deduct 1 credit from the API key owner's profile (api_key_owner is user_id). Raises 402 if none left."""
-    try:
-        # api_key_owner from _validate_api_key is already the user_id
-        owner_uid = api_key_owner
-        prof_res = sb.table("profiles").select("partner_api_credits").eq("id", owner_uid).limit(1).execute()
-        prof_rows = getattr(prof_res, "data", None) or []
-        current = int((prof_rows[0].get("partner_api_credits") or 0)) if prof_rows else 0
-        if current <= 0:
-            raise HTTPException(status_code=402, detail="Kredit API Partner habis. Upgrade plan untuk melanjutkan.")
-        sb.table("profiles").update({"partner_api_credits": current - 1}).eq("id", owner_uid).execute()
-    except HTTPException:
-        raise
-    except Exception:
-        pass  # Non-blocking credit deduction — don't break the request
-
-
-# ---------------------------------------------------------------------------
 # API Key Management (authenticated endpoints)
 # ---------------------------------------------------------------------------
-
-class ApiKeyOut(BaseModel):
-    key_value: str
-    name: str
-    is_active: bool
-    created_at: str
-    last_used_at: Optional[str] = None
-
-
-class GenerateKeyRequest(BaseModel):
-    key_type: Optional[str] = "individual"  # 'individual' or 'partner'
 
 
 @router.post("/api/v1/apikeys/generate", response_model=ApiKeyOut, tags=["Partner"])
@@ -181,16 +126,6 @@ async def revoke_api_key(
 # Decision Gate API Key Management
 # ---------------------------------------------------------------------------
 
-class DecisionApiKeyOut(BaseModel):
-    key_value: str
-    name: str
-    partner_name: str
-    is_active: bool
-    created_at: str
-    last_used_at: Optional[str] = None
-
-def _decision_api_key_owner_label(current_user: dict) -> str:
-    return str(current_user.get("email") or current_user.get("user_metadata", {}).get("email") or "partner")
 
 @router.post("/api/v1/decision/apikeys/generate", response_model=DecisionApiKeyOut, tags=["Partner"])
 async def generate_decision_api_key(current_user: dict = Depends(get_supabase_bearer_user)):
@@ -269,56 +204,6 @@ async def revoke_decision_api_key(current_user: dict = Depends(get_supabase_bear
 # Unified Key Generation — Phone Number Triggered
 # ---------------------------------------------------------------------------
 
-class PhoneSyncRequest(BaseModel):
-    phone_number: str  # 08xxxxxxxxxx
-
-class PhoneSyncResponse(BaseModel):
-    phone_number: str
-    message: str = "Phone number saved successfully."
-
-
-class PhoneAutoFillResponse(BaseModel):
-    phone_number: str
-    source: str
-    message: str
-
-
-def _generate_unique_phone_for_user(sb, user_id: str) -> tuple[str, str]:
-    """Return (phone_number, source), preferring existing profile phone for stable identity."""
-    try:
-        existing_res = (
-            sb.table("profiles")
-            .select("phone_number")
-            .eq("id", user_id)
-            .limit(1)
-            .execute()
-        )
-        existing_rows = getattr(existing_res, "data", None) or []
-        existing_phone = (existing_rows[0].get("phone_number") if existing_rows else None) or ""
-        if isinstance(existing_phone, str) and existing_phone.startswith("0") and existing_phone[1:].isdigit() and 10 <= len(existing_phone) <= 13:
-            return existing_phone, "existing"
-    except Exception:
-        pass
-
-    for attempt in range(50):
-        digest = hashlib.sha256(f"{user_id}:beta-phone:{attempt}".encode("utf-8")).hexdigest()
-        numeric = int(digest[:15], 16) % 10_000_000_000
-        candidate = "08" + str(numeric).zfill(10)
-
-        check_res = (
-            sb.table("profiles")
-            .select("id")
-            .eq("phone_number", candidate)
-            .neq("id", user_id)
-            .limit(1)
-            .execute()
-        )
-        check_rows = getattr(check_res, "data", None) or []
-        if not check_rows:
-            return candidate, "generated"
-
-    raise HTTPException(status_code=500, detail="Gagal generate nomor HP unik beta")
-
 
 @router.post("/api/v1/profiles/phone", response_model=PhoneSyncResponse, tags=["Partner"])
 async def sync_phone_number(
@@ -396,12 +281,6 @@ async def autofill_phone_number(request: Request):
 # Platform Stats (public — no auth required)
 # ---------------------------------------------------------------------------
 
-class PlatformStats(BaseModel):
-    total_scans: int
-    fraud_prevented: int
-    verified_scans: int
-    integrity_rate: float  # percentage 0–100
-
 
 @router.get("/api/v1/partner/stats", response_model=PlatformStats, tags=["Partner"])
 async def get_platform_stats():
@@ -453,44 +332,6 @@ async def get_demo_phones():
 # ---------------------------------------------------------------------------
 # Scoring Endpoint — requires x-api-key header
 # ---------------------------------------------------------------------------
-
-class ScanSummary(BaseModel):
-    scan_id: str
-    status: str
-    nominal_total: Optional[float] = None
-    vendor_name: Optional[str] = None
-    doc_type: Optional[str] = None
-    created_at: str
-
-
-class CycleInfo(BaseModel):
-    current_cycle: int
-    current_cycle_score: int
-    cycle_max: int
-    lifetime_score: int
-    completed_cycles: int
-
-
-class RiskDetail(BaseModel):
-    risk_level: str
-    risk_score: int
-    factors: list[dict]
-
-
-class ScoringResponse(BaseModel):
-    email: str
-    user_id: str
-    trust_score: int
-    risk_label: str          # "LOW" | "MEDIUM" | "HIGH"
-    risk_detail: Optional[RiskDetail] = None
-    cycle_info: Optional[CycleInfo] = None
-    total_scans: int
-    verified_scans: int
-    tampered_scans: int
-    total_nominal: float
-    recent_scans: list[ScanSummary]
-    credit_score_breakdown: Optional[dict] = None
-    compliance: Optional[dict] = None
 
 
 @router.get("/api/v1/scoring/{email}", response_model=ScoringResponse, tags=["Partner"])
@@ -666,82 +507,6 @@ async def score_user_by_nik(
 # ---------------------------------------------------------------------------
 # Mobile Number Lookup Endpoints (Phase 2)
 # ---------------------------------------------------------------------------
-
-def _resolve_phone_to_profile(sb, phone: str) -> dict:
-    """Resolve a phone number to a profile row with multi-format fallback. Raises 404 if not found."""
-    phone_variants = [
-        phone,
-        f"+62{phone[1:]}" if phone.startswith("0") else f"+62{phone}",
-        phone[1:] if phone.startswith("0") else phone,
-    ]
-    res = (
-        sb.table("profiles")
-        .select("id, user_email, nik, full_name, phone_number, address, kecamatan, kelurahan, ktp_photo_url, selfie_photo_url, credit_score, fraud_flags, salary, plan, data_consent_given, data_consent_at, data_consent_version")
-        .in_("phone_number", phone_variants)
-        .limit(1)
-        .execute()
-    )
-    rows = getattr(res, "data", None) or []
-    if not rows:
-        # Fallback to telegram_links
-        tl_res = sb.table("telegram_links").select("user_id").in_("phone_number", phone_variants).limit(1).execute()
-        tl_data = getattr(tl_res, "data", None) or []
-        if tl_data and tl_data[0].get("user_id"):
-            prof_res2 = sb.table("profiles").select(
-                "id, user_email, nik, full_name, phone_number, address, kecamatan, kelurahan, ktp_photo_url, selfie_photo_url, credit_score, fraud_flags, salary, plan, data_consent_given, data_consent_at, data_consent_version"
-            ).eq("id", tl_data[0]["user_id"]).limit(1).execute()
-            rows2 = getattr(prof_res2, "data", None) or []
-            if rows2:
-                return rows2[0]
-        raise HTTPException(status_code=404, detail=f"User dengan nomor HP '{phone}' tidak ditemukan")
-    return rows[0]
-
-def _mask_profile_for_partner(profile: dict) -> dict:
-    masked = profile.copy()
-    
-    # NIK: Mask middle digits -> 3201****0001 (show first 4 and last 4)
-    nik = masked.get("nik") or ""
-    if len(nik) >= 8:
-        masked["nik"] = f"{nik[:4]}****{nik[-4:]}"
-    
-    # Phone: Mask middle digits
-    ph = masked.get("phone_number") or ""
-    if len(ph) >= 8:
-        masked["phone_number"] = f"{ph[:4]}****{ph[-4:]}"
-    
-    # Email: mask -> b***@otaru.id
-    email = masked.get("user_email") or masked.get("email") or ""
-    if email and "@" in email:
-        name_part, domain = email.split("@", 1)
-        if len(name_part) > 1:
-            masked["user_email"] = f"{name_part[0]}***@{domain}"
-            masked["email"] = masked["user_email"]
-            
-    # Address: keep only kecamatan/kelurahan if available
-    kec = masked.get("kecamatan") or ""
-    kel = masked.get("kelurahan") or ""
-    if kec or kel:
-        masked["address"] = f"Kec. {kec}, Kel. {kel}".strip(", ")
-    else:
-        masked["address"] = "***Masked Address***"
-        
-    # Remove KTP and Selfie URLs
-    masked.pop("ktp_photo_url", None)
-    masked.pop("selfie_photo_url", None)
-    
-    return masked
-
-def _get_compliance_block(profile: dict) -> dict:
-    return {
-        "regulation": "POJK 13/POJK.02/2018 & UU PDP No. 27/2022",
-        "data_consent": profile.get("data_consent_given", False),
-        "consent_timestamp": profile.get("data_consent_at"),
-        "consent_version": profile.get("data_consent_version", "v1.0"),
-        "data_minimization": True,
-        "purpose": "alternative_credit_scoring",
-        "retention_days": 90,
-        "provider": "PT Otaru Digital Indonesia"
-    }
 
 
 @router.get("/api/v1/scoring-by-phone/{phone}", response_model=ScoringResponse, tags=["Partner"])

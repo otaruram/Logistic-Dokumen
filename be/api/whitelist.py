@@ -33,124 +33,17 @@ ADMIN_ROLES = {"admin", "partner_admin", "super_admin"}
 
 # ── Pydantic Models ──────────────────────────────────────────────────────────
 
-class VerifyWhitelistRequest(BaseModel):
-    phone_number: str
-
-    @field_validator("phone_number")
-    @classmethod
-    def validate_phone(cls, v: str) -> str:
-        return _normalize_phone(v)
-
-
-class VerifyWhitelistResponse(BaseModel):
-    status: str  # "verified"
-    user_id: str
-    phone_number: str
-    company_id: str
-    message: str
-
-
-class AuthMeResponse(BaseModel):
-    user_id: str
-    email: str
-    phone_number: Optional[str] = None
-    is_active: bool = False
-    needs_onboarding: bool = True
-    role: str = "user"
-    full_name: Optional[str] = None
-
-
-class WhitelistEntry(BaseModel):
-    phone_number: str
-    company_id: str = "default"
-    employee_name: Optional[str] = None
-
-    @field_validator("phone_number")
-    @classmethod
-    def validate_phone(cls, v: str) -> str:
-        return _normalize_phone(v)
-
-
-class WhitelistEntryResponse(BaseModel):
-    id: str
-    phone_number: str
-    company_id: str
-    employee_name: Optional[str] = None
-    is_active: bool = True
-    created_by: Optional[str] = None
-    created_at: Optional[str] = None
-
-
-class WhitelistListResponse(BaseModel):
-    items: list[WhitelistEntryResponse]
-    total: int
-    page: int
-    per_page: int
-
-
-class BulkUploadResponse(BaseModel):
-    inserted: int
-    skipped: int
-    errors: list[str]
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _get_sb():
-    """Return supabase admin client; raises 503 if not configured."""
-    sb = get_supabase_admin()
-    if not sb:
-        raise HTTPException(status_code=503, detail="Supabase admin not configured")
-    return sb
-
-
-def _normalize_phone(raw: str) -> str:
-    """
-    Normalize Indonesian phone number to E.164 format (+62XXXXXXXXXX).
-
-    Accepts:
-      - +6281234567890
-      - 081234567890
-      - 6281234567890
-      - 81234567890
-
-    Raises HTTPException 422 on invalid format.
-    """
-    cleaned = re.sub(r"[\s\-\(\)]+", "", raw.strip())
-
-    if cleaned.startswith("+62"):
-        digits = cleaned[3:]
-    elif cleaned.startswith("62") and len(cleaned) > 10:
-        digits = cleaned[2:]
-    elif cleaned.startswith("0"):
-        digits = cleaned[1:]
-    else:
-        digits = cleaned
-
-    if not digits.isdigit():
-        raise HTTPException(
-            status_code=422,
-            detail="Nomor HP hanya boleh berisi angka."
-        )
-    if len(digits) < 9 or len(digits) > 13:
-        raise HTTPException(
-            status_code=422,
-            detail="Nomor HP harus 9-13 digit setelah kode negara."
-        )
-    if not digits.startswith("8"):
-        raise HTTPException(
-            status_code=422,
-            detail="Nomor HP Indonesia harus dimulai dengan 8 setelah kode negara."
-        )
-
-    return f"+62{digits}"
-
-
-def _assert_admin(user: dict, sb) -> str:
-    """
-    Returns user email. Admin check removed as per requirement to open whitelist to all partners.
-    """
-    return user.get("email", "")
+from schemas.whitelist import (
+    VerifyWhitelistRequest,
+    VerifyWhitelistResponse,
+    AuthMeResponse,
+    WhitelistEntry,
+    WhitelistEntryResponse,
+    WhitelistListResponse,
+    BulkUploadResponse,
+    _normalize_phone,
+)
+from services.whitelist_helpers import _get_sb, _assert_admin
 
 
 # ── Auth Endpoints ────────────────────────────────────────────────────────────
@@ -456,8 +349,8 @@ async def bulk_upload_whitelist(
 
         try:
             normalized = _normalize_phone(raw_phone)
-        except HTTPException as e:
-            errors.append(f"Baris {i + 1}: {raw_phone} — {e.detail}")
+        except ValueError as e:
+            errors.append(f"Baris {i + 1}: {raw_phone} - {str(e)}")
             continue
 
         name = row[1].strip() if len(row) > 1 else None
