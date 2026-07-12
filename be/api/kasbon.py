@@ -452,18 +452,68 @@ async def get_audit_trail(
 
 
 
-from services.kasbon_ai import kasbon_ai_recommendation_logic
-
 @router.post("/ai-recommendation")
 async def ai_recommendation(
     body: AiRecommendationRequest,
     current_user: dict = Depends(get_supabase_bearer_user),
 ):
-    """Gemini 2.5 Flash Vision — comprehensive document + financial analysis.
+    """Return the existing AI analysis stored in the database.
 
-    Analyses the uploaded document image AND all contextual financial data
-    to produce an actionable recommendation for the admin.
+    No LLM call — the AI analysis already ran when the user uploaded
+    the document (via Telegram bot or OtaruChain submit).
+    This endpoint simply reads and formats the stored results.
     """
     sb = _sb()
     _ensure_loan_requests_ready(sb)
-    return await kasbon_ai_recommendation_logic(sb, body.loan_id)
+
+    loan_res = (
+        sb.table("loan_requests")
+        .select("id, nik, nominal_pengajuan, image_url, ai_indicator, ai_fraud_status, ai_fraud_reason, ocr_raw, source, doc_type")
+        .eq("id", body.loan_id)
+        .limit(1)
+        .execute()
+    )
+    loan_rows = getattr(loan_res, "data", None) or []
+    if not loan_rows:
+        raise HTTPException(status_code=404, detail="Loan not found")
+
+    loan = loan_rows[0]
+    ai_ind = loan.get("ai_indicator", "PROCESSING")
+    fraud_st = loan.get("ai_fraud_status")
+    fraud_reason = loan.get("ai_fraud_reason") or "Tidak ada analisis AI tersedia."
+
+    # Compute confidence from stored indicators (same logic as /queue)
+    if ai_ind == "VERIFIED":
+        if fraud_st == "TRUSTED":
+            confidence_pct = 95
+        elif fraud_st == "NEEDS_REVIEW":
+            confidence_pct = 65
+        elif fraud_st == "FRAUD":
+            confidence_pct = 20
+        else:
+            confidence_pct = 85
+    elif ai_ind == "TAMPERED":
+        confidence_pct = 15
+    else:
+        confidence_pct = 50
+
+    # Map fraud status → verdict
+    if fraud_st == "TRUSTED":
+        verdict = "APPROVE"
+        risk = "RENDAH"
+    elif fraud_st == "FRAUD":
+        verdict = "REJECT"
+        risk = "KRITIS"
+    else:
+        verdict = "REVISI"
+        risk = "SEDANG"
+
+    recommendation = {
+        "verdict": verdict,
+        "risk": risk,
+        "confidence_pct": confidence_pct,
+        "text": fraud_reason,
+        "image_analyzed": bool(loan.get("image_url")),
+    }
+
+    return {"success": True, "recommendation": recommendation, "cached": True}
