@@ -186,9 +186,9 @@ async def get_realtime_stats(
 
         # 1.5 Fetch loan_requests (Kasbon) for this user's NIK
         if nik:
-            lq = sa.table("loan_requests").select("status,nominal_pengajuan,created_at").eq("nik", nik)
+            lq = sa.table("loan_requests").select("status,nominal_pengajuan,submitted_at").eq("nik", nik)
             if year:
-                lq = lq.gte("created_at", f"{year}-01-01T00:00:00").lte("created_at", f"{year}-12-31T23:59:59")
+                lq = lq.gte("submitted_at", f"{year}-01-01T00:00:00").lte("submitted_at", f"{year}-12-31T23:59:59")
             loan_rows = (lq.execute().data) or []
             
             for lr in loan_rows:
@@ -204,7 +204,7 @@ async def get_realtime_stats(
                 rows.append({
                     "status": mapped_status,
                     "nominal_total": lr.get("nominal_pengajuan") or 0,
-                    "created_at": lr.get("created_at")
+                    "created_at": lr.get("submitted_at")
                 })
 
         verified = tampered = processing = 0
