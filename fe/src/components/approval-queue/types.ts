@@ -24,6 +24,7 @@ export interface LoanRequest {
   ai_fraud_status: "TRUSTED" | "NEEDS_REVIEW" | "FRAUD" | null;
   ai_fraud_reason: string | null;
   badge_tier?: "SILVER" | "GOLD" | "PLATINUM" | null;
+  confidence_pct?: number;
 }
 
 export const GAMIFICATION_TIER_BADGE: Record<string, string> = {

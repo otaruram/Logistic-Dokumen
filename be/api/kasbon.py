@@ -4,6 +4,7 @@ POST /api/kasbon/process-document  — OCR ingestion via Telegram
 POST /api/kasbon/approve-loan      — Admin approval with SHA-256 seal
 GET  /api/kasbon/queue             — PENDING queue for koperasi admin
 GET  /api/kasbon/history           — User's own loan history
+POST /api/kasbon/ai-recommendation — Gemini Vision comprehensive analysis
 """
 from __future__ import annotations
 
@@ -510,6 +511,23 @@ async def get_approval_queue(current_user: dict = Depends(get_supabase_bearer_us
         elif "silver_integrity" in badges:
             badge_tier = "SILVER"
 
+        # Compute confidence percentage from ai_indicator + ai_fraud_status
+        ai_ind = r.get("ai_indicator", "PROCESSING")
+        fraud_st = r.get("ai_fraud_status")
+        if ai_ind == "VERIFIED":
+            if fraud_st == "TRUSTED":
+                confidence_pct = 95
+            elif fraud_st == "NEEDS_REVIEW":
+                confidence_pct = 65
+            elif fraud_st == "FRAUD":
+                confidence_pct = 20
+            else:
+                confidence_pct = 85
+        elif ai_ind == "TAMPERED":
+            confidence_pct = 15
+        else:  # PROCESSING
+            confidence_pct = 50
+
         result.append({
             **{k: v for k, v in r.items() if k != "ocr_raw"},
             "nama_lengkap": ocr_raw.get("recipient_name") or prof.get("full_name") or "-",
@@ -528,6 +546,7 @@ async def get_approval_queue(current_user: dict = Depends(get_supabase_bearer_us
             "badge_tier": badge_tier,
             "ai_fraud_status": r.get("ai_fraud_status"),
             "ai_fraud_reason": r.get("ai_fraud_reason"),
+            "confidence_pct": confidence_pct,
         })
 
     return {"queue": result, "total": len(result)}
@@ -666,3 +685,281 @@ async def get_audit_trail(
 
 
 
+# ── AI Recommendation — Gemini Vision Comprehensive Analysis ──────────────────
+
+import json as _json
+import re as _re
+from functools import lru_cache
+
+# In-memory cache for AI recommendations (keyed by loan_id)
+_ai_rec_cache: dict[str, dict] = {}
+
+
+class AiRecommendationRequest(BaseModel):
+    loan_id: str
+
+
+def _build_ai_context(loan: dict, profile: dict, approved_total: int, pending_total: int) -> str:
+    """Build a comprehensive financial context string for the AI."""
+    limit = int(profile.get("limit_pinjaman") or 0)
+    sisa_limit = max(0, limit - approved_total)
+    lines = [
+        f"=== KONTEKS KEUANGAN PEMOHON ===",
+        f"Nama Lengkap: {loan.get('nama_lengkap', '-')}",
+        f"Nominal Pengajuan: Rp {int(loan.get('nominal_pengajuan', 0)):,}",
+        f"Kuota Sistem (Limit): Rp {limit:,}",
+        f"Dokumen Aktif (Approved): Rp {approved_total:,}",
+        f"Sisa Kuota Validasi: Rp {sisa_limit:,}",
+        f"Sisa Kredit (poin): {profile.get('credits', 0)}",
+        f"Reservasi Pending: Rp {pending_total:,} (ikut mengurangi sisa kuota sementara)",
+        f"Sisa Kuota Setelah Pending: Rp {max(0, sisa_limit - pending_total):,}",
+        f"No. Referensi: {loan.get('no_referensi', '-')}",
+        f"Tanggal Bergabung: {profile.get('created_at', '-')}",
+        f"DSR Status: {loan.get('dsr_status', '-')}",
+        f"Sumber Dokumen: {loan.get('source', 'CHAIN')}",
+        f"Jenis Dokumen: {loan.get('doc_type', 'receipt')}",
+    ]
+
+    # Badge tier
+    if loan.get("badge_tier"):
+        lines.append(f"Badge Tier (Gamifikasi): {loan['badge_tier']}")
+
+    # AI Fraud pre-analysis
+    if loan.get("ai_fraud_status"):
+        lines.append(f"AI Fraud Status: {loan['ai_fraud_status']}")
+        lines.append(f"AI Fraud Reason: {loan.get('ai_fraud_reason', '-')}")
+
+    # AI indicator
+    lines.append(f"AI Indicator (OCR): {loan.get('ai_indicator', 'PROCESSING')}")
+
+    # Tenor & cicilan
+    if loan.get("tenor_bulan"):
+        lines.append(f"Tenor: {loan['tenor_bulan']} bulan")
+    if loan.get("cicilan_sistem"):
+        lines.append(f"Cicilan Sistem: Rp {int(loan['cicilan_sistem']):,}/bulan")
+
+    return "\n".join(lines)
+
+
+AI_REC_SYSTEM_PROMPT = (
+    "Kamu adalah analis kredit senior untuk lembaga keuangan Indonesia (koperasi). "
+    "Tugas kamu: menganalisis dokumen pengajuan kasbon (foto struk/invoice/slip gaji) "
+    "DAN konteks keuangan pemohon, lalu memberikan rekomendasi kepada admin.\n\n"
+    "ANALISIS YANG HARUS DILAKUKAN:\n"
+    "1. Analisis FOTO DOKUMEN: Periksa keaslian, tanda manipulasi, kualitas cetak, "
+    "   konsistensi font, format tanggal, cap/tanda tangan, dan tanda-tanda pemalsuan.\n"
+    "2. Analisis KEUANGAN: Periksa apakah nominal pengajuan wajar terhadap limit, "
+    "   sisa kuota, DSR status, riwayat kredit, dan badge tier pemohon.\n"
+    "3. Analisis RISIKO: Gabungkan temuan dari foto + keuangan untuk penilaian risiko.\n\n"
+    "ATURAN PENTING:\n"
+    "- Jika nominal pengajuan > sisa kuota validasi = risiko TINGGI\n"
+    "- Jika DSR status = OVER = risiko TINGGI\n"
+    "- Jika AI Fraud Status = FRAUD = risiko KRITIS\n"
+    "- Jika badge tier PLATINUM + dokumen bersih = risiko RENDAH\n\n"
+    "Berikan respons HANYA dalam format JSON tanpa markdown:\n"
+    '{"verdict": "APPROVE" | "REJECT" | "REVISI", '
+    '"risk": "RENDAH" | "SEDANG" | "TINGGI" | "KRITIS", '
+    '"confidence_pct": <integer 0-100, seberapa yakin kamu dengan rekomendasi ini>, '
+    '"text": "Penjelasan detail dalam Bahasa Indonesia, mencakup temuan dari foto DAN analisis keuangan. '
+    'Sebutkan poin-poin penting yang ditemukan."}'
+)
+
+_VALID_VERDICTS = {"APPROVE", "REJECT", "REVISI"}
+_VALID_RISKS = {"RENDAH", "SEDANG", "TINGGI", "KRITIS"}
+
+
+@router.post("/ai-recommendation")
+async def ai_recommendation(
+    body: AiRecommendationRequest,
+    current_user: dict = Depends(get_supabase_bearer_user),
+):
+    """Gemini 2.5 Flash Vision — comprehensive document + financial analysis.
+
+    Analyses the uploaded document image AND all contextual financial data
+    to produce an actionable recommendation for the admin.
+    """
+    # Check cache first
+    if body.loan_id in _ai_rec_cache:
+        cached = _ai_rec_cache[body.loan_id]
+        return {"success": True, "recommendation": cached, "cached": True}
+
+    sb = _sb()
+    _ensure_loan_requests_ready(sb)
+
+    # Fetch full loan record
+    loan_res = (
+        sb.table("loan_requests")
+        .select("id, nik, nominal_pengajuan, image_url, ai_indicator, submitted_at, status, ocr_raw, source, doc_type, ai_fraud_status, ai_fraud_reason")
+        .eq("id", body.loan_id)
+        .limit(1)
+        .execute()
+    )
+    loan_rows = getattr(loan_res, "data", None) or []
+    if not loan_rows:
+        raise HTTPException(status_code=404, detail="Loan not found")
+
+    loan_raw = loan_rows[0]
+    nik = loan_raw.get("nik", "")
+    ocr_raw = loan_raw.get("ocr_raw") or {}
+
+    # Fetch profile
+    profile = {}
+    if nik:
+        prof_res = sb.table("profiles").select("id, nik, full_name, limit_pinjaman, credits, created_at").eq("nik", nik).limit(1).execute()
+        prof_rows = getattr(prof_res, "data", None) or []
+        if prof_rows:
+            profile = prof_rows[0]
+
+    # Calculate active/pending totals
+    approved_total = 0
+    pending_total = 0
+    if nik:
+        active_res = (
+            sb.table("loan_requests")
+            .select("nominal_pengajuan, status")
+            .eq("nik", nik)
+            .in_("status", ["PENDING", "APPROVED"])
+            .execute()
+        )
+        active_rows = getattr(active_res, "data", None) or []
+        for a in active_rows:
+            nominal = int(a.get("nominal_pengajuan") or 0)
+            st = str(a.get("status") or "").upper()
+            if st == "APPROVED":
+                approved_total += nominal
+            elif st == "PENDING":
+                pending_total += nominal
+
+    # Determine badge tier
+    badge_tier = None
+    _prof_id = profile.get("id")
+    if _prof_id:
+        from datetime import datetime, timezone
+        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+        try:
+            b_res = (
+                sb.table("gamification_badges")
+                .select("badge_type")
+                .eq("user_id", str(_prof_id))
+                .eq("month_year", current_month)
+                .execute()
+            )
+            b_rows = getattr(b_res, "data", None) or []
+            badge_types = [b.get("badge_type") for b in b_rows]
+            if "platinum_integrity" in badge_types:
+                badge_tier = "PLATINUM"
+            elif "gold_integrity" in badge_types:
+                badge_tier = "GOLD"
+            elif "silver_integrity" in badge_types:
+                badge_tier = "SILVER"
+        except Exception:
+            pass
+
+    # Build enriched loan context
+    enriched_loan = {
+        **loan_raw,
+        "nama_lengkap": ocr_raw.get("recipient_name") or profile.get("full_name") or "-",
+        "no_referensi": ocr_raw.get("no_referensi") or loan_raw.get("id", "")[:8].upper(),
+        "dsr_status": ocr_raw.get("dsr_status", "AMAN"),
+        "tenor_bulan": ocr_raw.get("tenor_bulan"),
+        "cicilan_sistem": ocr_raw.get("cicilan_sistem"),
+        "badge_tier": badge_tier,
+    }
+
+    context_text = _build_ai_context(enriched_loan, profile, approved_total, pending_total)
+    image_url = loan_raw.get("image_url") or ""
+
+    # Call Gemini Vision
+    try:
+        import google.generativeai as genai
+
+        _GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+        if not _GEMINI_API_KEY:
+            raise HTTPException(status_code=503, detail="GEMINI_API_KEY tidak dikonfigurasi.")
+
+        genai.configure(api_key=_GEMINI_API_KEY)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+
+        # Build message parts
+        parts = [
+            {"text": AI_REC_SYSTEM_PROMPT},
+        ]
+
+        # Try to include the document image via Vision
+        img_included = False
+        if image_url:
+            try:
+                import httpx
+                from PIL import Image as _PILImage
+                import io
+
+                # Synchronous download for simplicity
+                img_resp = requests.get(image_url, timeout=30)
+                img_resp.raise_for_status()
+                img = _PILImage.open(io.BytesIO(img_resp.content))
+                parts.append(img)
+                img_included = True
+                print(f"[AI-Rec] Image loaded from {image_url[:60]}...")
+            except Exception as img_exc:
+                print(f"[AI-Rec] Image load failed: {img_exc}, proceeding text-only")
+
+        if not img_included:
+            parts.append({"text": "\n[CATATAN: Foto dokumen tidak dapat dimuat. Analisis hanya berdasarkan konteks keuangan.]\n"})
+
+        parts.append({"text": f"\n\n{context_text}"})
+
+        response = model.generate_content(
+            parts,
+            generation_config={
+                "temperature": 0.2,
+                "max_output_tokens": 800,
+            },
+        )
+
+        raw = response.text.strip()
+        # Strip markdown code fences if present
+        raw = _re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = _re.sub(r"\s*```$", "", raw)
+
+        json_match = _re.search(r"\{.*\}", raw, _re.DOTALL)
+        if not json_match:
+            raise ValueError(f"No JSON in response: {raw[:200]}")
+
+        parsed = _json.loads(json_match.group())
+
+        verdict = str(parsed.get("verdict", "REVISI")).upper().strip()
+        if verdict not in _VALID_VERDICTS:
+            verdict = "REVISI"
+
+        risk = str(parsed.get("risk", "SEDANG")).upper().strip()
+        if risk not in _VALID_RISKS:
+            risk = "SEDANG"
+
+        confidence = int(parsed.get("confidence_pct", 70))
+        confidence = max(0, min(100, confidence))
+
+        text = str(parsed.get("text", "Analisis tidak tersedia."))
+
+        recommendation = {
+            "verdict": verdict,
+            "risk": risk,
+            "confidence_pct": confidence,
+            "text": text,
+            "image_analyzed": img_included,
+        }
+
+        # Cache the result
+        _ai_rec_cache[body.loan_id] = recommendation
+
+        return {"success": True, "recommendation": recommendation, "cached": False}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print(f"[AI-Rec] Gemini error: {exc}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=502,
+            detail=f"AI analysis failed: {type(exc).__name__}: {str(exc)[:150]}",
+        )

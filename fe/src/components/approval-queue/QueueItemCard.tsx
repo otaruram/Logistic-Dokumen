@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { Info, PenLine, X, AlertCircle, Sparkles } from "lucide-react";
+import { Info, PenLine, X, AlertCircle, Sparkles, Eye } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { APP_CONFIG } from "@/constants";
 import { fmtRp } from "@/lib/formatters";
@@ -29,6 +29,48 @@ function InfoCard({
   );
 }
 
+/* ── Mini circular confidence gauge ──────────────────────────────────── */
+function ConfidenceBadge({ pct }: { pct: number }) {
+  const size = 28;
+  const stroke = 3;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (pct / 100) * circumference;
+
+  let color: string;
+  let bgColor: string;
+  let textColor: string;
+  if (pct >= 80) {
+    color = "#10b981"; // emerald
+    bgColor = "bg-emerald-50";
+    textColor = "text-emerald-700";
+  } else if (pct >= 50) {
+    color = "#f59e0b"; // amber
+    bgColor = "bg-amber-50";
+    textColor = "text-amber-700";
+  } else {
+    color = "#ef4444"; // red
+    bgColor = "bg-red-50";
+    textColor = "text-red-700";
+  }
+
+  return (
+    <div className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 ${bgColor}`} title={`Confidence: ${pct}%`}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e5e7eb" strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={radius}
+          fill="none" stroke={color} strokeWidth={stroke}
+          strokeDasharray={circumference} strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 0.6s ease" }}
+        />
+      </svg>
+      <span className={`text-[10px] font-bold ${textColor} tabular-nums`}>{pct}%</span>
+    </div>
+  );
+}
+
 interface QueueItemCardProps {
   loan: LoanRequest;
   isExpanded: boolean;
@@ -51,6 +93,7 @@ export default function QueueItemCard({
   // AI Recommendation State
   const [aiRecLoading, setAiRecLoading] = useState(false);
   const [aiRecData, setAiRecData] = useState<any>(null);
+  const [aiRecError, setAiRecError] = useState<string | null>(null);
   const [showAiRecModal, setShowAiRecModal] = useState(false);
 
   const fetchAiRecommendation = useCallback(async () => {
@@ -59,23 +102,33 @@ export default function QueueItemCard({
       return;
     }
     setAiRecLoading(true);
+    setAiRecError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-      if (!token) return;
+      if (!token) {
+        setAiRecError("Login diperlukan.");
+        return;
+      }
       const res = await fetch(`${APP_CONFIG.apiUrl}/api/kasbon/ai-recommendation`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ loan_id: loan.id }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+        throw new Error(errBody.detail || `HTTP ${res.status}`);
+      }
       const data = await res.json();
       if (data.success && data.recommendation) {
         setAiRecData({ ...data.recommendation, cached: data.cached });
         setShowAiRecModal(true);
+      } else {
+        throw new Error("Respons AI tidak valid.");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("AI Rec error:", e);
+      setAiRecError(e.message || "Gagal menganalisis.");
     } finally {
       setAiRecLoading(false);
     }
@@ -83,6 +136,9 @@ export default function QueueItemCard({
 
   const sourceConfig = SOURCE_INDICATOR[loan.source] || SOURCE_INDICATOR.CHAIN;
   const fraudConfig = AI_FRAUD_BADGE[loan.ai_fraud_status || "NEEDS_REVIEW"] || AI_FRAUD_BADGE.NEEDS_REVIEW;
+
+  // Confidence percentage for the badge
+  const confidencePct = loan.confidence_pct ?? (loan.ai_indicator === "VERIFIED" ? 85 : loan.ai_indicator === "TAMPERED" ? 15 : 50);
 
   return (
     <div className={`rounded-2xl border border-zinc-200 bg-white overflow-hidden ${sourceConfig.borderStyle}`}>
@@ -135,6 +191,8 @@ export default function QueueItemCard({
           <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${AI_BADGE_STYLE[loan.ai_indicator] ?? ""}`}>
             {loan.ai_indicator}
           </span>
+          {/* Confidence percentage indicator */}
+          <ConfidenceBadge pct={confidencePct} />
           <div className="hidden sm:flex items-center gap-3 ml-2">
             <span className="font-semibold text-zinc-900 text-sm">{fmtRp(loan.nominal_pengajuan)}</span>
             <svg className={`w-4 h-4 text-zinc-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -184,9 +242,12 @@ export default function QueueItemCard({
                 }`}>
                   {fraudConfig.icon} Analisis AI (Gemini)
                 </span>
-                <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wider ${fraudConfig.style}`}>
-                  {fraudConfig.label}
-                </span>
+                <div className="flex items-center gap-2">
+                  <ConfidenceBadge pct={confidencePct} />
+                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wider ${fraudConfig.style}`}>
+                    {fraudConfig.label}
+                  </span>
+                </div>
               </div>
               <p className="text-xs text-zinc-400 leading-relaxed">{loan.ai_fraud_reason || "Tidak ada analisis AI tersedia."}</p>
             </div>
@@ -217,6 +278,23 @@ export default function QueueItemCard({
             <span className="text-xs text-zinc-400">{new Date(loan.submitted_at).toLocaleString("id-ID")}</span>
           </div>
 
+          {/* AI Recommendation Error */}
+          {aiRecError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs text-red-700 font-semibold">Gagal menganalisis AI</p>
+                <p className="text-[11px] text-red-600">{aiRecError}</p>
+              </div>
+              <button
+                onClick={() => setAiRecError(null)}
+                className="ml-auto text-red-400 hover:text-red-600"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2 pt-1">
             <button onClick={(e) => { e.stopPropagation(); onApprove(loan); }} className="inline-flex items-center gap-1.5 rounded-full bg-black px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
@@ -230,7 +308,7 @@ export default function QueueItemCard({
             </button>
             <button onClick={(e) => { e.stopPropagation(); fetchAiRecommendation(); }} disabled={aiRecLoading} className="inline-flex items-center gap-1.5 rounded-full border border-violet-300 bg-violet-50 px-4 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50 transition-colors">
               {aiRecLoading ? <div className="w-3 h-3 border-2 border-violet-300 border-t-violet-700 rounded-full animate-spin" /> : <Sparkles className="h-3 w-3" />}
-              {aiRecLoading ? "Menganalisis..." : "Saran AI"}
+              {aiRecLoading ? "Menganalisis..." : "Analisis AI"}
             </button>
           </div>
         </div>
@@ -272,16 +350,22 @@ export default function QueueItemCard({
 
       {showAiRecModal && aiRecData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={() => setShowAiRecModal(false)}>
-          <div className="w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-lg rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-violet-400" />
-                <h3 className="text-lg font-semibold text-white">Rekomendasi AI</h3>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Analisis AI Komprehensif</h3>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    Gemini 2.5 Flash Vision • {aiRecData.image_analyzed ? "📸 Foto + 📊 Keuangan" : "📊 Keuangan saja"}
+                  </p>
+                </div>
               </div>
               <button onClick={() => setShowAiRecModal(false)} className="text-zinc-500 hover:text-white"><X className="h-4 w-4" /></button>
             </div>
             
-            <div className="flex items-center gap-3 mb-4">
+            {/* Verdict + Risk + Confidence */}
+            <div className="flex flex-wrap items-center gap-3 mb-4">
               <span className={`rounded-full px-4 py-1.5 text-sm font-bold tracking-wide border ${
                 aiRecData.verdict === "APPROVE" ? "bg-emerald-950 text-emerald-400 border-emerald-800"
                 : aiRecData.verdict === "REJECT" ? "bg-red-950 text-red-400 border-red-800"
@@ -296,6 +380,31 @@ export default function QueueItemCard({
               {aiRecData.cached && <span className="text-[10px] text-zinc-600 bg-zinc-800 rounded-full px-2 py-0.5">cached</span>}
             </div>
 
+            {/* Confidence gauge bar */}
+            {aiRecData.confidence_pct != null && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] text-zinc-500 font-medium">Confidence AI</span>
+                  <span className={`text-sm font-bold tabular-nums ${
+                    aiRecData.confidence_pct >= 80 ? "text-emerald-400"
+                    : aiRecData.confidence_pct >= 50 ? "text-amber-400"
+                    : "text-red-400"
+                  }`}>{aiRecData.confidence_pct}%</span>
+                </div>
+                <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      aiRecData.confidence_pct >= 80 ? "bg-emerald-500"
+                      : aiRecData.confidence_pct >= 50 ? "bg-amber-500"
+                      : "bg-red-500"
+                    }`}
+                    style={{ width: `${aiRecData.confidence_pct}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Summary info */}
             <div className="bg-zinc-800/50 rounded-xl p-3 space-y-1.5 mb-4">
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-500">Pemohon</span>
@@ -309,8 +418,23 @@ export default function QueueItemCard({
                 <span className="text-zinc-500">Sumber</span>
                 <span className="text-zinc-300 font-medium">{sourceConfig.label}</span>
               </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-zinc-500">Sisa Kuota</span>
+                <span className={`font-medium ${loan.sisa_limit <= 0 ? "text-red-400" : "text-emerald-400"}`}>{fmtRp(loan.sisa_limit)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-zinc-500">DSR</span>
+                <span className={`font-medium ${loan.dsr_status === "OVER" ? "text-red-400" : "text-emerald-400"}`}>{loan.dsr_status ?? "-"}</span>
+              </div>
+              {aiRecData.image_analyzed && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Foto Dokumen</span>
+                  <span className="text-violet-400 font-medium flex items-center gap-1"><Eye className="h-3 w-3" /> Dianalisis</span>
+                </div>
+              )}
             </div>
 
+            {/* Analysis text */}
             <div className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-4 text-sm text-zinc-300 leading-relaxed whitespace-pre-line">
               {aiRecData.text}
             </div>
