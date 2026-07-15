@@ -242,7 +242,7 @@ export default function WhitelistManagement() {
     if (!val) return "-";
     const d = new Date(val);
     if (isNaN(d.getTime())) return val;
-    return new Intl.TanggalTimeFormat("id-ID", {
+    return new Intl.DateTimeFormat("id-ID", {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(d);

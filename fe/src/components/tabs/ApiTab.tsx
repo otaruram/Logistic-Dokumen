@@ -42,7 +42,7 @@ const formatTanggal = (value?: string | null) => {
   if (!value) return "Belum pernah dipakai";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.TanggalTimeFormat("id-ID", {
+  return new Intl.DateTimeFormat("id-ID", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);

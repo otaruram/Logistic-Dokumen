@@ -140,7 +140,7 @@ function fmtTanggal(value?: string | null): string {
   if (!value) return 'Belum pernah dipakai';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.TanggalTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
 function isMaskedKey(value?: string | null): boolean {

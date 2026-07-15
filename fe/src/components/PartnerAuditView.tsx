@@ -109,7 +109,7 @@ function fmtNominal(value: number): string {
 
 function fmtTanggal(isoStr: string): string {
   try {
-    return new Intl.TanggalTimeFormat("id-ID", {
+    return new Intl.DateTimeFormat("id-ID", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -123,7 +123,7 @@ function fmtTanggal(isoStr: string): string {
 
 function fmtShortTanggal(isoStr: string): string {
   try {
-    return new Intl.TanggalTimeFormat("id-ID", {
+    return new Intl.DateTimeFormat("id-ID", {
       day: "2-digit",
       month: "short",
     }).format(new Date(isoStr));
