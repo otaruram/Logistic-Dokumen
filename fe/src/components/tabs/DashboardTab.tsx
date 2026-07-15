@@ -660,33 +660,25 @@ const DashboardTab = () => {
         setAuditTrail([]);
         return;
       }
-      const res = await fetch(`${API_URL}/api/kasbon/audit-trail?scope=all`, {
+      // Blue collar user only sees their own data
+      const res = await fetch(`${API_URL}/api/kasbon/history`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
-      if (!res.ok) {
-        // Fallback to user history if audit-trail is admin-only
-        const fallbackRes = await fetch(`${API_URL}/api/kasbon/history`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (fallbackRes.ok) {
-          const fallbackData = await fallbackRes.json();
-          const history = (fallbackData?.history || []).map((h: any) => ({
-            id: h.id,
-            date: h.submitted_at,
-            workerName: "Anda",
-            nominal: h.nominal_pengajuan || 0,
-            status: h.status,
-            fileUrl: "",
-            hash: h.sha256_hash || "",
-          }));
-          setAuditTrail(history);
-        } else {
-          setAuditTrail([]);
-        }
-        return;
+      if (res.ok) {
+        const data = await res.json();
+        const history = (data?.history || []).map((h: any) => ({
+          id: h.id,
+          date: h.submitted_at,
+          workerName: "Anda",
+          nominal: h.nominal_pengajuan || 0,
+          status: h.status,
+          fileUrl: h.image_url || "",
+          hash: h.sha256_hash || "",
+        }));
+        setAuditTrail(history);
+      } else {
+        setAuditTrail([]);
       }
-      const data = await res.json();
-      setAuditTrail(data?.transactions || []);
     } catch {
       setAuditTrail([]);
     } finally {
