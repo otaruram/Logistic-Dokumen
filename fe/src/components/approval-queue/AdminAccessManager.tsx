@@ -26,7 +26,7 @@ export default function AdminAccessManager({ showModal, onClose, onRequestsUpdat
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const res = await fetch(`${APP_CONFIG.apiUrl}/kasbon/admin-access-requests`, {
+      const res = await fetch(`${APP_CONFIG.apiUrl}/api/kasbon/admin-access-requests`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (res.ok) {
@@ -42,7 +42,7 @@ export default function AdminAccessManager({ showModal, onClose, onRequestsUpdat
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const res = await fetch(`${APP_CONFIG.apiUrl}/kasbon/authorized-admins`, {
+      const res = await fetch(`${APP_CONFIG.apiUrl}/api/kasbon/authorized-admins`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (res.ok) {
@@ -56,7 +56,7 @@ export default function AdminAccessManager({ showModal, onClose, onRequestsUpdat
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const res = await fetch(`${APP_CONFIG.apiUrl}/kasbon/approve-admin-access`, {
+      const res = await fetch(`${APP_CONFIG.apiUrl}/api/kasbon/approve-admin-access`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -83,7 +83,7 @@ export default function AdminAccessManager({ showModal, onClose, onRequestsUpdat
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const res = await fetch(`${APP_CONFIG.apiUrl}/kasbon/authorized-admins`, {
+      const res = await fetch(`${APP_CONFIG.apiUrl}/api/kasbon/authorized-admins`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -111,7 +111,7 @@ export default function AdminAccessManager({ showModal, onClose, onRequestsUpdat
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const res = await fetch(`${APP_CONFIG.apiUrl}/kasbon/authorized-admins/${encodeURIComponent(email)}`, {
+      const res = await fetch(`${APP_CONFIG.apiUrl}/api/kasbon/authorized-admins/${encodeURIComponent(email)}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
