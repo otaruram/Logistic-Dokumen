@@ -87,7 +87,7 @@ export default function WhitelistManagement() {
     setLoading(true);
     try {
       const headers = await getAuthHeader();
-      const params = new URLCariParams({
+      const params = new URLSearchParams({
         page: String(page),
         per_page: String(PER_PAGE),
       });
@@ -184,7 +184,7 @@ export default function WhitelistManagement() {
       const formData = new FormData();
       formData.append("file", bulkFile);
 
-      const params = new URLCariParams({ company_id: bulkCompany });
+      const params = new URLSearchParams({ company_id: bulkCompany });
       const res = await fetch(
         `${API}/api/v1/admin/whitelist/bulk?${params}`,
         {

@@ -3,7 +3,7 @@ import { TabType } from "@/types";
 
 export const useTabNavigation = (initialTab: TabType = "dashboard") => {
   const [activeTab, setActiveTabState] = useState<TabType>(() => {
-    const params = new URLCariParams(window.location.search);
+    const params = new URLSearchParams(window.location.search);
     const tabParam = params.get("tab");
     return (tabParam as TabType) || initialTab;
   });
@@ -11,7 +11,7 @@ export const useTabNavigation = (initialTab: TabType = "dashboard") => {
   // Listen for popstate (back/forward navigation)
   useEffect(() => {
     const handlePopState = () => {
-      const params = new URLCariParams(window.location.search);
+      const params = new URLSearchParams(window.location.search);
       const tabParam = params.get("tab");
       setActiveTabState((tabParam as TabType) || initialTab);
     };

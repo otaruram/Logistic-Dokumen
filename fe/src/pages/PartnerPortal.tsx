@@ -211,14 +211,14 @@ export default function PartnerPortal() {
   const [userId, setUserId] = useState<string | null>(null);
   
   const [activeView, setActiveViewState] = useState<PartnerView>(() => {
-    const params = new URLCariParams(window.location.search);
+    const params = new URLSearchParams(window.location.search);
     const viewParam = params.get("view");
     return (viewParam as PartnerView) || "dashboard";
   });
 
   useEffect(() => {
     const handlePopState = () => {
-      const params = new URLCariParams(window.location.search);
+      const params = new URLSearchParams(window.location.search);
       const viewParam = params.get("view");
       setActiveViewState((viewParam as PartnerView) || "dashboard");
     };
