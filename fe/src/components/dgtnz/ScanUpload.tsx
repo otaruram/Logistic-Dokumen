@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useState } from "react";
 
-interface ScanUnggahProps {
+interface ScanUploadProps {
     uploadedImage: File | null;
     previewUrl: string | null;
     isMemproses: boolean;
@@ -53,7 +53,7 @@ const compressImage = (file: File): Promise<File> => {
 };
 
 
-export const ScanUnggah = ({ uploadedImage, previewUrl, isMemproses, onImageSelect, onClear }: ScanUnggahProps) => {
+export const ScanUpload = ({ uploadedImage, previewUrl, isMemproses, onImageSelect, onClear }: ScanUploadProps) => {
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

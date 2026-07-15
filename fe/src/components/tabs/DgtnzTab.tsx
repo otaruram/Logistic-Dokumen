@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ScanUnggah } from "../dgtnz/ScanUnggah";
+import { ScanUpload } from "../dgtnz/ScanUpload";
 import { ValidationZone } from "../dgtnz/ValidationZone";
 import { FraudScanHistory } from "../dgtnz/FraudScanHistory";
 import { EditScanDialog } from "../dgtnz/EditScanDialog";
@@ -402,7 +402,7 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Unggah */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="h-full">
-          <ScanUnggah
+          <ScanUpload
             uploadedImage={uploadedImage}
             previewUrl={previewUrl}
             isMemproses={isMemproses}
