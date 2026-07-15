@@ -3,11 +3,11 @@ import random
 from utils.auth import supabase_admin
 
 async def seed():
-    print("Seeding 25 random phone numbers into whitelist...")
+    print("Seeding 200 random phone numbers into whitelist...")
     prefixes = ["0812", "0813", "0821", "0822", "0852", "0853", "0857", "0858", "0878", "0877"]
     
     records = []
-    for i in range(25):
+    for i in range(200):
         prefix = random.choice(prefixes)
         suffix = "".join([str(random.randint(0, 9)) for _ in range(8)])
         phone = f"{prefix}{suffix}"

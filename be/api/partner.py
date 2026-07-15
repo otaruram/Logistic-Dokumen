@@ -264,16 +264,34 @@ async def autofill_phone_number(request: Request):
     except Exception:
         pass
 
-    # Fallback: generate random test phone
-    import random
-    prefixes = ["0812", "0813", "0821", "0822", "0852", "0853", "0857", "0858", "0878", "0877"]
-    prefix = random.choice(prefixes)
-    suffix = "".join([str(random.randint(0, 9)) for _ in range(8)])
-    test_phone = f"{prefix}{suffix}"
+    # Fallback: pick an unused whitelisted phone (not yet linked to any profile)
+    try:
+        sb = supabase_admin
+        # Get all active whitelist phones
+        wl_res = sb.table("employee_whitelist").select("phone_number").eq("is_active", True).limit(500).execute()
+        wl_phones = {r["phone_number"] for r in (getattr(wl_res, "data", None) or [])}
+
+        # Get all phones already claimed in profiles
+        pr_res = sb.table("profiles").select("phone_number").not_.is_("phone_number", "null").execute()
+        used_phones = {r["phone_number"] for r in (getattr(pr_res, "data", None) or []) if r.get("phone_number")}
+
+        available = list(wl_phones - used_phones)
+        if available:
+            import random
+            chosen = random.choice(available)
+            return PhoneAutoFillResponse(
+                phone_number=chosen,
+                source="whitelist",
+                message="Nomor HP dari whitelist Koperasi yang tersedia.",
+            )
+    except Exception:
+        pass
+
+    # Last resort fallback: return demo number
     return PhoneAutoFillResponse(
-        phone_number=test_phone,
-        source="generated",
-        message="Phone number siap dipakai untuk Partner API key.",
+        phone_number="+6281234567890",
+        source="demo",
+        message="Nomor demo default.",
     )
 
 

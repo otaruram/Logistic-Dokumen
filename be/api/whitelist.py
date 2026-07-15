@@ -485,10 +485,17 @@ async def delete_whitelist_entry(
 @router.get('/api/v1/sandbox/whitelist-random', tags=['Sandbox'])
 async def get_sandbox_whitelist_numbers():
     sb = _get_sb()
-    res = sb.table('employee_whitelist').select('phone_number').eq('is_active', True).limit(100).execute()
-    rows = getattr(res, 'data', None) or []
-    phones = [r['phone_number'] for r in rows]
-    if not phones:
-        phones = ['+6281234567890']
-    return {'phones': phones}
+    # Get active whitelist phones
+    res = sb.table('employee_whitelist').select('phone_number').eq('is_active', True).limit(500).execute()
+    wl_phones = {r['phone_number'] for r in (getattr(res, 'data', None) or [])}
+
+    # Get phones already claimed in profiles
+    pr_res = sb.table('profiles').select('phone_number').not_.is_('phone_number', 'null').execute()
+    used_phones = {r['phone_number'] for r in (getattr(pr_res, 'data', None) or []) if r.get('phone_number')}
+
+    # Only return available (unused) phones
+    available = list(wl_phones - used_phones)
+    if not available:
+        available = ['+6281234567890']
+    return {'phones': available}
 
