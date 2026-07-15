@@ -9,20 +9,20 @@ export default function Login() {
 
   // Google Login dengan Drive scope
   const loginWithDrive = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
+    onSuccess: async (tokenRespons) => {
       try {
         // Get user info dari Google
-        const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+        const userInfoRespons = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${tokenRespons.access_token}` },
         });
-        const userInfo = await userInfoResponse.json();
+        const userInfo = await userInfoRespons.json();
         
         const user = {
           email: userInfo.email,
           name: userInfo.name,
           picture: userInfo.picture,
-          credential: tokenResponse.access_token, // Save access token
-          driveToken: tokenResponse.access_token, // Explicitly save for Drive
+          credential: tokenRespons.access_token, // Save access token
+          driveToken: tokenRespons.access_token, // Explicitly save for Drive
         };
 
         localStorage.setItem('user', JSON.stringify(user));
@@ -144,7 +144,7 @@ export default function Login() {
             {/* Footer */}
             <div className="text-center border-t-2 border-black pt-6 mt-6">
               <p className="font-mono text-xs text-black/60">
-                © {new Date().getFullYear()} OtaruChain - Scan Dokumen Tanpa Ribet
+                © {new Tanggal().getFullYear()} OtaruChain - Scan Dokumen Tanpa Ribet
               </p>
             </div>
           </div>

@@ -1,9 +1,9 @@
 import React, { useState, useCallback } from "react";
-import { ArrowRight, Search, CheckCircle2, AlertCircle, RefreshCw, Wand2, Loader2, Shield, User, FileCheck, Lock, ExternalLink } from "lucide-react";
+import { ArrowRight, Cari, CheckCircle2, AlertCircle, RefreshCw, Wand2, Loader2, Shield, User, FileCheck, Lock, ExternalLink } from "lucide-react";
 import PartnerAuditView from "@/components/PartnerAuditView";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function PartnerPlaygrounds({
+export default function PartnerUji Coba (Playground)s({
   apiKey,
   decisionApiKey,
   API,
@@ -16,10 +16,10 @@ export default function PartnerPlaygrounds({
 }) {
 
 
-  const [decisionSearchPhone, setDecisionSearchPhone] = useState("");
-  const [decisionSearchLoading, setDecisionSearchLoading] = useState(false);
-  const [decisionSearchError, setDecisionSearchError] = useState<string | null>(null);
-  const [decisionSearchResult, setDecisionSearchResult] = useState<any | null>(null);
+  const [decisionCariPhone, setDecisionCariPhone] = useState("");
+  const [decisionCariLoading, setDecisionCariLoading] = useState(false);
+  const [decisionCariError, setDecisionCariError] = useState<string | null>(null);
+  const [decisionCariHasil, setDecisionCariHasil] = useState<any | null>(null);
 
   const [autoFillLoading, setAutoFillLoading] = useState(false);
 
@@ -30,7 +30,7 @@ export default function PartnerPlaygrounds({
       if (!session) return;
       const { data } = await supabase.from("profiles").select("phone_number").eq("id", session.user.id).single();
       if (data?.phone_number) {
-        setDecisionSearchPhone(data.phone_number);
+        setDecisionCariPhone(data.phone_number);
       }
     } catch {
       // ignore
@@ -39,19 +39,19 @@ export default function PartnerPlaygrounds({
     }
   }, []);
 
-  const handleDecisionSearch = useCallback(
+  const handleDecisionCari = useCallback(
     async (event: React.FormEvent) => {
       event.preventDefault();
-      const phoneValue = decisionSearchPhone.trim().replace(/\+62/, "0").replace(/[-\s]/g, "");
+      const phoneValue = decisionCariPhone.trim().replace(/\+62/, "0").replace(/[-\s]/g, "");
       if (!phoneValue || !decisionApiKey) return;
       if (!/^0\d{9,12}$/.test(phoneValue)) {
-        setDecisionSearchError("Nomor HP harus format 08xxxxxxxxxx (10-13 digit).");
+        setDecisionCariError("Nomor HP harus format 08xxxxxxxxxx (10-13 digit).");
         return;
       }
 
-      setDecisionSearchLoading(true);
-      setDecisionSearchError(null);
-      setDecisionSearchResult(null);
+      setDecisionCariLoading(true);
+      setDecisionCariError(null);
+      setDecisionCariHasil(null);
 
       try {
         const response = await fetch(
@@ -59,30 +59,30 @@ export default function PartnerPlaygrounds({
           { headers: { "x-api-key": decisionApiKey?.key_value ?? "" } }
         );
         if (response.ok) {
-          setDecisionSearchResult(await response.json());
+          setDecisionCariHasil(await response.json());
         } else if (response.status === 404) {
-          setDecisionSearchError("User dengan nomor HP tersebut tidak ditemukan.");
+          setDecisionCariError("User dengan nomor HP tersebut tidak ditemukan.");
         } else if (response.status === 401) {
-          setDecisionSearchError("API key tidak valid atau sudah tidak aktif.");
+          setDecisionCariError("API key tidak valid atau sudah tidak aktif.");
         } else if (response.status === 403) {
           const err = await response.json().catch(() => null);
-          setDecisionSearchError(err?.detail || "User belum memberikan consent data (UU PDP).");
+          setDecisionCariError(err?.detail || "User belum memberikan consent data (UU PDP).");
         } else {
-          setDecisionSearchError("Terjadi error saat mengambil decision score.");
+          setDecisionCariError("Terjadi error saat mengambil decision score.");
         }
       } catch {
-        setDecisionSearchError("Network error. Coba lagi.");
+        setDecisionCariError("Network error. Coba lagi.");
       } finally {
-        setDecisionSearchLoading(false);
+        setDecisionCariLoading(false);
       }
     },
-    [decisionSearchPhone, decisionApiKey, API]
+    [decisionCariPhone, decisionApiKey, API]
   );
 
   if (!decisionApiKey) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center text-zinc-500">
-        Generate API key terlebih dahulu untuk menggunakan Playgrounds.
+        Generate API key terlebih dahulu untuk menggunakan Uji Coba (Playground)s.
       </div>
     );
   }
@@ -105,37 +105,37 @@ export default function PartnerPlaygrounds({
       <div className="grid gap-5 lg:grid-cols-1">
         <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Playground</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Uji Coba (Playground)</p>
             <h2 className="mt-1 text-xl font-semibold text-zinc-900">Unified Decision Gate</h2>
           </div>
           <p className="mt-2 text-xs text-zinc-600">Gabungan chain + financial info menjadi 1 final grade & rekomendasi.</p>
-        <form onSubmit={handleDecisionSearch} className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <form onSubmit={handleDecisionCari} className="mt-4 flex flex-col gap-2 sm:flex-row">
           <input
             type="tel"
             inputMode="numeric"
             maxLength={13}
-            value={decisionSearchPhone}
-            onChange={(event) => setDecisionSearchPhone(event.target.value.replace(/[^\d+]/g, "").slice(0, 13))}
+            value={decisionCariPhone}
+            onChange={(event) => setDecisionCariPhone(event.target.value.replace(/[^\d+]/g, "").slice(0, 13))}
             placeholder="08xxxx"
             className="w-full rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
           />
           <button
             type="submit"
-            disabled={!decisionSearchPhone || !decisionApiKey || decisionSearchLoading}
+            disabled={!decisionCariPhone || !decisionApiKey || decisionCariLoading}
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
           >
-            {decisionSearchLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            {decisionCariLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Cari className="h-4 w-4" />}
           </button>
         </form>
 
-        {decisionSearchError && (
+        {decisionCariError && (
           <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            {decisionSearchError}
+            {decisionCariError}
           </div>
         )}
 
-        {decisionSearchResult && (() => {
-          const d = decisionSearchResult;
+        {decisionCariHasil && (() => {
+          const d = decisionCariHasil;
           const fd = d.final_decision ?? {};
           const pd = d.personal_data ?? {};
           const kyc = d.kyc_media ?? {};
@@ -177,7 +177,7 @@ export default function PartnerPlaygrounds({
             <div className="rounded-xl border border-zinc-200 bg-white p-4">
               <div className="flex items-center gap-2 mb-3">
                 <User className="h-4 w-4 text-emerald-600" />
-                <span className="text-xs font-bold uppercase tracking-widest text-emerald-700">Identitas Karyawan (Verified)</span>
+                <span className="text-xs font-bold uppercase tracking-widest text-emerald-700">Identitas Karyawan (Terverifikasi)</span>
               </div>
               <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                 <div><span className="text-zinc-500">Nama Lengkap:</span> <span className="font-semibold text-zinc-900">{pd.full_name || "—"}</span></div>
@@ -198,9 +198,9 @@ export default function PartnerPlaygrounds({
                 </div>
                 <div className="space-y-2">
                   {[
-                    ["Verified Docs", chain.verified_docs ?? 0, "text-emerald-700"],
-                    ["Processing Docs", chain.processing_docs ?? 0, "text-amber-600"],
-                    ["Tampered Docs", chain.tampered_docs ?? 0, "text-red-600"],
+                    ["Terverifikasi Docs", chain.verified_docs ?? 0, "text-emerald-700"],
+                    ["Memproses Docs", chain.processing_docs ?? 0, "text-amber-600"],
+                    ["Dimanipulasi Docs", chain.tampered_docs ?? 0, "text-red-600"],
                     ["Fraud Flags", chain.fraud_flags ?? 0, "text-red-600"],
                   ].map(([label, val, cls]) => (
                     <div key={String(label)} className="flex justify-between text-sm"><span className="text-zinc-500">{label}</span><span className={`font-bold ${cls}`}>{String(val)}</span></div>
@@ -214,7 +214,7 @@ export default function PartnerPlaygrounds({
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm"><span className="text-zinc-500">DSR Ratio</span><span className="font-bold text-amber-600">{fin.dsr_percent ?? 0}%</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-500">Verified Income</span><span className="font-bold text-zinc-900">{fmtNominal(fin.verified_income ?? 0)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-500">Terverifikasi Income</span><span className="font-bold text-zinc-900">{fmtNominal(fin.verified_income ?? 0)}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-zinc-500">Active Installments</span><span className="font-bold text-zinc-900">{fmtNominal(fin.active_installments ?? 0)}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-zinc-500">Plafon Aman</span><span className="font-bold text-emerald-600">{fmtNominal(fin.sisa_plafon ?? 0)}</span></div>
                 </div>

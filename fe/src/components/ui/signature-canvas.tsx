@@ -160,9 +160,9 @@ const SignatureCanvas = ({ value, onChange, disabled = false, backgroundImage }:
             onPointerDown={startDrawing}
             onPointerMove={draw}
             onPointerUp={stopDrawing}
-            onPointerCancel={stopDrawing}
+            onPointerBatal={stopDrawing}
             style={{
-              touchAction: "none",
+              touchAksi: "none",
               backgroundColor: "#fff"
             }}
           />

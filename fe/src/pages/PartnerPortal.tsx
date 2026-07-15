@@ -2,9 +2,9 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import PartnerAuditView from "@/components/PartnerAuditView";
 import ApprovalQueueTab from "@/components/tabs/ApprovalQueueTab";
 import PartnerDocsTab from "@/components/tabs/PartnerDocsTab";
-import PartnerPricingTab from "@/components/tabs/PartnerPricingTab";
-import PartnerDashboardTab from "@/components/tabs/PartnerDashboardTab";
-import PartnerPlaygrounds from "@/components/tabs/PartnerPlaygrounds";
+import PartnerHargaTab from "@/components/tabs/PartnerHargaTab";
+import PartnerDasborTab from "@/components/tabs/PartnerDasborTab";
+import PartnerUji Coba (Playground)s from "@/components/tabs/PartnerUji Coba (Playground)s";
 import PartnerApiKeysView from "@/components/tabs/PartnerApiKeysView";
 import PartnerAuditTrailTab from "@/components/tabs/PartnerAuditTrailTab";
 import WhitelistManagement from "@/components/tabs/WhitelistManagement";
@@ -17,12 +17,12 @@ import {
   ClipboardList,
   Copy,
   KeyRound,
-  LayoutDashboard,
+  LayoutDasbor,
   Mail,
   PenLine,
   Shield,
   RefreshCw,
-  Search,
+  Cari,
   ShieldCheck,
   TerminalSquare,
   Trash2,
@@ -30,7 +30,7 @@ import {
   Wallet,
   X,
   Wand2,
-  Home,
+  Beranda,
   User,
   LogOut,
   Menu,
@@ -71,9 +71,9 @@ interface ScanSummary {
 
 // Full audit data from /api/partner/v1/user-audit/{email}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AuditResult = any; // matches AuditData in PartnerAuditView
+type AuditHasil = any; // matches AuditData in PartnerAuditView
 
-interface ScoringResult {
+interface ScoringHasil {
   email: string;
   user_id: string;
   trust_score: number;
@@ -85,7 +85,7 @@ interface ScoringResult {
   recent_scans: ScanSummary[];
 }
 
-interface DecisionGateResult {
+interface DecisionGateHasil {
   phone_number: string;
   nik: string;
   full_name: string;
@@ -136,11 +136,11 @@ function fmtNominal(value: number): string {
   return `Rp ${fmt(value)}`;
 }
 
-function fmtDate(value?: string | null): string {
+function fmtTanggal(value?: string | null): string {
   if (!value) return 'Belum pernah dipakai';
-  const date = new Date(value);
+  const date = new Tanggal(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  return new Intl.TanggalTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
 function isMaskedKey(value?: string | null): boolean {
@@ -204,21 +204,21 @@ export default function PartnerPortal() {
   // Gamification badge progress
   const [badgeProgress, setBadgeProgress] = useState<BadgeProgress | null>(null);
 
-  // API Credits tracking
-  const [apiCredits, setApiCredits] = useState<number | null>(null);
+  // API Kredit tracking
+  const [apiKredit, setApiKredit] = useState<number | null>(null);
 
   const [session, setSession] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
   
   const [activeView, setActiveViewState] = useState<PartnerView>(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLCariParams(window.location.search);
     const viewParam = params.get("view");
     return (viewParam as PartnerView) || "dashboard";
   });
 
   useEffect(() => {
     const handlePopState = () => {
-      const params = new URLSearchParams(window.location.search);
+      const params = new URLCariParams(window.location.search);
       const viewParam = params.get("view");
       setActiveViewState((viewParam as PartnerView) || "dashboard");
     };
@@ -260,34 +260,34 @@ export default function PartnerPortal() {
     enterprise: 10000,
   };
 
-  const [maxApiCredits, setMaxApiCredits] = useState(50);
+  const [maxApiKredit, setMaxApiKredit] = useState(50);
 
   useEffect(() => {
     if (!userId) {
-      setApiCredits(null);
+      setApiKredit(null);
       return;
     }
     // Read partner_api_credits to determine remaining quota, and subscription_plan for max quota
     supabase.from('profiles').select('subscription_plan, partner_api_credits').eq('id', userId).single()
       .then(({ data }) => {
         const plan = data?.subscription_plan ?? 'free';
-        setMaxApiCredits(PARTNER_QUOTA[plan] ?? 50);
-        setApiCredits(data?.partner_api_credits ?? 50);
+        setMaxApiKredit(PARTNER_QUOTA[plan] ?? 50);
+        setApiKredit(data?.partner_api_credits ?? 50);
       })
       .catch(() => {
-        setApiCredits(50);
-        setMaxApiCredits(50);
+        setApiKredit(50);
+        setMaxApiKredit(50);
       });
 
     // Real-time: if partner_api_credits or subscription_plan changes
     const channel = supabase.channel(`partner-quota:${userId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` }, (payload) => {
         const plan = (payload.new as any)?.subscription_plan ?? 'free';
-        setMaxApiCredits(PARTNER_QUOTA[plan] ?? 50);
+        setMaxApiKredit(PARTNER_QUOTA[plan] ?? 50);
         
         const credits = (payload.new as any)?.partner_api_credits;
         if (credits !== undefined) {
-          setApiCredits(credits);
+          setApiKredit(credits);
         }
       })
       .subscribe();
@@ -303,7 +303,7 @@ export default function PartnerPortal() {
     return () => window.removeEventListener("click", close);
   }, [showProfileMenu]);
 
-  const handleLogout = async () => {
+  const handleKeluar = async () => {
     await supabase.auth.signOut();
     window.location.href = "/";
   };
@@ -583,7 +583,7 @@ export default function PartnerPortal() {
             )}
             <div>
               <Link to="/" className="text-lg font-semibold tracking-tight">OtaruChain</Link>
-              <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">Partner Portal</p>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">Portal Mitra</p>
             </div>
           </div>
 
@@ -595,26 +595,26 @@ export default function PartnerPortal() {
                 onClick={handlePartnerLogin}
                 className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-400"
               >
-                Sign In
+                Masuk
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
             ) : (
               <div className="flex items-center gap-2 sm:gap-3">
-                {apiCredits !== null && (
+                {apiKredit !== null && (
                   <div className="flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1.5 sm:px-3 text-xs font-semibold text-blue-700 shadow-sm transition-all cursor-help" title="Sisa Kuota API Validation (Realtime)">
                     <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
-                    <span className="hidden sm:inline-block">{apiCredits} / {maxApiCredits} Req</span>
-                    <span className="inline-block sm:hidden">{apiCredits}</span>
+                    <span className="hidden sm:inline-block">{apiKredit} / {maxApiKredit} Req</span>
+                    <span className="inline-block sm:hidden">{apiKredit}</span>
                   </div>
                 )}
                 <button
                   onClick={() => {
                     window.location.href = "/";
                   }}
-                  title="Ke Dashboard Utama"
+                  title="Ke Dasbor Utama"
                   className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white p-2 text-zinc-700 hover:border-zinc-400 transition-colors"
                 >
-                  <Home className="h-4 w-4" />
+                  <Beranda className="h-4 w-4" />
                 </button>
 
                 <div className="relative">
@@ -635,11 +635,11 @@ export default function PartnerPortal() {
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button
-                        onClick={handleLogout}
+                        onClick={handleKeluar}
                         className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-zinc-50 transition-colors"
                       >
                         <LogOut className="h-4 w-4" />
-                        Logout
+                        Keluar
                       </button>
                     </div>
                   )}
@@ -694,12 +694,12 @@ export default function PartnerPortal() {
               <nav className="flex flex-col gap-2">
                 {(
                   [
-                    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+                    { id: "dashboard", label: "Dasbor", icon: LayoutDasbor },
                     { id: "api", label: "API Key", icon: KeyRound },
                     { id: "docs", label: "Docs", icon: TerminalSquare },
-                    { id: "pricing", label: "Pricing", icon: Wallet },
+                    { id: "pricing", label: "Harga", icon: Wallet },
                     { id: "queue", label: "Approval Queue", icon: ClipboardList },
-                    { id: "audit-trail", label: "Audit Trail", icon: BarChart3 },
+                    { id: "audit-trail", label: "Jejak Audit", icon: BarChart3 },
                     { id: "whitelist", label: "Whitelist HP", icon: Users },
                   ] as Array<{ id: PartnerView; label: string; icon: React.ComponentType<{ className?: string }> }>
                 ).map((item) => {
@@ -745,7 +745,7 @@ export default function PartnerPortal() {
         ) : (
           <>
             {activeView === "dashboard" && (
-              <PartnerDashboardTab stats={stats} setActiveView={setActiveView as any} />
+              <PartnerDasborTab stats={stats} setActiveView={setActiveView as any} />
             )}
 
             {activeView === "api" && (
@@ -757,7 +757,7 @@ export default function PartnerPortal() {
                   decisionApiKeyLoading={decisionApiKeyLoading}
                   pageLoading={pageLoading}
                   authError={authError}
-                  fmtDate={fmtDate}
+                  fmtTanggal={fmtTanggal}
                   isMaskedKey={isMaskedKey}
                   generateKey={generateKey}
                   generateDecisionKey={generateDecisionKey}
@@ -771,7 +771,7 @@ export default function PartnerPortal() {
                   onSavePhone={saveProfilePhone}
                 />
 
-                <PartnerPlaygrounds
+                <PartnerUji Coba (Playground)s
                   apiKey={apiKey}
                   decisionApiKey={decisionApiKey}
                   API={API}
@@ -793,7 +793,7 @@ export default function PartnerPortal() {
             )}
 
             {activeView === "pricing" && (
-              <PartnerPricingTab
+              <PartnerHargaTab
                 checkoutError={checkoutError}
                 checkoutLoadingPlan={checkoutLoadingPlan}
                 handleCheckout={handleCheckout}

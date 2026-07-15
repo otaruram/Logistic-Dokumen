@@ -1,11 +1,11 @@
 /**
- * FinancialTab — Otaru Financial Dashboard
- * Mode: Manual Input (profil, cicilan) + OCR Upload (slip gaji / struk belanja)
+ * FinancialTab — Otaru Financial Dasbor
+ * Mode: Manual Input (profil, cicilan) + OCR Unggah (slip gaji / struk belanja)
  */
 
 import { useState, useEffect, useRef } from "react";
 import {
-  TrendingUp, Upload, FileText, Trash2,
+  TrendingUp, Unggah, FileText, Trash2,
   AlertCircle, CheckCircle2, Loader2,
   Wallet, BarChart3, ShieldCheck, RefreshCw, Camera,
   Download, MessageSquare, Send,
@@ -97,7 +97,7 @@ export default function FinancialTab() {
 
   // Tanya Otaru chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { role: "otaru", text: "Halo! Saya Otaru, konsultan keuangan personalmu. Tanyakan apa saja tentang Trust Score, Otaru Index, atau strategi keuanganmu. Saya punya akses ke semua data profilmu." }
+    { role: "otaru", text: "Halo! Saya Otaru, konsultan keuangan personalmu. Tanyakan apa saja tentang Skor Kepercayaan, Otaru Index, atau strategi keuanganmu. Saya punya akses ke semua data profilmu." }
   ]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -117,7 +117,7 @@ export default function FinancialTab() {
   // OCR upload
   const [ocrFile, setOcrFile] = useState<File | null>(null);
   const [ocrPreview, setOcrPreview] = useState<string | null>(null);
-  const [ocrResult, setOcrResult] = useState<any>(null);
+  const [ocrHasil, setOcrHasil] = useState<any>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -175,10 +175,10 @@ export default function FinancialTab() {
   }
 
 
-  async function handleOcrUpload() {
+  async function handleOcrUnggah() {
     if (!ocrFile) return;
     setOcrLoading(true);
-    setOcrResult(null);
+    setOcrHasil(null);
     try {
       const token = getToken();
       const fd = new FormData();
@@ -193,7 +193,7 @@ export default function FinancialTab() {
         throw new Error(err.detail || `HTTP ${res.status}`);
       }
       const data = await res.json();
-      setOcrResult(data);
+      setOcrHasil(data);
       toast.success("Dokumen diproses!");
       fetchScore();
     } catch (e: any) {
@@ -207,7 +207,7 @@ export default function FinancialTab() {
     const f = e.target.files?.[0];
     if (!f) return;
     setOcrFile(f);
-    setOcrResult(null);
+    setOcrHasil(null);
     const reader = new FileReader();
     reader.onloadend = () => setOcrPreview(reader.result as string);
     reader.readAsDataURL(f);
@@ -322,7 +322,7 @@ export default function FinancialTab() {
     </div>
   );
 
-  const renderOverview = () => (
+  const renderRingkasan = () => (
     <div className="space-y-4">
       {/* Score Card */}
       <div className="bg-[#111] border border-white/10 rounded-2xl p-5">
@@ -372,7 +372,7 @@ export default function FinancialTab() {
           <div className="bg-[#111] border border-white/10 rounded-2xl p-4">
             <div className="text-xs text-white/40 mb-1 flex items-center gap-1"><Wallet className="w-3 h-3" /> Gaji</div>
             <div className="text-sm font-semibold text-white">{fmtIDR(score.salary)}</div>
-            <div className="text-[10px] text-white/30 mt-0.5">{score.salary_source === "ocr_verified" ? "✅ OCR Verified" : "✏️ Manual"}</div>
+            <div className="text-[10px] text-white/30 mt-0.5">{score.salary_source === "ocr_verified" ? "✅ OCR Terverifikasi" : "✏️ Manual"}</div>
           </div>
           <div className="bg-[#111] border border-white/10 rounded-2xl p-4">
             <div className="text-xs text-white/40 mb-1 flex items-center gap-1"><BarChart3 className="w-3 h-3" /> DSR</div>
@@ -382,7 +382,7 @@ export default function FinancialTab() {
           <div className="col-span-2 bg-[#111] border border-emerald-500/20 rounded-2xl p-4">
             <div className="text-xs text-emerald-400/70 mb-1 flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Sisa Plafon Aman</div>
             <div className="text-lg font-bold text-emerald-400">{fmtIDR(score.sisa_plafon_aman)}</div>
-            <div className="text-[10px] text-white/30 mt-0.5">Integrity: {score.integrity_level} · Tampered: {score.tampered_attempts}x</div>
+            <div className="text-[10px] text-white/30 mt-0.5">Integrity: {score.integrity_level} · Dimanipulasi: {score.tampered_attempts}x</div>
           </div>
         </div>
       )}
@@ -391,7 +391,7 @@ export default function FinancialTab() {
       <div className="grid grid-cols-2 gap-3">
         {[
           { icon: FileText, label: "Input Manual", section: "manual" as Section },
-          { icon: Camera, label: "Upload OCR", section: "ocr" as Section },
+          { icon: Camera, label: "Unggah OCR", section: "ocr" as Section },
         ].map(({ icon: Icon, label, section: s }) => (
           <button
             key={s}
@@ -476,7 +476,7 @@ export default function FinancialTab() {
     <div className="space-y-4">
 
       <div className="bg-[#111] border border-white/10 rounded-2xl p-5 space-y-4">
-        <h3 className="font-semibold text-white flex items-center gap-2"><Camera className="w-4 h-4" /> Upload Dokumen OCR</h3>
+        <h3 className="font-semibold text-white flex items-center gap-2"><Camera className="w-4 h-4" /> Unggah Dokumen OCR</h3>
         <p className="text-xs text-white/40">
           AI akan otomatis mendeteksi jenis dokumen dan mengekstrak data.<br />
           <span className="text-emerald-400">Slip Gaji</span> → update gaji verified (bobot lebih tinggi di skor).<br />
@@ -492,7 +492,7 @@ export default function FinancialTab() {
             <img src={ocrPreview} alt="preview" className="max-h-48 mx-auto rounded-lg object-contain" />
           ) : (
             <div className="space-y-2">
-              <Upload className="w-8 h-8 mx-auto text-white/30" />
+              <Unggah className="w-8 h-8 mx-auto text-white/30" />
               <p className="text-sm text-white/40">Tap untuk pilih foto</p>
               <p className="text-xs text-white/20">JPG, PNG, WEBP</p>
             </div>
@@ -503,14 +503,14 @@ export default function FinancialTab() {
         {ocrFile && (
           <div className="flex items-center justify-between text-xs text-white/50 bg-white/5 rounded-lg px-3 py-2">
             <span className="truncate">{ocrFile.name}</span>
-            <button onClick={() => { setOcrFile(null); setOcrPreview(null); setOcrResult(null); }} className="ml-2 text-white/30 hover:text-red-400">
+            <button onClick={() => { setOcrFile(null); setOcrPreview(null); setOcrHasil(null); }} className="ml-2 text-white/30 hover:text-red-400">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
         <Button
-          onClick={handleOcrUpload}
+          onClick={handleOcrUnggah}
           disabled={!ocrFile || ocrLoading}
           className="w-full bg-white text-black hover:bg-white/90"
         >
@@ -521,11 +521,11 @@ export default function FinancialTab() {
         </p>
       </div>
 
-      {/* OCR Result */}
-      {ocrResult && (
-        <div className={`bg-[#111] border rounded-2xl p-5 space-y-3 ${ocrResult.ai_indicator === "TAMPERED" ? "border-red-500/40" : "border-emerald-500/20"}`}>
+      {/* OCR Hasil */}
+      {ocrHasil && (
+        <div className={`bg-[#111] border rounded-2xl p-5 space-y-3 ${ocrHasil.ai_indicator === "TAMPERED" ? "border-red-500/40" : "border-emerald-500/20"}`}>
           <h4 className="font-semibold text-white flex items-center gap-2">
-            {ocrResult.ai_indicator === "TAMPERED"
+            {ocrHasil.ai_indicator === "TAMPERED"
               ? <AlertCircle className="w-4 h-4 text-red-400" />
               : <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
             Hasil OCR
@@ -534,32 +534,32 @@ export default function FinancialTab() {
             <div>
               <div className="text-xs text-white/40">Jenis Dokumen</div>
               <div className="text-white font-medium">
-                {ocrResult.doc_type === "slip_gaji" ? "📑 Slip Gaji" : ocrResult.doc_type === "struk_belanja" ? "🧾 Struk Belanja" : "📄 Tidak Dikenal"}
+                {ocrHasil.doc_type === "slip_gaji" ? "📑 Slip Gaji" : ocrHasil.doc_type === "struk_belanja" ? "🧾 Struk Belanja" : "📄 Tidak Dikenal"}
               </div>
             </div>
             <div>
               <div className="text-xs text-white/40">Nominal OCR</div>
-              <div className="text-white font-medium">{fmtIDR(ocrResult.extracted_nominal || 0)}</div>
+              <div className="text-white font-medium">{fmtIDR(ocrHasil.extracted_nominal || 0)}</div>
             </div>
             <div>
               <div className="text-xs text-white/40">Confidence</div>
-              <div className={`font-medium ${ocrResult.confidence === "high" ? "text-emerald-400" : ocrResult.confidence === "medium" ? "text-yellow-400" : "text-red-400"}`}>
-                {ocrResult.confidence?.toUpperCase()}
+              <div className={`font-medium ${ocrHasil.confidence === "high" ? "text-emerald-400" : ocrHasil.confidence === "medium" ? "text-yellow-400" : "text-red-400"}`}>
+                {ocrHasil.confidence?.toUpperCase()}
               </div>
             </div>
             <div>
               <div className="text-xs text-white/40">Status AI</div>
-              <div className={`font-medium ${ocrResult.ai_indicator === "TAMPERED" ? "text-red-400" : "text-emerald-400"}`}>
-                {ocrResult.ai_indicator}
+              <div className={`font-medium ${ocrHasil.ai_indicator === "TAMPERED" ? "text-red-400" : "text-emerald-400"}`}>
+                {ocrHasil.ai_indicator}
               </div>
             </div>
           </div>
-          {ocrResult.doc_type === "slip_gaji" && ocrResult.ai_indicator === "CLEAN" && (
+          {ocrHasil.doc_type === "slip_gaji" && ocrHasil.ai_indicator === "CLEAN" && (
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-xs text-emerald-300">
               ✅ Gaji berhasil diverifikasi via OCR. Skor kamu sekarang menggunakan gaji verified.
             </div>
           )}
-          {ocrResult.ai_indicator === "TAMPERED" && (
+          {ocrHasil.ai_indicator === "TAMPERED" && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-xs text-red-300">
               ⚠️ Dokumen terdeteksi manipulasi. Integrity Score berkurang.
             </div>
@@ -578,7 +578,7 @@ export default function FinancialTab() {
     function handleAdd() {
       const nom = parseInt(catatanForm.nominal.replace(/\D/g, ""));
       if (!nom || nom <= 0) { toast.error("Nominal harus diisi"); return; }
-      const entry = { id: Date.now().toString(), type: catatanForm.type, nominal: nom, keterangan: catatanForm.keterangan, created_at: new Date().toISOString() };
+      const entry = { id: Tanggal.now().toString(), type: catatanForm.type, nominal: nom, keterangan: catatanForm.keterangan, created_at: new Tanggal().toISOString() };
       saveCatatan([entry, ...catatanEntries]);
       setCatatanForm({ type: "pemasukan", nominal: "", keterangan: "" });
       toast.success("Catatan ditambahkan!");
@@ -623,7 +623,7 @@ export default function FinancialTab() {
               <div key={e.id} className="flex items-center justify-between py-2 border-t border-white/5">
                 <div>
                   <div className="text-sm text-white">{e.keterangan || (e.type === "pemasukan" ? "Pemasukan" : "Pengeluaran")}</div>
-                  <div className="text-[10px] text-white/30">{new Date(e.created_at).toLocaleDateString("id-ID")}</div>
+                  <div className="text-[10px] text-white/30">{new Tanggal(e.created_at).toLocaleTanggalString("id-ID")}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-sm font-semibold ${e.type === "pemasukan" ? "text-emerald-400" : "text-red-400"}`}>
@@ -679,7 +679,7 @@ export default function FinancialTab() {
 
       {/* Content */}
       <div className="px-4">
-        {section === "overview" && renderOverview()}
+        {section === "overview" && renderRingkasan()}
         {section === "tanya" && renderTanya()}
         {section === "manual" && renderManual()}
         {section === "ocr" && renderOCR()}

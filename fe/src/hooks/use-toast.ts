@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
+import type { ToastAksiElement, ToastProps } from "@/components/ui/toast";
 
 const TOAST_LIMIT = 1;
 const TOAST_REMOVE_DELAY = 1000000;
@@ -9,7 +9,7 @@ type ToasterToast = ToastProps & {
   id: string;
   title?: React.ReactNode;
   description?: React.ReactNode;
-  action?: ToastActionElement;
+  action?: ToastAksiElement;
 };
 
 const actionTypes = {
@@ -26,23 +26,23 @@ function genId() {
   return count.toString();
 }
 
-type ActionType = typeof actionTypes;
+type AksiType = typeof actionTypes;
 
-type Action =
+type Aksi =
   | {
-      type: ActionType["ADD_TOAST"];
+      type: AksiType["ADD_TOAST"];
       toast: ToasterToast;
     }
   | {
-      type: ActionType["UPDATE_TOAST"];
+      type: AksiType["UPDATE_TOAST"];
       toast: Partial<ToasterToast>;
     }
   | {
-      type: ActionType["DISMISS_TOAST"];
+      type: AksiType["DISMISS_TOAST"];
       toastId?: ToasterToast["id"];
     }
   | {
-      type: ActionType["REMOVE_TOAST"];
+      type: AksiType["REMOVE_TOAST"];
       toastId?: ToasterToast["id"];
     };
 
@@ -68,7 +68,7 @@ const addToRemoveQueue = (toastId: string) => {
   toastTimeouts.set(toastId, timeout);
 };
 
-export const reducer = (state: State, action: Action): State => {
+export const reducer = (state: State, action: Aksi): State => {
   switch (action.type) {
     case "ADD_TOAST":
       return {
@@ -125,7 +125,7 @@ const listeners: Array<(state: State) => void> = [];
 
 let memoryState: State = { toasts: [] };
 
-function dispatch(action: Action) {
+function dispatch(action: Aksi) {
   memoryState = reducer(memoryState, action);
   listeners.forEach((listener) => {
     listener(memoryState);

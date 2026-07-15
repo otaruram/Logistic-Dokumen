@@ -34,58 +34,46 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
   const features = [
     {
       icon: <Scan className="w-6 h-6" />,
-      title: "Frictionless Capture",
-      desc: "AI-powered OCR extracts nominals, dates, and vendors from physical receipts and invoices with 98%+ accuracy.",
+      title: "Tangkapan Tanpa Hambatan",
+      desc: "OCR berbasis AI mengekstrak nominal, tanggal, dan vendor dari kuitansi fisik dan faktur dengan akurasi 98%+.",
       color: "from-blue-500 to-cyan-500"
     },
     {
-      icon: <Shield className="w-6 h-6" />,
-      title: "Immutable Ledger",
-      desc: "Every document is cryptographically sealed with SHA-256. Instantly detect 1-pixel Photoshop tampering.",
-      color: "from-red-500 to-orange-500"
-    },
-    {
       icon: <BarChart3 className="w-6 h-6" />,
-      title: "Alternative Scoring",
-      desc: "Real-time credit score calculation based on cashflow: Capacity, Frequency, and Client Diversification.",
+      title: "Penilaian Alternatif",
+      desc: "Perhitungan skor kredit real-time berdasarkan arus kas: Kapasitas, Frekuensi, dan Diversifikasi Klien.",
       color: "from-emerald-500 to-green-500"
     },
     {
       icon: <Sparkles className="w-6 h-6" />,
-      title: "Credit Cycles",
-      desc: "Gamified lifetime tracking. MSMEs level up their cycles to unlock higher lending limits safely.",
+      title: "Siklus Kredit",
+      desc: "Pelacakan seumur hidup yang digamifikasi. UMKM meningkatkan siklus mereka untuk membuka batas pinjaman yang lebih tinggi dengan aman.",
       color: "from-purple-500 to-pink-500"
     },
     {
       icon: <Cloud className="w-6 h-6" />,
-      title: "B2B Partner API",
+      title: "API Mitra B2B",
       desc: "Integrasi satu pintu (plug-and-play) ke sistem koperasi Anda. Tarik data profil risiko dan kelayakan kredit secara instan langsung ke dalam sistem underwriting Anda.",
       color: "from-yellow-500 to-amber-500"
     },
     {
       icon: <Zap className="w-6 h-6" />,
-      title: "AI Decision Engine",
+      title: "Mesin Keputusan AI",
       desc: "Menilai kelayakan Kasbon/Pinjaman secara otomatis dengan menghitung DSR, batas plafon, dan mematuhi regulasi perbankan (BI/OJK).",
       color: "from-sky-500 to-blue-500"
     },
     {
       icon: <Lock className="w-6 h-6" />,
-      title: "Enterprise Security",
-      desc: "Bank-grade infrastructure. Zero data retention for chatbot, secure API key management.",
+      title: "Keamanan Perusahaan",
+      desc: "Infrastruktur tingkat bank. Tidak ada penyimpanan data, manajemen kunci API yang aman.",
       color: "from-gray-400 to-gray-600"
-    },
-    {
-      icon: <MessageSquare className="w-6 h-6" />,
-      title: "Otaru AI Chatbot",
-      desc: "Interactive document analysis. Ask questions about the extracted financial data in natural language.",
-      color: "from-violet-500 to-indigo-500"
     }
   ];
 
   const steps = [
-    { num: "01", title: "Upload", desc: "Take a photo or upload any document — receipt, invoice, or surat jalan." },
-    { num: "02", title: "AI Analyzes", desc: "Our AI extracts text, detects fraud, and structures financial data automatically." },
-    { num: "03", title: "Get Results", desc: "Dapatkan output instan berupa Trust Grade dan pembuatan Immutable Audit Trail menggunakan kriptografi SHA-256 secara langsung." },
+    { num: "01", title: "Unggah", desc: "Ambil foto atau unggah dokumen apa pun — kuitansi, faktur, atau surat jalan." },
+    { num: "02", title: "Analisis AI", desc: "AI kami mengekstrak teks, mendeteksi penipuan, dan menyusun data keuangan secara otomatis." },
+    { num: "03", title: "Dapatkan Hasil", desc: "Dapatkan output instan berupa Trust Grade secara langsung." },
   ];
 
   return (
@@ -110,7 +98,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
               className="border-white/20 text-black hover:bg-white hover:text-black transition-colors rounded-full px-6"
               onClick={onLogin}
             >
-              Sign In
+              Masuk
             </Button>
           </div>
         </div>
@@ -126,15 +114,15 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-sm text-gray-400 mb-8">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span>Free Forever · 10 Credits/Day</span>
+              <span>Gratis Selamanya · 10 Kredit/Day</span>
             </div>
 
 
 
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter mb-8 leading-[1.1]">
-              Bridging the Invisible. <br />
+              Menjembatani yang Tak Terlihat. <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">
-                Paper to Credit Data.
+                Dari Kertas ke Data Kredit.
               </span>
             </h1>
 
@@ -148,7 +136,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
                 onClick={onLogin}
                 className="w-full sm:w-auto h-14 px-8 text-lg bg-white text-black hover:bg-gray-200 rounded-full font-medium"
               >
-                Start Free <ArrowRight className="ml-2 w-5 h-5" />
+                Mulai Gratis <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
               <Button
                 size="lg"
@@ -158,7 +146,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
                 }}
                 className="w-full sm:w-auto h-14 px-8 text-lg border-white/20 text-white hover:bg-white/10 rounded-full font-medium"
               >
-                OtaruChain Partner API
+                API Mitra OtaruChain
               </Button>
             </div>
 
@@ -166,22 +154,22 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
             <div className="flex items-center justify-center gap-6 mt-12 text-xs text-gray-500">
               <div className="flex items-center gap-1.5">
                 <Shield className="w-3.5 h-3.5" />
-                <span>End-to-End Secure</span>
+                <span>Aman End-to-End</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Zap className="w-3.5 h-3.5" />
-                <span>GPT-4o Powered</span>
+                <span>Didukung GPT-4o</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Lock className="w-3.5 h-3.5" />
-                <span>Zero Data Retention</span>
+                <span>Tanpa Penyimpanan Data</span>
               </div>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* How It Works */}
+      {/* Cara Kerja */}
       <section className="relative z-10 py-24 px-6 border-t border-white/5">
         <div className="container mx-auto max-w-5xl">
           <motion.div
@@ -190,8 +178,8 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">How It Works</h2>
-            <p className="text-gray-400 text-lg">Three steps to digitize and verify your documents</p>
+            <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">Cara Kerja</h2>
+            <p className="text-gray-400 text-lg">Tiga langkah untuk mendigitalkan dan memverifikasi dokumen Anda</p>
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -231,14 +219,13 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
                 <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
                   <FileSearch className="w-6 h-6" />
                 </div>
-                <h3 className="text-3xl font-bold">Smart Credit Intelligence</h3>
+                <h3 className="text-3xl font-bold">Kecerdasan Kredit Pintar</h3>
                 <div className="space-y-4">
                   {[
-                    "AI extracts financial data from messy physical receipts",
-                    "SHA-256 seal rejects Photoshopped documents instantly",
-                    "Cashflow scoring via Capacity, Frequency, Diversification",
-                    "Credit Cycles track lifetime MSME business reputation",
-                    "B2B API ready for P2P Lending integration"
+                    "AI mengekstrak data keuangan dari kuitansi fisik",
+                    "Penilaian arus kas melalui Kapasitas, Frekuensi, Diversifikasi",
+                    "Siklus Kredit melacak reputasi bisnis UMKM",
+                    "API B2B siap untuk integrasi P2P Lending"
                   ].map((item, i) => (
                     <div key={i} className="flex items-center gap-3 text-gray-400">
                       <Check className="w-5 h-5 text-blue-500 flex-shrink-0" />
@@ -259,21 +246,21 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-green-500" />
                     <div className="h-2 w-20 bg-green-500/20 rounded" />
-                    <span className="text-[10px] text-green-400">Verified</span>
+                    <span className="text-[10px] text-green-400">Terverifikasi</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-yellow-500" />
                     <div className="h-2 w-16 bg-yellow-500/20 rounded" />
-                    <span className="text-[10px] text-yellow-400">Processing</span>
+                    <span className="text-[10px] text-yellow-400">Memproses</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-red-500" />
                     <div className="h-2 w-24 bg-red-500/20 rounded" />
-                    <span className="text-[10px] text-red-400">Tampered</span>
+                    <span className="text-[10px] text-red-400">Dimanipulasi</span>
                   </div>
                 </div>
                 <div className="absolute bottom-4 right-4 bg-blue-600/20 text-blue-400 text-xs px-2 py-1 rounded border border-blue-500/30">
-                  Fraud Detection: Active
+                  Deteksi Penipuan: Aktif
                 </div>
               </div>
             </div>
@@ -288,9 +275,9 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
           <div className="container mx-auto max-w-6xl relative">
             <div className="text-center mb-16">
               <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-                <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Trusted by Professionals</h2>
+                <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Dipercaya oleh Profesional</h2>
                 <p className="text-gray-400 max-w-2xl mx-auto text-lg">
-                  See what others are saying about the future of document processing.
+                  Lihat apa yang dikatakan orang lain tentang masa depan pemrosesan dokumen.
                 </p>
               </motion.div>
             </div>
@@ -311,7 +298,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
                       </div>
                       <div>
                         <p className="font-semibold text-white">{review.user_name}</p>
-                        <p className="text-xs text-gray-500">Verified User</p>
+                        <p className="text-xs text-gray-500">Pengguna Terverifikasi</p>
                       </div>
                     </div>
                   </div>
@@ -322,17 +309,17 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
         </section>
       )}
 
-      {/* Features Grid (8 Features) */}
+      {/* Fitur Grid (6 Fitur) */}
       <section className="relative z-10 py-32 bg-white/[0.02] border-t border-white/5">
         <div className="container mx-auto px-6 max-w-6xl">
           <div className="text-center mb-20">
-            <h2 className="text-3xl md:text-5xl font-bold mb-6">Everything You Need</h2>
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">Segalanya yang Anda Butuhkan</h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              From frictionless document capture to enterprise-grade fraud detection and API integration — OtaruChain is the bridge between traditional MSMEs and modern Fintech.
+              Dari penangkapan dokumen tanpa hambatan hingga mesin keputusan AI dan integrasi API — OtaruChain adalah jembatan antara UMKM tradisional dan Fintech modern.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((f, i) => (
               <motion.div
                 key={i}
@@ -359,10 +346,10 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
         <div className="container mx-auto max-w-3xl text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
             <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">
-              Ready to Digitize Your Documents?
+              Siap Mendigitalkan Dokumen Anda?
             </h2>
             <p className="text-gray-400 text-lg mb-10 max-w-xl mx-auto">
-              Join thousands of users and P2P Lenders who trust OtaruChain for MSME credit scoring, fraud prevention, and document intelligence. Free for MSMEs.
+              Bergabunglah dengan ribuan pengguna dan P2P Lender yang mempercayai OtaruChain untuk penilaian kredit UMKM, pencegahan penipuan, dan kecerdasan dokumen. Gratis untuk UMKM.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button
@@ -370,7 +357,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
                 onClick={onLogin}
                 className="w-full sm:w-auto h-14 px-10 text-lg bg-white text-black hover:bg-gray-200 rounded-full font-medium"
               >
-                Get Started — It's Free <ArrowRight className="ml-2 w-5 h-5" />
+                Mulai Sekarang — Gratis <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
               <Button
                 size="lg"
@@ -381,7 +368,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
                 }}
                 className="w-full sm:w-auto h-14 px-10 text-lg border-white/20 text-white hover:bg-white/10 rounded-full font-medium"
               >
-                Explore Partner Portal
+                Jelajahi Portal Mitra
               </Button>
             </div>
           </motion.div>
@@ -392,15 +379,15 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
       <footer className="relative z-10 py-12 border-t border-white/10 bg-[#050505]">
         <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
-            <img src="/1.png" alt="Otaru Ecosystem Logo" className="w-5 h-5 object-contain" />
-            <span className="font-bold text-gray-400 text-sm">Otaru Ecosystem &copy; 2026</span>
+            <img src="/1.png" alt="Ekosistem Otaru Logo" className="w-5 h-5 object-contain" />
+            <span className="font-bold text-gray-400 text-sm">Ekosistem Otaru &copy; 2026</span>
           </div>
           <div className="text-xs text-gray-600 text-center">
-            Alternative Credit Scoring · MSME Financial Inclusion · Immutable Ledger · Fraud Prevention
+            Penilaian Kredit Alternatif · Inklusi Keuangan UMKM · Pencegahan Penipuan
           </div>
           <div className="flex gap-6 mt-4 md:mt-0">
             <button onClick={onLogin} className="text-gray-400 hover:text-white transition-colors text-sm font-medium">
-              Sign In
+              Masuk
             </button>
           </div>
         </div>

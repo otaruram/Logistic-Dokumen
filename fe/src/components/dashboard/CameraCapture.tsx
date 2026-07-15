@@ -68,7 +68,7 @@ const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
       
       canvas.toBlob((blob) => {
         if (blob) {
-          const file = new File([blob], `camera_${Date.now()}.jpg`, {
+          const file = new File([blob], `camera_${Tanggal.now()}.jpg`, {
             type: "image/jpeg"
           });
           onCapture(file);
@@ -110,7 +110,7 @@ const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
         </Button>
       </div>
 
-      {/* Camera View */}
+      {/* Camera Lihat */}
       <div className="flex-1 relative bg-black flex items-center justify-center">
         {error ? (
           <div className="text-center p-4">

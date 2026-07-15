@@ -1,5 +1,5 @@
 /**
- * Shared badge components used in Partner Portal and other pages.
+ * Shared badge components used in Portal Mitra and other pages.
  */
 
 export function RiskBadge({ label }: { label: string }) {

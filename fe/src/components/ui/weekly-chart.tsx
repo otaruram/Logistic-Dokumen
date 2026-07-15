@@ -14,7 +14,7 @@ const WeeklyChart = ({ data }: WeeklyChartProps) => {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={[...data]}>
             <XAxis 
-              dataKey="day" 
+              dataKey="hari" 
               axisLine={false}
               tickLine={false}
               tick={CHART_CONFIG.axis.style}

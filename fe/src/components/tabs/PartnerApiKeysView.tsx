@@ -8,7 +8,7 @@ interface Props {
   decisionApiKeyLoading?: boolean;
   pageLoading: boolean;
   authError: string | null;
-  fmtDate: (iso?: string) => string;
+  fmtTanggal: (iso?: string) => string;
   isMaskedKey: (key: string) => boolean;
   generateKey: () => void;
   generateDecisionKey?: () => void;
@@ -42,7 +42,7 @@ function KeyCard({
   keyObj,
   loading,
   pageLoading,
-  fmtDate,
+  fmtTanggal,
   isMaskedKey,
   onGenerate,
   onRevoke,
@@ -57,7 +57,7 @@ function KeyCard({
   keyObj: any;
   loading: boolean;
   pageLoading: boolean;
-  fmtDate: (iso?: string) => string;
+  fmtTanggal: (iso?: string) => string;
   isMaskedKey?: (key: string) => boolean;
   onGenerate: () => void;
   onRevoke?: () => void;
@@ -93,8 +93,8 @@ function KeyCard({
               </p>
             )}
             <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-zinc-600 sm:grid-cols-2">
-              <p>Created: {fmtDate(keyObj?.created_at)}</p>
-              <p>Last used: {fmtDate(keyObj?.last_used_at)}</p>
+              <p>Created: {fmtTanggal(keyObj?.created_at)}</p>
+              <p>Last used: {fmtTanggal(keyObj?.last_used_at)}</p>
             </div>
           </>
         ) : (
@@ -125,7 +125,7 @@ export default function PartnerApiKeysView(props: Props) {
     apiKey, decisionApiKey,
     apiKeyLoading, decisionApiKeyLoading,
     pageLoading, authError,
-    fmtDate, isMaskedKey,
+    fmtTanggal, isMaskedKey,
     generateKey, generateDecisionKey,
     revokeKey,
     fetchMyKey,
@@ -200,7 +200,7 @@ export default function PartnerApiKeysView(props: Props) {
           keyObj={decisionApiKey}
           loading={decisionApiKeyLoading ?? false}
           pageLoading={pageLoading}
-          fmtDate={fmtDate}
+          fmtTanggal={fmtTanggal}
           onGenerate={generateDecisionKey ?? (() => {})}
           onCopy={() => decisionApiKey && handleCopy(decisionApiKey.key_value, "api-key-decision")}
         />

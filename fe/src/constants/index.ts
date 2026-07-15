@@ -1,20 +1,20 @@
 // Navigation tab configuration
 // NOTE: "dgtnz" (Validation Zone) hidden per kasbon pivot — form fisik ditangani Telegram
 export const NAVIGATION_TABS = [
-  { id: "dashboard" as const, label: "Dashboard" },
+  { id: "dashboard" as const, label: "Dasbor" },
   { id: "profile" as const, label: "Profile" },
 ] as const;
 
 
-// Dashboard data
+// Dasbor data
 export const WEEKLY_DATA = [
-  { day: "Mon", scans: 12 },
-  { day: "Tue", scans: 19 },
-  { day: "Wed", scans: 8 },
-  { day: "Thu", scans: 25 },
-  { day: "Fri", scans: 15 },
-  { day: "Sat", scans: 7 },
-  { day: "Sun", scans: 4 },
+  { hari: "Mon", scans: 12 },
+  { hari: "Tue", scans: 19 },
+  { hari: "Wed", scans: 8 },
+  { hari: "Thu", scans: 25 },
+  { hari: "Fri", scans: 15 },
+  { hari: "Sat", scans: 7 },
+  { hari: "Sun", scans: 4 },
 ] as const;
 
 // App configuration

@@ -223,7 +223,7 @@ export default function QueueItemCard({
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <InfoCard label="No. Referensi" value={loan.no_referensi || "-"} valueClass="font-mono" />
-            <InfoCard label="Tanggal Bergabung" value={loan.member_since ? new Date(loan.member_since).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' }) : "-"} />
+            <InfoCard label="Tanggal Bergabung" value={loan.member_since ? new Tanggal(loan.member_since).toLocaleTanggalString("id-ID", { hari: 'numeric', month: 'short', year: 'numeric' }) : "-"} />
             <InfoCard label="DSR Status" value={loan.dsr_status ?? "-"} valueClass={loan.dsr_status === "OVER" ? "text-red-600" : "text-emerald-600"} />
           </div>
 
@@ -275,7 +275,7 @@ export default function QueueItemCard({
               </a>
             ) : <span className="text-xs text-zinc-400">Tidak ada dokumen</span>}
             <span className="text-xs text-zinc-400">·</span>
-            <span className="text-xs text-zinc-400">{new Date(loan.submitted_at).toLocaleString("id-ID")}</span>
+            <span className="text-xs text-zinc-400">{new Tanggal(loan.submitted_at).toLocaleString("id-ID")}</span>
           </div>
 
           {/* AI Recommendation Error */}
@@ -295,7 +295,7 @@ export default function QueueItemCard({
             </div>
           )}
 
-          {/* Action buttons */}
+          {/* Aksi buttons */}
           <div className="flex flex-wrap gap-2 pt-1">
             <button onClick={(e) => { e.stopPropagation(); onApprove(loan); }} className="inline-flex items-center gap-1.5 rounded-full bg-black px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
               <PenLine className="h-3 w-3" /> Setujui

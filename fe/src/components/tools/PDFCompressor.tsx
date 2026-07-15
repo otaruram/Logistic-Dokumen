@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileDown, Upload, X } from 'lucide-react';
+import { FileDown, Unggah, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -121,7 +121,7 @@ export function PDFCompressor() {
         </div>
       </div>
 
-      {/* Upload Area */}
+      {/* Unggah Area */}
       {!file ? (
         <div
           onDragEnter={handleDrag}
@@ -133,7 +133,7 @@ export function PDFCompressor() {
           } p-12 text-center transition-colors cursor-pointer hover:border-black hover:bg-gray-50`}
           onClick={() => document.getElementById('pdf-upload')?.click()}
         >
-          <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+          <Unggah className="w-12 h-12 mx-auto mb-4 text-gray-400" />
           <p className="font-bold mb-2">Drag & drop PDF di sini</p>
           <p className="text-sm text-gray-500 mb-4">atau klik untuk pilih file</p>
           <p className="text-xs text-gray-400">Maksimal 10MB</p>
@@ -183,14 +183,14 @@ export function PDFCompressor() {
         </ul>
       </div>
 
-      {/* Use Cases */}
+      {/* Kasus Penggunaan */}
       <div className="mt-6 pt-6 border-t-2 border-gray-200">
         <p className="text-xs font-bold mb-2">🎯 Cocok untuk GA:</p>
         <ul className="text-xs space-y-1 text-gray-700">
           <li>• Kecilin SK/kontrak sebelum di-email</li>
           <li>• Kompres laporan dengan banyak foto</li>
           <li>• Hemat storage Google Drive kantor</li>
-          <li>• Upload lebih cepat ke sistem HRIS</li>
+          <li>• Unggah lebih cepat ke sistem HRIS</li>
         </ul>
       </div>
     </div>

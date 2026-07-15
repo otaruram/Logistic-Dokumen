@@ -61,7 +61,7 @@ export default function PartnerAuditTrailTab() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `audit_trail_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `audit_trail_${new Tanggal().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -71,7 +71,7 @@ export default function PartnerAuditTrailTab() {
     <section className="space-y-5">
       <div className="rounded-3xl border border-zinc-200 bg-white p-6 flex justify-between items-start">
         <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Audit Trail</p>
+          <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Jejak Audit</p>
           <h1 className="mt-2 text-3xl font-semibold text-zinc-900">Master Data Transaksi</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
             Riwayat lengkap pengajuan kasbon (Approved, Rejected, Revision) beserta bukti kriptografi SHA-256.

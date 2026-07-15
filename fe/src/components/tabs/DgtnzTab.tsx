@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ScanUpload } from "../dgtnz/ScanUpload";
+import { ScanUnggah } from "../dgtnz/ScanUnggah";
 import { ValidationZone } from "../dgtnz/ValidationZone";
 import { FraudScanHistory } from "../dgtnz/FraudScanHistory";
 import { EditScanDialog } from "../dgtnz/EditScanDialog";
@@ -46,9 +46,9 @@ interface ScanRecord {
 export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?: "default" | "fraud" }) {
   // Core state
   const [scanMode] = useState<ScanMode>("fraud");
-  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
+  const [uploadedImage, setUnggahedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isMemproses, setIsMemproses] = useState(false);
   const [recipientName, setRecipientName] = useState("");
   const [signatureData, setSignatureData] = useState("");
   const [records, setRecords] = useState<ScanRecord[]>([]);
@@ -91,7 +91,7 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
           .map((d: any, i: number) => ({
             id: d.id,
             no: i + 1,
-            tanggal: new Date(d.created_at).toLocaleDateString('id-ID'),
+            tanggal: new Tanggal(d.created_at).toLocaleTanggalString('id-ID'),
             namaPenerima: d.recipient_name || "-",
             keterangan: d.extracted_text || "-",
             fotoUrl: d.imagekit_url || d.file_path || "",
@@ -121,7 +121,7 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
         const mapped: ScanRecord[] = (data.records || []).map((d: any, i: number) => ({
           id: d.id,
           no: i + 1,
-          tanggal: new Date(d.created_at).toLocaleDateString('id-ID'),
+          tanggal: new Tanggal(d.created_at).toLocaleTanggalString('id-ID'),
           namaPenerima: d.recipient_name || "-",
           keterangan: d.extracted_text || "-",
           fotoUrl: d.imagekit_url || d.file_url || "",
@@ -161,8 +161,8 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
       toast.error("Please complete all validation fields");
       return;
     }
-    setIsProcessing(true);
-    toast.loading("Processing document...");
+    setIsMemproses(true);
+    toast.loading("Memproses document...");
 
     try {
       const { supabase } = await import("@/lib/supabaseClient");
@@ -187,14 +187,14 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
         body: formData
       });
 
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) throw new Error("Unggah failed");
 
       // Dispatch event to notify dashboard of scan completion
       window.dispatchEvent(new CustomEvent('scan-completed'));
 
       toast.dismiss();
       toast.success("Document digitized successfully!");
-      setUploadedImage(null);
+      setUnggahedImage(null);
       setPreviewUrl(null);
       setRecipientName("");
       setSignatureData("");
@@ -208,17 +208,17 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
       toast.dismiss();
       toast.error("Failed to process document");
     } finally {
-      setIsProcessing(false);
+      setIsMemproses(false);
     }
   };
 
-  // ── Fraud Detection Scan ──────────────────────────────────────────
+  // ── Deteksi Penipuan Scan ──────────────────────────────────────────
   const handleFraudProcess = async () => {
     if (!uploadedImage || !recipientName || !signatureData) {
       toast.error("Lengkapi semua field validasi");
       return;
     }
-    setIsProcessing(true);
+    setIsMemproses(true);
     setFraudStep("Mengunggah dokumen...");
     toast.loading("🔍 Menginisiasi Deteksi Fraud...");
 
@@ -227,7 +227,7 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("No session");
 
-      // Upload signature
+      // Unggah signature
       setFraudStep("Memvalidasi tanda tangan...");
       const sigBlob = await (await fetch(signatureData)).blob();
       const sigFormData = new FormData();
@@ -257,14 +257,14 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
       setFraudStep("Menyimpan hasil ke database...");
       await new Promise(r => setTimeout(r, 600));
 
-      const statusLabel = resJson.fraud_status === 'verified' ? '✅ Verified' : resJson.fraud_status === 'processing' ? '🟡 Processing' : '🔴 Tampered';
+      const statusLabel = resJson.fraud_status === 'verified' ? '✅ Terverifikasi' : resJson.fraud_status === 'processing' ? '🟡 Memproses' : '🔴 Dimanipulasi';
       toast.dismiss();
       toast.success(`🛡️ Deteksi Fraud selesai! ${statusLabel}`, { description: `Confidence: ${resJson.field_confidence || "low"}` });
 
       // Dispatch event to notify dashboard of scan completion
       window.dispatchEvent(new CustomEvent('scan-completed'));
 
-      setUploadedImage(null);
+      setUnggahedImage(null);
       setPreviewUrl(null);
       setFraudStep("");
       loadAllRecords();
@@ -278,7 +278,7 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
       toast.error("Deteksi fraud gagal");
       setFraudStep("");
     } finally {
-      setIsProcessing(false);
+      setIsMemproses(false);
     }
   };
 
@@ -398,20 +398,20 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
         )}
       </AnimatePresence>
 
-      {/* Main Grid: Upload + Validation */}
+      {/* Main Grid: Unggah + Validation */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upload */}
+        {/* Unggah */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="h-full">
-          <ScanUpload
+          <ScanUnggah
             uploadedImage={uploadedImage}
             previewUrl={previewUrl}
-            isProcessing={isProcessing}
+            isMemproses={isMemproses}
             onImageSelect={(file) => {
-              setUploadedImage(file);
+              setUnggahedImage(file);
               setPreviewUrl(URL.createObjectURL(file));
             }}
             onClear={() => {
-              setUploadedImage(null);
+              setUnggahedImage(null);
               setPreviewUrl(null);
             }}
           />
@@ -425,13 +425,13 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
               setRecipientName={setRecipientName}
               signatureData={signatureData}
               setSignatureData={setSignatureData}
-              isProcessing={isProcessing}
+              isMemproses={isMemproses}
             />
           </div>
 
           {/* Fraud step indicator */}
           <AnimatePresence>
-            {isFraudMode && isProcessing && fraudStep && (
+            {isFraudMode && isMemproses && fraudStep && (
               <motion.div
                 key="fraud-step"
                 initial={{ opacity: 0 }}
@@ -448,16 +448,16 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
           <div className="mt-4">
             <Button
               onClick={handleProcess}
-              disabled={isProcessing || !uploadedImage || !recipientName || !signatureData}
+              disabled={isMemproses || !uploadedImage || !recipientName || !signatureData}
               className={`w-full h-14 text-base font-bold rounded-xl shadow-lg disabled:opacity-50 transition-all ${isFraudMode
                 ? "bg-red-600 hover:bg-red-500 text-white shadow-red-500/20"
                 : "bg-white text-black hover:bg-gray-200 shadow-white/5"
                 }`}
             >
-              {isProcessing ? (
+              {isMemproses ? (
                 <span className="flex items-center gap-2">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  {isFraudMode ? "Menganalisis dokumen..." : "Processing..."}
+                  {isFraudMode ? "Menganalisis dokumen..." : "Memproses..."}
                 </span>
               ) : (
                 <span className="flex items-center gap-2">

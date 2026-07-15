@@ -196,7 +196,7 @@ export default function AdminAccessManager({ showModal, onClose, onRequestsUpdat
               {adminRequests.map((req) => (
                 <div key={req.id} className="border border-amber-200 rounded-xl p-3 bg-amber-50">
                   <p className="text-sm font-semibold text-amber-900 truncate">{req.email}</p>
-                  <p className="text-[10px] text-amber-700 mb-3">{new Date(req.requested_at).toLocaleString("id-ID")}</p>
+                  <p className="text-[10px] text-amber-700 mb-3">{new Tanggal(req.requested_at).toLocaleString("id-ID")}</p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleApproveAdmin(req.id, "approve")}

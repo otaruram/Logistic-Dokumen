@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Download, FileSpreadsheet, Search, Trash2, CloudUpload, ExternalLink } from "lucide-react";
+import { Download, FileSpreadsheet, Cari, Trash2, CloudUnggah, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Pagination,
@@ -34,10 +34,10 @@ const ITEMS_PER_PAGE = 5;
 
 const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setCariQuery] = useState("");
   const [newLogIds, setNewLogIds] = useState<Set<number>>(new Set());
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
-  const [isUploadingToDrive, setIsUploadingToDrive] = useState(false);
+  const [isUnggahingToDrive, setIsUnggahingToDrive] = useState(false);
   const prevLogsLength = useRef(logs.length);
 
   // Detect new log entries
@@ -89,20 +89,20 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
   const paginatedLogs = filteredLogs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   // Reset to page 1 when search changes
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value);
+  const handleCariChange = (value: string) => {
+    setCariQuery(value);
     setCurrentPage(1);
   };
 
-   // Handler untuk Upload GDrive
-  const handleUploadGDrive = async () => {
+   // Handler untuk Unggah GDrive
+  const handleUnggahGDrive = async () => {
     if (logs.length === 0) {
       toast.error("Tidak ada data untuk di-upload!");
       return;
     }
 
     try {
-      setIsUploadingToDrive(true);
+      setIsUnggahingToDrive(true);
       toast.info("Mengupload ke Google Drive...");
 
       // Get token from localStorage
@@ -171,7 +171,7 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
       toast.error("Gagal upload ke Drive. File akan didownload lokal.");
       handleExportExcel(); // Fallback to local download
     } finally {
-      setIsUploadingToDrive(false);
+      setIsUnggahingToDrive(false);
     }
   };
 
@@ -198,8 +198,8 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
     ];
     worksheet["!cols"] = colWidths;
 
-    const today = new Date().toISOString().split("T")[0];
-    XLSX.writeFile(workbook, `manifest_log_${today}.xlsx`);
+    const tohari = new Tanggal().toISOString().split("T")[0];
+    XLSX.writeFile(workbook, `manifest_log_${tohari}.xlsx`);
   };
 
   const handleExportCSV = () => {
@@ -220,8 +220,8 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    const today = new Date().toISOString().split("T")[0];
-    link.setAttribute("download", `manifest_log_${today}.csv`);
+    const tohari = new Tanggal().toISOString().split("T")[0];
+    link.setAttribute("download", `manifest_log_${tohari}.csv`);
     link.click();
   };
 
@@ -257,24 +257,24 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleUploadGDrive}
+                onClick={handleUnggahGDrive}
                 disabled={logs.length === 0}
                 className="bg-background text-foreground text-[10px] md:text-xs h-8 px-2 md:px-3 hover:bg-blue-600 hover:text-white hover:border-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Download Excel untuk upload ke Google Drive"
               >
-                <CloudUpload className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                <CloudUnggah className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                 GDRIVE
               </Button>
             </div>
           </div>
 
-          {/* Search Input */}
+          {/* Cari Input */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Cari className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
+              onChange={(e) => handleCariChange(e.target.value)}
               placeholder="CARI TIPE DOKUMEN ATAU NOMOR SURAT..."
               className="w-full pl-10 pr-4 py-2 bg-background text-foreground text-xs md:text-sm border-2 border-background focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground"
             />

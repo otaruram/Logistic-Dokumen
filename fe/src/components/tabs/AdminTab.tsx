@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Users, Shield, Coins, Ban, Trash2, Clock, Activity,
-    Search, RefreshCw, ChevronDown, ChevronUp, Eye,
+    Cari, RefreshCw, ChevronDown, ChevronUp, Eye,
     MessageSquare, Scan, AlertTriangle, Plus, Minus,
     X, Check
 } from "lucide-react";
@@ -24,7 +24,7 @@ interface AdminUser {
 
 interface AdminStats {
     total_users: number;
-    active_today: number;
+    active_tohari: number;
     total_scans: number;
     total_fraud_scans: number;
     total_chat_sessions: number;
@@ -58,7 +58,7 @@ export default function AdminTab() {
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery, setCariQuery] = useState("");
     const [expandedUser, setExpandedUser] = useState<string | null>(null);
     const [userActivity, setUserActivity] = useState<UserActivity | null>(null);
     const [activityLoading, setActivityLoading] = useState(false);
@@ -68,7 +68,7 @@ export default function AdminTab() {
     const [retentionDays, setRetentionDays] = useState(30);
     const [gamificationConfig, setGamificationConfig] = useState<GamificationConfig | null>(null);
     const [gamificationTargetEmail, setGamificationTargetEmail] = useState("");
-    const [gamificationMonth, setGamificationMonth] = useState(() => new Date().toISOString().slice(0, 7));
+    const [gamificationMonth, setGamificationMonth] = useState(() => new Tanggal().toISOString().slice(0, 7));
     const [gamificationBadgeType, setGamificationBadgeType] = useState("gold_integrity");
     const [gamificationLoading, setGamificationLoading] = useState(false);
 
@@ -142,8 +142,8 @@ export default function AdminTab() {
         }
     };
 
-    // ── Actions ──
-    const handleSetCredits = async () => {
+    // ── Aksis ──
+    const handleSetKredit = async () => {
         if (!creditModal) return;
         try {
             const headers = await authHeaders();
@@ -153,7 +153,7 @@ export default function AdminTab() {
                 body: JSON.stringify({ credits: creditAmount }),
             });
             if (res.ok) {
-                toast.success(`Credits set to ${creditAmount}`);
+                toast.success(`Kredit set to ${creditAmount}`);
                 setUsers(prev => prev.map(u => u.id === creditModal.userId ? { ...u, credits: creditAmount } : u));
                 setCreditModal(null);
             }
@@ -204,10 +204,10 @@ export default function AdminTab() {
             const res = await fetch(`${API_BASE_URL}/api/admin/users/${retentionModal}/extend-retention`, {
                 method: "POST",
                 headers,
-                body: JSON.stringify({ extra_days: retentionDays }),
+                body: JSON.stringify({ extra_hari: retentionDays }),
             });
             if (res.ok) {
-                toast.success(`Retention extended by ${retentionDays} days`);
+                toast.success(`Retention extended by ${retentionDays} hari`);
                 setRetentionModal(null);
             }
         } catch (e) {
@@ -273,13 +273,13 @@ export default function AdminTab() {
 
     const isOnline = (user: AdminUser) => {
         if (!user.updated_at) return false;
-        const diff = Date.now() - new Date(user.updated_at).getTime();
+        const diff = Tanggal.now() - new Tanggal(user.updated_at).getTime();
         return diff < 15 * 60 * 1000; // Active in last 15 minutes
     };
 
-    const formatDate = (d: string | null) => {
+    const formatTanggal = (d: string | null) => {
         if (!d) return "-";
-        return new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+        return new Tanggal(d).toLocaleTanggalString("id-ID", { hari: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
     };
 
     if (loading) {
@@ -316,9 +316,9 @@ export default function AdminTab() {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {[
                         { label: "Total Users", value: stats.total_users, icon: Users, color: "text-blue-400" },
-                        { label: "Active Today", value: stats.active_today, icon: Activity, color: "text-green-400" },
-                        { label: "Total Scans", value: stats.total_scans, icon: Scan, color: "text-purple-400" },
-                        { label: "Fraud Scans", value: stats.total_fraud_scans, icon: AlertTriangle, color: "text-yellow-400" },
+                        { label: "Active Tohari", value: stats.active_tohari, icon: Activity, color: "text-green-400" },
+                        { label: "Total Pemindaian", value: stats.total_scans, icon: Scan, color: "text-purple-400" },
+                        { label: "Pemindaian Penipuan", value: stats.total_fraud_scans, icon: AlertTriangle, color: "text-yellow-400" },
                         { label: "Chat Sessions", value: stats.total_chat_sessions, icon: MessageSquare, color: "text-cyan-400" },
                         { label: "Messages", value: stats.total_chat_messages, icon: MessageSquare, color: "text-pink-400" },
                     ].map((s, i) => (
@@ -337,14 +337,14 @@ export default function AdminTab() {
                 </div>
             )}
 
-            {/* Search */}
+            {/* Cari */}
             <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <Cari className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                 <input
                     type="text"
-                    placeholder="Search users by email or name..."
+                    placeholder="Cari users by email or name..."
                     value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
+                    onChange={e => setCariQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-gray-500 outline-none focus:border-white/20 transition-colors text-sm"
                 />
             </div>
@@ -482,18 +482,18 @@ export default function AdminTab() {
                                 <p className="text-xs text-gray-500 truncate">{user.email}</p>
                             </div>
 
-                            {/* Credits */}
+                            {/* Kredit */}
                             <div className="text-right flex-shrink-0">
                                 <p className="text-sm font-bold text-white">{user.credits}</p>
                                 <p className="text-[10px] text-gray-500">credits</p>
                             </div>
 
-                            {/* Actions */}
+                            {/* Aksis */}
                             <div className="flex items-center gap-1 flex-shrink-0">
                                 <button
                                     onClick={() => fetchActivity(user.id)}
                                     className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-                                    title="View activity"
+                                    title="Lihat activity"
                                 >
                                     <Eye className="w-3.5 h-3.5 text-gray-400" />
                                 </button>
@@ -550,7 +550,7 @@ export default function AdminTab() {
                                                     <p className="text-sm font-bold text-white break-words">{userActivity.phone || "-"}</p>
                                                 </div>
                                                 <div className="p-3 rounded-lg bg-white/[0.03]">
-                                                    <p className="text-xs text-gray-500">Fraud Scans</p>
+                                                    <p className="text-xs text-gray-500">Pemindaian Penipuan</p>
                                                     <p className="text-lg font-bold text-white">{userActivity.total_fraud_scans}</p>
                                                 </div>
                                                 <div className="p-3 rounded-lg bg-white/[0.03]">
@@ -570,7 +570,7 @@ export default function AdminTab() {
                                                                     <span className="truncate uppercase font-semibold">Rp {r.nominal_pengajuan?.toLocaleString('id-ID')}</span>
                                                                     <div className="flex gap-3 text-gray-600 flex-shrink-0">
                                                                         <span className={`px-1.5 py-0.5 rounded text-[10px] ${r.status === 'APPROVED' ? 'bg-green-500/20 text-green-400' : r.status === 'REJECTED' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>{r.status}</span>
-                                                                        <span>{formatDate(r.submitted_at)}</span>
+                                                                        <span>{formatTanggal(r.submitted_at)}</span>
                                                                     </div>
                                                                 </div>
                                                             ))}
@@ -604,7 +604,7 @@ export default function AdminTab() {
                             onClick={e => e.stopPropagation()}
                             className="w-full max-w-sm p-6 rounded-2xl bg-[#111] border border-white/10"
                         >
-                            <h3 className="text-lg font-bold text-white mb-4">Set Credits</h3>
+                            <h3 className="text-lg font-bold text-white mb-4">Set Kredit</h3>
                             <div className="flex items-center gap-3 mb-6">
                                 <button
                                     onClick={() => setCreditAmount(Math.max(0, creditAmount - 5))}
@@ -630,13 +630,13 @@ export default function AdminTab() {
                                     onClick={() => setCreditModal(null)}
                                     className="flex-1 py-2.5 rounded-xl bg-white/5 text-gray-400 text-sm font-medium hover:bg-white/10"
                                 >
-                                    Cancel
+                                    Batal
                                 </button>
                                 <button
-                                    onClick={handleSetCredits}
+                                    onClick={handleSetKredit}
                                     className="flex-1 py-2.5 rounded-xl bg-white text-black text-sm font-bold hover:bg-gray-200"
                                 >
-                                    Set Credits
+                                    Set Kredit
                                 </button>
                             </div>
                         </motion.div>
@@ -672,7 +672,7 @@ export default function AdminTab() {
                                                 : "bg-white/5 text-gray-400 hover:bg-white/10"
                                             }`}
                                     >
-                                        {d} days
+                                        {d} hari
                                     </button>
                                 ))}
                             </div>
@@ -681,7 +681,7 @@ export default function AdminTab() {
                                     onClick={() => setRetentionModal(null)}
                                     className="flex-1 py-2.5 rounded-xl bg-white/5 text-gray-400 text-sm font-medium hover:bg-white/10"
                                 >
-                                    Cancel
+                                    Batal
                                 </button>
                                 <button
                                     onClick={handleExtendRetention}

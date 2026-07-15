@@ -17,9 +17,9 @@ export interface Feature {
   premium?: boolean;
 }
 
-// Dashboard types
+// Dasbor types
 export interface WeeklyDataPoint {
-  day: string;
+  hari: string;
   scans: number;
 }
 
@@ -39,7 +39,7 @@ export interface TabComponentProps {
   onBack?: () => void;
 }
 
-export interface FeaturesDropupProps {
+export interface FiturDropupProps {
   onSelect: (feature: FeatureType) => void;
   onClose: () => void;
 }

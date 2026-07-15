@@ -58,7 +58,7 @@ const Help = () => {
                         <div className="p-3 bg-white/5 rounded-xl w-fit mb-4 group-hover:bg-white/10 transition-colors">
                             <Book className="w-6 h-6 text-white" />
                         </div>
-                        <h3 className="font-bold text-lg mb-1">Documentation</h3>
+                        <h3 className="font-bold text-lg mb-1">Dokumentasi</h3>
                         <p className="text-sm text-gray-400">Read detailed integration guides</p>
                     </button>
                     <button

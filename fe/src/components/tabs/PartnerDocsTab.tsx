@@ -36,7 +36,7 @@ export default function PartnerDocsTab({
     : `curl -X GET "${API}/api/v1/partner/lookup-by-phone/08xxxxxxxxxx" \\
   -H "x-api-key: uk-xxxx"`;
 
-  const chainResponseExample = `{
+  const chainResponsExample = `{
   "user": { "email": "user@example.com", "user_id": "uuid" },
   "identity": {
     "full_name": "Budi Santoso",
@@ -58,7 +58,7 @@ export default function PartnerDocsTab({
 
 
 
-  const decisionResponseExample = `{
+  const decisionResponsExample = `{
   "phone_number": "081234567890",
   "nik": "3201xxxxxxxxxxxx",
   "full_name": "Budi Santoso",
@@ -114,7 +114,7 @@ export default function PartnerDocsTab({
             </div>
             <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Output</p>
-              <pre className="mt-2 whitespace-pre-wrap break-all font-mono text-xs text-zinc-900">{decisionResponseExample}</pre>
+              <pre className="mt-2 whitespace-pre-wrap break-all font-mono text-xs text-zinc-900">{decisionResponsExample}</pre>
             </div>
           </div>
         </div>

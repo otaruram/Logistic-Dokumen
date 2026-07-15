@@ -250,16 +250,16 @@ export default function ApproveLoanModal({ modalLoan, onClose, onSuccess, authTo
           className={`w-full rounded-xl border-2 border-dashed bg-white touch-none ${
             signatureEnabled ? "border-zinc-300 cursor-crosshair" : "border-zinc-200 cursor-not-allowed opacity-70"
           }`}
-          style={{ touchAction: "none" }}
+          style={{ touchAksi: "none" }}
           onPointerDown={startDraw}
           onPointerMove={draw}
           onPointerUp={endDraw}
           onPointerLeave={endDraw}
-          onPointerCancel={endDraw}
+          onPointerBatal={endDraw}
           onTouchStart={startDrawTouch}
           onTouchMove={drawTouch}
           onTouchEnd={endDraw}
-          onTouchCancel={endDraw}
+          onTouchBatal={endDraw}
         />
         <button onClick={clearCanvas} className="mt-1 text-xs text-zinc-400 hover:text-zinc-700 underline">
           Hapus tanda tangan

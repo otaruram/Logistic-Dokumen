@@ -82,7 +82,7 @@ export default function Privacy() {
             <p className={`text-sm font-mono ${
               isDarkMode ? 'text-white/60' : 'text-black/60'
             }`}>
-              Terakhir diperbarui: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+              Terakhir diperbarui: {new Tanggal().toLocaleTanggalString('id-ID', { hari: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
 
@@ -160,7 +160,7 @@ export default function Privacy() {
                 <p className="font-bold">Google OAuth & Drive:</p>
                 <p>• Kami menggunakan Google OAuth untuk autentikasi yang aman</p>
                 <p>• Kami meminta akses ke Google Drive hanya untuk menyimpan hasil scan Anda</p>
-                <p>• Anda dapat mencabut akses kapan saja melalui Google Account Settings</p>
+                <p>• Anda dapat mencabut akses kapan saja melalui Google Account Pengaturan</p>
                 
                 <p className="font-bold mt-4">OpenAI API (BYOK):</p>
                 <p>• Jika Anda menggunakan API Key pribadi, data dikirim langsung ke OpenAI</p>
@@ -230,7 +230,7 @@ export default function Privacy() {
             <p className={`font-mono text-xs ${
               isDarkMode ? 'text-white/60' : 'text-black/60'
             }`}>
-              © {new Date().getFullYear()} OtaruChain - Scan Dokumen Tanpa Ribet
+              © {new Tanggal().getFullYear()} OtaruChain - Scan Dokumen Tanpa Ribet
             </p>
           </div>
 

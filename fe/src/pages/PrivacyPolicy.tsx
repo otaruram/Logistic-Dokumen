@@ -55,7 +55,7 @@ const PrivacyPolicy = () => {
                             We only collect the absolute minimum data required to provide our services:
                         </p>
                         <div className="grid sm:grid-cols-3 gap-4">
-                            {['Document Contents', 'Processing Logs', 'User Settings'].map((item) => (
+                            {['Document Contents', 'Memproses Logs', 'User Pengaturan'].map((item) => (
                                 <div key={item} className="p-4 bg-[#111] border border-white/10 rounded-xl text-center text-sm text-gray-300">
                                     {item}
                                 </div>

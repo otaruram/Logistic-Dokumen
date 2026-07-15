@@ -28,7 +28,7 @@ const TIERS = [
     threshold: 50,
     unit: "Dokumen",
     status: "Trusted",
-    benefits: ["Verified Badge"],
+    benefits: ["Terverifikasi Badge"],
     icon: Award,
     activeClasses: "border-slate-400/40 bg-slate-400/5 shadow-[0_0_20px_-4px_rgba(148,163,184,0.2)]",
     glowClasses: "",
@@ -96,14 +96,14 @@ export default function GamificationCard() {
   const goldThreshold = badge?.gold_threshold ?? 150;
   const platinumThreshold = badge?.platinum_threshold ?? 250;
   
-  let rawVerified = badge?.verified_count ?? 148;
-  const hasSilver  = badge?.has_silver  ?? (rawVerified >= silverThreshold);
-  const hasGold    = badge?.has_gold    ?? (rawVerified >= goldThreshold);
-  const hasPlatinum = badge?.has_platinum ?? (rawVerified >= platinumThreshold);
-  const hasTamperedDoc = badge?.streak_broken ?? false;
+  let rawTerverifikasi = badge?.verified_count ?? 148;
+  const hasSilver  = badge?.has_silver  ?? (rawTerverifikasi >= silverThreshold);
+  const hasGold    = badge?.has_gold    ?? (rawTerverifikasi >= goldThreshold);
+  const hasPlatinum = badge?.has_platinum ?? (rawTerverifikasi >= platinumThreshold);
+  const hasDimanipulasiDoc = badge?.streak_broken ?? false;
   
   // Realtime visual sync: if user has a badge, ensure the progress bar reflects at least that tier's threshold
-  let verified = rawVerified;
+  let verified = rawTerverifikasi;
   if (hasPlatinum) verified = Math.max(verified, platinumThreshold);
   else if (hasGold) verified = Math.max(verified, goldThreshold);
   else if (hasSilver) verified = Math.max(verified, silverThreshold);
@@ -126,7 +126,7 @@ export default function GamificationCard() {
     <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:p-6 space-y-4 sm:space-y-5 relative overflow-hidden w-full box-border">
 
       {/* Ambient glow */}
-      {!hasTamperedDoc && currentTier && (
+      {!hasDimanipulasiDoc && currentTier && (
         <div className={`absolute -top-20 -right-20 w-60 h-60 rounded-full opacity-[0.07] blur-3xl pointer-events-none bg-gradient-to-br ${currentTier.barGradient}`} />
       )}
 
@@ -134,13 +134,13 @@ export default function GamificationCard() {
       <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-0">
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-            hasTamperedDoc
+            hasDimanipulasiDoc
               ? "bg-slate-800 border border-slate-700"
               : currentTier
               ? `bg-gradient-to-br ${currentTier.barGradient}`
               : "bg-slate-800 border border-slate-700"
           }`}>
-            <Trophy className={`w-5 h-5 ${hasTamperedDoc || !currentTier ? "text-slate-600" : "text-black"}`} />
+            <Trophy className={`w-5 h-5 ${hasDimanipulasiDoc || !currentTier ? "text-slate-600" : "text-black"}`} />
           </div>
           <div className="min-w-0">
             <h3 className="font-bold text-white text-sm truncate">Consistency Mission</h3>
@@ -157,7 +157,7 @@ export default function GamificationCard() {
       </div>
 
       {/* ── Zero-Tolerance Alert ────────────────────────────────────────────── */}
-      {hasTamperedDoc && (
+      {hasDimanipulasiDoc && (
         <div className="rounded-xl border border-red-800/60 bg-red-950/40 p-3 sm:p-4 flex gap-3 w-full">
           <div className="flex-shrink-0 mt-0.5">
             <div className="w-8 h-8 rounded-lg bg-red-900/60 border border-red-800/60 flex items-center justify-center">
@@ -179,8 +179,8 @@ export default function GamificationCard() {
       {/* ── Progress Bar ───────────────────────────────────────────────────── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-slate-500">Dokumen Verified</span>
-          <span className={`font-bold tabular-nums ${hasTamperedDoc ? "text-red-400" : "text-slate-300"}`}>
+          <span className="text-slate-500">Dokumen Terverifikasi</span>
+          <span className={`font-bold tabular-nums ${hasDimanipulasiDoc ? "text-red-400" : "text-slate-300"}`}>
             {gLoading ? "—" : verified}
             <span className="text-slate-600 font-normal"> / {nextTarget}</span>
           </span>
@@ -188,7 +188,7 @@ export default function GamificationCard() {
         <div className="h-2.5 bg-slate-800 rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-1000 ease-out ${
-              hasTamperedDoc
+              hasDimanipulasiDoc
                 ? "bg-gradient-to-r from-red-600 to-amber-500"
                 : `bg-gradient-to-r ${currentTier?.barGradient ?? "from-orange-500 to-amber-400"}`
             }`}
@@ -215,7 +215,7 @@ export default function GamificationCard() {
             <div
               key={tier.key}
               className={`rounded-xl border p-4 transition-all duration-300 ${
-                hasTamperedDoc
+                hasDimanipulasiDoc
                   ? unlocked
                     ? "border-red-700/30 bg-red-950/10"
                     : "border-slate-800 bg-slate-900/30 opacity-70"

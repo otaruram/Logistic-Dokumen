@@ -169,7 +169,7 @@ const ProfileTab = () => {
     }
   };
 
-  const handleLogout = async () => {
+  const handleKeluar = async () => {
     toast.loading("Logging out...");
     try {
       await supabase.auth.signOut();
@@ -208,7 +208,7 @@ const ProfileTab = () => {
         </div>
       </motion.div>
 
-      {/* Telegram + Settings */}
+      {/* Telegram + Pengaturan */}
       <motion.div
         className="bg-[#111] border border-white/10 rounded-2xl p-6 space-y-4"
         initial={{ opacity: 0, y: 20 }}
@@ -402,7 +402,7 @@ const ProfileTab = () => {
         )}
       </motion.div>
 
-      {/* Account Actions */}
+      {/* Account Aksis */}
       <motion.div
         className="space-y-3"
         initial={{ opacity: 0, y: 20 }}
@@ -412,7 +412,7 @@ const ProfileTab = () => {
         <Button
           variant="outline"
           className="w-full justify-start gap-3 bg-[#111] border-white/10 text-white hover:bg-white/5 hover:text-white h-12"
-          onClick={handleLogout}
+          onClick={handleKeluar}
         >
           <LogOut className="w-4 h-4" />
           Sign Out

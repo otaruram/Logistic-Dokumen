@@ -60,7 +60,7 @@ export function useRealtimeScans(
           const event: RealtimeScanEvent = {
             type: payload.eventType as RealtimeEventType,
             data: payload.new || payload.old || {},
-            timestamp: Date.now(),
+            timestamp: Tanggal.now(),
           };
 
           setLatestEvent(event);

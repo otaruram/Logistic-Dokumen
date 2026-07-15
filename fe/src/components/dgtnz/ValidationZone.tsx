@@ -11,7 +11,7 @@ interface ValidationZoneProps {
     setRecipientName: (value: string) => void;
     signatureData: string;
     setSignatureData: (value: string) => void;
-    isProcessing: boolean;
+    isMemproses: boolean;
 }
 
 export const ValidationZone = ({
@@ -19,7 +19,7 @@ export const ValidationZone = ({
     setRecipientName,
     signatureData,
     setSignatureData,
-    isProcessing
+    isMemproses
 }: ValidationZoneProps) => {
     const [hasMeterai, setHasMeterai] = useState(false);
 
@@ -45,7 +45,7 @@ export const ValidationZone = ({
                         onChange={(e) => setRecipientName(e.target.value)}
                         placeholder="Enter recipient's full name"
                         className="bg-[#111] border-white/10 text-white placeholder:text-gray-600 focus:border-white/30 h-11"
-                        disabled={isProcessing}
+                        disabled={isMemproses}
                     />
                 </div>
 
@@ -78,7 +78,7 @@ export const ValidationZone = ({
                         <SignatureCanvas
                             value={signatureData}
                             onChange={setSignatureData}
-                            disabled={isProcessing}
+                            disabled={isMemproses}
                             backgroundImage={hasMeterai ? "/meterai_10000.png" : undefined}
                         />
                     </div>

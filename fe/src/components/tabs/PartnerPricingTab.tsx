@@ -26,8 +26,8 @@ const TIERS = [
     name: "Launch",
     price: "Rp 599.000",
     cadence: "/ bulan",
-    target: "Langkah awal digitalisasi dan mitigasi risiko untuk Koperasi Anda.",
-    volumeLabel: "900 Requests",
+    target: "Ditujukan untuk Kopkar skala kecil.",
+    volumeLabel: "600 Requests",
     volumeSub: "per bulan",
     volumeIsHard: false,
     sla: "Max 24 jam verifikasi",
@@ -50,9 +50,9 @@ const TIERS = [
   {
     id: "growth",
     name: "Scale",
-    price: "Rp 1.499.000",
+    price: "Rp 1.290.000",
     cadence: "/ bulan",
-    target: "Solusi komprehensif untuk Koperasi dengan volume transaksi tinggi yang siap berkembang.",
+    target: "Ditujukan untuk Kopkar skala menengah.",
     volumeLabel: "2.000 Requests",
     volumeSub: "per bulan",
     volumeIsHard: false,
@@ -60,7 +60,7 @@ const TIERS = [
     features: [
       "Semua fitur Launch",
       "Advanced Decision Gate API",
-      "Full Analytics Dashboard",
+      "Full Analytics Dasbor",
       "Burst Traffic Handling",
       "5 Admin Partner Seats",
       "Keamanan standar OJK/PDP",
@@ -101,12 +101,12 @@ const TIERS = [
 
 const COMPLIANCE_BADGES = [
   { icon: Shield, label: "Banking-Grade Security & Standar OJK/UU PDP" },
-  { icon: Lock, label: "Immutable Audit Trail (SHA-256 Stamping)" },
+  { icon: Lock, label: "Immutable Jejak Audit (SHA-256 Stamping)" },
   { icon: Cpu, label: "Gemini 2.5 Flash Fraud Screening Guard" },
   { icon: Phone, label: "Phone-number based identity lookup" },
 ];
 
-export default function PartnerPricingTab({
+export default function PartnerHargaTab({
   checkoutError,
   checkoutLoadingPlan,
   handleCheckout
@@ -143,7 +143,7 @@ export default function PartnerPricingTab({
         </div>
       )}
 
-      {/* ── Pricing Grid ───────────────────────────────────────────────── */}
+      {/* ── Harga Grid ───────────────────────────────────────────────── */}
       <div className="grid gap-5 lg:grid-cols-4 max-w-7xl mx-auto items-stretch">
         {TIERS.map((tier) => (
           <div
@@ -200,7 +200,7 @@ export default function PartnerPricingTab({
               <p className="text-xs text-slate-400"><span className="font-semibold text-slate-300">SLA:</span> {tier.sla}</p>
             </div>
 
-            {/* Features */}
+            {/* Fitur */}
             <ul className="mb-4 flex-1 space-y-2.5">
               {tier.features.map((feat) => (
                 <li key={feat} className="flex items-start gap-2.5 text-sm text-slate-300">

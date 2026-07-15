@@ -32,7 +32,7 @@ export default function Landing() {
           </div>
 
           <p className="text-lg md:text-xl font-mono text-black/70 mb-8 leading-relaxed max-w-3xl mx-auto hero-description">
-            Upload foto dokumen, langsung jadi data digital. 
+            Unggah foto dokumen, langsung jadi data digital. 
           </p>
 
           {/* Feature Pills */}
@@ -80,7 +80,7 @@ export default function Landing() {
         {/* Footer */}
         <div className="text-center mt-auto pt-8">
           <p className="font-mono text-xs text-black/60">
-            © {new Date().getFullYear()} OtaruChain - Scan Dokumen Otomatis dengan AI
+            © {new Tanggal().getFullYear()} OtaruChain - Scan Dokumen Otomatis dengan AI
           </p>
         </div>
       </div>

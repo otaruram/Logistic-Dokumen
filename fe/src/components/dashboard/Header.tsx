@@ -1,4 +1,4 @@
-import { Circle, LogOut, User, Sparkles, Settings } from "lucide-react";
+import { Circle, LogOut, User, Sparkles, Pengaturan } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,13 +15,13 @@ interface HeaderProps {
     email: string;
     picture: string;
   };
-  onLogout?: () => void;
+  onKeluar?: () => void;
   onGaskeun?: () => void;
   onProfile?: () => void;
-  onSettings?: () => void;
+  onPengaturan?: () => void;
 }
 
-const Header = ({ user, onLogout, onGaskeun, onProfile, onSettings }: HeaderProps) => {
+const Header = ({ user, onKeluar, onGaskeun, onProfile, onPengaturan }: HeaderProps) => {
   return (
     <header className="brutal-border-thin border-t-0 border-l-0 border-r-0 bg-background">
       <div className="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
@@ -78,12 +78,12 @@ const Header = ({ user, onLogout, onGaskeun, onProfile, onSettings }: HeaderProp
                     </DropdownMenuItem>
                   )}
 
-                  {onSettings && (
+                  {onPengaturan && (
                     <DropdownMenuItem
-                      onClick={onSettings}
+                      onClick={onPengaturan}
                       className="cursor-pointer font-bold uppercase text-xs hover:bg-primary hover:text-primary-foreground"
                     >
-                      <Settings className="w-4 h-4 mr-2" />
+                      <Pengaturan className="w-4 h-4 mr-2" />
                       SETTINGS
                     </DropdownMenuItem>
                   )}
@@ -98,9 +98,9 @@ const Header = ({ user, onLogout, onGaskeun, onProfile, onSettings }: HeaderProp
                     </DropdownMenuItem>
                   )}
 
-                  {onLogout && (
+                  {onKeluar && (
                     <DropdownMenuItem
-                      onClick={onLogout}
+                      onClick={onKeluar}
                       className="cursor-pointer font-bold uppercase text-xs text-destructive hover:bg-destructive hover:text-destructive-foreground"
                     >
                       <LogOut className="w-4 h-4 mr-2" />

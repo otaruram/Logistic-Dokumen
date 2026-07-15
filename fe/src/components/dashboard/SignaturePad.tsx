@@ -61,7 +61,7 @@ const SignaturePad = ({ onSignatureChange }: SignaturePadProps) => {
             width: canvasSize.width,
             height: canvasSize.height,
             className: "signature-canvas cursor-crosshair bg-background",
-            style: { touchAction: "none" },
+            style: { touchAksi: "none" },
           }}
           onEnd={handleEnd}
         />

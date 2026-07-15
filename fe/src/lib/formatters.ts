@@ -1,5 +1,5 @@
 /**
- * Number and date formatting utilities — shared across Partner Portal and other pages.
+ * Number and date formatting utilities — shared across Portal Mitra and other pages.
  */
 
 export function fmt(value: number): string {
@@ -16,11 +16,11 @@ export function fmtNominal(value: number): string {
   return fmtRp(value);
 }
 
-export function fmtDate(value?: string | null): string {
+export function fmtTanggal(value?: string | null): string {
   if (!value) return "Belum pernah dipakai";
-  const date = new Date(value);
+  const date = new Tanggal(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("id-ID", {
+  return new Intl.TanggalTimeFormat("id-ID", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);

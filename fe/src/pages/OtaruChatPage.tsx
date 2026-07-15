@@ -263,25 +263,25 @@ const OtaruChatPage = () => {
   };
 
   // ── Group sessions by date ──
-  function groupSessionsByDate(sessions: ChatSession[]) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const weekAgo = new Date(today);
-    weekAgo.setDate(weekAgo.getDate() - 7);
+  function groupSessionsByTanggal(sessions: ChatSession[]) {
+    const tohari = new Tanggal();
+    tohari.setHours(0, 0, 0, 0);
+    const yesterhari = new Tanggal(tohari);
+    yesterhari.setTanggal(yesterhari.getTanggal() - 1);
+    const weekAgo = new Tanggal(tohari);
+    weekAgo.setTanggal(weekAgo.getTanggal() - 7);
 
     const groups: { label: string; items: ChatSession[] }[] = [
-      { label: 'Today', items: [] },
-      { label: 'Yesterday', items: [] },
+      { label: 'Tohari', items: [] },
+      { label: 'Yesterhari', items: [] },
       { label: 'Previous 7 Days', items: [] },
       { label: 'Older', items: [] },
     ];
 
     sessions.forEach((s) => {
-      const d = new Date(s.updated_at || s.created_at);
-      if (d >= today) groups[0].items.push(s);
-      else if (d >= yesterday) groups[1].items.push(s);
+      const d = new Tanggal(s.updated_at || s.created_at);
+      if (d >= tohari) groups[0].items.push(s);
+      else if (d >= yesterhari) groups[1].items.push(s);
       else if (d >= weekAgo) groups[2].items.push(s);
       else groups[3].items.push(s);
     });
@@ -340,7 +340,7 @@ const OtaruChatPage = () => {
               </div>
               <h2 className="text-2xl font-semibold text-white mb-2">Hi, I'm Otaru</h2>
               <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.45)', maxWidth: '360px' }}>
-                Your expert logistics & financial document analyst. Upload a document or ask me anything.
+                Your expert logistics & financial document analyst. Unggah a document or ask me anything.
               </p>
               <div className="flex flex-wrap justify-center gap-2.5 max-w-md">
                 {[
@@ -547,7 +547,7 @@ const OtaruChatPage = () => {
                     <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>No chat history yet</p>
                   </div>
                 ) : (
-                  groupSessionsByDate(sessions).map((group) => (
+                  groupSessionsByTanggal(sessions).map((group) => (
                     <div key={group.label}>
                       <h3 className="text-[11px] font-medium uppercase tracking-wider mb-2 px-2" style={{ color: 'rgba(255,255,255,0.35)' }}>
                         {group.label}

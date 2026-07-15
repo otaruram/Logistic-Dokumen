@@ -1,4 +1,4 @@
-import { AlertCircle, Settings, ExternalLink } from "lucide-react";
+import { AlertCircle, Pengaturan, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -21,13 +21,13 @@ export const ConfigErrorPage = () => {
           
           <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-6 text-left mb-8">
             <div className="flex items-start gap-3 mb-4">
-              <Settings className="w-5 h-5 text-gray-600 mt-0.5" />
+              <Pengaturan className="w-5 h-5 text-gray-600 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-gray-900 mb-2">
                   For Developers / Admins:
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Please add the following environment variables in Vercel Dashboard:
+                  Please add the following environment variables in Vercel Dasbor:
                 </p>
                 
                 <div className="bg-white rounded border border-gray-300 p-4 font-mono text-sm space-y-2">
@@ -55,7 +55,7 @@ export const ConfigErrorPage = () => {
                 <strong>Steps to fix:</strong>
               </p>
               <ol className="text-sm text-gray-600 space-y-2 list-decimal list-inside">
-                <li>Go to Vercel Dashboard → Project Settings</li>
+                <li>Go to Vercel Dasbor → Project Pengaturan</li>
                 <li>Navigate to Environment Variables</li>
                 <li>Add the 3 variables above</li>
                 <li>Select all environments (Production, Preview, Development)</li>
@@ -77,7 +77,7 @@ export const ConfigErrorPage = () => {
                 className="flex items-center gap-2"
               >
                 <ExternalLink className="w-4 h-4" />
-                Open Vercel Dashboard
+                Open Vercel Dasbor
               </a>
             </Button>
             

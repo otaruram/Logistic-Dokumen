@@ -1,12 +1,12 @@
 import { useState, useRef } from "react";
-import { Upload, Camera, X, Check, Zap, ZapOff } from "lucide-react";
+import { Unggah, Camera, X, Check, Zap, ZapOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-interface FileUploadZoneProps {
+interface FileUnggahZoneProps {
   onFileSelect: (file: File) => void;
 }
 
-export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
+export default function FileUnggahZone({ onFileSelect }: FileUnggahZoneProps) {
   const [mode, setMode] = useState<"upload" | "camera" | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -108,7 +108,7 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
       fetch(capturedImage)
         .then((res) => res.blob())
         .then((blob) => {
-          const file = new File([blob], `camera_${Date.now()}.jpg`, {
+          const file = new File([blob], `camera_${Tanggal.now()}.jpg`, {
             type: "image/jpeg",
           });
           onFileSelect(file);
@@ -129,7 +129,7 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
     }, 100);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUnggah = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       onFileSelect(e.target.files[0]);
       setMode(null);
@@ -231,7 +231,7 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
       </h3>
       
       <div className="grid grid-cols-2 gap-4">
-        {/* Upload File Button */}
+        {/* Unggah File Button */}
         <button
           onClick={() => {
             setMode("upload");
@@ -239,7 +239,7 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
           }}
           className="brutal-border bg-background p-6 hover:bg-accent transition-colors brutal-press flex flex-col items-center gap-3 group"
         >
-          <Upload className="w-8 h-8 group-hover:scale-110 transition-transform" />
+          <Unggah className="w-8 h-8 group-hover:scale-110 transition-transform" />
           <span className="font-bold text-xs uppercase">UPLOAD FILE</span>
         </button>
 
@@ -257,7 +257,7 @@ export default function FileUploadZone({ onFileSelect }: FileUploadZoneProps) {
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        onChange={handleFileUpload}
+        onChange={handleFileUnggah}
         className="hidden"
       />
     </div>

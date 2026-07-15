@@ -90,7 +90,7 @@ const LoginPage = ({ onBack, onSuccess }: LoginPageProps) => {
             </p>
           </div>
 
-          {/* Login Actions */}
+          {/* Login Aksis */}
           <div className="space-y-6">
             <Button
               onClick={handleGoogleLogin}

@@ -11,9 +11,9 @@ const MAX_KASBON_LIMIT = 20_000_000; // Rp 20 Juta â€” Platinum tier max
 
 // â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-interface DashboardStats {
+interface DasborStats {
   trustScore: number;
-  totalNominalVerified: number;
+  totalNominalTerverifikasi: number;
   totalDocuments: number;
   verifiedDocuments: number;
   tamperedDocuments: number;
@@ -22,7 +22,7 @@ interface DashboardStats {
   totalScanFraud: number;
   credits: number;
   nextCleanupDays: number;
-  nextCleanupDate: string;
+  nextCleanupTanggal: string;
 }
 
 interface AuditTrailItem {
@@ -42,10 +42,10 @@ const DURATION_OPTIONS = [
   { key: "all", label: "Semua" },
 ] as const;
 
-const fmtRpDashboard = (value: number) =>
+const fmtRpDasbor = (value: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
 
-const TotalActivityCard = ({ stats, loading }: { stats: DashboardStats; loading: boolean }) => {
+const TotalActivityCard = ({ stats, loading }: { stats: DasborStats; loading: boolean }) => {
 
   return (
     <motion.div
@@ -66,14 +66,14 @@ const TotalActivityCard = ({ stats, loading }: { stats: DashboardStats; loading:
           {loading ? <span className="text-gray-600 animate-pulse">â€”</span> : stats.totalActivity}
         </div>
         <p className="text-xs text-gray-500 mt-1 font-medium">
-          Total aktivitas fraud scan
+          Total pemindaian penipuan
         </p>
       </div>
       <div className="mt-4 pt-3 border-t border-white/10 grid grid-cols-3 gap-2">
         {[
           { label: "Fraud", value: stats.totalScanFraud },
-          { label: "Verified", value: stats.verifiedDocuments },
-          { label: "Tampered", value: stats.tamperedDocuments },
+          { label: "Terverifikasi", value: stats.verifiedDocuments },
+          { label: "Dimanipulasi", value: stats.tamperedDocuments },
         ].map((item) => (
           <div key={item.label} className="bg-white/5 rounded-lg px-3 py-2 text-center">
             <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">{item.label}</p>
@@ -85,7 +85,7 @@ const TotalActivityCard = ({ stats, loading }: { stats: DashboardStats; loading:
   );
 };
 
-const CreditsCard = ({ stats, loading }: { stats: DashboardStats; loading: boolean }) => (
+const KreditCard = ({ stats, loading }: { stats: DasborStats; loading: boolean }) => (
   <motion.div
     initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
     className="border border-white/10 rounded-xl p-6 bg-white flex flex-col justify-between"
@@ -95,7 +95,7 @@ const CreditsCard = ({ stats, loading }: { stats: DashboardStats; loading: boole
         <svg className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" /><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" /><path d="M12 18V6" />
         </svg>
-        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">CREDITS</span>
+        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">KREDIT</span>
       </div>
       <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
         <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -111,10 +111,10 @@ const CreditsCard = ({ stats, loading }: { stats: DashboardStats; loading: boole
       <p className="text-xs text-gray-500 mt-2 font-medium">+1 kredit otomatis setiap hari (maks 10)</p>
     </div>
     <div className="mt-4 pt-3 border-t border-gray-200 grid grid-cols-2 gap-2">
-      {[{ label: "Deteksi Fraud", cost: "1 kredit" }, { label: "Validasi Signature", cost: "Included" }].map((item) => (
+      {[{ label: "Deteksi Fraud", cost: "1 kredit" }, { label: "Validasi Signature", cost: "Termasuk" }].map((item) => (
         <div key={item.label} className="bg-gray-50 rounded-lg px-3 py-2">
           <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">{item.label}</p>
-          <p className="text-sm font-bold text-black">{item.cost}<span className="text-gray-400 font-normal">{item.cost === "Included" ? "" : "/scan"}</span></p>
+          <p className="text-sm font-bold text-black">{item.cost}<span className="text-gray-400 font-normal">{item.cost === "Termasuk" ? "" : "/scan"}</span></p>
         </div>
       ))}
     </div>
@@ -201,7 +201,7 @@ const _GamificationCardLegacy = () => {
       {/* Progress Bar */}
       <div className="space-y-2 mb-5 w-full overflow-hidden">
         <div className="flex items-center justify-between text-xs w-full">
-          <span className="text-gray-400 truncate">Dokumen Verified</span>
+          <span className="text-gray-400 truncate">Dokumen Terverifikasi</span>
           <span className={`font-bold ${tierTextColor} shrink-0 ml-2`}>{gLoading ? "..." : verified} / {nextTarget}</span>
         </div>
         <div className="h-2.5 bg-white/5 rounded-full overflow-hidden w-full">
@@ -302,8 +302,8 @@ const _GamificationCardLegacy = () => {
 
 // SisaLimitCard removed — no longer displayed
 
-const NominalVerifiedCard = ({ stats, loading }: {
-  stats: DashboardStats; loading: boolean;
+const NominalTerverifikasiCard = ({ stats, loading }: {
+  stats: DasborStats; loading: boolean;
 }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
@@ -324,7 +324,7 @@ const NominalVerifiedCard = ({ stats, loading }: {
             </div>
           </div>
           <div className="text-4xl sm:text-5xl font-black text-white mb-2 tracking-tighter">
-            {loading ? <span className="text-gray-600 animate-pulse">—</span> : fmtRpDashboard(stats.totalNominalVerified)}
+            {loading ? <span className="text-gray-600 animate-pulse">—</span> : fmtRpDasbor(stats.totalNominalTerverifikasi)}
           </div>
           <p className="text-xs text-emerald-400/80 flex items-center gap-1 font-medium">
             <TrendingUp className="w-3 h-3" />Dihitung real-time dari dokumen yang telah Approved
@@ -338,9 +338,9 @@ const NominalVerifiedCard = ({ stats, loading }: {
       </div>
       <div className="mt-6 pt-4 border-t border-white/10 grid grid-cols-3 gap-3 text-center">
         {[
-          { label: "Verified", value: stats.verifiedDocuments, color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/20" },
-          { label: "Processing", value: stats.processingDocuments, color: "text-yellow-500", bg: "bg-yellow-500/10", border: "border-yellow-500/20" },
-          { label: "Tampered", value: stats.tamperedDocuments, color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/20" },
+          { label: "Terverifikasi", value: stats.verifiedDocuments, color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/20" },
+          { label: "Memproses", value: stats.processingDocuments, color: "text-yellow-500", bg: "bg-yellow-500/10", border: "border-yellow-500/20" },
+          { label: "Dimanipulasi", value: stats.tamperedDocuments, color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/20" },
         ].map((item) => (
           <div key={item.label} className={`${item.bg} border ${item.border} rounded-xl px-3 py-3`}>
             <div className={`text-2xl font-bold ${item.color} tabular-nums`}>{loading ? "..." : item.value}</div>
@@ -384,7 +384,7 @@ const MasterAuditTable = ({ items, loading }: { items: AuditTrailItem[]; loading
             <FileText className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h4 className="font-bold text-white text-sm">Master Data & Transaction Audit Trail</h4>
+            <h4 className="font-bold text-white text-sm">Master Data & Transaction Jejak Audit</h4>
             <p className="text-[11px] text-gray-500">{items.length} transaksi tercatat</p>
           </div>
         </div>
@@ -418,11 +418,11 @@ const MasterAuditTable = ({ items, loading }: { items: AuditTrailItem[]; loading
                 {paged.map((item, i) => (
                   <tr key={item.id} className={`border-b border-white/5 hover:bg-white/[0.03] transition-colors ${i % 2 === 0 ? "bg-white/[0.01]" : ""}`}>
                     <td className="px-6 py-3 text-xs text-gray-400 whitespace-nowrap">
-                      {item.date ? new Date(item.date).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "â€”"}
+                      {item.date ? new Tanggal(item.date).toLocaleString("id-ID", { hari: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "â€”"}
                     </td>
                     <td className="px-4 py-3 text-xs text-white font-medium truncate max-w-[160px]">{item.workerName}</td>
                     <td className="px-4 py-3 text-xs text-white font-semibold text-right tabular-nums whitespace-nowrap">
-                      {fmtRpDashboard(item.nominal)}
+                      {fmtRpDasbor(item.nominal)}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <StatusBadge status={item.status} />
@@ -479,12 +479,12 @@ const MasterAuditTable = ({ items, loading }: { items: AuditTrailItem[]; loading
 
 // â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-const DashboardTab = () => {
-  const [stats, setStats] = useState<DashboardStats>({
-    trustScore: 0, totalNominalVerified: 0, totalDocuments: 0,
+const DasborTab = () => {
+  const [stats, setStats] = useState<DasborStats>({
+    trustScore: 0, totalNominalTerverifikasi: 0, totalDocuments: 0,
     verifiedDocuments: 0, tamperedDocuments: 0, processingDocuments: 0,
     totalActivity: 0, totalScanFraud: 0,
-    credits: 0, nextCleanupDays: 0, nextCleanupDate: "",
+    credits: 0, nextCleanupDays: 0, nextCleanupTanggal: "",
   });
   const [weeklyData, setWeeklyData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -495,7 +495,7 @@ const DashboardTab = () => {
   const backendFailureCount = useRef(0);
   const backendCooldownUntil = useRef(0);
 
-  const fetchDashboardData = useCallback(async (silent = false) => {
+  const fetchDasborData = useCallback(async (silent = false) => {
     if (refreshInFlight.current) return;
     try {
       refreshInFlight.current = true;
@@ -507,7 +507,7 @@ const DashboardTab = () => {
 
       // â”€â”€ Primary: backend realtime-stats (uses supabase_admin â€” bypasses RLS) â”€â”€
       let backendOk = false;
-      const nowMs = Date.now();
+      const nowMs = Tanggal.now();
       try {
         if (nowMs >= backendCooldownUntil.current) {
           const statsRes = await fetch(`${API_URL}/api/dashboard/realtime-stats`, {
@@ -519,28 +519,28 @@ const DashboardTab = () => {
             backendCooldownUntil.current = 0;
 
             // 2. Next cleanup (reuse existing logic)
-            const now = new Date();
-            const joinDate = session?.user?.created_at ? new Date(session.user.created_at) : now;
-            let nextCleanupDate = new Date(now.getFullYear(), now.getMonth(), joinDate.getDate());
-            if (nextCleanupDate <= now) nextCleanupDate = new Date(now.getFullYear(), now.getMonth() + 1, joinDate.getDate());
-            const nextCleanupDays = Math.ceil((nextCleanupDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-            const nextCleanupDateStr = nextCleanupDate.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+            const now = new Tanggal();
+            const joinTanggal = session?.user?.created_at ? new Tanggal(session.user.created_at) : now;
+            let nextCleanupTanggal = new Tanggal(now.getFullYear(), now.getMonth(), joinTanggal.getTanggal());
+            if (nextCleanupTanggal <= now) nextCleanupTanggal = new Tanggal(now.getFullYear(), now.getMonth() + 1, joinTanggal.getTanggal());
+            const nextCleanupDays = Math.ceil((nextCleanupTanggal.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            const nextCleanupTanggalStr = nextCleanupTanggal.toLocaleTanggalString('id-ID', { year: 'numeric', month: 'long', hari: 'numeric' });
 
             // Cleanup API override
-            let apiCleanupDays = nextCleanupDays, apiCleanupDate = nextCleanupDateStr;
+            let apiCleanupDays = nextCleanupDays, apiCleanupTanggal = nextCleanupTanggalStr;
             try {
               const cleanupRes = await fetch(`${API_URL}/api/cleanup/cleanup-stats`);
               if (cleanupRes.ok) {
                 const c = await cleanupRes.json();
-                apiCleanupDays = c.days_until_cleanup ?? nextCleanupDays;
-                apiCleanupDate = c.next_cleanup_date ? new Date(c.next_cleanup_date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : nextCleanupDateStr;
+                apiCleanupDays = c.hari_until_cleanup ?? nextCleanupDays;
+                apiCleanupTanggal = c.next_cleanup_date ? new Tanggal(c.next_cleanup_date).toLocaleTanggalString('id-ID', { year: 'numeric', month: 'long', hari: 'numeric' }) : nextCleanupTanggalStr;
               }
             } catch {/* ignore */}
 
             if (isMounted.current) {
               setStats({
                 trustScore: d.trust_score ?? 0,
-                totalNominalVerified: d.total_nominal ?? 0,
+                totalNominalTerverifikasi: d.total_nominal ?? 0,
                 totalDocuments: d.total_scan_fraud ?? 0,
                 verifiedDocuments: d.verified ?? 0,
                 tamperedDocuments: d.tampered ?? 0,
@@ -549,24 +549,24 @@ const DashboardTab = () => {
                 totalScanFraud: d.total_scan_fraud ?? 0,
                 credits: d.credits ?? 0,
                 nextCleanupDays: apiCleanupDays,
-                nextCleanupDate: apiCleanupDate,
+                nextCleanupTanggal: apiCleanupTanggal,
               });
-              setWeeklyData((d.weekly || []).map((w: any) => ({ day: w.day, scans: w.scans ?? 0 })));
+              setWeeklyData((d.weekly || []).map((w: any) => ({ hari: w.hari, scans: w.scans ?? 0 })));
               setLoading(false);
             }
             backendOk = true;
           } else {
             backendFailureCount.current += 1;
             const backoffSeconds = Math.min(60, Math.max(5, backendFailureCount.current * 5));
-            backendCooldownUntil.current = Date.now() + backoffSeconds * 1000;
+            backendCooldownUntil.current = Tanggal.now() + backoffSeconds * 1000;
           }
         }
       } catch (backendErr) {
         backendFailureCount.current += 1;
         const backoffSeconds = Math.min(60, Math.max(5, backendFailureCount.current * 5));
-        backendCooldownUntil.current = Date.now() + backoffSeconds * 1000;
+        backendCooldownUntil.current = Tanggal.now() + backoffSeconds * 1000;
         if (backendFailureCount.current <= 3 || backendFailureCount.current % 10 === 0) {
-          console.warn("[Dashboard] backend realtime-stats failed, falling back to Supabase client", backendErr);
+          console.warn("[Dasbor] backend realtime-stats failed, falling back to Supabase client", backendErr);
         }
       }
 
@@ -598,54 +598,54 @@ const DashboardTab = () => {
         if (creditsRes.ok) { credits = (await creditsRes.json()).credits ?? 0; }
       } catch { const { data: profile } = await supabase.from('profiles').select('credits').eq('id', userId).single(); credits = profile?.credits ?? 0; }
 
-      const now = new Date();
-      const joinDate = session?.user?.created_at ? new Date(session.user.created_at) : now;
-      let nextCleanupDate = new Date(now.getFullYear(), now.getMonth(), joinDate.getDate());
-      if (nextCleanupDate <= now) nextCleanupDate = new Date(now.getFullYear(), now.getMonth() + 1, joinDate.getDate());
-      const nextCleanupDays = Math.ceil((nextCleanupDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      const nextCleanupDateStr = nextCleanupDate.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+      const now = new Tanggal();
+      const joinTanggal = session?.user?.created_at ? new Tanggal(session.user.created_at) : now;
+      let nextCleanupTanggal = new Tanggal(now.getFullYear(), now.getMonth(), joinTanggal.getTanggal());
+      if (nextCleanupTanggal <= now) nextCleanupTanggal = new Tanggal(now.getFullYear(), now.getMonth() + 1, joinTanggal.getTanggal());
+      const nextCleanupDays = Math.ceil((nextCleanupTanggal.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const nextCleanupTanggalStr = nextCleanupTanggal.toLocaleTanggalString('id-ID', { year: 'numeric', month: 'long', hari: 'numeric' });
 
-      const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-      const dayOfWeek = now.getDay();
-      const monday = new Date(now); monday.setDate(now.getDate() + (dayOfWeek === 0 ? -6 : 1 - dayOfWeek)); monday.setHours(0, 0, 0, 0);
-      const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23, 59, 59, 999);
+      const hariNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+      const hariOfWeek = now.getDay();
+      const monhari = new Tanggal(now); monhari.setTanggal(now.getTanggal() + (hariOfWeek === 0 ? -6 : 1 - hariOfWeek)); monhari.setHours(0, 0, 0, 0);
+      const sunhari = new Tanggal(monhari); sunhari.setTanggal(monhari.getTanggal() + 6); sunhari.setHours(23, 59, 59, 999);
       const dailyCounts = [0, 0, 0, 0, 0, 0, 0];
       let totalScanFraud = 0;
       (allFraud || []).forEach((s: any) => {
         totalScanFraud++;
         if (s.created_at) {
-          const scanDate = new Date(s.created_at);
-          if (scanDate >= monday && scanDate <= sunday) {
-            const idx = scanDate.getDay() === 0 ? 6 : scanDate.getDay() - 1;
+          const scanTanggal = new Tanggal(s.created_at);
+          if (scanTanggal >= monhari && scanTanggal <= sunhari) {
+            const idx = scanTanggal.getDay() === 0 ? 6 : scanTanggal.getDay() - 1;
             dailyCounts[idx]++;
           }
         }
       });
-      const weeklyChartData = dayNames.map((label, i) => ({ day: label, scans: dailyCounts[i] }));
+      const weeklyChartData = hariNames.map((label, i) => ({ hari: label, scans: dailyCounts[i] }));
       if (isMounted.current) setWeeklyData(weeklyChartData);
 
-      let apiCleanupDays = nextCleanupDays, apiCleanupDate = nextCleanupDateStr;
+      let apiCleanupDays = nextCleanupDays, apiCleanupTanggal = nextCleanupTanggalStr;
       try {
         const cleanupRes = await fetch(`${API_URL}/api/cleanup/cleanup-stats`);
         if (cleanupRes.ok) {
           const c = await cleanupRes.json();
-          apiCleanupDays = c.days_until_cleanup ?? nextCleanupDays;
-          apiCleanupDate = c.next_cleanup_date ? new Date(c.next_cleanup_date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : nextCleanupDateStr;
+          apiCleanupDays = c.hari_until_cleanup ?? nextCleanupDays;
+          apiCleanupTanggal = c.next_cleanup_date ? new Tanggal(c.next_cleanup_date).toLocaleTanggalString('id-ID', { year: 'numeric', month: 'long', hari: 'numeric' }) : nextCleanupTanggalStr;
         }
       } catch {/* ignore */}
 
       if (isMounted.current) {
         setStats({
-          trustScore: calculatedTrustScore, totalNominalVerified: totalVerif, totalDocuments: (allFraud || []).length,
+          trustScore: calculatedTrustScore, totalNominalTerverifikasi: totalVerif, totalDocuments: (allFraud || []).length,
           verifiedDocuments: verified, tamperedDocuments: tampered, processingDocuments: processing,
           totalActivity: totalScanFraud, totalScanFraud,
-          credits, nextCleanupDays: apiCleanupDays, nextCleanupDate: apiCleanupDate,
+          credits, nextCleanupDays: apiCleanupDays, nextCleanupTanggal: apiCleanupTanggal,
         });
         setLoading(false);
       }
     } catch (error) {
       if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) return;
-      console.error("Dashboard fetch error:", error);
+      console.error("Dasbor fetch error:", error);
       if (isMounted.current) setLoading(false);
     } finally {
       refreshInFlight.current = false;
@@ -699,8 +699,8 @@ const DashboardTab = () => {
     let subscription: ReturnType<typeof supabase.channel>;
     let realtimePoll: ReturnType<typeof setInterval> | undefined;
 
-    const setupDashboard = async () => {
-      await fetchDashboardData();
+    const setupDasbor = async () => {
+      await fetchDasborData();
       await fetchAuditTrail();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -711,37 +711,37 @@ const DashboardTab = () => {
           const newData = payload.new as Record<string, unknown>;
           if (newData && typeof newData.credits === 'number' && isMounted.current) setStats((prev) => ({ ...prev, credits: newData.credits as number }));
         })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'documents', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDashboardData(true); })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'extracted_finance_data', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDashboardData(true); })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'fraud_scans', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDashboardData(true); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'documents', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDasborData(true); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'extracted_finance_data', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDasborData(true); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'fraud_scans', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDasborData(true); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'loan_requests' }, () => {
           if (isMounted.current) fetchAuditTrail();
         })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'scans', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDashboardData(true); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'scans', filter: `user_id=eq.${userId}` }, () => { if (isMounted.current) fetchDasborData(true); })
         .subscribe();
 
       // Fallback realtime polling in case websocket/realtime channel drops.
       realtimePoll = setInterval(() => {
-        if (isMounted.current) fetchDashboardData(true);
+        if (isMounted.current) fetchDasborData(true);
       }, 15000);
     };
-    setupDashboard();
+    setupDasbor();
 
     const handleScanCompleted = () => {
       if (!isMounted.current) return;
       // Immediate refresh + delayed refresh to avoid DB write race conditions.
-      fetchDashboardData(true);
+      fetchDasborData(true);
       fetchAuditTrail();
       setTimeout(() => {
-        if (isMounted.current) fetchDashboardData(true);
+        if (isMounted.current) fetchDasborData(true);
       }, 1500);
     };
     const handleFocusRefresh = () => {
-      if (isMounted.current) fetchDashboardData(true);
+      if (isMounted.current) fetchDasborData(true);
     };
     const handleVisibilityRefresh = () => {
       if (document.visibilityState === 'visible' && isMounted.current) {
-        fetchDashboardData(true);
+        fetchDasborData(true);
       }
     };
     window.addEventListener('scan-completed', handleScanCompleted);
@@ -756,7 +756,7 @@ const DashboardTab = () => {
       if (realtimePoll) clearInterval(realtimePoll);
       if (subscription) supabase.removeChannel(subscription);
     };
-  }, [fetchDashboardData, fetchAuditTrail]);
+  }, [fetchDasborData, fetchAuditTrail]);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] p-6 space-y-6 text-white font-sans pb-32">
@@ -764,7 +764,7 @@ const DashboardTab = () => {
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="border-b border-white/10 pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Dasbor</h1>
             <p className="text-sm text-gray-400 mt-1">Monitor aktivitas dan performa finansial Anda</p>
           </div>
         </div>
@@ -773,19 +773,19 @@ const DashboardTab = () => {
       {/* Top Banner Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <TotalActivityCard stats={stats} loading={loading} />
-        <CreditsCard stats={stats} loading={loading} />
+        <KreditCard stats={stats} loading={loading} />
       </div>
 
       {/* Total Dokumen Aktif — Full Width */}
-      <NominalVerifiedCard stats={stats} loading={loading} />
+      <NominalTerverifikasiCard stats={stats} loading={loading} />
 
       {/* Gamification — Consistency Mission */}
       <GamificationCard />
 
-      {/* Master Data & Transaction Audit Trail */}
+      {/* Master Data & Transaction Jejak Audit */}
       <MasterAuditTable items={auditTrail} loading={auditLoading} />
     </div>
   );
 };
 
-export default DashboardTab;
+export default DasborTab;

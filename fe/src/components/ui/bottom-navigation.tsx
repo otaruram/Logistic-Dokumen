@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { LayoutDashboard, Scan, Sparkles, User, Shield } from "lucide-react";
+import { LayoutDasbor, Scan, Sparkles, User, Shield } from "lucide-react";
 import { NAVIGATION_TABS } from "@/constants";
 import { TabType } from "@/types";
 
@@ -11,7 +11,7 @@ interface BottomNavigationProps {
 }
 
 const TAB_ICONS = {
-  dashboard: LayoutDashboard,
+  dashboard: LayoutDasbor,
   dgtnz: Scan,
   otaru: Sparkles,
   profile: User,
@@ -22,7 +22,7 @@ const BottomNavigation = ({ activeTab, onTabClick, getActiveTabId, isAdmin }: Bo
   // Build tab list: insert admin tab after dashboard if admin
   const tabs = isAdmin
     ? [
-      NAVIGATION_TABS[0], // Dashboard
+      NAVIGATION_TABS[0], // Dasbor
       { id: "admin" as const, label: "Admin" },
       ...NAVIGATION_TABS.slice(1),
     ]

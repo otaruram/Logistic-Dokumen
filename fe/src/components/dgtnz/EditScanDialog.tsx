@@ -74,10 +74,10 @@ export const EditScanDialog = ({ open, onOpenChange, record, onSave }: EditScanD
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)} className="border-white/10 hover:bg-white/5 text-gray-300">
-                        Cancel
+                        Batal
                     </Button>
                     <Button onClick={handleSave} disabled={isSaving} className="bg-white text-black hover:bg-gray-200">
-                        {isSaving ? "Saving..." : "Save Changes"}
+                        {isSaving ? "Saving..." : "Simpan Perubahan"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

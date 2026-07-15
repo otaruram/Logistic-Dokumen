@@ -4,7 +4,7 @@ import { Code2, Copy, KeyRound, RefreshCw, ShieldCheck, Trash2 } from "lucide-re
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
 
-type ApiKeyResponse = {
+type ApiKeyRespons = {
   key_value: string;
   name: string;
   is_active: boolean;
@@ -38,20 +38,20 @@ const pricingPlans = [
   },
 ];
 
-const formatDate = (value?: string | null) => {
+const formatTanggal = (value?: string | null) => {
   if (!value) return "Belum pernah dipakai";
-  const date = new Date(value);
+  const date = new Tanggal(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("id-ID", {
+  return new Intl.TanggalTimeFormat("id-ID", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
 };
 
 const ApiTab = () => {
-  const [apiKey, setApiKey] = useState<ApiKeyResponse | null>(null);
+  const [apiKey, setApiKey] = useState<ApiKeyRespons | null>(null);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<"generate" | "revoke" | null>(null);
+  const [actionLoading, setAksiLoading] = useState<"generate" | "revoke" | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
 
   const authHeader = async () => {
@@ -99,7 +99,7 @@ const ApiTab = () => {
   }, []);
 
   const handleGenerate = async () => {
-    setActionLoading("generate");
+    setAksiLoading("generate");
     setAuthError(null);
     try {
       const headers = await authHeader();
@@ -129,7 +129,7 @@ const ApiTab = () => {
       const message = error instanceof Error ? error.message : "Gagal membuat API key.";
       toast.error(message);
     } finally {
-      setActionLoading(null);
+      setAksiLoading(null);
     }
   };
 
@@ -138,7 +138,7 @@ const ApiTab = () => {
       return;
     }
 
-    setActionLoading("revoke");
+    setAksiLoading("revoke");
     setAuthError(null);
     try {
       const headers = await authHeader();
@@ -164,7 +164,7 @@ const ApiTab = () => {
       const message = error instanceof Error ? error.message : "Gagal revoke API key.";
       toast.error(message);
     } finally {
-      setActionLoading(null);
+      setAksiLoading(null);
     }
   };
 
@@ -249,11 +249,11 @@ const ApiTab = () => {
                 <div className="grid gap-3 text-sm text-gray-300 sm:grid-cols-2">
                   <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                     <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Created at</p>
-                    <p className="mt-2 text-white">{formatDate(apiKey.created_at)}</p>
+                    <p className="mt-2 text-white">{formatTanggal(apiKey.created_at)}</p>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                     <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Last used</p>
-                    <p className="mt-2 text-white">{formatDate(apiKey.last_used_at)}</p>
+                    <p className="mt-2 text-white">{formatTanggal(apiKey.last_used_at)}</p>
                   </div>
                 </div>
               </div>
@@ -305,8 +305,8 @@ const ApiTab = () => {
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-[#111] p-5">
-            <h3 className="text-lg font-semibold text-white">Pricing</h3>
-            <p className="mt-1 text-sm text-gray-400">Pricing awal untuk MVP. Bisa dinaikkan setelah usage pattern partner sudah kelihatan.</p>
+            <h3 className="text-lg font-semibold text-white">Harga</h3>
+            <p className="mt-1 text-sm text-gray-400">Harga awal untuk MVP. Bisa dinaikkan setelah usage pattern partner sudah kelihatan.</p>
             <div className="mt-4 space-y-3">
               {pricingPlans.map((plan) => (
                 <div key={plan.name} className="rounded-xl border border-white/10 bg-black/30 p-4">

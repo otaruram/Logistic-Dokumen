@@ -8,8 +8,8 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
+  AlertDialogAksi,
+  AlertDialogBatal,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -19,7 +19,7 @@ import {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://logistic-dokumen.onrender.com';
 
-export default function Settings() {
+export default function Pengaturan() {
   const navigate = useNavigate();
   const [isDarkMode, setIsDarkMode] = useState(false);
   
@@ -442,7 +442,7 @@ export default function Settings() {
       {/* Content */}
       <div className="container mx-auto px-4 py-8 max-w-3xl space-y-6">
         
-        {/* API Key Settings */}
+        {/* API Key Pengaturan */}
         <div className="brutal-border-thin bg-background p-6 space-y-4">
           <div className="flex items-center gap-3 mb-4">
             <Key className="w-6 h-6" />
@@ -540,7 +540,7 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* OCR API Key Settings */}
+        {/* OCR API Key Pengaturan */}
         <div className="brutal-border-thin bg-background p-6 space-y-4">
           <div className="flex items-center gap-3 mb-4">
             <Key className="w-6 h-6" />
@@ -692,7 +692,7 @@ export default function Settings() {
 
             <div className="pt-4 border-t">
               <p className="text-xs text-muted-foreground">
-                © {new Date().getFullYear()} OtaruChain - Scan Dokumen Tanpa Ribet
+                © {new Tanggal().getFullYear()} OtaruChain - Scan Dokumen Tanpa Ribet
               </p>
             </div>
           </div>
@@ -710,14 +710,14 @@ export default function Settings() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
+            <AlertDialogBatal>Batal</AlertDialogBatal>
+            <AlertDialogAksi
               onClick={deleteApiKey}
               className="bg-red-600 hover:bg-red-700"
               disabled={loading}
             >
               {loading ? 'Menghapus...' : 'Ya, Hapus'}
-            </AlertDialogAction>
+            </AlertDialogAksi>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -733,14 +733,14 @@ export default function Settings() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
+            <AlertDialogBatal>Batal</AlertDialogBatal>
+            <AlertDialogAksi
               onClick={deleteOcrApiKey}
               className="bg-red-600 hover:bg-red-700"
               disabled={loadingOcr}
             >
               {loadingOcr ? 'Menghapus...' : 'Ya, Hapus'}
-            </AlertDialogAction>
+            </AlertDialogAksi>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

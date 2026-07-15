@@ -1,7 +1,7 @@
 import React from "react";
 import { BarChart3, ShieldCheck, CheckCircle2, Mail, ArrowRight, Shield, TrendingUp, Zap } from "lucide-react";
 
-export default function PartnerDashboardTab({
+export default function PartnerDasborTab({
   stats,
   setActiveView
 }: {
@@ -13,8 +13,8 @@ export default function PartnerDashboardTab({
   return (
     <section className="space-y-5">
       <div className="rounded-3xl border border-zinc-200 bg-white p-6">
-        <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Dashboard</p>
-        <h1 className="mt-2 text-3xl font-semibold text-zinc-900">OtaruChain Partner Dashboard</h1>
+        <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Dasbor</p>
+        <h1 className="mt-2 text-3xl font-semibold text-zinc-900">OtaruChain Partner Dasbor</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
           Ringkasan performa platform untuk partner dan shortcut cepat ke API.
         </p>
@@ -24,7 +24,7 @@ export default function PartnerDashboardTab({
         {[
           { label: "Total scans", value: stats ? fmt(stats.total_scans) : "...", icon: BarChart3 },
           { label: "Fraud prevented", value: stats ? fmt(stats.fraud_prevented) : "...", icon: ShieldCheck },
-          { label: "Verified docs", value: stats ? fmt(stats.verified_scans) : "...", icon: CheckCircle2 },
+          { label: "Terverifikasi docs", value: stats ? fmt(stats.verified_scans) : "...", icon: CheckCircle2 },
           { label: "Integrity rate", value: stats ? `${stats.integrity_rate}%` : "...", icon: Mail },
         ].map((item) => {
           const Icon = item.icon;

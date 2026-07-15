@@ -169,7 +169,7 @@ export default function PhoneOnboardingPage({
     }
   };
 
-  const handleLogout = async () => {
+  const handleKeluar = async () => {
     await supabase.auth.signOut();
     onBack();
   };
@@ -248,14 +248,14 @@ export default function PhoneOnboardingPage({
       </div>
 
       <div className="w-full max-w-md relative z-10">
-        {/* Back / Logout */}
+        {/* Back / Keluar */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
           <button
-            onClick={handleLogout}
+            onClick={handleKeluar}
             className="flex items-center gap-2 text-gray-500 hover:text-white mb-8 transition-colors group"
           >
             <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
@@ -385,7 +385,7 @@ export default function PhoneOnboardingPage({
                   </div>
                   <div className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center gap-3">
                     <Building2 className="w-4 h-4 text-emerald-500" />
-                    <span className="text-xs text-gray-400">Verified by HRD</span>
+                    <span className="text-xs text-gray-400">Terverifikasi by HRD</span>
                   </div>
                 </div>
               </motion.div>

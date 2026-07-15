@@ -194,7 +194,7 @@ export const DraggableStampingPreview: React.FC<DraggableStampingPreviewProps> =
       width: dim.w * data.scale * rx,
       height: dim.h * data.scale * ry,
       cursor: "grab",
-      touchAction: "none",
+      touchAksi: "none",
       userSelect: "none",
     };
   };
@@ -325,10 +325,10 @@ export const DraggableStampingPreview: React.FC<DraggableStampingPreviewProps> =
               <div
                 ref={containerRef}
                 className="relative select-none"
-                style={{ width: "100%", maxWidth: preview.preview_w, aspectRatio: `${preview.preview_w} / ${preview.preview_h}`, touchAction: "none" }}
+                style={{ width: "100%", maxWidth: preview.preview_w, aspectRatio: `${preview.preview_w} / ${preview.preview_h}`, touchAksi: "none" }}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
-                onPointerCancel={onPointerUp}
+                onPointerBatal={onPointerUp}
               >
                 <img
                   src={`data:image/jpeg;base64,${preview.image_b64}`}
@@ -369,7 +369,7 @@ export const DraggableStampingPreview: React.FC<DraggableStampingPreviewProps> =
                 value={rotations.materai}
                 onChange={(e) => handleRotationChange("materai", Number(e.target.value))}
                 className="flex-1 h-2 accent-pink-400 cursor-pointer"
-                style={{ touchAction: "none" }}
+                style={{ touchAksi: "none" }}
               />
               <button
                 type="button"

@@ -23,14 +23,14 @@ const Docs = () => {
                 </Button>
 
                 <div className="mb-12">
-                    <h1 className="text-4xl font-bold mb-4 tracking-tight">Otaru Documentation</h1>
+                    <h1 className="text-4xl font-bold mb-4 tracking-tight">Otaru Dokumentasi</h1>
                     <p className="text-gray-400 text-lg leading-relaxed">
                         Pelajari cara kerja OtaruChain & OtaruFinancial dalam mendeteksi fraud, menganalisis kelayakan kredit, dan mengekstrak data dari dokumen.
                     </p>
                 </div>
 
                 <div className="space-y-12">
-                    {/* How It Works */}
+                    {/* Cara Kerja */}
                     <section>
                         <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
                             <Zap className="text-emerald-400 w-6 h-6" /> Cara Kerja
@@ -40,7 +40,7 @@ const Docs = () => {
                                 <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center mb-4 border border-blue-500/20">
                                     <span className="text-blue-400 font-bold">1</span>
                                 </div>
-                                <h3 className="font-semibold text-lg mb-2">Upload & OCR</h3>
+                                <h3 className="font-semibold text-lg mb-2">Unggah & OCR</h3>
                                 <p className="text-sm text-gray-400 leading-relaxed">
                                     Dokumen (KTP, Slip Gaji, Surat Jalan, dll) diunggah oleh user. AI langsung membaca dan mengekstrak teks menggunakan teknologi OCR.
                                 </p>
@@ -49,9 +49,9 @@ const Docs = () => {
                                 <div className="w-10 h-10 bg-red-500/10 rounded-full flex items-center justify-center mb-4 border border-red-500/20">
                                     <span className="text-red-400 font-bold">2</span>
                                 </div>
-                                <h3 className="font-semibold text-lg mb-2">Fraud Detection</h3>
+                                <h3 className="font-semibold text-lg mb-2">Deteksi Penipuan</h3>
                                 <p className="text-sm text-gray-400 leading-relaxed">
-                                    Dokumen dianalisis oleh Gemini untuk mendeteksi manipulasi (Tampered), blur, pencahayaan buruk, atau anomali pada gambar.
+                                    Dokumen dianalisis oleh Gemini untuk mendeteksi manipulasi (Dimanipulasi), blur, pencahayaan buruk, atau anomali pada gambar.
                                 </p>
                             </div>
                             <div className="p-6 border border-white/10 rounded-2xl bg-[#111]">
@@ -91,7 +91,7 @@ const Docs = () => {
                             </div>
                             <div className="p-5 border border-white/10 rounded-2xl bg-gradient-to-r from-[#111] to-transparent">
                                 <h3 className="font-semibold text-lg mb-1">Artificial Intelligence</h3>
-                                <p className="text-sm text-gray-400">Google Gemini 2.5 Flash (Fraud Detection & Recommendation), GPT-4o, Advanced OCR.</p>
+                                <p className="text-sm text-gray-400">Google Gemini 2.5 Flash (Deteksi Penipuan & Recommendation), GPT-4o, Advanced OCR.</p>
                             </div>
                             <div className="p-5 border border-white/10 rounded-2xl bg-gradient-to-r from-[#111] to-transparent">
                                 <h3 className="font-semibold text-lg mb-1">Automation & Bots</h3>

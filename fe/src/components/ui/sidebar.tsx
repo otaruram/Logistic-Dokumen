@@ -372,7 +372,7 @@ const SidebarGroupLabel = React.forwardRef<HTMLDivElement, React.ComponentProps<
 );
 SidebarGroupLabel.displayName = "SidebarGroupLabel";
 
-const SidebarGroupAction = React.forwardRef<HTMLButtonElement, React.ComponentProps<"button"> & { asChild?: boolean }>(
+const SidebarGroupAksi = React.forwardRef<HTMLButtonElement, React.ComponentProps<"button"> & { asChild?: boolean }>(
   ({ className, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
 
@@ -392,7 +392,7 @@ const SidebarGroupAction = React.forwardRef<HTMLButtonElement, React.ComponentPr
     );
   },
 );
-SidebarGroupAction.displayName = "SidebarGroupAction";
+SidebarGroupAksi.displayName = "SidebarGroupAksi";
 
 const SidebarGroupContent = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
   ({ className, ...props }, ref) => (
@@ -474,7 +474,7 @@ const SidebarMenuButton = React.forwardRef<
 });
 SidebarMenuButton.displayName = "SidebarMenuButton";
 
-const SidebarMenuAction = React.forwardRef<
+const SidebarMenuAksi = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<"button"> & {
     asChild?: boolean;
@@ -503,7 +503,7 @@ const SidebarMenuAction = React.forwardRef<
     />
   );
 });
-SidebarMenuAction.displayName = "SidebarMenuAction";
+SidebarMenuAksi.displayName = "SidebarMenuAksi";
 
 const SidebarMenuBadge = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
   ({ className, ...props }, ref) => (
@@ -614,14 +614,14 @@ export {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupAction,
+  SidebarGroupAksi,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
   SidebarInput,
   SidebarInset,
   SidebarMenu,
-  SidebarMenuAction,
+  SidebarMenuAksi,
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,

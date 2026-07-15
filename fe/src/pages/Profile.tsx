@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
+  AlertDialogAksi,
+  AlertDialogBatal,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -18,7 +18,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState({
-    joinDate: '',
+    joinTanggal: '',
     totalScans: 0,
     lastScan: '',
   });
@@ -87,17 +87,17 @@ export default function Profile() {
         // Logs are ordered DESC (newest first), so:
         // - First item (logs[0]) = newest/latest scan
         // - Last item (logs[logs.length - 1]) = oldest/first scan
-        const joinDate = logs.length > 0 
-          ? new Date(logs[logs.length - 1].timestamp).toLocaleDateString('id-ID', {
-              day: 'numeric',
+        const joinTanggal = logs.length > 0 
+          ? new Tanggal(logs[logs.length - 1].timestamp).toLocaleTanggalString('id-ID', {
+              hari: 'numeric',
               month: 'long',
               year: 'numeric',
             })
           : 'Belum ada aktivitas';
         
         const lastScan = logs.length > 0
-          ? new Date(logs[0].timestamp).toLocaleDateString('id-ID', {
-              day: 'numeric',
+          ? new Tanggal(logs[0].timestamp).toLocaleTanggalString('id-ID', {
+              hari: 'numeric',
               month: 'long',
               year: 'numeric',
               hour: '2-digit',
@@ -106,7 +106,7 @@ export default function Profile() {
           : 'Belum ada aktivitas';
 
         setStats({
-          joinDate,
+          joinTanggal,
           totalScans,
           lastScan,
         });
@@ -192,7 +192,7 @@ export default function Profile() {
             <h2 className="text-lg font-bold mb-4 uppercase">Statistik Pengguna</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Join Date */}
+              {/* Join Tanggal */}
               <div className="brutal-border-thin bg-background p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Calendar className="w-5 h-5 text-blue-500" />
@@ -200,7 +200,7 @@ export default function Profile() {
                     Bergabung
                   </span>
                 </div>
-                <p className="text-lg font-bold">{stats.joinDate}</p>
+                <p className="text-lg font-bold">{stats.joinTanggal}</p>
               </div>
 
               {/* Total Usage */}
@@ -267,16 +267,16 @@ export default function Profile() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="brutal-border-thin">
+            <AlertDialogBatal className="brutal-border-thin">
               BATAL
-            </AlertDialogCancel>
-            <AlertDialogAction
+            </AlertDialogBatal>
+            <AlertDialogAksi
               onClick={handleDeleteAccount}
               disabled={isDeleting}
               className="brutal-border-thin bg-destructive hover:bg-destructive/90"
             >
               {isDeleting ? 'MENGHAPUS...' : 'YA, HAPUS AKUN'}
-            </AlertDialogAction>
+            </AlertDialogAksi>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -1,5 +1,5 @@
 /**
- * OtaruChain — Premium Partner Audit Dashboard View
+ * OtaruChain — Premium Partner Audit Dasbor Lihat
  *
  * Renders a comprehensive, visually stunning banking dashboard
  * from the /api/partner/v1/user-audit/{email} JSON response.
@@ -107,26 +107,26 @@ function fmtNominal(value: number): string {
   return `Rp${value.toLocaleString("id-ID")}`;
 }
 
-function fmtDate(isoStr: string): string {
+function fmtTanggal(isoStr: string): string {
   try {
-    return new Intl.DateTimeFormat("id-ID", {
-      day: "2-digit",
+    return new Intl.TanggalTimeFormat("id-ID", {
+      hari: "2-digit",
       month: "short",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    }).format(new Date(isoStr));
+    }).format(new Tanggal(isoStr));
   } catch {
     return isoStr;
   }
 }
 
-function fmtShortDate(isoStr: string): string {
+function fmtShortTanggal(isoStr: string): string {
   try {
-    return new Intl.DateTimeFormat("id-ID", {
-      day: "2-digit",
+    return new Intl.TanggalTimeFormat("id-ID", {
+      hari: "2-digit",
       month: "short",
-    }).format(new Date(isoStr));
+    }).format(new Tanggal(isoStr));
   } catch {
     return isoStr;
   }
@@ -293,7 +293,7 @@ export default function PartnerAuditView({ data }: PartnerAuditViewProps) {
           <div className="flex items-center gap-2 mb-4">
             <ShieldCheck className="h-4 w-4 text-emerald-400" />
             <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500">
-              Identity Verification · KYC Verified
+              Identity Verification · KYC Terverifikasi
             </span>
           </div>
 
@@ -318,7 +318,7 @@ export default function PartnerAuditView({ data }: PartnerAuditViewProps) {
             {[
               ["Nama Lengkap", data.identity.full_name],
               ["NIK", data.identity.nik],
-              ["Tempat/Tgl Lahir", data.identity.birth_place && data.identity.birth_date ? `${data.identity.birth_place}, ${fmtDate(data.identity.birth_date)}` : data.identity.birth_place],
+              ["Tempat/Tgl Lahir", data.identity.birth_place && data.identity.birth_date ? `${data.identity.birth_place}, ${fmtTanggal(data.identity.birth_date)}` : data.identity.birth_place],
               ["Jenis Kelamin", data.identity.gender],
               ["Alamat", data.identity.address],
               ["RT/RW", data.identity.rt_rw],
@@ -340,7 +340,7 @@ export default function PartnerAuditView({ data }: PartnerAuditViewProps) {
 
           {data.identity.kyc_submitted_at && (
             <p className="mt-3 text-[10px] text-zinc-600">
-              KYC Submitted: {fmtDate(data.identity.kyc_submitted_at)}
+              KYC Submitted: {fmtTanggal(data.identity.kyc_submitted_at)}
             </p>
           )}
         </div>
@@ -527,7 +527,7 @@ export default function PartnerAuditView({ data }: PartnerAuditViewProps) {
           </div>
           <div className="rounded-xl border border-zinc-800 bg-white/[0.02] p-4">
             <p className="text-[10px] uppercase tracking-wider text-emerald-600">
-              Verified
+              Terverifikasi
             </p>
             <p className="mt-1 text-2xl font-bold text-emerald-400">
               {transactions.verified}
@@ -535,7 +535,7 @@ export default function PartnerAuditView({ data }: PartnerAuditViewProps) {
           </div>
           <div className="rounded-xl border border-zinc-800 bg-white/[0.02] p-4">
             <p className="text-[10px] uppercase tracking-wider text-red-600">
-              Tampered
+              Dimanipulasi
             </p>
             <p className="mt-1 text-2xl font-bold text-red-400">
               {transactions.tampered}
@@ -584,12 +584,12 @@ export default function PartnerAuditView({ data }: PartnerAuditViewProps) {
               color: "text-white",
             },
             {
-              label: "Verified",
+              label: "Terverifikasi",
               value: integrity.verified_seals,
               color: "text-emerald-400",
             },
             {
-              label: "Tampered",
+              label: "Dimanipulasi",
               value: integrity.tampered_seals,
               color: "text-red-400",
             },
@@ -689,7 +689,7 @@ export default function PartnerAuditView({ data }: PartnerAuditViewProps) {
                           </span>
                         )}
                         <span className="text-zinc-600">
-                          {fmtDate(entry.created_at)}
+                          {fmtTanggal(entry.created_at)}
                         </span>
                       </div>
                     </div>
@@ -726,7 +726,7 @@ export default function PartnerAuditView({ data }: PartnerAuditViewProps) {
         </p>
         <div className="flex items-center gap-1 text-[10px] text-zinc-600">
           <Lock className="h-3 w-3" />
-          SHA-256 Verified
+          SHA-256 Terverifikasi
         </div>
       </div>
     </div>

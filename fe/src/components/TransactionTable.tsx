@@ -37,9 +37,9 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
     }).format(nominal);
   };
 
-  const formatDate = (isoString: string) => {
-    const date = new Date(isoString);
-    return new Intl.DateTimeFormat('id-ID', {
+  const formatTanggal = (isoString: string) => {
+    const date = new Tanggal(isoString);
+    return new Intl.TanggalTimeFormat('id-ID', {
       dateStyle: 'medium',
       timeStyle: 'short',
     }).format(date);
@@ -98,7 +98,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
       <div className="w-full space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Master Data / Audit Trail</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Master Data / Jejak Audit</h1>
             <p className="text-sm text-zinc-600 mt-1">OtaruChain immutable transaction logs.</p>
           </div>
         </div>
@@ -134,7 +134,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
                   paginatedData.map((trx) => (
                   <tr key={trx.id} className="hover:bg-zinc-50 transition-colors">
                     <td className="px-6 py-4">
-                      <span className="text-zinc-800 font-medium">{formatDate(trx.date)}</span>
+                      <span className="text-zinc-800 font-medium">{formatTanggal(trx.date)}</span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
@@ -155,7 +155,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center justify-center p-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-600 hover:text-zinc-900 transition-all group"
-                        title="View Document"
+                        title="Lihat Document"
                       >
                         <ExternalLink className="w-4 h-4 group-hover:scale-110 transition-transform" />
                       </a>

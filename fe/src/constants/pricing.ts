@@ -1,4 +1,4 @@
-export interface PricingPlan {
+export interface HargaPlan {
   id: string;
   name: string;
   price: string;
@@ -9,7 +9,7 @@ export interface PricingPlan {
   accent: string;
 }
 
-export const pricingPlans: PricingPlan[] = [
+export const pricingPlans: HargaPlan[] = [
   {
     id: "developer",
     name: "Developer",

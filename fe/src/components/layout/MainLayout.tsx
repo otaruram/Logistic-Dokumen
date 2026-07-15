@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, X } from "lucide-react";
 import Header from "./Header";
-import DashboardTab from "../tabs/DashboardTab";
+import DasborTab from "../tabs/DasborTab";
 import DgtnzTab from "../tabs/DgtnzTab";
 import ProfileTab from "../tabs/ProfileTab";
 import OtaruChatPage from "@/pages/OtaruChatPage";
@@ -62,9 +62,9 @@ const MainLayout = () => {
   const renderTab = () => {
     switch (activeTab) {
       case "dashboard":
-        return <DashboardTab />;
+        return <DasborTab />;
       case "admin":
-        return isAdmin ? <AdminTab /> : <DashboardTab />;
+        return isAdmin ? <AdminTab /> : <DasborTab />;
       case "dgtnz":
         return <DgtnzTab onBack={() => handleTabClick("dashboard")} initialMode={selectedFeatureMode} />;
       case "otaru":
@@ -72,7 +72,7 @@ const MainLayout = () => {
       case "profile":
         return <ProfileTab />;
       default:
-        return <DashboardTab />;
+        return <DasborTab />;
     }
   };
 
@@ -110,13 +110,13 @@ const MainLayout = () => {
                 </button>
               </div>
               <p className="mt-3 text-sm text-gray-400 leading-relaxed">
-                Kamu login dari halaman Partner. Klik tombol di bawah untuk lanjut ke Partner Portal — kelola API key, docs, dan pricing.
+                Kamu login dari halaman Partner. Klik tombol di bawah untuk lanjut ke Portal Mitra — kelola API key, docs, dan pricing.
               </p>
               <button
                 onClick={handleGoToPartner}
                 className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200 transition-colors"
               >
-                Buka Partner Portal <ArrowRight className="h-4 w-4" />
+                Buka Portal Mitra <ArrowRight className="h-4 w-4" />
               </button>
             </motion.div>
           </motion.div>

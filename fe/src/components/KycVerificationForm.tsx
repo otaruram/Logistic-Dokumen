@@ -6,7 +6,7 @@ import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   User, CreditCard, MapPin, Camera, CheckCircle2,
-  ArrowRight, ArrowLeft, Upload, X, Loader2, Shield, Wand2,
+  ArrowRight, ArrowLeft, Unggah, X, Loader2, Shield, Wand2,
 } from "lucide-react";
 import { APP_CONFIG } from "@/constants";
 import { supabase } from "@/lib/supabaseClient";
@@ -41,7 +41,7 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
   const [nik, setNik] = useState("");
   const [fullName, setFullName] = useState("");
   const [birthPlace, setBirthPlace] = useState("");
-  const [birthDate, setBirthDate] = useState("");
+  const [birthTanggal, setBirthTanggal] = useState("");
   const [gender, setGender] = useState("");
   const [religion, setReligion] = useState("");
   const [maritalStatus, setMaritalStatus] = useState("");
@@ -89,7 +89,7 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
       if (!/^\d{16}$/.test(nik)) e.nik = "NIK harus 16 digit angka";
       if (!fullName.trim()) e.fullName = "Nama lengkap wajib diisi";
       if (!birthPlace.trim()) e.birthPlace = "Tempat lahir wajib diisi";
-      if (!birthDate) e.birthDate = "Tanggal lahir wajib diisi";
+      if (!birthTanggal) e.birthTanggal = "Tanggal lahir wajib diisi";
       if (!gender) e.gender = "Jenis kelamin wajib dipilih";
     }
     if (s === 1) {
@@ -122,7 +122,7 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
       fd.append("nik", nik);
       fd.append("full_name", fullName);
       fd.append("birth_place", birthPlace);
-      fd.append("birth_date", birthDate);
+      fd.append("birth_date", birthTanggal);
       fd.append("gender", gender);
       fd.append("address", address);
       fd.append("rt_rw", rtRw);
@@ -171,7 +171,7 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
       setNik(p.nik || "");
       setFullName(p.full_name || "");
       setBirthPlace(p.birth_place || "");
-      setBirthDate(p.birth_date || "");
+      setBirthTanggal(p.birth_date || "");
       setGender(p.gender || "");
       setAddress(p.address || "");
       setRtRw(p.rt_rw || "");
@@ -269,8 +269,8 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
                   </div>
                   <div>
                     <label className={labelCls}>Tanggal Lahir</label>
-                    <input type="date" className={inputCls} value={birthDate} onChange={e => setBirthDate(e.target.value)} />
-                    {errors.birthDate && <p className={errCls}>{errors.birthDate}</p>}
+                    <input type="date" className={inputCls} value={birthTanggal} onChange={e => setBirthTanggal(e.target.value)} />
+                    {errors.birthTanggal && <p className={errCls}>{errors.birthTanggal}</p>}
                   </div>
                 </div>
                 <div>
@@ -342,7 +342,7 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
             {/* Step 2: Photos */}
             {step === 2 && (
               <motion.div key="s2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.2 }} className="space-y-5">
-                  <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 font-bold mb-4">Upload Foto</p>
+                  <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 font-bold mb-4">Unggah Foto</p>
                 {/* KTP */}
                 <div>
                   <label className={labelCls}>Foto KTP</label>
@@ -355,7 +355,7 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
                   ) : (
                     <button onClick={() => ktpRef.current?.click()} className="w-full h-36 rounded-xl border-2 border-dashed border-white/10 hover:border-white/30 bg-white/[0.02] hover:bg-white/[0.04] flex flex-col items-center justify-center gap-2 transition-all">
                       <CreditCard className="w-8 h-8 text-zinc-500" />
-                      <span className="text-xs text-zinc-500">Upload foto KTP (maks 5MB)</span>
+                      <span className="text-xs text-zinc-500">Unggah foto KTP (maks 5MB)</span>
                     </button>
                   )}
                   {errors.ktp && <p className={errCls}>{errors.ktp}</p>}
@@ -372,7 +372,7 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
                   ) : (
                     <button onClick={() => selfieRef.current?.click()} className="w-full h-36 rounded-xl border-2 border-dashed border-white/10 hover:border-white/30 bg-white/[0.02] hover:bg-white/[0.04] flex flex-col items-center justify-center gap-2 transition-all">
                       <Camera className="w-8 h-8 text-zinc-500" />
-                      <span className="text-xs text-zinc-500">Upload foto selfie (maks 5MB)</span>
+                      <span className="text-xs text-zinc-500">Unggah foto selfie (maks 5MB)</span>
                     </button>
                   )}
                   {errors.selfie && <p className={errCls}>{errors.selfie}</p>}
@@ -388,7 +388,7 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
                   {[
                     ["NIK", nik],
                     ["Nama Lengkap", fullName],
-                    ["Tempat/Tgl Lahir", `${birthPlace}, ${birthDate}`],
+                    ["Tempat/Tgl Lahir", `${birthPlace}, ${birthTanggal}`],
                     ["Jenis Kelamin", gender],
                     ["Alamat", address],
                     ["RT/RW", rtRw],

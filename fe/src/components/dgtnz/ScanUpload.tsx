@@ -1,13 +1,13 @@
-import { Upload, X, ImageIcon, Download } from "lucide-react";
+import { Unggah, X, ImageIcon, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useState } from "react";
 
-interface ScanUploadProps {
+interface ScanUnggahProps {
     uploadedImage: File | null;
     previewUrl: string | null;
-    isProcessing: boolean;
+    isMemproses: boolean;
     onImageSelect: (file: File) => void;
     onClear: () => void;
 }
@@ -42,7 +42,7 @@ const compressImage = (file: File): Promise<File> => {
                 ctx?.drawImage(img, 0, 0, width, height);
                 canvas.toBlob((blob) => {
                     if (blob) {
-                        resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+                        resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Tanggal.now() }));
                     } else reject(new Error('Blob failed'));
                 }, 'image/jpeg', 0.8);
             };
@@ -53,7 +53,7 @@ const compressImage = (file: File): Promise<File> => {
 };
 
 
-export const ScanUpload = ({ uploadedImage, previewUrl, isProcessing, onImageSelect, onClear }: ScanUploadProps) => {
+export const ScanUnggah = ({ uploadedImage, previewUrl, isMemproses, onImageSelect, onClear }: ScanUnggahProps) => {
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -73,10 +73,10 @@ export const ScanUpload = ({ uploadedImage, previewUrl, isProcessing, onImageSel
             <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold text-lg flex items-center gap-2">
                     <ImageIcon className="w-5 h-5 text-gray-400" />
-                    Document Upload
+                    Document Unggah
                 </h3>
                 {previewUrl && (
-                    <Button variant="ghost" size="sm" onClick={onClear} disabled={isProcessing} className="text-red-400 hover:text-red-300 hover:bg-red-900/20">
+                    <Button variant="ghost" size="sm" onClick={onClear} disabled={isMemproses} className="text-red-400 hover:text-red-300 hover:bg-red-900/20">
                         <X className="w-4 h-4 mr-2" />
                         Clear
                     </Button>
@@ -89,15 +89,15 @@ export const ScanUpload = ({ uploadedImage, previewUrl, isProcessing, onImageSel
                 }`}>
                 <input
                     type="file"
-                    id="imageUpload"
+                    id="imageUnggah"
                     className="hidden"
                     accept="image/*"
                     onChange={handleFileChange}
-                    disabled={isProcessing}
+                    disabled={isMemproses}
                 />
 
                 {previewUrl ? (
-                    <label htmlFor="imageUpload" className="cursor-pointer block relative group">
+                    <label htmlFor="imageUnggah" className="cursor-pointer block relative group">
                         <img
                             src={previewUrl}
                             alt="Preview"
@@ -108,9 +108,9 @@ export const ScanUpload = ({ uploadedImage, previewUrl, isProcessing, onImageSel
                         </div>
                     </label>
                 ) : (
-                    <label htmlFor="imageUpload" className="cursor-pointer block space-y-4 py-8">
+                    <label htmlFor="imageUnggah" className="cursor-pointer block space-y-4 py-8">
                         <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
-                            <Upload className="w-8 h-8 text-gray-400" />
+                            <Unggah className="w-8 h-8 text-gray-400" />
                         </div>
                         <div>
                             <p className="text-lg font-medium text-white">Click or drag image here</p>

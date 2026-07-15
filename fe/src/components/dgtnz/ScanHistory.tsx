@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
-import { FileDown, Search, Trash2, CheckCircle2, XCircle, Clock, Pencil, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
+import { FileDown, Cari, Trash2, CheckCircle2, XCircle, Clock, Pencil, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -48,8 +48,8 @@ interface ScanHistoryProps {
 }
 
 export const ScanHistory = ({ records, onDelete, onEdit }: ScanHistoryProps) => {
-    const [searchTerm, setSearchTerm] = useState("");
-    const [filterDate, setFilterDate] = useState("all");
+    const [searchTerm, setCariTerm] = useState("");
+    const [filterTanggal, setFilterTanggal] = useState("all");
     const [filterMonth, setFilterMonth] = useState("all");
     const [filterYear, setFilterYear] = useState("all");
     const [currentPage, setCurrentPage] = useState(1);
@@ -112,17 +112,17 @@ export const ScanHistory = ({ records, onDelete, onEdit }: ScanHistoryProps) => 
     useEffect(() => { setCurrentPage(1); }, [records.length]);
 
     const filteredRecords = records.filter(record => {
-        const matchesSearch = record.namaPenerima.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        const matchesCari = record.namaPenerima.toLowerCase().includes(searchTerm.toLowerCase()) ||
             record.keterangan.toLowerCase().includes(searchTerm.toLowerCase());
 
-        if (!matchesSearch) return false;
+        if (!matchesCari) return false;
 
         // Parse DD/MM/YYYY
         const parts = record.tanggal.split('/');
         if (parts.length === 3) {
             const [d, m, y] = parts;
             // Compare as integers to handle "01" vs "1"
-            if (filterDate !== "all" && parseInt(d) !== parseInt(filterDate)) return false;
+            if (filterTanggal !== "all" && parseInt(d) !== parseInt(filterTanggal)) return false;
             if (filterMonth !== "all" && parseInt(m) !== parseInt(filterMonth)) return false;
             if (filterYear !== "all" && y !== filterYear) return false;
         }
@@ -138,7 +138,7 @@ export const ScanHistory = ({ records, onDelete, onEdit }: ScanHistoryProps) => 
 
         const exportData = filteredRecords.map((r, i) => ({
             No: i + 1,
-            Date: r.tanggal,
+            Tanggal: r.tanggal,
             Recipient: r.namaPenerima,
             Details: r.keterangan,
             ImageLink: r.fotoUrl,
@@ -149,7 +149,7 @@ export const ScanHistory = ({ records, onDelete, onEdit }: ScanHistoryProps) => 
         const ws = XLSX.utils.json_to_sheet(exportData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Scans");
-        XLSX.writeFile(wb, `scans-${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(wb, `scans-${new Tanggal().toISOString().split('T')[0]}.xlsx`);
         toast.success("Excel exported successfully");
     };
 
@@ -185,18 +185,18 @@ export const ScanHistory = ({ records, onDelete, onEdit }: ScanHistoryProps) => 
 
             <div className="p-4 border-b border-white/10 bg-white/[0.02] flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                    <Cari className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                     <Input
-                        placeholder="Search recipient or content..."
+                        placeholder="Cari recipient or content..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => setCariTerm(e.target.value)}
                         className="pl-9 bg-[#111] border-white/10 text-white placeholder:text-gray-600 focus:border-white/30 h-10"
                     />
                 </div>
 
                 <div className="flex gap-2">
-                    {/* Date 1-31 */}
-                    <Select value={filterDate} onValueChange={setFilterDate}>
+                    {/* Tanggal 1-31 */}
+                    <Select value={filterTanggal} onValueChange={setFilterTanggal}>
                         <SelectTrigger className="w-[70px] bg-[#111] border-white/10 text-white h-10">
                             <SelectValue placeholder="Tgl" />
                         </SelectTrigger>
@@ -241,13 +241,13 @@ export const ScanHistory = ({ records, onDelete, onEdit }: ScanHistoryProps) => 
                     <TableHeader className="bg-white/[0.02]">
                         <TableRow className="border-white/10 hover:bg-white/5">
                             <TableHead className="w-[50px] text-gray-400">No</TableHead>
-                            <TableHead className="text-gray-400">Date</TableHead>
+                            <TableHead className="text-gray-400">Tanggal</TableHead>
                             <TableHead className="text-gray-400">Recipient</TableHead>
                             <TableHead className="text-gray-400 w-[100px]">Photo</TableHead>
                             <TableHead className="text-gray-400 w-[100px]">Signature</TableHead>
                             <TableHead className="text-gray-400 w-[30%]">Content</TableHead>
                             <TableHead className="text-gray-400">Status</TableHead>
-                            <TableHead className="text-right text-gray-400">Actions</TableHead>
+                            <TableHead className="text-right text-gray-400">Aksis</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
