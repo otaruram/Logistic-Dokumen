@@ -122,11 +122,16 @@ const ProfileTab = () => {
       if (!res.ok) throw new Error(json.detail || "Gagal auto fill nomor HP");
 
       const phone = String(json.phone_number || "");
-      if (phone.startsWith("0")) {
-        setPhoneNumber(phone.slice(1));
-      } else {
-        setPhoneNumber(phone);
+      // Strip +62, 62, or leading 0 to get bare digits (e.g. "812xxxxxxxx")
+      let digits = phone;
+      if (digits.startsWith("+62")) {
+        digits = digits.slice(3);
+      } else if (digits.startsWith("62") && digits.length > 10) {
+        digits = digits.slice(2);
+      } else if (digits.startsWith("0")) {
+        digits = digits.slice(1);
       }
+      setPhoneNumber(digits);
 
       setTgStatus((prev: any) => ({ ...(prev || {}), phone_number: phone }));
       toast.success("Nomor HP berhasil diisi otomatis dari profil.");

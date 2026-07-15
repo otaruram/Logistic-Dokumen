@@ -39,7 +39,7 @@ def _build_deep_links(tele_key: str) -> dict[str, str]:
 
 
 def _generate_unique_beta_phone(sb, user_id: str) -> str:
-    """Generate deterministic-yet-unique beta phone number (08xxxxxxxxxx) per user."""
+    """Generate deterministic-yet-unique beta phone number (+62XXXXXXXXXX) per user."""
     # Try existing first to keep identity stable across Telegram and Partner API flows.
     try:
         existing_res = (
@@ -51,7 +51,7 @@ def _generate_unique_beta_phone(sb, user_id: str) -> str:
         )
         existing_rows = getattr(existing_res, "data", None) or []
         existing_phone = (existing_rows[0].get("phone_number") if existing_rows else None) or ""
-        if isinstance(existing_phone, str) and existing_phone.startswith("0") and existing_phone[1:].isdigit() and 10 <= len(existing_phone) <= 13:
+        if isinstance(existing_phone, str) and existing_phone.startswith("+62") and len(existing_phone) >= 12:
             return existing_phone
     except Exception:
         pass
@@ -59,7 +59,7 @@ def _generate_unique_beta_phone(sb, user_id: str) -> str:
     for attempt in range(50):
         digest = hashlib.sha256(f"{user_id}:beta-phone:{attempt}".encode("utf-8")).hexdigest()
         numeric = int(digest[:15], 16) % 10_000_000_000
-        candidate = "08" + str(numeric).zfill(10)
+        candidate = "+628" + str(numeric).zfill(10)
 
         # Ensure uniqueness across users.
         check_res = (
@@ -80,14 +80,42 @@ def _generate_unique_beta_phone(sb, user_id: str) -> str:
 @router.get("/phone/autofill", response_model=PhoneAutoFillResponse)
 async def autofill_phone_for_telegram():
     """
-    Auto-fill helper for Telegram - returns dummy test phone number.
-    No authentication required. Returns a test phone number for initial Telegram linking.
+    Auto-fill helper for Telegram - returns user's profile phone or an available whitelist phone.
     """
-    test_phone = "081234567890"
+    sb = get_supabase_admin()
+    if not sb:
+        return PhoneAutoFillResponse(
+            phone_number="081234567890",
+            source="generated",
+            message="Nomor demo default.",
+        )
+
+    # Try to find an available whitelisted phone
+    try:
+        import random
+        wl_res = sb.table("employee_whitelist").select("phone_number").eq("is_active", True).limit(500).execute()
+        wl_phones = {r["phone_number"] for r in (getattr(wl_res, "data", None) or [])}
+
+        pr_res = sb.table("profiles").select("phone_number").not_.is_("phone_number", "null").execute()
+        used_phones = {r["phone_number"] for r in (getattr(pr_res, "data", None) or []) if r.get("phone_number")}
+
+        available = list(wl_phones - used_phones)
+        if available:
+            chosen = random.choice(available)
+            # Convert +62 to 0 format for telegram input
+            display_phone = "0" + chosen[3:] if chosen.startswith("+62") else chosen
+            return PhoneAutoFillResponse(
+                phone_number=display_phone,
+                source="existing",
+                message="Nomor HP dari whitelist Koperasi yang tersedia.",
+            )
+    except Exception:
+        pass
+
     return PhoneAutoFillResponse(
-        phone_number=test_phone,
+        phone_number="081234567890",
         source="generated",
-        message="Nomor HP beta siap dipakai untuk Telegram key dan API key.",
+        message="Nomor demo default.",
     )
 
 
@@ -111,13 +139,14 @@ async def connect_telegram(
     if body and body.phone_number:
         import re
         cleaned = re.sub(r"[^\d]", "", body.phone_number)
-        # Normalize: strip leading +62 or 62
+        # Normalize to E.164: +62XXXXXXXXX (consistent with whitelist)
         if cleaned.startswith("62") and len(cleaned) > 10:
-            cleaned = "0" + cleaned[2:]
-        if not cleaned.startswith("0"):
-            cleaned = "0" + cleaned
-        if len(cleaned) >= 10 and len(cleaned) <= 14:
-            phone_number = cleaned
+            cleaned = cleaned[2:]
+        elif cleaned.startswith("0"):
+            cleaned = cleaned[1:]
+        # cleaned is now just digits after country code, e.g. "812xxxx"
+        if len(cleaned) >= 9 and len(cleaned) <= 13 and cleaned.startswith("8"):
+            phone_number = f"+62{cleaned}"
             try:
                 # Check uniqueness
                 check_res = sb.table("profiles").select("id").eq("phone_number", phone_number).neq("id", str(current_user.id)).limit(1).execute()
