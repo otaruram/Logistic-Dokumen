@@ -32,9 +32,9 @@ def _validate_phone(phone: str) -> str:
 
 
 def _deduct_credit_for_api_key_owner(sb, api_key_owner: str) -> None:
-    """Find user profile by email and deduct 1 partner_api_credits."""
+    """Find user profile by id and deduct 1 partner_api_credits."""
     try:
-        res = sb.table("profiles").select("id, partner_api_credits").eq("user_email", api_key_owner).limit(1).execute()
+        res = sb.table("profiles").select("id, partner_api_credits").eq("id", api_key_owner).limit(1).execute()
         rows = getattr(res, "data", None) or []
         if not rows:
             return  # Can't find profile to deduct
