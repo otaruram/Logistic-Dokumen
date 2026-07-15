@@ -240,7 +240,7 @@ export default function WhitelistManagement() {
 
   const fmtTanggal = (val?: string | null): string => {
     if (!val) return "-";
-    const d = new Tanggal(val);
+    const d = new Date(val);
     if (isNaN(d.getTime())) return val;
     return new Intl.TanggalTimeFormat("id-ID", {
       dateStyle: "medium",

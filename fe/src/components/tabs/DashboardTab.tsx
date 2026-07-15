@@ -418,7 +418,7 @@ const MasterAuditTable = ({ items, loading }: { items: AuditTrailItem[]; loading
                 {paged.map((item, i) => (
                   <tr key={item.id} className={`border-b border-white/5 hover:bg-white/[0.03] transition-colors ${i % 2 === 0 ? "bg-white/[0.01]" : ""}`}>
                     <td className="px-6 py-3 text-xs text-gray-400 whitespace-nowrap">
-                      {item.date ? new Tanggal(item.date).toLocaleString("id-ID", { hari: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "â€”"}
+                      {item.date ? new Date(item.date).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "â€”"}
                     </td>
                     <td className="px-4 py-3 text-xs text-white font-medium truncate max-w-[160px]">{item.workerName}</td>
                     <td className="px-4 py-3 text-xs text-white font-semibold text-right tabular-nums whitespace-nowrap">
@@ -507,7 +507,7 @@ const DashboardTab = () => {
 
       // â”€â”€ Primary: backend realtime-stats (uses supabase_admin â€” bypasses RLS) â”€â”€
       let backendOk = false;
-      const nowMs = Tanggal.now();
+      const nowMs = Date.now();
       try {
         if (nowMs >= backendCooldownUntil.current) {
           const statsRes = await fetch(`${API_URL}/api/dashboard/realtime-stats`, {
@@ -519,12 +519,12 @@ const DashboardTab = () => {
             backendCooldownUntil.current = 0;
 
             // 2. Next cleanup (reuse existing logic)
-            const now = new Tanggal();
-            const joinTanggal = session?.user?.created_at ? new Tanggal(session.user.created_at) : now;
-            let nextCleanupTanggal = new Tanggal(now.getFullYear(), now.getMonth(), joinTanggal.getTanggal());
-            if (nextCleanupTanggal <= now) nextCleanupTanggal = new Tanggal(now.getFullYear(), now.getMonth() + 1, joinTanggal.getTanggal());
+            const now = new Date();
+            const joinTanggal = session?.user?.created_at ? new Date(session.user.created_at) : now;
+            let nextCleanupTanggal = new Date(now.getFullYear(), now.getMonth(), joinTanggal.getDate());
+            if (nextCleanupTanggal <= now) nextCleanupTanggal = new Date(now.getFullYear(), now.getMonth() + 1, joinTanggal.getDate());
             const nextCleanupDays = Math.ceil((nextCleanupTanggal.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-            const nextCleanupTanggalStr = nextCleanupTanggal.toLocaleTanggalString('id-ID', { year: 'numeric', month: 'long', hari: 'numeric' });
+            const nextCleanupTanggalStr = nextCleanupTanggal.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
 
             // Cleanup API override
             let apiCleanupDays = nextCleanupDays, apiCleanupTanggal = nextCleanupTanggalStr;
@@ -533,7 +533,7 @@ const DashboardTab = () => {
               if (cleanupRes.ok) {
                 const c = await cleanupRes.json();
                 apiCleanupDays = c.hari_until_cleanup ?? nextCleanupDays;
-                apiCleanupTanggal = c.next_cleanup_date ? new Tanggal(c.next_cleanup_date).toLocaleTanggalString('id-ID', { year: 'numeric', month: 'long', hari: 'numeric' }) : nextCleanupTanggalStr;
+                apiCleanupTanggal = c.next_cleanup_date ? new Date(c.next_cleanup_date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : nextCleanupTanggalStr;
               }
             } catch {/* ignore */}
 
@@ -551,20 +551,20 @@ const DashboardTab = () => {
                 nextCleanupDays: apiCleanupDays,
                 nextCleanupTanggal: apiCleanupTanggal,
               });
-              setWeeklyData((d.weekly || []).map((w: any) => ({ hari: w.hari, scans: w.scans ?? 0 })));
+              setWeeklyData((d.weekly || []).map((w: any) => ({ day: w.hari, scans: w.scans ?? 0 })));
               setLoading(false);
             }
             backendOk = true;
           } else {
             backendFailureCount.current += 1;
             const backoffSeconds = Math.min(60, Math.max(5, backendFailureCount.current * 5));
-            backendCooldownUntil.current = Tanggal.now() + backoffSeconds * 1000;
+            backendCooldownUntil.current = Date.now() + backoffSeconds * 1000;
           }
         }
       } catch (backendErr) {
         backendFailureCount.current += 1;
         const backoffSeconds = Math.min(60, Math.max(5, backendFailureCount.current * 5));
-        backendCooldownUntil.current = Tanggal.now() + backoffSeconds * 1000;
+        backendCooldownUntil.current = Date.now() + backoffSeconds * 1000;
         if (backendFailureCount.current <= 3 || backendFailureCount.current % 10 === 0) {
           console.warn("[Dasbor] backend realtime-stats failed, falling back to Supabase client", backendErr);
         }
@@ -598,30 +598,30 @@ const DashboardTab = () => {
         if (creditsRes.ok) { credits = (await creditsRes.json()).credits ?? 0; }
       } catch { const { data: profile } = await supabase.from('profiles').select('credits').eq('id', userId).single(); credits = profile?.credits ?? 0; }
 
-      const now = new Tanggal();
-      const joinTanggal = session?.user?.created_at ? new Tanggal(session.user.created_at) : now;
-      let nextCleanupTanggal = new Tanggal(now.getFullYear(), now.getMonth(), joinTanggal.getTanggal());
-      if (nextCleanupTanggal <= now) nextCleanupTanggal = new Tanggal(now.getFullYear(), now.getMonth() + 1, joinTanggal.getTanggal());
+      const now = new Date();
+      const joinTanggal = session?.user?.created_at ? new Date(session.user.created_at) : now;
+      let nextCleanupTanggal = new Date(now.getFullYear(), now.getMonth(), joinTanggal.getDate());
+      if (nextCleanupTanggal <= now) nextCleanupTanggal = new Date(now.getFullYear(), now.getMonth() + 1, joinTanggal.getDate());
       const nextCleanupDays = Math.ceil((nextCleanupTanggal.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      const nextCleanupTanggalStr = nextCleanupTanggal.toLocaleTanggalString('id-ID', { year: 'numeric', month: 'long', hari: 'numeric' });
+      const nextCleanupTanggalStr = nextCleanupTanggal.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
 
       const hariNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-      const hariOfWeek = now.getDay();
-      const monhari = new Tanggal(now); monhari.setTanggal(now.getTanggal() + (hariOfWeek === 0 ? -6 : 1 - hariOfWeek)); monhari.setHours(0, 0, 0, 0);
-      const sunhari = new Tanggal(monhari); sunhari.setTanggal(monhari.getTanggal() + 6); sunhari.setHours(23, 59, 59, 999);
+      const dayOfWeek = now.getDay();
+      const monday = new Date(now); monday.setDate(now.getDate() + (dayOfWeek === 0 ? -6 : 1 - dayOfWeek)); monday.setHours(0, 0, 0, 0);
+      const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23, 59, 59, 999);
       const dailyCounts = [0, 0, 0, 0, 0, 0, 0];
       let totalScanFraud = 0;
       (allFraud || []).forEach((s: any) => {
         totalScanFraud++;
         if (s.created_at) {
-          const scanTanggal = new Tanggal(s.created_at);
-          if (scanTanggal >= monhari && scanTanggal <= sunhari) {
+          const scanTanggal = new Date(s.created_at);
+          if (scanTanggal >= monday && scanTanggal <= sunday) {
             const idx = scanTanggal.getDay() === 0 ? 6 : scanTanggal.getDay() - 1;
             dailyCounts[idx]++;
           }
         }
       });
-      const weeklyChartData = hariNames.map((label, i) => ({ hari: label, scans: dailyCounts[i] }));
+      const weeklyChartData = hariNames.map((label, i) => ({ day: label, scans: dailyCounts[i] }));
       if (isMounted.current) setWeeklyData(weeklyChartData);
 
       let apiCleanupDays = nextCleanupDays, apiCleanupTanggal = nextCleanupTanggalStr;
@@ -630,7 +630,7 @@ const DashboardTab = () => {
         if (cleanupRes.ok) {
           const c = await cleanupRes.json();
           apiCleanupDays = c.hari_until_cleanup ?? nextCleanupDays;
-          apiCleanupTanggal = c.next_cleanup_date ? new Tanggal(c.next_cleanup_date).toLocaleTanggalString('id-ID', { year: 'numeric', month: 'long', hari: 'numeric' }) : nextCleanupTanggalStr;
+          apiCleanupTanggal = c.next_cleanup_date ? new Date(c.next_cleanup_date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : nextCleanupTanggalStr;
         }
       } catch {/* ignore */}
 

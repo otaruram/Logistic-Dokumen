@@ -110,12 +110,12 @@ function fmtNominal(value: number): string {
 function fmtTanggal(isoStr: string): string {
   try {
     return new Intl.TanggalTimeFormat("id-ID", {
-      hari: "2-digit",
+      day: "2-digit",
       month: "short",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    }).format(new Tanggal(isoStr));
+    }).format(new Date(isoStr));
   } catch {
     return isoStr;
   }
@@ -124,9 +124,9 @@ function fmtTanggal(isoStr: string): string {
 function fmtShortTanggal(isoStr: string): string {
   try {
     return new Intl.TanggalTimeFormat("id-ID", {
-      hari: "2-digit",
+      day: "2-digit",
       month: "short",
-    }).format(new Tanggal(isoStr));
+    }).format(new Date(isoStr));
   } catch {
     return isoStr;
   }

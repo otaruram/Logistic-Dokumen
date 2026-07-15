@@ -1,0 +1,713 @@
+﻿commit e661053673140f3cb160e8fce61d7fab9be6f624
+Author: otaruram <otaruna61@gmail.com>
+Date:   Wed Jul 15 23:00:43 2026 +0800
+
+    Fix final translation bugs in lucide-react imports
+
+diff --git a/fe/src/components/ConfigErrorPage.tsx b/fe/src/components/ConfigErrorPage.tsx
+index fa63825..109a963 100644
+--- a/fe/src/components/ConfigErrorPage.tsx
++++ b/fe/src/components/ConfigErrorPage.tsx
+@@ -55,7 +55,7 @@ export const ConfigErrorPage = () => {
+                 <strong>Steps to fix:</strong>
+               </p>
+               <ol className="text-sm text-gray-600 space-y-2 list-decimal list-inside">
+-                <li>Go to Vercel Dasbor ΓåÆ Project Pengaturan</li>
++                <li>Go to Vercel Dasbor ΓåÆ Project Settings</li>
+                 <li>Navigate to Environment Variables</li>
+                 <li>Add the 3 variables above</li>
+                 <li>Select all environments (Production, Preview, Development)</li>
+diff --git a/fe/src/components/KycVerificationForm.tsx b/fe/src/components/KycVerificationForm.tsx
+index 357387f..efe0f67 100644
+--- a/fe/src/components/KycVerificationForm.tsx
++++ b/fe/src/components/KycVerificationForm.tsx
+@@ -6,7 +6,7 @@ import { useState, useRef, useCallback } from "react";
+ import { motion, AnimatePresence } from "framer-motion";
+ import {
+   User, CreditCard, MapPin, Camera, CheckCircle2,
+-  ArrowRight, ArrowLeft, Unggah, X, Loader2, Shield, Wand2,
++  ArrowRight, ArrowLeft, Upload, X, Loader2, Shield, Wand2,
+ } from "lucide-react";
+ import { APP_CONFIG } from "@/constants";
+ import { supabase } from "@/lib/supabaseClient";
+@@ -342,7 +342,7 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
+             {/* Step 2: Photos */}
+             {step === 2 && (
+               <motion.div key="s2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.2 }} className="space-y-5">
+-                  <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 font-bold mb-4">Unggah Foto</p>
++                  <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 font-bold mb-4">Upload Foto</p>
+                 {/* KTP */}
+                 <div>
+                   <label className={labelCls}>Foto KTP</label>
+@@ -355,7 +355,7 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
+                   ) : (
+                     <button onClick={() => ktpRef.current?.click()} className="w-full h-36 rounded-xl border-2 border-dashed border-white/10 hover:border-white/30 bg-white/[0.02] hover:bg-white/[0.04] flex flex-col items-center justify-center gap-2 transition-all">
+                       <CreditCard className="w-8 h-8 text-zinc-500" />
+-                      <span className="text-xs text-zinc-500">Unggah foto KTP (maks 5MB)</span>
++                      <span className="text-xs text-zinc-500">Upload foto KTP (maks 5MB)</span>
+                     </button>
+                   )}
+                   {errors.ktp && <p className={errCls}>{errors.ktp}</p>}
+@@ -372,7 +372,7 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
+                   ) : (
+                     <button onClick={() => selfieRef.current?.click()} className="w-full h-36 rounded-xl border-2 border-dashed border-white/10 hover:border-white/30 bg-white/[0.02] hover:bg-white/[0.04] flex flex-col items-center justify-center gap-2 transition-all">
+                       <Camera className="w-8 h-8 text-zinc-500" />
+-                      <span className="text-xs text-zinc-500">Unggah foto selfie (maks 5MB)</span>
++                      <span className="text-xs text-zinc-500">Upload foto selfie (maks 5MB)</span>
+                     </button>
+                   )}
+                   {errors.selfie && <p className={errCls}>{errors.selfie}</p>}
+diff --git a/fe/src/components/approval-queue/QueueItemCard.tsx b/fe/src/components/approval-queue/QueueItemCard.tsx
+index e9763a6..f78d71c 100644
+--- a/fe/src/components/approval-queue/QueueItemCard.tsx
++++ b/fe/src/components/approval-queue/QueueItemCard.tsx
+@@ -295,7 +295,7 @@ export default function QueueItemCard({
+             </div>
+           )}
+ 
+-          {/* Aksi buttons */}
++          {/* Action buttons */}
+           <div className="flex flex-wrap gap-2 pt-1">
+             <button onClick={(e) => { e.stopPropagation(); onApprove(loan); }} className="inline-flex items-center gap-1.5 rounded-full bg-black px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+               <PenLine className="h-3 w-3" /> Setujui
+diff --git a/fe/src/components/dashboard/DataTable.tsx b/fe/src/components/dashboard/DataTable.tsx
+index 890414e..476c5bd 100644
+--- a/fe/src/components/dashboard/DataTable.tsx
++++ b/fe/src/components/dashboard/DataTable.tsx
+@@ -94,7 +94,7 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
+     setCurrentPage(1);
+   };
+ 
+-   // Handler untuk Unggah GDrive
++   // Handler untuk Upload GDrive
+   const handleUnggahGDrive = async () => {
+     if (logs.length === 0) {
+       toast.error("Tidak ada data untuk di-upload!");
+diff --git a/fe/src/components/dgtnz/FraudScanHistory.tsx b/fe/src/components/dgtnz/FraudScanHistory.tsx
+index e468beb..eeefb9e 100644
+--- a/fe/src/components/dgtnz/FraudScanHistory.tsx
++++ b/fe/src/components/dgtnz/FraudScanHistory.tsx
+@@ -304,7 +304,7 @@ export const FraudScanHistory = ({ records, onDelete }: FraudScanHistoryProps) =
+                 <div className="relative flex-1">
+                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                     <Input
+-                        placeholder="Cari recipient, client, or surat jalan..."
++                        placeholder="Search recipient, client, or surat jalan..."
+                         value={searchTerm}
+                         onChange={(e) => setCariTerm(e.target.value)}
+                         className="pl-9 bg-[#111] border-white/10 text-white placeholder:text-gray-600 focus:border-red-500/30 h-10"
+diff --git a/fe/src/components/dgtnz/ScanHistory.tsx b/fe/src/components/dgtnz/ScanHistory.tsx
+index 6e7b006..3381924 100644
+--- a/fe/src/components/dgtnz/ScanHistory.tsx
++++ b/fe/src/components/dgtnz/ScanHistory.tsx
+@@ -187,7 +187,7 @@ export const ScanHistory = ({ records, onDelete, onEdit }: ScanHistoryProps) =>
+                 <div className="relative flex-1">
+                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                     <Input
+-                        placeholder="Cari recipient or content..."
++                        placeholder="Search recipient or content..."
+                         value={searchTerm}
+                         onChange={(e) => setCariTerm(e.target.value)}
+                         className="pl-9 bg-[#111] border-white/10 text-white placeholder:text-gray-600 focus:border-white/30 h-10"
+diff --git a/fe/src/components/dgtnz/ScanUpload.tsx b/fe/src/components/dgtnz/ScanUpload.tsx
+index 614fc6e..968e2a3 100644
+--- a/fe/src/components/dgtnz/ScanUpload.tsx
++++ b/fe/src/components/dgtnz/ScanUpload.tsx
+@@ -73,7 +73,7 @@ export const ScanUpload = ({ uploadedImage, previewUrl, isMemproses, onImageSele
+             <div className="flex justify-between items-center mb-4">
+                 <h3 className="font-semibold text-lg flex items-center gap-2">
+                     <ImageIcon className="w-5 h-5 text-gray-400" />
+-                    Document Unggah
++                    Document Upload
+                 </h3>
+                 {previewUrl && (
+                     <Button variant="ghost" size="sm" onClick={onClear} disabled={isMemproses} className="text-red-400 hover:text-red-300 hover:bg-red-900/20">
+diff --git a/fe/src/components/tabs/AdminTab.tsx b/fe/src/components/tabs/AdminTab.tsx
+index 1b6bdb5..8e5a940 100644
+--- a/fe/src/components/tabs/AdminTab.tsx
++++ b/fe/src/components/tabs/AdminTab.tsx
+@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
+ import { motion, AnimatePresence } from "framer-motion";
+ import {
+     Users, Shield, Coins, Ban, Trash2, Clock, Activity,
+-    Cari, RefreshCw, ChevronDown, ChevronUp, Eye,
++    Search, RefreshCw, ChevronDown, ChevronUp, Eye,
+     MessageSquare, Scan, AlertTriangle, Plus, Minus,
+     X, Check
+ } from "lucide-react";
+@@ -342,7 +342,7 @@ export default function AdminTab() {
+                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                 <input
+                     type="text"
+-                    placeholder="Cari users by email or name..."
++                    placeholder="Search users by email or name..."
+                     value={searchQuery}
+                     onChange={e => setCariQuery(e.target.value)}
+                     className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-gray-500 outline-none focus:border-white/20 transition-colors text-sm"
+diff --git a/fe/src/components/tabs/DgtnzTab.tsx b/fe/src/components/tabs/DgtnzTab.tsx
+index 24dc0ff..25f4225 100644
+--- a/fe/src/components/tabs/DgtnzTab.tsx
++++ b/fe/src/components/tabs/DgtnzTab.tsx
+@@ -187,7 +187,7 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
+         body: formData
+       });
+ 
+-      if (!res.ok) throw new Error("Unggah failed");
++      if (!res.ok) throw new Error("Upload failed");
+ 
+       // Dispatch event to notify dashboard of scan completion
+       window.dispatchEvent(new CustomEvent('scan-completed'));
+@@ -227,7 +227,7 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
+       const { data: { session } } = await supabase.auth.getSession();
+       if (!session) throw new Error("No session");
+ 
+-      // Unggah signature
++      // Upload signature
+       setFraudStep("Memvalidasi tanda tangan...");
+       const sigBlob = await (await fetch(signatureData)).blob();
+       const sigFormData = new FormData();
+diff --git a/fe/src/components/tabs/FinancialTab.tsx b/fe/src/components/tabs/FinancialTab.tsx
+index 857f430..31767e5 100644
+--- a/fe/src/components/tabs/FinancialTab.tsx
++++ b/fe/src/components/tabs/FinancialTab.tsx
+@@ -1,11 +1,11 @@
+ /**
+  * FinancialTab ΓÇö Otaru Financial Dasbor
+- * Mode: Manual Input (profil, cicilan) + OCR Unggah (slip gaji / struk belanja)
++ * Mode: Manual Input (profil, cicilan) + OCR Upload (slip gaji / struk belanja)
+  */
+ 
+ import { useState, useEffect, useRef } from "react";
+ import {
+-  TrendingUp, Unggah, FileText, Trash2,
++  TrendingUp, Upload, FileText, Trash2,
+   AlertCircle, CheckCircle2, Loader2,
+   Wallet, BarChart3, ShieldCheck, RefreshCw, Camera,
+   Download, MessageSquare, Send,
+@@ -476,7 +476,7 @@ export default function FinancialTab() {
+     <div className="space-y-4">
+ 
+       <div className="bg-[#111] border border-white/10 rounded-2xl p-5 space-y-4">
+-        <h3 className="font-semibold text-white flex items-center gap-2"><Camera className="w-4 h-4" /> Unggah Dokumen OCR</h3>
++        <h3 className="font-semibold text-white flex items-center gap-2"><Camera className="w-4 h-4" /> Upload Dokumen OCR</h3>
+         <p className="text-xs text-white/40">
+           AI akan otomatis mendeteksi jenis dokumen dan mengekstrak data.<br />
+           <span className="text-emerald-400">Slip Gaji</span> ΓåÆ update gaji verified (bobot lebih tinggi di skor).<br />
+diff --git a/fe/src/components/tabs/OptionsTab.tsx b/fe/src/components/tabs/OptionsTab.tsx
+index 8baf23d..8eb8a2b 100644
+--- a/fe/src/components/tabs/OptionsTab.tsx
++++ b/fe/src/components/tabs/OptionsTab.tsx
+@@ -99,7 +99,7 @@ const OptionsTab = () => {
+         transition={{ delay: 0.1 }}
+         className="px-4"
+       >
+-        <h2 className="text-xl font-bold text-white">Pengaturan</h2>
++        <h2 className="text-xl font-bold text-white">Settings</h2>
+         <p className="text-gray-400 text-sm mt-1">Integrasi Telegram dan preferensi akun</p>
+       </motion.div>
+ 
+diff --git a/fe/src/components/tabs/WhitelistManagement.tsx b/fe/src/components/tabs/WhitelistManagement.tsx
+index 7be80fc..cd4b2ae 100644
+--- a/fe/src/components/tabs/WhitelistManagement.tsx
++++ b/fe/src/components/tabs/WhitelistManagement.tsx
+@@ -6,7 +6,7 @@
+  *   - Add single phone number form
+  *   - Bulk CSV upload
+  *   - Delete/deactivate entries
+- *   - Cari by phone/name
++ *   - Search by phone/name
+  *   - Stats counters
+  *
+  * Design: Light theme, consistent with Portal Mitra
+@@ -15,9 +15,9 @@ import { useState, useEffect, useCallback } from "react";
+ import {
+   Phone,
+   Plus,
+-  Unggah,
++  Upload,
+   Trash2,
+-  Cari,
++  Search,
+   CheckCircle2,
+   AlertTriangle,
+   Loader2,
+@@ -197,7 +197,7 @@ export default function WhitelistManagement() {
+       if (res.ok) {
+         const data = await res.json();
+         toast.success(
+-          `Unggah selesai: ${data.inserted} ditambahkan, ${data.skipped} dilewati.`
++          `Upload selesai: ${data.inserted} ditambahkan, ${data.skipped} dilewati.`
+         );
+         setBulkFile(null);
+         setShowBulkUnggah(false);
+@@ -304,7 +304,7 @@ export default function WhitelistManagement() {
+             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+             <input
+               type="text"
+-              placeholder="Cari nomor HP atau nama..."
++              placeholder="Search nomor HP atau nama..."
+               value={searchQuery}
+               onChange={(e) => {
+                 setCariQuery(e.target.value);
+@@ -334,7 +334,7 @@ export default function WhitelistManagement() {
+               className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-2.5 text-xs font-semibold text-zinc-700 hover:border-zinc-400 transition-colors"
+             >
+               <Upload className="w-3.5 h-3.5" />
+-              Unggah CSV
++              Upload CSV
+             </button>
+           </div>
+         </div>
+@@ -433,7 +433,7 @@ export default function WhitelistManagement() {
+                   ) : (
+                     <FileSpreadsheet className="w-4 h-4" />
+                   )}
+-                  Unggah
++                  Upload
+                 </button>
+                 <button
+                   onClick={() => setShowBulkUnggah(false)}
+@@ -485,7 +485,7 @@ export default function WhitelistManagement() {
+                       Oleh
+                     </th>
+                     <th className="text-right px-5 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+-                      Aksi
++                      Action
+                     </th>
+                   </tr>
+                 </thead>
+diff --git a/fe/src/components/tools/PDFCompressor.tsx b/fe/src/components/tools/PDFCompressor.tsx
+index af1684a..f54f012 100644
+--- a/fe/src/components/tools/PDFCompressor.tsx
++++ b/fe/src/components/tools/PDFCompressor.tsx
+@@ -190,7 +190,7 @@ export function PDFCompressor() {
+           <li>ΓÇó Kecilin SK/kontrak sebelum di-email</li>
+           <li>ΓÇó Kompres laporan dengan banyak foto</li>
+           <li>ΓÇó Hemat storage Google Drive kantor</li>
+-          <li>ΓÇó Unggah lebih cepat ke sistem HRIS</li>
++          <li>ΓÇó Upload lebih cepat ke sistem HRIS</li>
+         </ul>
+       </div>
+     </div>
+diff --git a/fe/src/components/ui/alert-dialog.tsx b/fe/src/components/ui/alert-dialog.tsx
+index 435e278..33c4419 100644
+--- a/fe/src/components/ui/alert-dialog.tsx
++++ b/fe/src/components/ui/alert-dialog.tsx
+@@ -70,12 +70,12 @@ const AlertDialogDescription = React.forwardRef<
+ AlertDialogDescription.displayName = AlertDialogPrimitive.Description.displayName;
+ 
+ const AlertDialogAksi = React.forwardRef<
+-  React.ElementRef<typeof AlertDialogPrimitive.Aksi>,
+-  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Aksi>
++  React.ElementRef<typeof AlertDialogPrimitive.Action>,
++  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Action>
+ >(({ className, ...props }, ref) => (
+-  <AlertDialogPrimitive.Aksi ref={ref} className={cn(buttonVariants(), className)} {...props} />
++  <AlertDialogPrimitive.Action ref={ref} className={cn(buttonVariants(), className)} {...props} />
+ ));
+-AlertDialogAksi.displayName = AlertDialogPrimitive.Aksi.displayName;
++AlertDialogAksi.displayName = AlertDialogPrimitive.Action.displayName;
+ 
+ const AlertDialogBatal = React.forwardRef<
+   React.ElementRef<typeof AlertDialogPrimitive.Batal>,
+diff --git a/fe/src/components/ui/navigation-menu.tsx b/fe/src/components/ui/navigation-menu.tsx
+index d495ce5..67334eb 100644
+--- a/fe/src/components/ui/navigation-menu.tsx
++++ b/fe/src/components/ui/navigation-menu.tsx
+@@ -74,11 +74,11 @@ NavigationMenuContent.displayName = NavigationMenuPrimitive.Content.displayName;
+ const NavigationMenuLink = NavigationMenuPrimitive.Link;
+ 
+ const NavigationMenuLihatport = React.forwardRef<
+-  React.ElementRef<typeof NavigationMenuPrimitive.Lihatport>,
+-  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Lihatport>
++  React.ElementRef<typeof NavigationMenuPrimitive.Viewport>,
++  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Viewport>
+ >(({ className, ...props }, ref) => (
+   <div className={cn("absolute left-0 top-full flex justify-center")}>
+-    <NavigationMenuPrimitive.Lihatport
++    <NavigationMenuPrimitive.Viewport
+       className={cn(
+         "origin-top-center relative mt-1.5 h-[var(--radix-navigation-menu-viewport-height)] w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-90 md:w-[var(--radix-navigation-menu-viewport-width)]",
+         className,
+@@ -88,7 +88,7 @@ const NavigationMenuLihatport = React.forwardRef<
+     />
+   </div>
+ ));
+-NavigationMenuLihatport.displayName = NavigationMenuPrimitive.Lihatport.displayName;
++NavigationMenuLihatport.displayName = NavigationMenuPrimitive.Viewport.displayName;
+ 
+ const NavigationMenuIndicator = React.forwardRef<
+   React.ElementRef<typeof NavigationMenuPrimitive.Indicator>,
+diff --git a/fe/src/components/ui/scroll-area.tsx b/fe/src/components/ui/scroll-area.tsx
+index 7cb84b9..8d29b27 100644
+--- a/fe/src/components/ui/scroll-area.tsx
++++ b/fe/src/components/ui/scroll-area.tsx
+@@ -8,7 +8,7 @@ const ScrollArea = React.forwardRef<
+   React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root>
+ >(({ className, children, ...props }, ref) => (
+   <ScrollAreaPrimitive.Root ref={ref} className={cn("relative overflow-hidden", className)} {...props}>
+-    <ScrollAreaPrimitive.Lihatport className="h-full w-full rounded-[inherit]">{children}</ScrollAreaPrimitive.Lihatport>
++    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">{children}</ScrollAreaPrimitive.Viewport>
+     <ScrollBar />
+     <ScrollAreaPrimitive.Corner />
+   </ScrollAreaPrimitive.Root>
+diff --git a/fe/src/components/ui/select.tsx b/fe/src/components/ui/select.tsx
+index f66f0cd..6f25254 100644
+--- a/fe/src/components/ui/select.tsx
++++ b/fe/src/components/ui/select.tsx
+@@ -75,7 +75,7 @@ const SelectContent = React.forwardRef<
+       {...props}
+     >
+       <SelectScrollUpButton />
+-      <SelectPrimitive.Lihatport
++      <SelectPrimitive.Viewport
+         className={cn(
+           "p-1",
+           position === "popper" &&
+@@ -83,7 +83,7 @@ const SelectContent = React.forwardRef<
+         )}
+       >
+         {children}
+-      </SelectPrimitive.Lihatport>
++      </SelectPrimitive.Viewport>
+       <SelectScrollDownButton />
+     </SelectPrimitive.Content>
+   </SelectPrimitive.Portal>
+diff --git a/fe/src/components/ui/toast.tsx b/fe/src/components/ui/toast.tsx
+index 898f824..778b1e0 100644
+--- a/fe/src/components/ui/toast.tsx
++++ b/fe/src/components/ui/toast.tsx
+@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils";
+ const ToastProvider = ToastPrimitives.Provider;
+ 
+ const ToastLihatport = React.forwardRef<
+-  React.ElementRef<typeof ToastPrimitives.Lihatport>,
+-  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Lihatport>
++  React.ElementRef<typeof ToastPrimitives.Viewport>,
++  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Viewport>
+ >(({ className, ...props }, ref) => (
+-  <ToastPrimitives.Lihatport
++  <ToastPrimitives.Viewport
+     ref={ref}
+     className={cn(
+       "fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
+@@ -20,7 +20,7 @@ const ToastLihatport = React.forwardRef<
+     {...props}
+   />
+ ));
+-ToastLihatport.displayName = ToastPrimitives.Lihatport.displayName;
++ToastLihatport.displayName = ToastPrimitives.Viewport.displayName;
+ 
+ const toastVariants = cva(
+   "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
+@@ -46,10 +46,10 @@ const Toast = React.forwardRef<
+ Toast.displayName = ToastPrimitives.Root.displayName;
+ 
+ const ToastAksi = React.forwardRef<
+-  React.ElementRef<typeof ToastPrimitives.Aksi>,
+-  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Aksi>
++  React.ElementRef<typeof ToastPrimitives.Action>,
++  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Action>
+ >(({ className, ...props }, ref) => (
+-  <ToastPrimitives.Aksi
++  <ToastPrimitives.Action
+     ref={ref}
+     className={cn(
+       "inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium ring-offset-background transition-colors group-[.destructive]:border-muted/40 hover:bg-secondary group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 group-[.destructive]:focus:ring-destructive disabled:pointer-events-none disabled:opacity-50",
+@@ -58,7 +58,7 @@ const ToastAksi = React.forwardRef<
+     {...props}
+   />
+ ));
+-ToastAksi.displayName = ToastPrimitives.Aksi.displayName;
++ToastAksi.displayName = ToastPrimitives.Action.displayName;
+ 
+ const ToastClose = React.forwardRef<
+   React.ElementRef<typeof ToastPrimitives.Close>,
+diff --git a/fe/src/hooks/use-toast.ts b/fe/src/hooks/use-toast.ts
+index 89b4ada..a0c6ed2 100644
+--- a/fe/src/hooks/use-toast.ts
++++ b/fe/src/hooks/use-toast.ts
+@@ -28,7 +28,7 @@ function genId() {
+ 
+ type AksiType = typeof actionTypes;
+ 
+-type Aksi =
++type Action =
+   | {
+       type: AksiType["ADD_TOAST"];
+       toast: ToasterToast;
+@@ -68,7 +68,7 @@ const addToRemoveQueue = (toastId: string) => {
+   toastTimeouts.set(toastId, timeout);
+ };
+ 
+-export const reducer = (state: State, action: Aksi): State => {
++export const reducer = (state: State, action: Action): State => {
+   switch (action.type) {
+     case "ADD_TOAST":
+       return {
+@@ -125,7 +125,7 @@ const listeners: Array<(state: State) => void> = [];
+ 
+ let memoryState: State = { toasts: [] };
+ 
+-function dispatch(action: Aksi) {
++function dispatch(action: Action) {
+   memoryState = reducer(memoryState, action);
+   listeners.forEach((listener) => {
+     listener(memoryState);
+diff --git a/fe/src/lib/dummyDoc.ts b/fe/src/lib/dummyDoc.ts
+index 7954730..d4987d4 100644
+--- a/fe/src/lib/dummyDoc.ts
++++ b/fe/src/lib/dummyDoc.ts
+@@ -31,7 +31,7 @@ export function buildDummyDocBlob(kind: "slip_gaji" | "struk_belanja") {
+     ctx.fillText("Gaji Pokok    : Rp 5.500.000", 90, 490);
+     ctx.fillText("Tunjangan     : Rp   750.000", 90, 540);
+     ctx.fillText("Potongan      : Rp   250.000", 90, 590);
+-    ctx.fillText("Take Beranda Pay : Rp 6.000.000", 90, 640);
++    ctx.fillText("Take Home Pay : Rp 6.000.000", 90, 640);
+     ctx.fillText("Dokumen ini dipakai untuk simulasi OCR beta Otaru Financial.", 90, 730);
+   } else {
+     ctx.fillText("Vendor        : PT Dummy Supplier", 90, 390);
+diff --git a/fe/src/lib/supabaseClient.ts b/fe/src/lib/supabaseClient.ts
+index 62c0903..166c88d 100644
+--- a/fe/src/lib/supabaseClient.ts
++++ b/fe/src/lib/supabaseClient.ts
+@@ -13,7 +13,7 @@ if (isMissingConfig) {
+   console.error('   VITE_SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? 'Γ£ô Set' : 'Γ£ù Missing');
+   console.error('');
+   console.error('   ≡ƒôï TO FIX (Vercel):');
+-  console.error('   1. Go to: https://vercel.com ΓåÆ Project Pengaturan ΓåÆ Environment Variables');
++  console.error('   1. Go to: https://vercel.com ΓåÆ Project Settings ΓåÆ Environment Variables');
+   console.error('   2. Add: VITE_SUPABASE_URL = https://xxxxx.supabase.co');
+   console.error('   3. Add: VITE_SUPABASE_ANON_KEY = eyJhbGc...');
+   console.error('   4. Redeploy: Deployments ΓåÆ ... ΓåÆ Redeploy');
+diff --git a/fe/src/pages/Docs.tsx b/fe/src/pages/Docs.tsx
+index 0805314..041f5cc 100644
+--- a/fe/src/pages/Docs.tsx
++++ b/fe/src/pages/Docs.tsx
+@@ -40,7 +40,7 @@ const Docs = () => {
+                                 <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center mb-4 border border-blue-500/20">
+                                     <span className="text-blue-400 font-bold">1</span>
+                                 </div>
+-                                <h3 className="font-semibold text-lg mb-2">Unggah & OCR</h3>
++                                <h3 className="font-semibold text-lg mb-2">Upload & OCR</h3>
+                                 <p className="text-sm text-gray-400 leading-relaxed">
+                                     Dokumen (KTP, Slip Gaji, Surat Jalan, dll) diunggah oleh user. AI langsung membaca dan mengekstrak teks menggunakan teknologi OCR.
+                                 </p>
+diff --git a/fe/src/pages/Landing.tsx b/fe/src/pages/Landing.tsx
+index 5fcd889..0b9092b 100644
+--- a/fe/src/pages/Landing.tsx
++++ b/fe/src/pages/Landing.tsx
+@@ -32,7 +32,7 @@ export default function Landing() {
+           </div>
+ 
+           <p className="text-lg md:text-xl font-mono text-black/70 mb-8 leading-relaxed max-w-3xl mx-auto hero-description">
+-            Unggah foto dokumen, langsung jadi data digital. 
++            Upload foto dokumen, langsung jadi data digital. 
+           </p>
+ 
+           {/* Feature Pills */}
+diff --git a/fe/src/pages/NotFound.tsx b/fe/src/pages/NotFound.tsx
+index 07ae966..7bc2234 100644
+--- a/fe/src/pages/NotFound.tsx
++++ b/fe/src/pages/NotFound.tsx
+@@ -14,7 +14,7 @@ const NotFound = () => {
+         <h1 className="mb-4 text-4xl font-bold">404</h1>
+         <p className="mb-4 text-xl text-muted-foreground">Oops! Page not found</p>
+         <a href="/" className="text-primary underline hover:text-primary/90">
+-          Return to Beranda
++          Return to Home
+         </a>
+       </div>
+     </div>
+diff --git a/fe/src/pages/OtaruChatPage.tsx b/fe/src/pages/OtaruChatPage.tsx
+index dd959a3..123d238 100644
+--- a/fe/src/pages/OtaruChatPage.tsx
++++ b/fe/src/pages/OtaruChatPage.tsx
+@@ -340,7 +340,7 @@ const OtaruChatPage = () => {
+               </div>
+               <h2 className="text-2xl font-semibold text-white mb-2">Hi, I'm Otaru</h2>
+               <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.45)', maxWidth: '360px' }}>
+-                Your expert logistics & financial document analyst. Unggah a document or ask me anything.
++                Your expert logistics & financial document analyst. Upload a document or ask me anything.
+               </p>
+               <div className="flex flex-wrap justify-center gap-2.5 max-w-md">
+                 {[
+diff --git a/fe/src/pages/PartnerPortal.tsx b/fe/src/pages/PartnerPortal.tsx
+index 1038d9a..a8e4ce5 100644
+--- a/fe/src/pages/PartnerPortal.tsx
++++ b/fe/src/pages/PartnerPortal.tsx
+@@ -22,7 +22,7 @@ import {
+   PenLine,
+   Shield,
+   RefreshCw,
+-  Cari,
++  Search,
+   ShieldCheck,
+   TerminalSquare,
+   Trash2,
+@@ -30,7 +30,7 @@ import {
+   Wallet,
+   X,
+   Wand2,
+-  Beranda,
++  Home,
+   User,
+   LogOut,
+   Menu,
+@@ -622,7 +622,7 @@ export default function PartnerPortal() {
+                   title="Ke Dasbor Utama"
+                   className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white p-2 text-zinc-700 hover:border-zinc-400 transition-colors"
+                 >
+-                  <Beranda className="h-4 w-4" />
++                  <Home className="h-4 w-4" />
+                 </button>
+ 
+                 <div className="relative">
+diff --git a/fe/src/pages/Privacy.tsx b/fe/src/pages/Privacy.tsx
+index 46a85dc..7aa86a0 100644
+--- a/fe/src/pages/Privacy.tsx
++++ b/fe/src/pages/Privacy.tsx
+@@ -160,7 +160,7 @@ export default function Privacy() {
+                 <p className="font-bold">Google OAuth & Drive:</p>
+                 <p>ΓÇó Kami menggunakan Google OAuth untuk autentikasi yang aman</p>
+                 <p>ΓÇó Kami meminta akses ke Google Drive hanya untuk menyimpan hasil scan Anda</p>
+-                <p>ΓÇó Anda dapat mencabut akses kapan saja melalui Google Account Pengaturan</p>
++                <p>ΓÇó Anda dapat mencabut akses kapan saja melalui Google Account Settings</p>
+                 
+                 <p className="font-bold mt-4">OpenAI API (BYOK):</p>
+                 <p>ΓÇó Jika Anda menggunakan API Key pribadi, data dikirim langsung ke OpenAI</p>
+diff --git a/fe/src/pages/PrivacyPolicy.tsx b/fe/src/pages/PrivacyPolicy.tsx
+index 4dd6f91..7cd38f1 100644
+--- a/fe/src/pages/PrivacyPolicy.tsx
++++ b/fe/src/pages/PrivacyPolicy.tsx
+@@ -55,7 +55,7 @@ const PrivacyPolicy = () => {
+                             We only collect the absolute minimum data required to provide our services:
+                         </p>
+                         <div className="grid sm:grid-cols-3 gap-4">
+-                            {['Document Contents', 'Memproses Logs', 'User Pengaturan'].map((item) => (
++                            {['Document Contents', 'Memproses Logs', 'User Settings'].map((item) => (
+                                 <div key={item} className="p-4 bg-[#111] border border-white/10 rounded-xl text-center text-sm text-gray-300">
+                                     {item}
+                                 </div>
+diff --git a/fe/src/pages/Settings.tsx b/fe/src/pages/Settings.tsx
+index eac6695..8eb29d6 100644
+--- a/fe/src/pages/Settings.tsx
++++ b/fe/src/pages/Settings.tsx
+@@ -19,7 +19,7 @@ import {
+ 
+ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://logistic-dokumen.onrender.com';
+ 
+-export default function Pengaturan() {
++export default function Settings() {
+   const navigate = useNavigate();
+   const [isDarkMode, setIsDarkMode] = useState(false);
+   
+diff --git a/fe/vite.config.ts.timestamp-1784127333423-92761c6aced1.mjs b/fe/vite.config.ts.timestamp-1784127333423-92761c6aced1.mjs
+new file mode 100644
+index 0000000..f229057
+--- /dev/null
++++ b/fe/vite.config.ts.timestamp-1784127333423-92761c6aced1.mjs
+@@ -0,0 +1,23 @@
++// vite.config.ts
++import { defineConfig } from "file:///C:/Users/asus/Downloads/Logistic-Dokumen-main/Logistic-Dokumen-main/fe/node_modules/vite/dist/node/index.js";
++import react from "file:///C:/Users/asus/Downloads/Logistic-Dokumen-main/Logistic-Dokumen-main/fe/node_modules/@vitejs/plugin-react-swc/index.js";
++import path from "path";
++var __vite_injected_original_dirname = "C:\\Users\\asus\\Downloads\\Logistic-Dokumen-main\\Logistic-Dokumen-main\\fe";
++var vite_config_default = defineConfig(() => ({
++  server: {
++    host: "::",
++    port: 8080
++  },
++  plugins: [react()],
++  resolve: {
++    alias: {
++      "@": path.resolve(__vite_injected_original_dirname, "./src"),
++      react: path.resolve(__vite_injected_original_dirname, "./node_modules/react"),
++      "react-dom": path.resolve(__vite_injected_original_dirname, "./node_modules/react-dom")
++    }
++  }
++}));
++export {
++  vite_config_default as default
++};
++//# sourceMappingURL=data:application/json;base64,ewogICJ2ZXJzaW9uIjogMywKICAic291cmNlcyI6IFsidml0ZS5jb25maWcudHMiXSwKICAic291cmNlc0NvbnRlbnQiOiBbImNvbnN0IF9fdml0ZV9pbmplY3RlZF9vcmlnaW5hbF9kaXJuYW1lID0gXCJDOlxcXFxVc2Vyc1xcXFxhc3VzXFxcXERvd25sb2Fkc1xcXFxMb2dpc3RpYy1Eb2t1bWVuLW1haW5cXFxcTG9naXN0aWMtRG9rdW1lbi1tYWluXFxcXGZlXCI7Y29uc3QgX192aXRlX2luamVjdGVkX29yaWdpbmFsX2ZpbGVuYW1lID0gXCJDOlxcXFxVc2Vyc1xcXFxhc3VzXFxcXERvd25sb2Fkc1xcXFxMb2dpc3RpYy1Eb2t1bWVuLW1haW5cXFxcTG9naXN0aWMtRG9rdW1lbi1tYWluXFxcXGZlXFxcXHZpdGUuY29uZmlnLnRzXCI7Y29uc3QgX192aXRlX2luamVjdGVkX29yaWdpbmFsX2ltcG9ydF9tZXRhX3VybCA9IFwiZmlsZTovLy9DOi9Vc2Vycy9hc3VzL0Rvd25sb2Fkcy9Mb2dpc3RpYy1Eb2t1bWVuLW1haW4vTG9naXN0aWMtRG9rdW1lbi1tYWluL2ZlL3ZpdGUuY29uZmlnLnRzXCI7aW1wb3J0IHsgZGVmaW5lQ29uZmlnIH0gZnJvbSBcInZpdGVcIjtcclxuaW1wb3J0IHJlYWN0IGZyb20gXCJAdml0ZWpzL3BsdWdpbi1yZWFjdC1zd2NcIjtcclxuaW1wb3J0IHBhdGggZnJvbSBcInBhdGhcIjtcclxuXHJcbi8vIGh0dHBzOi8vdml0ZWpzLmRldi9jb25maWcvXHJcbmV4cG9ydCBkZWZhdWx0IGRlZmluZUNvbmZpZygoKSA9PiAoe1xyXG4gIHNlcnZlcjoge1xyXG4gICAgaG9zdDogXCI6OlwiLFxyXG4gICAgcG9ydDogODA4MCxcclxuICB9LFxyXG4gIHBsdWdpbnM6IFtyZWFjdCgpXSxcclxuICByZXNvbHZlOiB7XHJcbiAgICBhbGlhczoge1xyXG4gICAgICBcIkBcIjogcGF0aC5yZXNvbHZlKF9fZGlybmFtZSwgXCIuL3NyY1wiKSxcclxuICAgICAgcmVhY3Q6IHBhdGgucmVzb2x2ZShfX2Rpcm5hbWUsIFwiLi9ub2RlX21vZHVsZXMvcmVhY3RcIiksXHJcbiAgICAgIFwicmVhY3QtZG9tXCI6IHBhdGgucmVzb2x2ZShfX2Rpcm5hbWUsIFwiLi9ub2RlX21vZHVsZXMvcmVhY3QtZG9tXCIpLFxyXG4gICAgfSxcclxuICB9LFxyXG59KSk7XHJcbiJdLAogICJtYXBwaW5ncyI6ICI7QUFBa1osU0FBUyxvQkFBb0I7QUFDL2EsT0FBTyxXQUFXO0FBQ2xCLE9BQU8sVUFBVTtBQUZqQixJQUFNLG1DQUFtQztBQUt6QyxJQUFPLHNCQUFRLGFBQWEsT0FBTztBQUFBLEVBQ2pDLFFBQVE7QUFBQSxJQUNOLE1BQU07QUFBQSxJQUNOLE1BQU07QUFBQSxFQUNSO0FBQUEsRUFDQSxTQUFTLENBQUMsTUFBTSxDQUFDO0FBQUEsRUFDakIsU0FBUztBQUFBLElBQ1AsT0FBTztBQUFBLE1BQ0wsS0FBSyxLQUFLLFFBQVEsa0NBQVcsT0FBTztBQUFBLE1BQ3BDLE9BQU8sS0FBSyxRQUFRLGtDQUFXLHNCQUFzQjtBQUFBLE1BQ3JELGFBQWEsS0FBSyxRQUFRLGtDQUFXLDBCQUEwQjtBQUFBLElBQ2pFO0FBQUEsRUFDRjtBQUNGLEVBQUU7IiwKICAibmFtZXMiOiBbXQp9Cg==
+diff --git a/fix2.py b/fix2.py
+new file mode 100644
+index 0000000..c5dc894
+--- /dev/null
++++ b/fix2.py
+@@ -0,0 +1,37 @@
++import os
++import re
++
++directory = 'fe/src'
++
++fixes = [
++    # Radix UI
++    ('Lihatport', 'Viewport'),
++    ('Aksi', 'Action'),
++    # Lucide React
++    ('Beranda', 'Home'),
++]
++
++for root, dirs, files in os.walk(directory):
++    for file in files:
++        if file.endswith(('.tsx', '.ts')):
++            path = os.path.join(root, file)
++            with open(path, 'r', encoding='utf-8') as f:
++                content = f.read()
++            
++            original_content = content
++            for wrong, right in fixes:
++                # Replace in imports
++                content = re.sub(r'(\{\s*.*?\b)' + wrong + r'(\b.*?\})', r'\g<1>' + right + r'\g<2>', content)
++                
++                # Replace JSX tags and Radix primitives (e.g. ToastPrimitives.Aksi)
++                content = re.sub(r'\.' + wrong + r'\b', r'.' + right, content)
++                content = re.sub(r'<' + wrong + r'(\s|>)', r'<' + right + r'\g<1>', content)
++                content = re.sub(r'</' + wrong + r'>', r'</' + right + '>', content)
++                
++                # Replace type declarations or props that might have been matched
++                content = re.sub(r'\b' + wrong + r'\b', right, content)
++                
++            if content != original_content:
++                with open(path, 'w', encoding='utf-8') as f:
++                    f.write(content)
++                print(f'Fixed {path}')
+diff --git a/fix3.py b/fix3.py
+new file mode 100644
+index 0000000..cbd6efe
+--- /dev/null
++++ b/fix3.py
+@@ -0,0 +1,31 @@
++import os
++import re
++
++directory = 'fe/src'
++
++fixes = {
++    'Cari': 'Search',
++    'Beranda': 'Home',
++    'Unggah': 'Upload',
++    'Pengaturan': 'Settings',
++    'Lihatport': 'Viewport',
++    'Aksi': 'Action'
++}
++
++for root, dirs, files in os.walk(directory):
++    for file in files:
++        if file.endswith(('.tsx', '.ts')):
++            path = os.path.join(root, file)
++            with open(path, 'r', encoding='utf-8') as f:
++                content = f.read()
++            
++            original_content = content
++            for wrong, right in fixes.items():
++                # Replace exact word matching only inside import statements or component usages
++                # E.g. `  Cari,` or `<Cari` or `ToastPrimitives.Aksi`
++                content = re.sub(r'\b' + wrong + r'\b', right, content)
++                
++            if content != original_content:
++                with open(path, 'w', encoding='utf-8') as f:
++                    f.write(content)
++                print(f'Fixed {path}')

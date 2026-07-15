@@ -24,7 +24,7 @@ interface AdminUser {
 
 interface AdminStats {
     total_users: number;
-    active_tohari: number;
+    active_today: number;
     total_scans: number;
     total_fraud_scans: number;
     total_chat_sessions: number;
@@ -68,7 +68,7 @@ export default function AdminTab() {
     const [retentionDays, setRetentionDays] = useState(30);
     const [gamificationConfig, setGamificationConfig] = useState<GamificationConfig | null>(null);
     const [gamificationTargetEmail, setGamificationTargetEmail] = useState("");
-    const [gamificationMonth, setGamificationMonth] = useState(() => new Tanggal().toISOString().slice(0, 7));
+    const [gamificationMonth, setGamificationMonth] = useState(() => new Date().toISOString().slice(0, 7));
     const [gamificationBadgeType, setGamificationBadgeType] = useState("gold_integrity");
     const [gamificationLoading, setGamificationLoading] = useState(false);
 
@@ -204,7 +204,7 @@ export default function AdminTab() {
             const res = await fetch(`${API_BASE_URL}/api/admin/users/${retentionModal}/extend-retention`, {
                 method: "POST",
                 headers,
-                body: JSON.stringify({ extra_hari: retentionDays }),
+                body: JSON.stringify({ extra_day: retentionDays }),
             });
             if (res.ok) {
                 toast.success(`Retention extended by ${retentionDays} hari`);
@@ -273,13 +273,13 @@ export default function AdminTab() {
 
     const isOnline = (user: AdminUser) => {
         if (!user.updated_at) return false;
-        const diff = Tanggal.now() - new Tanggal(user.updated_at).getTime();
+        const diff = Date.now() - new Date(user.updated_at).getTime();
         return diff < 15 * 60 * 1000; // Active in last 15 minutes
     };
 
     const formatTanggal = (d: string | null) => {
         if (!d) return "-";
-        return new Tanggal(d).toLocaleTanggalString("id-ID", { hari: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+        return new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
     };
 
     if (loading) {

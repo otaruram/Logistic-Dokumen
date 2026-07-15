@@ -108,7 +108,7 @@ export default function FileUnggahZone({ onFileSelect }: FileUnggahZoneProps) {
       fetch(capturedImage)
         .then((res) => res.blob())
         .then((blob) => {
-          const file = new File([blob], `camera_${Tanggal.now()}.jpg`, {
+          const file = new File([blob], `camera_${Date.now()}.jpg`, {
             type: "image/jpeg",
           });
           onFileSelect(file);

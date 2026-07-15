@@ -82,7 +82,7 @@ export default function Privacy() {
             <p className={`text-sm font-mono ${
               isDarkMode ? 'text-white/60' : 'text-black/60'
             }`}>
-              Terakhir diperbarui: {new Tanggal().toLocaleTanggalString('id-ID', { hari: 'numeric', month: 'long', year: 'numeric' })}
+              Terakhir diperbarui: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
 
@@ -230,7 +230,7 @@ export default function Privacy() {
             <p className={`font-mono text-xs ${
               isDarkMode ? 'text-white/60' : 'text-black/60'
             }`}>
-              © {new Tanggal().getFullYear()} OtaruChain - Scan Dokumen Tanpa Ribet
+              © {new Date().getFullYear()} OtaruChain - Scan Dokumen Tanpa Ribet
             </p>
           </div>
 

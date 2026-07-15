@@ -88,16 +88,16 @@ export default function Profile() {
         // - First item (logs[0]) = newest/latest scan
         // - Last item (logs[logs.length - 1]) = oldest/first scan
         const joinTanggal = logs.length > 0 
-          ? new Tanggal(logs[logs.length - 1].timestamp).toLocaleTanggalString('id-ID', {
-              hari: 'numeric',
+          ? new Date(logs[logs.length - 1].timestamp).toLocaleDateString('id-ID', {
+              day: 'numeric',
               month: 'long',
               year: 'numeric',
             })
           : 'Belum ada aktivitas';
         
         const lastScan = logs.length > 0
-          ? new Tanggal(logs[0].timestamp).toLocaleTanggalString('id-ID', {
-              hari: 'numeric',
+          ? new Date(logs[0].timestamp).toLocaleDateString('id-ID', {
+              day: 'numeric',
               month: 'long',
               year: 'numeric',
               hour: '2-digit',

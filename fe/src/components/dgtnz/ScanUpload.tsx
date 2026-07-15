@@ -42,7 +42,7 @@ const compressImage = (file: File): Promise<File> => {
                 ctx?.drawImage(img, 0, 0, width, height);
                 canvas.toBlob((blob) => {
                     if (blob) {
-                        resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Tanggal.now() }));
+                        resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
                     } else reject(new Error('Blob failed'));
                 }, 'image/jpeg', 0.8);
             };

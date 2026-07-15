@@ -41,7 +41,7 @@ class CacheService {
    * Check if cache entry is expired
    */
   private isExpired(entry: CacheEntry<any>): boolean {
-    return Tanggal.now() - entry.timestamp > this.config.ttl;
+    return Date.now() - entry.timestamp > this.config.ttl;
   }
 
   /**
@@ -75,7 +75,7 @@ class CacheService {
   set<T>(key: string, data: T): void {
     this.cache.set(key, {
       data,
-      timestamp: Tanggal.now(),
+      timestamp: Date.now(),
       hash: this.hash(data),
     });
   }

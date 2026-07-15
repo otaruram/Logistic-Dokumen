@@ -80,7 +80,7 @@ export default function Landing() {
         {/* Footer */}
         <div className="text-center mt-auto pt-8">
           <p className="font-mono text-xs text-black/60">
-            © {new Tanggal().getFullYear()} OtaruChain - Scan Dokumen Otomatis dengan AI
+            © {new Date().getFullYear()} OtaruChain - Scan Dokumen Otomatis dengan AI
           </p>
         </div>
       </div>

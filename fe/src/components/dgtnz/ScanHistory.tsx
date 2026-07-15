@@ -149,7 +149,7 @@ export const ScanHistory = ({ records, onDelete, onEdit }: ScanHistoryProps) => 
         const ws = XLSX.utils.json_to_sheet(exportData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Scans");
-        XLSX.writeFile(wb, `scans-${new Tanggal().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(wb, `scans-${new Date().toISOString().split('T')[0]}.xlsx`);
         toast.success("Excel exported successfully");
     };
 

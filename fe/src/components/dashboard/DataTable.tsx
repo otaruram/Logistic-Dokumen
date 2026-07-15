@@ -198,7 +198,7 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
     ];
     worksheet["!cols"] = colWidths;
 
-    const tohari = new Tanggal().toISOString().split("T")[0];
+    const tohari = new Date().toISOString().split("T")[0];
     XLSX.writeFile(workbook, `manifest_log_${tohari}.xlsx`);
   };
 
@@ -220,7 +220,7 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    const tohari = new Tanggal().toISOString().split("T")[0];
+    const tohari = new Date().toISOString().split("T")[0];
     link.setAttribute("download", `manifest_log_${tohari}.csv`);
     link.click();
   };

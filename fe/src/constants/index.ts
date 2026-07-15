@@ -8,13 +8,13 @@ export const NAVIGATION_TABS = [
 
 // Dasbor data
 export const WEEKLY_DATA = [
-  { hari: "Mon", scans: 12 },
-  { hari: "Tue", scans: 19 },
-  { hari: "Wed", scans: 8 },
-  { hari: "Thu", scans: 25 },
-  { hari: "Fri", scans: 15 },
-  { hari: "Sat", scans: 7 },
-  { hari: "Sun", scans: 4 },
+  { day: "Mon", scans: 12 },
+  { day: "Tue", scans: 19 },
+  { day: "Wed", scans: 8 },
+  { day: "Thu", scans: 25 },
+  { day: "Fri", scans: 15 },
+  { day: "Sat", scans: 7 },
+  { day: "Sun", scans: 4 },
 ] as const;
 
 // App configuration

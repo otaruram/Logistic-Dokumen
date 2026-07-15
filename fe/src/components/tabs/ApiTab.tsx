@@ -40,7 +40,7 @@ const pricingPlans = [
 
 const formatTanggal = (value?: string | null) => {
   if (!value) return "Belum pernah dipakai";
-  const date = new Tanggal(value);
+  const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.TanggalTimeFormat("id-ID", {
     dateStyle: "medium",

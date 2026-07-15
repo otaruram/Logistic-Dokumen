@@ -19,7 +19,7 @@ export interface Feature {
 
 // Dasbor types
 export interface WeeklyDataPoint {
-  hari: string;
+  day: string;
   scans: number;
 }
 

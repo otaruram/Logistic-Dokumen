@@ -578,7 +578,7 @@ export default function FinancialTab() {
     function handleAdd() {
       const nom = parseInt(catatanForm.nominal.replace(/\D/g, ""));
       if (!nom || nom <= 0) { toast.error("Nominal harus diisi"); return; }
-      const entry = { id: Tanggal.now().toString(), type: catatanForm.type, nominal: nom, keterangan: catatanForm.keterangan, created_at: new Tanggal().toISOString() };
+      const entry = { id: Date.now().toString(), type: catatanForm.type, nominal: nom, keterangan: catatanForm.keterangan, created_at: new Date().toISOString() };
       saveCatatan([entry, ...catatanEntries]);
       setCatatanForm({ type: "pemasukan", nominal: "", keterangan: "" });
       toast.success("Catatan ditambahkan!");
@@ -623,7 +623,7 @@ export default function FinancialTab() {
               <div key={e.id} className="flex items-center justify-between py-2 border-t border-white/5">
                 <div>
                   <div className="text-sm text-white">{e.keterangan || (e.type === "pemasukan" ? "Pemasukan" : "Pengeluaran")}</div>
-                  <div className="text-[10px] text-white/30">{new Tanggal(e.created_at).toLocaleTanggalString("id-ID")}</div>
+                  <div className="text-[10px] text-white/30">{new Date(e.created_at).toLocaleDateString("id-ID")}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-sm font-semibold ${e.type === "pemasukan" ? "text-emerald-400" : "text-red-400"}`}>

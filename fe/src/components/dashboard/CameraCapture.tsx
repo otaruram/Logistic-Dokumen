@@ -68,7 +68,7 @@ const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
       
       canvas.toBlob((blob) => {
         if (blob) {
-          const file = new File([blob], `camera_${Tanggal.now()}.jpg`, {
+          const file = new File([blob], `camera_${Date.now()}.jpg`, {
             type: "image/jpeg"
           });
           onCapture(file);

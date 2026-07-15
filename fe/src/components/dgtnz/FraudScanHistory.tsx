@@ -195,7 +195,7 @@ export const FraudScanHistory = ({ records, onDelete }: FraudScanHistoryProps) =
         const ws = XLSX.utils.json_to_sheet(exportData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Pemindaian Penipuan");
-        XLSX.writeFile(wb, `fraud-scans-${new Tanggal().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(wb, `fraud-scans-${new Date().toISOString().split('T')[0]}.xlsx`);
         toast.success("Excel exported successfully");
     };
 

@@ -264,12 +264,12 @@ const OtaruChatPage = () => {
 
   // ── Group sessions by date ──
   function groupSessionsByTanggal(sessions: ChatSession[]) {
-    const tohari = new Tanggal();
+    const tohari = new Date();
     tohari.setHours(0, 0, 0, 0);
-    const yesterhari = new Tanggal(tohari);
-    yesterhari.setTanggal(yesterhari.getTanggal() - 1);
-    const weekAgo = new Tanggal(tohari);
-    weekAgo.setTanggal(weekAgo.getTanggal() - 7);
+    const yesterday = new Date(tohari);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const weekAgo = new Date(tohari);
+    weekAgo.setDate(weekAgo.getDate() - 7);
 
     const groups: { label: string; items: ChatSession[] }[] = [
       { label: 'Tohari', items: [] },
@@ -279,9 +279,9 @@ const OtaruChatPage = () => {
     ];
 
     sessions.forEach((s) => {
-      const d = new Tanggal(s.updated_at || s.created_at);
+      const d = new Date(s.updated_at || s.created_at);
       if (d >= tohari) groups[0].items.push(s);
-      else if (d >= yesterhari) groups[1].items.push(s);
+      else if (d >= yesterday) groups[1].items.push(s);
       else if (d >= weekAgo) groups[2].items.push(s);
       else groups[3].items.push(s);
     });

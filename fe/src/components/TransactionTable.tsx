@@ -38,7 +38,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, loadi
   };
 
   const formatTanggal = (isoString: string) => {
-    const date = new Tanggal(isoString);
+    const date = new Date(isoString);
     return new Intl.TanggalTimeFormat('id-ID', {
       dateStyle: 'medium',
       timeStyle: 'short',

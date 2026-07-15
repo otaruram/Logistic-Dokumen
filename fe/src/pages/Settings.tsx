@@ -692,7 +692,7 @@ export default function Settings() {
 
             <div className="pt-4 border-t">
               <p className="text-xs text-muted-foreground">
-                © {new Tanggal().getFullYear()} OtaruChain - Scan Dokumen Tanpa Ribet
+                © {new Date().getFullYear()} OtaruChain - Scan Dokumen Tanpa Ribet
               </p>
             </div>
           </div>

@@ -91,7 +91,7 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
           .map((d: any, i: number) => ({
             id: d.id,
             no: i + 1,
-            tanggal: new Tanggal(d.created_at).toLocaleTanggalString('id-ID'),
+            tanggal: new Date(d.created_at).toLocaleDateString('id-ID'),
             namaPenerima: d.recipient_name || "-",
             keterangan: d.extracted_text || "-",
             fotoUrl: d.imagekit_url || d.file_path || "",
@@ -121,7 +121,7 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
         const mapped: ScanRecord[] = (data.records || []).map((d: any, i: number) => ({
           id: d.id,
           no: i + 1,
-          tanggal: new Tanggal(d.created_at).toLocaleTanggalString('id-ID'),
+          tanggal: new Date(d.created_at).toLocaleDateString('id-ID'),
           namaPenerima: d.recipient_name || "-",
           keterangan: d.extracted_text || "-",
           fotoUrl: d.imagekit_url || d.file_url || "",
