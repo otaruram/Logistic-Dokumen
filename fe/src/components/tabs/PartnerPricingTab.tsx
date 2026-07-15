@@ -106,7 +106,7 @@ const COMPLIANCE_BADGES = [
   { icon: Phone, label: "Phone-number based identity lookup" },
 ];
 
-export default function PartnerHargaTab({
+export default function PartnerPricingTab({
   checkoutError,
   checkoutLoadingPlan,
   handleCheckout

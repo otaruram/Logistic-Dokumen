@@ -1,7 +1,7 @@
 import React from "react";
 import { BarChart3, ShieldCheck, CheckCircle2, Mail, ArrowRight, Shield, TrendingUp, Zap } from "lucide-react";
 
-export default function PartnerDasborTab({
+export default function PartnerDashboardTab({
   stats,
   setActiveView
 }: {

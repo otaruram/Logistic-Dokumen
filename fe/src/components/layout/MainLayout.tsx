@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, X } from "lucide-react";
 import Header from "./Header";
-import DasborTab from "../tabs/DasborTab";
+import DashboardTab from "../tabs/DashboardTab";
 import DgtnzTab from "../tabs/DgtnzTab";
 import ProfileTab from "../tabs/ProfileTab";
 import OtaruChatPage from "@/pages/OtaruChatPage";
@@ -62,9 +62,9 @@ const MainLayout = () => {
   const renderTab = () => {
     switch (activeTab) {
       case "dashboard":
-        return <DasborTab />;
+        return <DashboardTab />;
       case "admin":
-        return isAdmin ? <AdminTab /> : <DasborTab />;
+        return isAdmin ? <AdminTab /> : <DashboardTab />;
       case "dgtnz":
         return <DgtnzTab onBack={() => handleTabClick("dashboard")} initialMode={selectedFeatureMode} />;
       case "otaru":
@@ -72,7 +72,7 @@ const MainLayout = () => {
       case "profile":
         return <ProfileTab />;
       default:
-        return <DasborTab />;
+        return <DashboardTab />;
     }
   };
 

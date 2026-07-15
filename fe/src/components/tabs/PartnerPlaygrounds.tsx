@@ -3,7 +3,7 @@ import { ArrowRight, Cari, CheckCircle2, AlertCircle, RefreshCw, Wand2, Loader2,
 import PartnerAuditView from "@/components/PartnerAuditView";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function PartnerUji Coba (Playground)s({
+export default function PartnerPlaygrounds({
   apiKey,
   decisionApiKey,
   API,
@@ -82,7 +82,7 @@ export default function PartnerUji Coba (Playground)s({
   if (!decisionApiKey) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center text-zinc-500">
-        Generate API key terlebih dahulu untuk menggunakan Uji Coba (Playground)s.
+        Generate API key terlebih dahulu untuk menggunakan Playgrounds.
       </div>
     );
   }
@@ -105,7 +105,7 @@ export default function PartnerUji Coba (Playground)s({
       <div className="grid gap-5 lg:grid-cols-1">
         <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Uji Coba (Playground)</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Playground</p>
             <h2 className="mt-1 text-xl font-semibold text-zinc-900">Unified Decision Gate</h2>
           </div>
           <p className="mt-2 text-xs text-zinc-600">Gabungan chain + financial info menjadi 1 final grade & rekomendasi.</p>

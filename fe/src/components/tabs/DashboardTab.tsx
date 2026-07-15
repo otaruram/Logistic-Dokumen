@@ -479,7 +479,7 @@ const MasterAuditTable = ({ items, loading }: { items: AuditTrailItem[]; loading
 
 // â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-const DasborTab = () => {
+const DashboardTab = () => {
   const [stats, setStats] = useState<DasborStats>({
     trustScore: 0, totalNominalTerverifikasi: 0, totalDocuments: 0,
     verifiedDocuments: 0, tamperedDocuments: 0, processingDocuments: 0,
@@ -788,4 +788,4 @@ const DasborTab = () => {
   );
 };
 
-export default DasborTab;
+export default DashboardTab;

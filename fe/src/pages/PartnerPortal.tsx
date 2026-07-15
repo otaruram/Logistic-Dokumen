@@ -2,9 +2,9 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import PartnerAuditView from "@/components/PartnerAuditView";
 import ApprovalQueueTab from "@/components/tabs/ApprovalQueueTab";
 import PartnerDocsTab from "@/components/tabs/PartnerDocsTab";
-import PartnerHargaTab from "@/components/tabs/PartnerHargaTab";
-import PartnerDasborTab from "@/components/tabs/PartnerDasborTab";
-import PartnerUji Coba (Playground)s from "@/components/tabs/PartnerUji Coba (Playground)s";
+import PartnerPricingTab from "@/components/tabs/PartnerPricingTab";
+import PartnerDashboardTab from "@/components/tabs/PartnerDashboardTab";
+import PartnerPlaygrounds from "@/components/tabs/PartnerPlaygrounds";
 import PartnerApiKeysView from "@/components/tabs/PartnerApiKeysView";
 import PartnerAuditTrailTab from "@/components/tabs/PartnerAuditTrailTab";
 import WhitelistManagement from "@/components/tabs/WhitelistManagement";
@@ -17,7 +17,7 @@ import {
   ClipboardList,
   Copy,
   KeyRound,
-  LayoutDasbor,
+  LayoutDashboard,
   Mail,
   PenLine,
   Shield,
@@ -71,7 +71,7 @@ interface ScanSummary {
 
 // Full audit data from /api/partner/v1/user-audit/{email}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AuditHasil = any; // matches AuditData in PartnerAuditView
+type AuditResult = any; // matches AuditData in PartnerAuditView
 
 interface ScoringHasil {
   email: string;
@@ -694,7 +694,7 @@ export default function PartnerPortal() {
               <nav className="flex flex-col gap-2">
                 {(
                   [
-                    { id: "dashboard", label: "Dasbor", icon: LayoutDasbor },
+                    { id: "dashboard", label: "Dasbor", icon: LayoutDashboard },
                     { id: "api", label: "API Key", icon: KeyRound },
                     { id: "docs", label: "Docs", icon: TerminalSquare },
                     { id: "pricing", label: "Harga", icon: Wallet },
@@ -745,7 +745,7 @@ export default function PartnerPortal() {
         ) : (
           <>
             {activeView === "dashboard" && (
-              <PartnerDasborTab stats={stats} setActiveView={setActiveView as any} />
+              <PartnerDashboardTab stats={stats} setActiveView={setActiveView as any} />
             )}
 
             {activeView === "api" && (
@@ -771,7 +771,7 @@ export default function PartnerPortal() {
                   onSavePhone={saveProfilePhone}
                 />
 
-                <PartnerUji Coba (Playground)s
+                <PartnerPlaygrounds
                   apiKey={apiKey}
                   decisionApiKey={decisionApiKey}
                   API={API}
@@ -793,7 +793,7 @@ export default function PartnerPortal() {
             )}
 
             {activeView === "pricing" && (
-              <PartnerHargaTab
+              <PartnerPricingTab
                 checkoutError={checkoutError}
                 checkoutLoadingPlan={checkoutLoadingPlan}
                 handleCheckout={handleCheckout}
