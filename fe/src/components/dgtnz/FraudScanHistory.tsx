@@ -304,7 +304,7 @@ export const FraudScanHistory = ({ records, onDelete }: FraudScanHistoryProps) =
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                     <Input
-                        placeholder="Cari recipient, client, or surat jalan..."
+                        placeholder="Search recipient, client, or surat jalan..."
                         value={searchTerm}
                         onChange={(e) => setCariTerm(e.target.value)}
                         className="pl-9 bg-[#111] border-white/10 text-white placeholder:text-gray-600 focus:border-red-500/30 h-10"

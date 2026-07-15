@@ -190,7 +190,7 @@ export function PDFCompressor() {
           <li>• Kecilin SK/kontrak sebelum di-email</li>
           <li>• Kompres laporan dengan banyak foto</li>
           <li>• Hemat storage Google Drive kantor</li>
-          <li>• Unggah lebih cepat ke sistem HRIS</li>
+          <li>• Upload lebih cepat ke sistem HRIS</li>
         </ul>
       </div>
     </div>

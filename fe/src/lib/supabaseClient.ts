@@ -13,7 +13,7 @@ if (isMissingConfig) {
   console.error('   VITE_SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? '✓ Set' : '✗ Missing');
   console.error('');
   console.error('   📋 TO FIX (Vercel):');
-  console.error('   1. Go to: https://vercel.com → Project Pengaturan → Environment Variables');
+  console.error('   1. Go to: https://vercel.com → Project Settings → Environment Variables');
   console.error('   2. Add: VITE_SUPABASE_URL = https://xxxxx.supabase.co');
   console.error('   3. Add: VITE_SUPABASE_ANON_KEY = eyJhbGc...');
   console.error('   4. Redeploy: Deployments → ... → Redeploy');

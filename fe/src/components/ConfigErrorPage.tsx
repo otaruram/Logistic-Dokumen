@@ -55,7 +55,7 @@ export const ConfigErrorPage = () => {
                 <strong>Steps to fix:</strong>
               </p>
               <ol className="text-sm text-gray-600 space-y-2 list-decimal list-inside">
-                <li>Go to Vercel Dasbor → Project Pengaturan</li>
+                <li>Go to Vercel Dasbor → Project Settings</li>
                 <li>Navigate to Environment Variables</li>
                 <li>Add the 3 variables above</li>
                 <li>Select all environments (Production, Preview, Development)</li>

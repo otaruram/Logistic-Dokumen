@@ -160,7 +160,7 @@ export default function Privacy() {
                 <p className="font-bold">Google OAuth & Drive:</p>
                 <p>• Kami menggunakan Google OAuth untuk autentikasi yang aman</p>
                 <p>• Kami meminta akses ke Google Drive hanya untuk menyimpan hasil scan Anda</p>
-                <p>• Anda dapat mencabut akses kapan saja melalui Google Account Pengaturan</p>
+                <p>• Anda dapat mencabut akses kapan saja melalui Google Account Settings</p>
                 
                 <p className="font-bold mt-4">OpenAI API (BYOK):</p>
                 <p>• Jika Anda menggunakan API Key pribadi, data dikirim langsung ke OpenAI</p>

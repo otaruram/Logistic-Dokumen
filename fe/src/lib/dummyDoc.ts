@@ -31,7 +31,7 @@ export function buildDummyDocBlob(kind: "slip_gaji" | "struk_belanja") {
     ctx.fillText("Gaji Pokok    : Rp 5.500.000", 90, 490);
     ctx.fillText("Tunjangan     : Rp   750.000", 90, 540);
     ctx.fillText("Potongan      : Rp   250.000", 90, 590);
-    ctx.fillText("Take Beranda Pay : Rp 6.000.000", 90, 640);
+    ctx.fillText("Take Home Pay : Rp 6.000.000", 90, 640);
     ctx.fillText("Dokumen ini dipakai untuk simulasi OCR beta Otaru Financial.", 90, 730);
   } else {
     ctx.fillText("Vendor        : PT Dummy Supplier", 90, 390);

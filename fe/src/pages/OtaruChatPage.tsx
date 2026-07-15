@@ -340,7 +340,7 @@ const OtaruChatPage = () => {
               </div>
               <h2 className="text-2xl font-semibold text-white mb-2">Hi, I'm Otaru</h2>
               <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.45)', maxWidth: '360px' }}>
-                Your expert logistics & financial document analyst. Unggah a document or ask me anything.
+                Your expert logistics & financial document analyst. Upload a document or ask me anything.
               </p>
               <div className="flex flex-wrap justify-center gap-2.5 max-w-md">
                 {[

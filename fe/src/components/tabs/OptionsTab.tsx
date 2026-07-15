@@ -99,7 +99,7 @@ const OptionsTab = () => {
         transition={{ delay: 0.1 }}
         className="px-4"
       >
-        <h2 className="text-xl font-bold text-white">Pengaturan</h2>
+        <h2 className="text-xl font-bold text-white">Settings</h2>
         <p className="text-gray-400 text-sm mt-1">Integrasi Telegram dan preferensi akun</p>
       </motion.div>
 

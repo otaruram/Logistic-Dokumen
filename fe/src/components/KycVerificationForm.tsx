@@ -6,7 +6,7 @@ import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   User, CreditCard, MapPin, Camera, CheckCircle2,
-  ArrowRight, ArrowLeft, Unggah, X, Loader2, Shield, Wand2,
+  ArrowRight, ArrowLeft, Upload, X, Loader2, Shield, Wand2,
 } from "lucide-react";
 import { APP_CONFIG } from "@/constants";
 import { supabase } from "@/lib/supabaseClient";
@@ -342,7 +342,7 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
             {/* Step 2: Photos */}
             {step === 2 && (
               <motion.div key="s2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.2 }} className="space-y-5">
-                  <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 font-bold mb-4">Unggah Foto</p>
+                  <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 font-bold mb-4">Upload Foto</p>
                 {/* KTP */}
                 <div>
                   <label className={labelCls}>Foto KTP</label>
@@ -355,7 +355,7 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
                   ) : (
                     <button onClick={() => ktpRef.current?.click()} className="w-full h-36 rounded-xl border-2 border-dashed border-white/10 hover:border-white/30 bg-white/[0.02] hover:bg-white/[0.04] flex flex-col items-center justify-center gap-2 transition-all">
                       <CreditCard className="w-8 h-8 text-zinc-500" />
-                      <span className="text-xs text-zinc-500">Unggah foto KTP (maks 5MB)</span>
+                      <span className="text-xs text-zinc-500">Upload foto KTP (maks 5MB)</span>
                     </button>
                   )}
                   {errors.ktp && <p className={errCls}>{errors.ktp}</p>}
@@ -372,7 +372,7 @@ export default function KycVerificationForm({ onComplete }: KycVerificationFormP
                   ) : (
                     <button onClick={() => selfieRef.current?.click()} className="w-full h-36 rounded-xl border-2 border-dashed border-white/10 hover:border-white/30 bg-white/[0.02] hover:bg-white/[0.04] flex flex-col items-center justify-center gap-2 transition-all">
                       <Camera className="w-8 h-8 text-zinc-500" />
-                      <span className="text-xs text-zinc-500">Unggah foto selfie (maks 5MB)</span>
+                      <span className="text-xs text-zinc-500">Upload foto selfie (maks 5MB)</span>
                     </button>
                   )}
                   {errors.selfie && <p className={errCls}>{errors.selfie}</p>}

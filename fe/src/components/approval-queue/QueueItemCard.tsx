@@ -295,7 +295,7 @@ export default function QueueItemCard({
             </div>
           )}
 
-          {/* Aksi buttons */}
+          {/* Action buttons */}
           <div className="flex flex-wrap gap-2 pt-1">
             <button onClick={(e) => { e.stopPropagation(); onApprove(loan); }} className="inline-flex items-center gap-1.5 rounded-full bg-black px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
               <PenLine className="h-3 w-3" /> Setujui

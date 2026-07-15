@@ -40,7 +40,7 @@ const Docs = () => {
                                 <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center mb-4 border border-blue-500/20">
                                     <span className="text-blue-400 font-bold">1</span>
                                 </div>
-                                <h3 className="font-semibold text-lg mb-2">Unggah & OCR</h3>
+                                <h3 className="font-semibold text-lg mb-2">Upload & OCR</h3>
                                 <p className="text-sm text-gray-400 leading-relaxed">
                                     Dokumen (KTP, Slip Gaji, Surat Jalan, dll) diunggah oleh user. AI langsung membaca dan mengekstrak teks menggunakan teknologi OCR.
                                 </p>

@@ -73,7 +73,7 @@ export const ScanUpload = ({ uploadedImage, previewUrl, isMemproses, onImageSele
             <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold text-lg flex items-center gap-2">
                     <ImageIcon className="w-5 h-5 text-gray-400" />
-                    Document Unggah
+                    Document Upload
                 </h3>
                 {previewUrl && (
                     <Button variant="ghost" size="sm" onClick={onClear} disabled={isMemproses} className="text-red-400 hover:text-red-300 hover:bg-red-900/20">

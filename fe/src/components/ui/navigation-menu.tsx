@@ -74,11 +74,11 @@ NavigationMenuContent.displayName = NavigationMenuPrimitive.Content.displayName;
 const NavigationMenuLink = NavigationMenuPrimitive.Link;
 
 const NavigationMenuLihatport = React.forwardRef<
-  React.ElementRef<typeof NavigationMenuPrimitive.Lihatport>,
-  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Lihatport>
+  React.ElementRef<typeof NavigationMenuPrimitive.Viewport>,
+  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Viewport>
 >(({ className, ...props }, ref) => (
   <div className={cn("absolute left-0 top-full flex justify-center")}>
-    <NavigationMenuPrimitive.Lihatport
+    <NavigationMenuPrimitive.Viewport
       className={cn(
         "origin-top-center relative mt-1.5 h-[var(--radix-navigation-menu-viewport-height)] w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-90 md:w-[var(--radix-navigation-menu-viewport-width)]",
         className,
@@ -88,7 +88,7 @@ const NavigationMenuLihatport = React.forwardRef<
     />
   </div>
 ));
-NavigationMenuLihatport.displayName = NavigationMenuPrimitive.Lihatport.displayName;
+NavigationMenuLihatport.displayName = NavigationMenuPrimitive.Viewport.displayName;
 
 const NavigationMenuIndicator = React.forwardRef<
   React.ElementRef<typeof NavigationMenuPrimitive.Indicator>,

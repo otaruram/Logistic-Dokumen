@@ -187,7 +187,7 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
         body: formData
       });
 
-      if (!res.ok) throw new Error("Unggah failed");
+      if (!res.ok) throw new Error("Upload failed");
 
       // Dispatch event to notify dashboard of scan completion
       window.dispatchEvent(new CustomEvent('scan-completed'));
@@ -227,7 +227,7 @@ export default function DgtnzTab({ onBack }: { onBack: () => void; initialMode?:
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("No session");
 
-      // Unggah signature
+      // Upload signature
       setFraudStep("Memvalidasi tanda tangan...");
       const sigBlob = await (await fetch(signatureData)).blob();
       const sigFormData = new FormData();

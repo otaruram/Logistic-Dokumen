@@ -94,7 +94,7 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
     setCurrentPage(1);
   };
 
-   // Handler untuk Unggah GDrive
+   // Handler untuk Upload GDrive
   const handleUnggahGDrive = async () => {
     if (logs.length === 0) {
       toast.error("Tidak ada data untuk di-upload!");

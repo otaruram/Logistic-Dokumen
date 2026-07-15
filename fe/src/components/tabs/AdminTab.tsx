@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Users, Shield, Coins, Ban, Trash2, Clock, Activity,
-    Cari, RefreshCw, ChevronDown, ChevronUp, Eye,
+    Search, RefreshCw, ChevronDown, ChevronUp, Eye,
     MessageSquare, Scan, AlertTriangle, Plus, Minus,
     X, Check
 } from "lucide-react";
@@ -342,7 +342,7 @@ export default function AdminTab() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                 <input
                     type="text"
-                    placeholder="Cari users by email or name..."
+                    placeholder="Search users by email or name..."
                     value={searchQuery}
                     onChange={e => setCariQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-gray-500 outline-none focus:border-white/20 transition-colors text-sm"

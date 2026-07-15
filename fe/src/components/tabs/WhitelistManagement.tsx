@@ -6,7 +6,7 @@
  *   - Add single phone number form
  *   - Bulk CSV upload
  *   - Delete/deactivate entries
- *   - Cari by phone/name
+ *   - Search by phone/name
  *   - Stats counters
  *
  * Design: Light theme, consistent with Portal Mitra
@@ -15,9 +15,9 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Phone,
   Plus,
-  Unggah,
+  Upload,
   Trash2,
-  Cari,
+  Search,
   CheckCircle2,
   AlertTriangle,
   Loader2,
@@ -197,7 +197,7 @@ export default function WhitelistManagement() {
       if (res.ok) {
         const data = await res.json();
         toast.success(
-          `Unggah selesai: ${data.inserted} ditambahkan, ${data.skipped} dilewati.`
+          `Upload selesai: ${data.inserted} ditambahkan, ${data.skipped} dilewati.`
         );
         setBulkFile(null);
         setShowBulkUnggah(false);
@@ -304,7 +304,7 @@ export default function WhitelistManagement() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
             <input
               type="text"
-              placeholder="Cari nomor HP atau nama..."
+              placeholder="Search nomor HP atau nama..."
               value={searchQuery}
               onChange={(e) => {
                 setCariQuery(e.target.value);
@@ -334,7 +334,7 @@ export default function WhitelistManagement() {
               className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-2.5 text-xs font-semibold text-zinc-700 hover:border-zinc-400 transition-colors"
             >
               <Upload className="w-3.5 h-3.5" />
-              Unggah CSV
+              Upload CSV
             </button>
           </div>
         </div>
@@ -433,7 +433,7 @@ export default function WhitelistManagement() {
                   ) : (
                     <FileSpreadsheet className="w-4 h-4" />
                   )}
-                  Unggah
+                  Upload
                 </button>
                 <button
                   onClick={() => setShowBulkUnggah(false)}
@@ -485,7 +485,7 @@ export default function WhitelistManagement() {
                       Oleh
                     </th>
                     <th className="text-right px-5 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                      Aksi
+                      Action
                     </th>
                   </tr>
                 </thead>

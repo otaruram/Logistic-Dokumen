@@ -1,11 +1,11 @@
 /**
  * FinancialTab — Otaru Financial Dasbor
- * Mode: Manual Input (profil, cicilan) + OCR Unggah (slip gaji / struk belanja)
+ * Mode: Manual Input (profil, cicilan) + OCR Upload (slip gaji / struk belanja)
  */
 
 import { useState, useEffect, useRef } from "react";
 import {
-  TrendingUp, Unggah, FileText, Trash2,
+  TrendingUp, Upload, FileText, Trash2,
   AlertCircle, CheckCircle2, Loader2,
   Wallet, BarChart3, ShieldCheck, RefreshCw, Camera,
   Download, MessageSquare, Send,
@@ -476,7 +476,7 @@ export default function FinancialTab() {
     <div className="space-y-4">
 
       <div className="bg-[#111] border border-white/10 rounded-2xl p-5 space-y-4">
-        <h3 className="font-semibold text-white flex items-center gap-2"><Camera className="w-4 h-4" /> Unggah Dokumen OCR</h3>
+        <h3 className="font-semibold text-white flex items-center gap-2"><Camera className="w-4 h-4" /> Upload Dokumen OCR</h3>
         <p className="text-xs text-white/40">
           AI akan otomatis mendeteksi jenis dokumen dan mengekstrak data.<br />
           <span className="text-emerald-400">Slip Gaji</span> → update gaji verified (bobot lebih tinggi di skor).<br />

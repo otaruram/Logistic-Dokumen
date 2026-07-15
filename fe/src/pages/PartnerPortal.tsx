@@ -22,7 +22,7 @@ import {
   PenLine,
   Shield,
   RefreshCw,
-  Cari,
+  Search,
   ShieldCheck,
   TerminalSquare,
   Trash2,
@@ -30,7 +30,7 @@ import {
   Wallet,
   X,
   Wand2,
-  Beranda,
+  Home,
   User,
   LogOut,
   Menu,
@@ -622,7 +622,7 @@ export default function PartnerPortal() {
                   title="Ke Dasbor Utama"
                   className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white p-2 text-zinc-700 hover:border-zinc-400 transition-colors"
                 >
-                  <Beranda className="h-4 w-4" />
+                  <Home className="h-4 w-4" />
                 </button>
 
                 <div className="relative">

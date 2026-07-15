@@ -32,7 +32,7 @@ export default function Landing() {
           </div>
 
           <p className="text-lg md:text-xl font-mono text-black/70 mb-8 leading-relaxed max-w-3xl mx-auto hero-description">
-            Unggah foto dokumen, langsung jadi data digital. 
+            Upload foto dokumen, langsung jadi data digital. 
           </p>
 
           {/* Feature Pills */}

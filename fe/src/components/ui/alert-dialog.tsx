@@ -70,12 +70,12 @@ const AlertDialogDescription = React.forwardRef<
 AlertDialogDescription.displayName = AlertDialogPrimitive.Description.displayName;
 
 const AlertDialogAksi = React.forwardRef<
-  React.ElementRef<typeof AlertDialogPrimitive.Aksi>,
-  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Aksi>
+  React.ElementRef<typeof AlertDialogPrimitive.Action>,
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Action>
 >(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Aksi ref={ref} className={cn(buttonVariants(), className)} {...props} />
+  <AlertDialogPrimitive.Action ref={ref} className={cn(buttonVariants(), className)} {...props} />
 ));
-AlertDialogAksi.displayName = AlertDialogPrimitive.Aksi.displayName;
+AlertDialogAksi.displayName = AlertDialogPrimitive.Action.displayName;
 
 const AlertDialogBatal = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Batal>,

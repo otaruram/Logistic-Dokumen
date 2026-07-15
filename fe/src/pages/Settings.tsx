@@ -19,7 +19,7 @@ import {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://logistic-dokumen.onrender.com';
 
-export default function Pengaturan() {
+export default function Settings() {
   const navigate = useNavigate();
   const [isDarkMode, setIsDarkMode] = useState(false);
   
