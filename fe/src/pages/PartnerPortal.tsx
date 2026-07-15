@@ -490,7 +490,15 @@ export default function PartnerPortal() {
         setAuthError(data.detail || "Gagal auto fill nomor HP.");
         return;
       }
-      setProfilePhone(String(data.phone_number || ""));
+      let phone = String(data.phone_number || "");
+      if (phone.startsWith("+62")) {
+        phone = phone.slice(3);
+      } else if (phone.startsWith("62") && phone.length > 10) {
+        phone = phone.slice(2);
+      } else if (phone.startsWith("0")) {
+        phone = phone.slice(1);
+      }
+      setProfilePhone(phone);
     } catch {
       setAuthError("Network error saat auto fill nomor HP.");
     } finally {
