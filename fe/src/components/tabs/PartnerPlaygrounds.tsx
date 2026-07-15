@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { ArrowRight, Cari, CheckCircle2, AlertCircle, RefreshCw, Wand2, Loader2, Shield, User, FileCheck, Lock, ExternalLink } from "lucide-react";
+import { ArrowRight, Search, CheckCircle2, AlertCircle, RefreshCw, Wand2, Loader2, Shield, User, FileCheck, Lock, ExternalLink } from "lucide-react";
 import PartnerAuditView from "@/components/PartnerAuditView";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -124,7 +124,7 @@ export default function PartnerPlaygrounds({
             disabled={!decisionCariPhone || !decisionApiKey || decisionCariLoading}
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
           >
-            {decisionCariLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Cari className="h-4 w-4" />}
+            {decisionCariLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           </button>
         </form>
 

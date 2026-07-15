@@ -1,4 +1,4 @@
-import { Unggah, X, ImageIcon, Download } from "lucide-react";
+import { Upload, X, ImageIcon, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -110,7 +110,7 @@ export const ScanUpload = ({ uploadedImage, previewUrl, isMemproses, onImageSele
                 ) : (
                     <label htmlFor="imageUnggah" className="cursor-pointer block space-y-4 py-8">
                         <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
-                            <Unggah className="w-8 h-8 text-gray-400" />
+                            <Upload className="w-8 h-8 text-gray-400" />
                         </div>
                         <div>
                             <p className="text-lg font-medium text-white">Click or drag image here</p>

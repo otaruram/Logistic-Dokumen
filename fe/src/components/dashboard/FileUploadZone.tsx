@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Unggah, Camera, X, Check, Zap, ZapOff } from "lucide-react";
+import { Upload, Camera, X, Check, Zap, ZapOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface FileUnggahZoneProps {
@@ -231,7 +231,7 @@ export default function FileUnggahZone({ onFileSelect }: FileUnggahZoneProps) {
       </h3>
       
       <div className="grid grid-cols-2 gap-4">
-        {/* Unggah File Button */}
+        {/* Upload File Button */}
         <button
           onClick={() => {
             setMode("upload");
@@ -239,7 +239,7 @@ export default function FileUnggahZone({ onFileSelect }: FileUnggahZoneProps) {
           }}
           className="brutal-border bg-background p-6 hover:bg-accent transition-colors brutal-press flex flex-col items-center gap-3 group"
         >
-          <Unggah className="w-8 h-8 group-hover:scale-110 transition-transform" />
+          <Upload className="w-8 h-8 group-hover:scale-110 transition-transform" />
           <span className="font-bold text-xs uppercase">UPLOAD FILE</span>
         </button>
 

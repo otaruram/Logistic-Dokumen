@@ -1,4 +1,4 @@
-import { Circle, LogOut, User, Sparkles, Pengaturan } from "lucide-react";
+import { Circle, LogOut, User, Sparkles, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -83,7 +83,7 @@ const Header = ({ user, onKeluar, onGaskeun, onProfile, onPengaturan }: HeaderPr
                       onClick={onPengaturan}
                       className="cursor-pointer font-bold uppercase text-xs hover:bg-primary hover:text-primary-foreground"
                     >
-                      <Pengaturan className="w-4 h-4 mr-2" />
+                      <Settings className="w-4 h-4 mr-2" />
                       SETTINGS
                     </DropdownMenuItem>
                   )}

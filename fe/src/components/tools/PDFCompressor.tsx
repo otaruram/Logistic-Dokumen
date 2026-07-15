@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileDown, Unggah, X } from 'lucide-react';
+import { FileDown, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -121,7 +121,7 @@ export function PDFCompressor() {
         </div>
       </div>
 
-      {/* Unggah Area */}
+      {/* Upload Area */}
       {!file ? (
         <div
           onDragEnter={handleDrag}
@@ -133,7 +133,7 @@ export function PDFCompressor() {
           } p-12 text-center transition-colors cursor-pointer hover:border-black hover:bg-gray-50`}
           onClick={() => document.getElementById('pdf-upload')?.click()}
         >
-          <Unggah className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+          <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
           <p className="font-bold mb-2">Drag & drop PDF di sini</p>
           <p className="text-sm text-gray-500 mb-4">atau klik untuk pilih file</p>
           <p className="text-xs text-gray-400">Maksimal 10MB</p>

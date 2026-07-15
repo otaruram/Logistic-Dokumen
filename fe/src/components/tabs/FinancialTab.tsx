@@ -391,7 +391,7 @@ export default function FinancialTab() {
       <div className="grid grid-cols-2 gap-3">
         {[
           { icon: FileText, label: "Input Manual", section: "manual" as Section },
-          { icon: Camera, label: "Unggah OCR", section: "ocr" as Section },
+          { icon: Camera, label: "Upload OCR", section: "ocr" as Section },
         ].map(({ icon: Icon, label, section: s }) => (
           <button
             key={s}
@@ -492,7 +492,7 @@ export default function FinancialTab() {
             <img src={ocrPreview} alt="preview" className="max-h-48 mx-auto rounded-lg object-contain" />
           ) : (
             <div className="space-y-2">
-              <Unggah className="w-8 h-8 mx-auto text-white/30" />
+              <Upload className="w-8 h-8 mx-auto text-white/30" />
               <p className="text-sm text-white/40">Tap untuk pilih foto</p>
               <p className="text-xs text-white/20">JPG, PNG, WEBP</p>
             </div>

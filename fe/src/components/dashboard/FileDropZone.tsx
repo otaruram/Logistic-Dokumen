@@ -1,4 +1,4 @@
-import { Unggah, FileImage, X, Camera } from "lucide-react";
+import { Upload, FileImage, X, Camera } from "lucide-react";
 import { useCallback, useState } from "react";
 
 interface FileDropZoneProps {
@@ -56,7 +56,7 @@ const FileDropZone = ({ onFileSelect, selectedFile, onClear, onCameraClick }: Fi
             onChange={handleFileInput}
             className="hidden"
           />
-          <Unggah className="w-8 h-8 md:w-10 md:h-10 mb-2 md:mb-3" strokeWidth={2} />
+          <Upload className="w-8 h-8 md:w-10 md:h-10 mb-2 md:mb-3" strokeWidth={2} />
           <span className="font-bold uppercase text-[10px] md:text-xs tracking-wide text-center">
             UPLOAD FILE
           </span>

@@ -1,4 +1,4 @@
-import { AlertCircle, Pengaturan, ExternalLink } from "lucide-react";
+import { AlertCircle, Settings, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -21,7 +21,7 @@ export const ConfigErrorPage = () => {
           
           <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-6 text-left mb-8">
             <div className="flex items-start gap-3 mb-4">
-              <Pengaturan className="w-5 h-5 text-gray-600 mt-0.5" />
+              <Settings className="w-5 h-5 text-gray-600 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-gray-900 mb-2">
                   For Developers / Admins:

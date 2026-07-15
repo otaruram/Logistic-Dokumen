@@ -213,7 +213,7 @@ const ProfileTab = () => {
         </div>
       </motion.div>
 
-      {/* Telegram + Pengaturan */}
+      {/* Telegram + Settings */}
       <motion.div
         className="bg-[#111] border border-white/10 rounded-2xl p-6 space-y-4"
         initial={{ opacity: 0, y: 20 }}

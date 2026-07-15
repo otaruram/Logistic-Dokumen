@@ -71,7 +71,7 @@ const LandingPage = ({ onLogin }: LandingPageProps) => {
   ];
 
   const steps = [
-    { num: "01", title: "Unggah", desc: "Ambil foto atau unggah dokumen apa pun — kuitansi, faktur, atau surat jalan." },
+    { num: "01", title: "Upload", desc: "Ambil foto atau unggah dokumen apa pun — kuitansi, faktur, atau surat jalan." },
     { num: "02", title: "Analisis AI", desc: "AI kami mengekstrak teks, mendeteksi penipuan, dan menyusun data keuangan secara otomatis." },
     { num: "03", title: "Dapatkan Hasil", desc: "Dapatkan output instan berupa Trust Grade secara langsung." },
   ];

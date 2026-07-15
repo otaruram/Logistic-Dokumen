@@ -442,7 +442,7 @@ export default function Pengaturan() {
       {/* Content */}
       <div className="container mx-auto px-4 py-8 max-w-3xl space-y-6">
         
-        {/* API Key Pengaturan */}
+        {/* API Key Settings */}
         <div className="brutal-border-thin bg-background p-6 space-y-4">
           <div className="flex items-center gap-3 mb-4">
             <Key className="w-6 h-6" />
@@ -540,7 +540,7 @@ export default function Pengaturan() {
           </div>
         </div>
 
-        {/* OCR API Key Pengaturan */}
+        {/* OCR API Key Settings */}
         <div className="brutal-border-thin bg-background p-6 space-y-4">
           <div className="flex items-center gap-3 mb-4">
             <Key className="w-6 h-6" />

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Download, FileSpreadsheet, Cari, Trash2, CloudUnggah, ExternalLink } from "lucide-react";
+import { Download, FileSpreadsheet, Search, Trash2, CloudUnggah, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Pagination,
@@ -268,9 +268,9 @@ const DataTable = ({ logs, onDeleteLog }: DataTableProps) => {
             </div>
           </div>
 
-          {/* Cari Input */}
+          {/* Search Input */}
           <div className="relative">
-            <Cari className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}

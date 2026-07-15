@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
-import { FileDown, Cari, Trash2, CheckCircle2, XCircle, Clock, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
+import { FileDown, Search, Trash2, CheckCircle2, XCircle, Clock, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -299,10 +299,10 @@ export const FraudScanHistory = ({ records, onDelete }: FraudScanHistoryProps) =
                 </div>
             </div>
 
-            {/* Cari & Filters */}
+            {/* Search & Filters */}
             <div className="p-4 border-b border-white/10 bg-white/[0.02] flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
-                    <Cari className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                     <Input
                         placeholder="Cari recipient, client, or surat jalan..."
                         value={searchTerm}
